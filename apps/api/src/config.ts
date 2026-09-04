@@ -50,6 +50,12 @@ export async function findRoot(start = process.cwd()): Promise<string> {
 
 export async function loadConfig(root?: string): Promise<Config> {
   root ??= await findRoot();
+  // .env de la raíz del repo, si existe. Las variables ya presentes en el entorno tienen prioridad.
+  try {
+    process.loadEnvFile(path.join(root, ".env"));
+  } catch {
+    /* sin .env: se usa solo el entorno */
+  }
   const universePath = process.env["UNIVERSE_PATH"] ?? path.join(root, "config", "universe.json");
   const universe = JSON.parse(await readFile(universePath, "utf8")) as Universe;
   if (process.env["ALPACA_PAPER"] === "false") throw new Error("ALPACA_PAPER=false no permitido en v1");

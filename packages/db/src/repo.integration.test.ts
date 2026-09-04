@@ -1,13 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import { Repo, createDb } from "./index.js";
+import { eq, inArray } from "drizzle-orm";
+import { Repo, createDb, schema } from "./index.js";
 
 const url = process.env["DATABASE_URL"];
 const d = url ? describe : describe.skip;
 
 d("Repo (Postgres real)", () => {
-  const repo = new Repo(createDb(url));
+  const db = createDb(url);
+  const repo = new Repo(db);
   const ticker = `T${randomUUID().slice(0, 4).toUpperCase()}`;
+
+  // Corre contra la DB que apunte DATABASE_URL (puede ser la de desarrollo): no dejar residuos,
+  // o aparecen en calibración y como comparables del razonador.
+  afterAll(async () => {
+    const mine = db.select({ id: schema.theses.id }).from(schema.theses).where(eq(schema.theses.ticker, ticker));
+    await db.delete(schema.outcomes).where(inArray(schema.outcomes.thesisId, mine));
+    await db.delete(schema.orders).where(eq(schema.orders.ticker, ticker));
+    await db.delete(schema.theses).where(eq(schema.theses.ticker, ticker));
+    await db.delete(schema.rawEvents).where(eq(schema.rawEvents.ticker, ticker));
+    await db.delete(schema.promptVersions).where(eq(schema.promptVersions.version, "v-test"));
+  });
 
   it("raw_events: inserta, dedupea y marca filtro", async () => {
     const ev = { id: randomUUID(), ticker, eventType: "earnings" as const, source: "manual" as const, eventDate: "2026-10-01", sourceRef: "ref1", title: "t", payload: { a: 1 }, observedAt: new Date().toISOString() };
