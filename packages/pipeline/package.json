@@ -1,5 +1,5 @@
 {
-  "name": "@thesis/adapters",
+  "name": "@thesis/pipeline",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
   "exports": { ".": "./src/index.ts" },
   "scripts": { "typecheck": "tsc --noEmit", "build": "tsc --noEmit" },
   "dependencies": {
+    "@thesis/adapters": "workspace:*",
     "@thesis/core": "workspace:*",
-    "fast-xml-parser": "^4.5.0",
-    "zod": "^3.24.0"
+    "@thesis/reasoner": "workspace:*"
   }
 }

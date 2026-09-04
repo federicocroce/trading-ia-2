@@ -1,0 +1,140 @@
+import { describe, expect, it } from "vitest";
+import { fixtureHttpClient } from "../src/http/index.js";
+import { EdgarIngestor, fetchFilingText, filingUrl, htmlToText } from "../src/edgar/index.js";
+import { NasdaqEarningsIngestor } from "../src/earnings/index.js";
+import { AlpacaMarketData, impliedMoveFromChain, parseOcc } from "../src/alpaca/market.js";
+import { AlpacaBroker } from "../src/alpaca/broker.js";
+import { ArRssIngestor, extractDate } from "../src/ar/index.js";
+import { ManualCsvIngestor, parseCsv } from "../src/fda/index.js";
+import * as E from "./fixtures/edgar.js";
+import * as N from "./fixtures/earnings.js";
+import * as A from "./fixtures/alpaca.js";
+import * as R from "./fixtures/ar.js";
+
+const cfg = { keyId: "k", secretKey: "s", paper: true };
+
+describe("EdgarIngestor", () => {
+  const http = fixtureHttpClient({
+    "https://www.sec.gov/files/company_tickers.json": E.companyTickers,
+    "https://data.sec.gov/submissions/CIK0001234567.json": E.submissionsXXXX,
+  });
+  it("emite filings desde `since`, clasifica fda por keywords en título", async () => {
+    const ing = new EdgarIngestor({ http, universe: ["xxxx", "NOPE"] });
+    const evs = await ing.fetch("2026-08-01T00:00:00Z");
+    expect(evs).toHaveLength(2);
+    expect(evs.map((e) => e.payload["form"])).toEqual(["8-K", "10-Q"]);
+    expect(evs[0]?.eventType).toBe("operational");
+    expect(evs[0]?.payload["url"]).toBe("https://www.sec.gov/Archives/edgar/data/1234567/000123456726000010/xxxx-8k.htm");
+  });
+  it("filingUrl quita guiones y ceros del cik", () => {
+    expect(filingUrl("0001234567", "0001234567-26-000010", "a.htm")).toContain("/1234567/000123456726000010/a.htm");
+  });
+  it("htmlToText limpia y fetchFilingText recorta", async () => {
+    const t = htmlToText(E.filingHtml);
+    expect(t).toContain("PDUFA target action date of November 20, 2026");
+    expect(t).not.toContain("<");
+    const h = fixtureHttpClient({ "https://x/f.htm": E.filingHtml });
+    expect((await fetchFilingText(h, "https://x/f.htm", 20)).length).toBe(20);
+  });
+});
+
+describe("NasdaqEarningsIngestor", () => {
+  it("filtra por universo y fecha", async () => {
+    const http = fixtureHttpClient({ "https://api.nasdaq.com/api/calendar/earnings?date=2026-09-10": N.nasdaq_2026_09_10 });
+    const ing = new NasdaqEarningsIngestor({ http, universe: ["XXXX"], horizonDays: 0 });
+    const evs = await ing.fetch("2026-09-10");
+    expect(evs).toHaveLength(1);
+    expect(evs[0]).toMatchObject({ ticker: "XXXX", eventType: "earnings", eventDate: "2026-09-10" });
+  });
+  it("tolera días sin respuesta", async () => {
+    const ing = new NasdaqEarningsIngestor({ http: fixtureHttpClient({}), horizonDays: 2 });
+    expect(await ing.fetch("2026-09-10")).toEqual([]);
+  });
+});
+
+describe("AlpacaMarketData", () => {
+  const http = fixtureHttpClient({
+    "https://data.alpaca.markets/v2/stocks/snapshots?symbols=XXXX": A.snapshotXXXX,
+    "https://data.alpaca.markets/v2/stocks/bars?symbols=XXXX": A.barsXXXX,
+    "https://data.alpaca.markets/v1beta1/options/snapshots/XXXX": A.optionsXXXX,
+  });
+  const md = new AlpacaMarketData(http, cfg);
+  it("quote con volumen promedio", async () => {
+    const q = await md.getQuote("xxxx");
+    expect(q?.price).toBe(10.5);
+    expect(q?.avgVolume30d).toBeGreaterThan(500000);
+  });
+  it("parseOcc", () => {
+    expect(parseOcc("XXXX260918C00010000")).toEqual({ underlying: "XXXX", expiration: "2026-09-18", type: "call", strike: 10 });
+  });
+  it("implied move: straddle ATM del primer vencimiento", async () => {
+    const im = await md.getImpliedMove("XXXX", "2026-09-10");
+    expect(im?.expiration).toBe("2026-09-18");
+    expect(im?.straddle).toBeCloseTo(1.1 + 0.8);
+    expect(im?.impliedMovePct).toBeCloseTo(1.9 / 10.5);
+  });
+  it("findOption elige el strike más cercano", async () => {
+    const c = await md.findOption("XXXX", "call", "2026-09-10", 11.5);
+    expect(c?.symbol).toBe("XXXX260918C00012000");
+  });
+  it("impliedMoveFromChain devuelve null sin par ATM", () => {
+    expect(impliedMoveFromChain("X", 10, [{ symbol: "s", strike: 10, expiration: "2026-09-18", type: "call", bid: 1, ask: 1, mid: 1 }])).toBeNull();
+  });
+});
+
+describe("AlpacaBroker", () => {
+  it("rechaza cuenta real en v1", () => {
+    const http = { ...fixtureHttpClient({}), postJson: async () => ({}), delete: async () => {} };
+    expect(() => new AlpacaBroker(http as never, { ...cfg, paper: false })).toThrow(/paper/);
+  });
+  it("submit mapea la respuesta y traza thesisId en client_order_id", async () => {
+    let sent: unknown;
+    const http = {
+      ...fixtureHttpClient({}),
+      postJson: async (_u: string, body: unknown) => {
+        sent = body;
+        return { id: "o1", client_order_id: (body as { client_order_id: string }).client_order_id, symbol: "XXXX", qty: "10", filled_qty: "0", filled_avg_price: null, status: "new", submitted_at: "t", filled_at: null, limit_price: "10" };
+      },
+      delete: async () => {},
+    };
+    const b = new AlpacaBroker(http as never, cfg);
+    const o = await b.submit({ thesisId: "11111111-1111-4111-8111-111111111111", ticker: "XXXX", instrument: "stock", symbol: "XXXX", side: "buy", qty: 10, limitPrice: 10, notionalUsd: 100 });
+    expect(o.status).toBe("submitted");
+    expect(o.brokerOrderId).toBe("o1");
+    expect((sent as { client_order_id: string }).client_order_id.startsWith("11111111-1111-4111-8111-111111111111:")).toBe(true);
+    expect((sent as { type: string }).type).toBe("limit");
+  });
+});
+
+describe("ArRssIngestor", () => {
+  it("clasifica macro vs empresa, extrae fecha y respeta since", async () => {
+    const http = fixtureHttpClient({ "https://feed/ambito": R.ambitoRss });
+    const ing = new ArRssIngestor({ http, feeds: [{ url: "https://feed/ambito", name: "Ámbito" }] });
+    const evs = await ing.fetch("2026-09-01T00:00:00Z");
+    expect(evs).toHaveLength(2);
+    const macro = evs.find((e) => e.eventType === "macro_ar");
+    expect(macro?.ticker).toBe("ARG");
+    expect(macro?.eventDate).toBe("2026-10-15");
+    const ypf = evs.find((e) => e.ticker === "YPF");
+    expect(ypf?.eventType).toBe("operational");
+  });
+  it("extractDate pasa al año siguiente si ya pasó", () => {
+    expect(extractDate("licitación del 3 de enero", "2026-09-01")).toBe("2027-01-03");
+  });
+});
+
+describe("ManualCsvIngestor", () => {
+  const csv = `ticker,event_type,event_date,title,ref
+XXXX,fda,2026-11-20,"PDUFA para XYZ-123, indicación ABC",pdufa:xyz
+YPF,legal,2026-10-01,Fallo YPF expropiación NY,cl:123
+BAD,nope,2026-10-01,tipo inválido,
+OLD,fda,2026-01-01,ya pasó,`;
+  it("parsea, valida tipo y descarta pasados", async () => {
+    const evs = await new ManualCsvIngestor({ read: async () => csv }).fetch("2026-09-04");
+    expect(evs.map((e) => e.ticker)).toEqual(["XXXX", "YPF"]);
+    expect(evs[0]?.title).toBe("PDUFA para XYZ-123, indicación ABC");
+  });
+  it("parseCsv maneja comillas", () => {
+    expect(parseCsv('a,b\n"x, y",z')[0]).toEqual({ a: "x, y", b: "z" });
+  });
+});

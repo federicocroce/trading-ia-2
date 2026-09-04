@@ -1,0 +1,7 @@
+{
+  "us": ["MARA", "TSM", "HUT", "NEM"],
+  "adr": ["VIST", "YPF", "PAM", "GGAL"],
+  "legalNames": {
+    "YPF": "YPF S.A."
+  }
+}

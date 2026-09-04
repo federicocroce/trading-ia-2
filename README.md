@@ -1,33 +1,67 @@
 # thesis-engine
 
-Sistema de tesis de inversión basadas en eventos, medido en paper trading antes de tocar capital real. El diseño completo está en [`docs/DESIGN.md`](docs/DESIGN.md); lo que no está ahí, no entra.
+Sistema de tesis de inversión basadas en eventos, medido en paper trading antes de tocar capital real. El diseño de referencia está en [`docs/DESIGN.md`](docs/DESIGN.md); lo que no está ahí, no entra.
 
 ## Estado
 
-Etapa 1 (esqueleto): tipos, contratos, módulo de riesgo y base de datos. Sin ingesta ni razonamiento todavía.
+Etapas 1 a 6 implementadas y testeadas (85 tests, incluida integración contra Postgres). Falta lo único que no se puede hacer sin vos: correrlo en vivo y acumular tesis en paper.
+
+| Módulo | Dónde | Qué hace |
+|---|---|---|
+| Ingesta | `packages/adapters` | EDGAR (filings por ticker), calendario de earnings de Nasdaq, RSS argentino (Boletín Oficial, Ámbito, Infobae), CourtListener, CSV manual para fechas PDUFA/fallos/licitaciones |
+| Filtro | `packages/core/src/filter` | Dedupe, ventana 5–45 días, liquidez, allowlist de ADRs, presupuesto diario con prioridad por tipo |
+| Razonamiento | `packages/reasoner` | Claude con tool use y JSON estricto; guía por tipo de evento; `pMarket` se fuerza desde la cadena de opciones (straddle ATM), no lo decide el LLM |
+| Riesgo | `packages/core/src/risk` | 10% por tesis, 30% por tipo, 3% en prima de opciones, pausa al -3% diario, edge mínimo 0.10, cero apalancamiento, kill switch, solo con aprobación humana |
+| Paper trading | `packages/adapters/src/alpaca` | Broker Alpaca paper (el constructor rechaza cuentas reales), market data, opciones |
+| Orquestación | `packages/pipeline` | Corrida diaria, aprobación/rechazo humano, cierre con PnL real, reporte de calibración (§7) |
+| API + cron | `apps/api` | Hono; corrida diaria lun–vie 07:30, sync de órdenes cada 15 min |
+| UI | `apps/web` | Propuestas (aprobar/rechazar), abiertas (cerrar), historial, calibración |
 
 ## Setup
 
+Requisitos: Node 22+, pnpm, Docker Desktop.
+
 ```bash
 pnpm install
-cp .env.example .env
-pnpm db:up          # Postgres en :5433 vía Docker
-pnpm db:migrate     # aplica drizzle/*.sql
-pnpm test
-pnpm typecheck
-pnpm dev:api        # GET http://localhost:3001/health
+cp .env.example .env        # completar ANTHROPIC_API_KEY, ALPACA_KEY_ID/SECRET (paper), SEC_USER_AGENT
+pnpm db:up                  # Postgres en :5433
+pnpm db:migrate
+pnpm test                   # 85 tests; los de integración corren solo si DATABASE_URL está en el env
+pnpm smoke:sources          # verifica que EDGAR, Nasdaq y los RSS responden desde tu red
 ```
+
+Claves de Alpaca paper: https://app.alpaca.markets → Paper Trading → API Keys. Las de cuenta real no sirven (y el código las rechaza).
+
+## Uso diario
+
+```bash
+pnpm dev:api                # API en :3001 + cron
+pnpm dev:web                # UI en http://localhost:5173
+pnpm run:daily              # una corrida a mano (ingesta → filtro → razonamiento)
+```
+
+Flujo: la corrida deja tesis en **Propuestas**. Vos abrís cada una, leés razonamiento e invalidación, y aprobás (pasa por riesgo y va a Alpaca paper) o rechazás (queda registrado, para medir tu criterio). Cuando el evento se resuelve, en **Abiertas** cerrás la posición diciendo si pasó lo predicho; eso alimenta **Calibración**.
+
+Eventos con fecha que no tienen API gratuita (PDUFA, fallos, licitaciones) se cargan a mano en `config/events.csv`. El universo de tickers está en `config/universe.json`.
+
+## Criterio de salida de paper (DESIGN.md §7)
+
+La pestaña Calibración muestra en vivo si se cumple: ≥ 30 tesis cerradas, Brier del sistema mejor que el del mercado, PnL medio positivo, drawdown < 15%. Hasta que diga **SÍ**, no se habla de dinero real. Es probable que la primera versión no lo cumpla; ese resultado también sirve.
 
 ## Estructura
 
 ```
-packages/core      tipos Zod, contratos de los 5 módulos, motor de riesgo (puro, testeado)
-packages/db        schema Drizzle + migraciones (test de paridad de enums con core)
-packages/adapters  un Ingestor por fuente (etapa 2)
-apps/api           Hono; hoy solo /health
-docs/DESIGN.md     documento de referencia
+packages/core      tipos Zod, contratos, filtro, riesgo, pricing (probabilidad implícita)
+packages/adapters  ingestors + Alpaca; tests con fixtures, sin red
+packages/reasoner  prompts, tool schema, cliente Anthropic
+packages/pipeline  dailyRun, approveAndExecute, closeThesis, calibrationReport, MemoryStore
+packages/db        schema Drizzle, migraciones, Repo (test de paridad de enums con core)
+apps/api           Hono + cron + CLI
+apps/web           Vite + React
+config/            universe.json, events.csv
+docs/DESIGN.md     referencia
 ```
 
 ## Reglas que no se negocian
 
-Viven en `packages/core/src/risk/rules.ts`, no en prompts: 10% máx. por tesis, 30% por tipo de evento, 3% en prima de opciones, pausa al -3% diario, edge mínimo 0.10, cero apalancamiento, ejecución solo con aprobación humana.
+Viven en `packages/core/src/risk/rules.ts`, no en prompts. Cambiarlas requiere cambiar código y tests, a propósito.

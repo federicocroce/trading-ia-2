@@ -1,7 +1,8 @@
-/**
- * Un adaptador por fuente (DESIGN.md §3.1). Cada uno implementa `Ingestor`
- * de @thesis/core y se testea con fixtures grabadas, sin red en CI.
- *
- * Etapa 2: edgar/, earnings/, alpaca/, ar_official/
- */
-export {};
+export * from "./http/index.js";
+export * from "./util.js";
+export * from "./edgar/index.js";
+export * from "./earnings/index.js";
+export * from "./alpaca/index.js";
+export * from "./ar/index.js";
+export * from "./courtlistener/index.js";
+export * from "./fda/index.js";

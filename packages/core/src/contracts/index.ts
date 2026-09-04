@@ -65,3 +65,36 @@ export interface Broker {
   getOrder(brokerOrderId: string): Promise<Order>;
   cancel(brokerOrderId: string): Promise<void>;
 }
+
+/** Datos de mercado (precios, opciones). No es un Ingestor: se consulta bajo demanda. */
+export interface Quote {
+  ticker: string;
+  price: number;
+  asOf: string;
+  avgVolume30d: number | null;
+}
+export interface ImpliedMove {
+  ticker: string;
+  expiration: string;
+  spot: number;
+  /** Prima ATM call + put. */
+  straddle: number;
+  /** straddle / spot, en fracción (0.08 = ±8%). */
+  impliedMovePct: number;
+}
+export interface OptionContractQuote {
+  symbol: string; // OCC
+  strike: number;
+  expiration: string;
+  type: "call" | "put";
+  bid: number;
+  ask: number;
+  mid: number;
+}
+export interface MarketData {
+  getQuote(ticker: string): Promise<Quote | null>;
+  /** Move implícito por el straddle ATM del vencimiento posterior más cercano a eventDate. */
+  getImpliedMove(ticker: string, eventDate: string): Promise<ImpliedMove | null>;
+  /** Contrato ATM (o el más cercano a `strike`) para ejecutar una tesis de opciones. */
+  findOption(ticker: string, type: "call" | "put", afterDate: string, strike?: number): Promise<OptionContractQuote | null>;
+}
