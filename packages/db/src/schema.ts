@@ -165,7 +165,46 @@ export const symbolMeta = pgTable("symbol_meta", {
   role: text("role"),
   themes: jsonb("themes").notNull().default([]),
   themesSource: text("themes_source"),
+  // Página por ticker: descripción de Yahoo (cache).
+  longName: text("long_name"),
+  summary: text("summary"),
+  employees: integer("employees"),
+  website: text("website"),
+  exchangeName: text("exchange_name"),
+  firstTradeDate: date("first_trade_date"),
+  descriptionUpdatedAt: timestamp("description_updated_at", { withTimezone: true }),
 });
+
+/** Velas diarias persistidas por el pipeline (Cartera y Radar); la página por ticker lee de acá. */
+export const candlesDaily = pgTable(
+  "candles_daily",
+  {
+    symbol: text("symbol").notNull(),
+    date: date("date").notNull(),
+    open: numeric("open", { precision: 14, scale: 4 }).notNull(),
+    high: numeric("high", { precision: 14, scale: 4 }).notNull(),
+    low: numeric("low", { precision: 14, scale: 4 }).notNull(),
+    close: numeric("close", { precision: 14, scale: 4 }).notNull(),
+    volume: numeric("volume", { precision: 18, scale: 0 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.date] })],
+);
+
+/** Noticias de empresa (Finnhub), únicas por símbolo+url. */
+export const news = pgTable(
+  "news",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    symbol: text("symbol").notNull(),
+    date: date("date").notNull(),
+    headline: text("headline").notNull(),
+    source: text("source"),
+    url: text("url").notNull(),
+    summary: text("summary"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("news_symbol_url").on(t.symbol, t.url), index("news_symbol_date").on(t.symbol, t.date)],
+);
 
 /** Radar (spec etapa 2 §11). */
 export const fundamentals = pgTable("fundamentals", {

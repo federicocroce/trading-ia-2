@@ -15,6 +15,10 @@ d("Repo (Postgres real)", () => {
   // Corre contra la DB que apunte DATABASE_URL (puede ser la de desarrollo): no dejar residuos,
   // o aparecen en calibración y como comparables del razonador.
   afterAll(async () => {
+    const tsym = `T${ticker}`;
+    await db.delete(schema.candlesDaily).where(eq(schema.candlesDaily.symbol, tsym));
+    await db.delete(schema.news).where(eq(schema.news.symbol, tsym));
+    await db.delete(schema.symbolMeta).where(eq(schema.symbolMeta.symbol, tsym));
     const rsym = `R${ticker}`;
     await db.delete(schema.radarCandidates).where(eq(schema.radarCandidates.symbol, rsym));
     await db.delete(schema.universeScan).where(eq(schema.universeScan.symbol, rsym));
@@ -140,5 +144,19 @@ d("Repo (Postgres real)", () => {
     expect((await repo.plansToMeasure("2099-03-01")).some((p) => p.month === "2099-01")).toBe(true);
     await repo.updatePlanLines("2099-01", [{ ...plan.lines[0]!, alpha30dPct: 2, alpha90dPct: 3 }]);
     expect((await repo.plansToMeasure("2099-05-01")).some((p) => p.month === "2099-01")).toBe(false);
+  });
+
+  it("ticker: descripción, velas diarias y noticias", async () => {
+    const sym = `T${ticker}`;
+    await repo.saveDescription({ symbol: sym, longName: "Test Inc", summary: "hace cosas", employees: 10, website: "test.com", exchangeName: "NYSE", firstTradeDate: "2000-01-01", sector: "Tech", industry: "Soft", country: "US", updatedAt: "2099-01-01T00:00:00.000Z" });
+    expect((await repo.description(sym))?.summary).toBe("hace cosas");
+    await repo.upsertCandles(sym, [{ date: "2099-01-01", open: 1, high: 2, low: 0.5, close: 1.5, volume: 10 }, { date: "2099-01-02", open: 1.5, high: 2, low: 1, close: 1.8, volume: 20 }]);
+    await repo.upsertCandles(sym, [{ date: "2099-01-02", open: 1.5, high: 2.2, low: 1, close: 1.9, volume: 25 }]);
+    const c = await repo.candles(sym, "2099-01-01");
+    expect(c.map((x) => x.close)).toEqual([1.5, 1.9]);
+    expect(await repo.candles(sym, "2099-01-02")).toHaveLength(1);
+    const n = { symbol: sym, date: "2099-01-01", headline: "h", source: "s", url: `https://x/${sym}`, summary: null };
+    expect(await repo.upsertNews([n, { ...n, headline: "h2" }])).toBe(1);
+    expect((await repo.news(sym, 10))[0]?.headline).toBe("h");
   });
 });

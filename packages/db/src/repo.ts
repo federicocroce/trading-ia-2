@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { CandidateRow, ContributionPlan, Fundamentals, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
+import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -369,6 +369,41 @@ export class Repo {
   }
   async updatePlanLines(month: string, lines: PlanLine[]): Promise<void> {
     await this.db.update(s.contributionPlans).set({ lines }).where(eq(s.contributionPlans.planMonth, month));
+  }
+
+  // ---------- página por ticker ----------
+  async description(symbol: string): Promise<SymbolDescription | null> {
+    const r = (await this.db.select().from(s.symbolMeta).where(eq(s.symbolMeta.symbol, symbol.toUpperCase())))[0];
+    if (!r || !r.descriptionUpdatedAt) return null;
+    return { symbol: r.symbol, longName: r.longName, summary: r.summary, employees: r.employees, website: r.website, exchangeName: r.exchangeName, firstTradeDate: r.firstTradeDate, sector: r.sector, industry: r.industry, country: r.country, updatedAt: r.descriptionUpdatedAt.toISOString() };
+  }
+  async saveDescription(d: SymbolDescription): Promise<void> {
+    const set = { longName: d.longName, summary: d.summary, employees: d.employees, website: d.website, exchangeName: d.exchangeName, firstTradeDate: d.firstTradeDate, descriptionUpdatedAt: new Date(d.updatedAt), ...(d.country ? { country: d.country } : {}) };
+    await this.db.insert(s.symbolMeta).values({ symbol: d.symbol.toUpperCase(), industry: d.industry, ...set }).onConflictDoUpdate({ target: s.symbolMeta.symbol, set });
+  }
+  async upsertCandles(symbol: string, candles: Candle[]): Promise<void> {
+    const sym = symbol.toUpperCase();
+    for (let i = 0; i < candles.length; i += 500) {
+      const chunk = candles.slice(i, i + 500).map((c) => ({ symbol: sym, date: c.date, open: str(c.open), high: str(c.high), low: str(c.low), close: str(c.close), volume: str(Math.round(c.volume)) }));
+      if (!chunk.length) continue;
+      await this.db.insert(s.candlesDaily).values(chunk).onConflictDoUpdate({ target: [s.candlesDaily.symbol, s.candlesDaily.date], set: { open: sql`excluded.open`, high: sql`excluded.high`, low: sql`excluded.low`, close: sql`excluded.close`, volume: sql`excluded.volume` } });
+    }
+  }
+  async candles(symbol: string, fromDate: string): Promise<Candle[]> {
+    const rows = await this.db.select().from(s.candlesDaily).where(and(eq(s.candlesDaily.symbol, symbol.toUpperCase()), sql`${s.candlesDaily.date} >= ${fromDate}`)).orderBy(s.candlesDaily.date);
+    return rows.map((r) => ({ date: r.date, open: num(r.open), high: num(r.high), low: num(r.low), close: num(r.close), volume: num(r.volume) }));
+  }
+  async upsertNews(items: NewsItem[]): Promise<number> {
+    let n = 0;
+    for (const i of items) {
+      const rows = await this.db.insert(s.news).values({ symbol: i.symbol.toUpperCase(), date: i.date, headline: i.headline, source: i.source, url: i.url, summary: i.summary }).onConflictDoNothing().returning({ id: s.news.id });
+      n += rows.length;
+    }
+    return n;
+  }
+  async news(symbol: string, limit = 20): Promise<NewsItem[]> {
+    const rows = await this.db.select().from(s.news).where(eq(s.news.symbol, symbol.toUpperCase())).orderBy(desc(s.news.date), desc(s.news.createdAt)).limit(limit);
+    return rows.map((r) => ({ symbol: r.symbol, date: r.date, headline: r.headline, source: r.source, url: r.url, summary: r.summary }));
   }
 
 }
