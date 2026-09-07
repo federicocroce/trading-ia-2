@@ -74,7 +74,9 @@ export async function runCartera(deps: CarteraDeps, opts: { today: string }): Pr
   // 2. Perfiles (cache 7 días) y riesgo de cartera.
   const profiles: Record<string, SymbolProfile | null> = {};
   for (const p of positions) profiles[p.symbol] = await profileFor(deps, p, opts.today);
-  const risk = buildRiskReport({ positions, candles, spy, profiles });
+  const allTags = await deps.store.allTags().catch(() => ({}));
+  const tags = Object.fromEntries(Object.entries(allTags).map(([k, t]) => [k, { sector: t.sector, themes: t.themes }]));
+  const risk = buildRiskReport({ positions, candles, spy, profiles, tags });
 
   // 3. Veredicto por posición.
   const verdicts: VerdictRow[] = [];

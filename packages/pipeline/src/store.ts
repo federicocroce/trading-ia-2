@@ -43,6 +43,8 @@ export interface CarteraStore {
   latestRisk(): Promise<{ date: string; report: RiskReport } | null>;
   recentFilingTitles(ticker: string, limit: number): Promise<string[]>;
   recentNewsTitles(query: string, limit: number): Promise<string[]>;
+  /** Etiquetas por símbolo (etapa 2), para concentración por sector y tema. */
+  allTags(): Promise<Record<string, Tags>>;
 }
 
 /** Lo que el Radar necesita de la persistencia (spec etapa 2 §11). */

@@ -44,6 +44,16 @@ describe("runCartera", () => {
     expect((await store.latestRisk())!.report.concentration.byCountry).toEqual({ AR: 50, US: 50 });
     expect(s.errors).toEqual([]);
   });
+  it("el panel de riesgo usa las etiquetas: concentración por sector y tema", async () => {
+    const { store, deps } = setup(null);
+    await store.upsertPosition(pos("YPF", 100, 30, "adr"));
+    await store.upsertPosition(pos("TSM", 10, 300));
+    await store.saveTags("YPF", { assetClass: "adr", sector: "Energía", industry: "Energy", themes: ["argentina", "petroleo_gas"], themesSource: "regla" });
+    await store.saveTags("TSM", { assetClass: "adr", sector: "Tecnología", industry: "Semiconductors", themes: ["semiconductores"], themesSource: "regla" });
+    const s = await runCartera(deps, { today });
+    expect(s.risk.concentration.bySector).toEqual({ Energía: 50, Tecnología: 50 });
+    expect(s.risk.concentration.byTheme).toEqual({ argentina: 50, petroleo_gas: 50, semiconductores: 50 });
+  });
   it("sin velas de hoy → REVISAR; sin velas → REVISAR y error registrado", async () => {
     const { store, deps } = setup(null, { SPY: mk(days(99, 500)), OLD: mk(days(99, 10), "2026-05-01") });
     await store.upsertPosition(pos("OLD", 1, 1));
