@@ -64,7 +64,10 @@ export interface QualityBarOptions {
 }
 export function qualityBar(f: FundamentalsInput, q: RadarPolicy["quality"], o: QualityBarOptions = {}): { ok: boolean; reason?: string; mcapUsd: number | null; dollarVolumeUsd: number | null } {
   const mcap = o.allowUnknownMcap ? null : mcapUsd(f.profile.shareOutstanding, f.priceUsd);
-  const vol = dollarVolumeUsd(f.metrics["3MonthAverageTradingVolume"], f.priceUsd) ?? (o.volumeOverrideUsd && o.volumeOverrideUsd > 0 ? Math.round(o.volumeOverrideUsd) : null);
+  const finnhubVol = dollarVolumeUsd(f.metrics["3MonthAverageTradingVolume"], f.priceUsd);
+  const override = o.volumeOverrideUsd && o.volumeOverrideUsd > 0 ? Math.round(o.volumeOverrideUsd) : null;
+  // Finnhub puede traer el volumen del listado local (ADR): se usa el mayor entre Finnhub y el consolidado US.
+  const vol = finnhubVol === null ? override : override === null ? finnhubVol : Math.max(finnhubVol, override);
   if (f.priceUsd < q.minPrice) return { ok: false, reason: `precio ${f.priceUsd} < ${q.minPrice}`, mcapUsd: mcap, dollarVolumeUsd: vol };
   if (mcap === null && !o.allowUnknownMcap) return { ok: false, reason: "sin acciones en circulación", mcapUsd: null, dollarVolumeUsd: vol };
   if (vol === null) return { ok: false, reason: "sin volumen de 3 meses", mcapUsd: mcap, dollarVolumeUsd: null };

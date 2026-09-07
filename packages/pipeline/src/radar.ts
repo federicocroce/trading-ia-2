@@ -172,15 +172,17 @@ export async function scanUniverse(deps: RadarDeps, opts: { scanDate: string; to
         excluded++;
         continue;
       }
-      // ADR (Finnhub lo mapea a su listado local): volumen desde Yahoo (consolidado US) y capitalización desconocida.
-      const isAdr = !!profile.currency && profile.currency !== "USD";
+      // Listado extranjero (Finnhub mapea ADRs a su bolsa local): la capitalización queda desconocida y,
+      // si el volumen de Finnhub falta o no llega al umbral, se pide el consolidado US a Yahoo y se usa el mayor.
+      const foreign = (!!profile.currency && profile.currency !== "USD") || (!!profile.country && profile.country !== "US");
+      const finnhubVol = (metrics["3MonthAverageTradingVolume"] ?? 0) * 1e6 * priceUsd;
       let volumeOverrideUsd: number | null = null;
-      if (isAdr || !metrics["3MonthAverageTradingVolume"]) {
+      if (finnhubVol < policy.quality.minDollarVolumeUsd) {
         const c = await deps.history.candles(sym, 45).catch(() => [] as Candle[]);
         const last30 = c.slice(-30);
         if (last30.length >= 10) volumeOverrideUsd = (last30.reduce((a, x) => a + x.volume, 0) / last30.length) * priceUsd;
       }
-      const qb = qualityBar({ profile: { shareOutstanding: profile.shareOutstanding ?? null, currency: profile.currency ?? null, country: profile.country, industry: profile.industry, name: profile.name }, metrics, priceUsd }, policy.quality, { volumeOverrideUsd, allowUnknownMcap: isAdr });
+      const qb = qualityBar({ profile: { shareOutstanding: profile.shareOutstanding ?? null, currency: profile.currency ?? null, country: profile.country, industry: profile.industry, name: profile.name }, metrics, priceUsd }, policy.quality, { volumeOverrideUsd, allowUnknownMcap: foreign });
       await store.saveProfile(profile);
       if (!qb.ok) {
         await store.scanUpsert([{ scanDate: opts.scanDate, symbol: sym, stage: "excluded", reason: qb.reason ?? "quality bar" }]);

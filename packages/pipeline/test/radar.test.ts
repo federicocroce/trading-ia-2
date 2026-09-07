@@ -90,6 +90,21 @@ describe("scanUniverse con ADRs", () => {
   });
 });
 
+describe("scanUniverse con listado extranjero en USD", () => {
+  it("volumen de Finnhub bajo el umbral → usa el mayor entre Finnhub y Yahoo; país no US → capitalización desconocida", async () => {
+    const { store, d } = deps({
+      assets: { list: async () => [{ symbol: "VIST", name: "Vista Energy", exchange: "NYSE", tradable: true }], snapshots: async (s) => s.map((x) => ({ symbol: x, price: 73.73, iexVolume: 100_000 })) },
+      fundamentals: { ...deps().d.fundamentals, profile: async (s) => ({ symbol: s, name: "Vista", country: "MX", industry: "Energy", marketCap: null, currency: "USD", shareOutstanding: 111 }), metrics: async () => ({ peTTM: 9, "3MonthAverageTradingVolume": 0.0165 }) },
+      history: { candles: async () => series(Array(99).fill(73.73)).map((c) => ({ ...c, volume: 700_000 })) },
+    });
+    const r = await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    expect(r.fundamentalsOk).toBe(1);
+    const f = await store.fundamentals("VIST");
+    expect(f?.mcapUsd).toBeNull();
+    expect(f?.dollarVolumeUsd).toBeCloseTo(700_000 * 73.73, -3);
+  });
+});
+
 describe("rankRadar", () => {
   it("rankea, filtra, decide, escribe ficha (solo degrada) y guarda ETFs", async () => {
     const { store, d } = deps();
