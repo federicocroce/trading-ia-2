@@ -19,7 +19,7 @@ d("Repo (Postgres real)", () => {
     await db.delete(schema.symbolMeta).where(eq(schema.symbolMeta.symbol, csym));
     await db.delete(schema.transactions).where(eq(schema.transactions.symbol, csym));
     await db.delete(schema.positions).where(eq(schema.positions.symbol, csym));
-    await db.delete(schema.portfolioRisk).where(eq(schema.portfolioRisk.snapshotDate, "2026-08-01"));
+    await db.delete(schema.portfolioRisk).where(eq(schema.portfolioRisk.snapshotDate, "2099-01-01"));
     const mine = db.select({ id: schema.theses.id }).from(schema.theses).where(eq(schema.theses.ticker, ticker));
     await db.delete(schema.outcomes).where(inArray(schema.outcomes.thesisId, mine));
     await db.delete(schema.orders).where(eq(schema.orders.ticker, ticker));
@@ -80,18 +80,18 @@ d("Repo (Postgres real)", () => {
     expect((await repo.profile(sym))?.profile.country).toBe("US");
     expect(await repo.recentFilingTitles(sym, 5)).toEqual([]);
 
-    const row = { verdictDate: "2026-08-01", symbol: sym, verb: "MANTENER" as const, reason: "r", narrative: null, warning: null, close: 10, spot: 10, stop: 9, target: 12, gainPct: 100, weightPct: 50, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null };
+    const row = { verdictDate: "2099-01-01", symbol: sym, verb: "MANTENER" as const, reason: "r", narrative: null, warning: null, close: 10, spot: 10, stop: 9, target: 12, gainPct: 100, weightPct: 50, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null };
     await repo.upsertVerdicts([row]);
     await repo.upsertVerdicts([{ ...row, reason: "r2" }]);
     expect((await repo.latestVerdicts()).find((v) => v.symbol === sym)?.reason).toBe("r2");
-    expect((await repo.verdictsToMeasure("2026-08-08", 7)).some((v) => v.symbol === sym)).toBe(true);
-    await repo.setMeasurement("2026-08-01", sym, { close7d: 11, spy7d: 505, alpha7dPct: 9 });
-    expect((await repo.verdictsToMeasure("2026-08-08", 7)).some((v) => v.symbol === sym)).toBe(false);
+    expect((await repo.verdictsToMeasure("2099-01-08", 7)).some((v) => v.symbol === sym)).toBe(true);
+    await repo.setMeasurement("2099-01-01", sym, { close7d: 11, spy7d: 505, alpha7dPct: 9 });
+    expect((await repo.verdictsToMeasure("2099-01-08", 7)).some((v) => v.symbol === sym)).toBe(false);
     expect((await repo.allVerdicts()).find((v) => v.symbol === sym)?.alpha7dPct).toBe(9);
 
     const report = { totalValue: 1, weights: [], concentration: { byCountry: {}, byIndustry: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, liquidity: [], notes: [] };
-    await repo.saveRisk("2026-08-01", report);
-    await repo.saveRisk("2026-08-01", { ...report, totalValue: 2 });
+    await repo.saveRisk("2099-01-01", report);
+    await repo.saveRisk("2099-01-01", { ...report, totalValue: 2 });
     expect((await repo.latestRisk())?.report.totalValue).toBe(2);
   });
 });
