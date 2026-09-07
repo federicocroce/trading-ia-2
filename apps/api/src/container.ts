@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, YahooPriceHistory, createHttpClient, createTradingHttp } from "@thesis/adapters";
+import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp } from "@thesis/adapters";
 import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
-import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store } from "@thesis/pipeline";
+import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore } from "@thesis/pipeline";
 import { AnthropicCardWriter, AnthropicNarrator, AnthropicReasoner, GeminiCardWriter, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
 import type { Config, ReasonerConfig } from "./config.js";
 
@@ -22,11 +22,13 @@ export const state = {
 
 export interface Container {
   cfg: Config;
-  store: Store & CarteraStore & RadarStore;
+  store: Store & CarteraStore & RadarStore & TickerStore;
   /** Cartera real del dueño (spec etapa 1). */
   carteraDeps: CarteraDeps;
   /** Radar de candidatos (spec etapa 2). */
   radarDeps: RadarDeps;
+  /** Página por ticker (etapa 2b): agregador + gráfico intradiario en vivo. */
+  tickerDeps: TickerDeps & { chart: { bars(symbol: string, range: string, interval: string): Promise<import("@thesis/core").ChartBar[]> } };
   marketData: MarketData;
   broker: Broker;
   risk: RiskEngine;
@@ -129,6 +131,20 @@ export function buildContainer(cfg: Config): Container {
     shouldStop: () => state.scan.stopRequested,
   };
 
+  // Página por ticker: descripción de Yahoo (crumb), noticias de Finnhub, precio vivo de Alpaca, gráfico de Yahoo.
+  const finnhub = cfg.finnhubToken ? new FinnhubFundamentals(http, cfg.finnhubToken, new RateLimiter(55)) : null;
+  const alpacaAssets = new AlpacaAssets(http, cfg.alpaca);
+  const yahooChart = new YahooChart(yahooHttp);
+  const tickerDeps: Container["tickerDeps"] = {
+    store,
+    history,
+    descriptions: new YahooDescriptions(),
+    news: { companyNews: (s, from, to) => (finnhub ? finnhub.companyNews(s, from, to) : Promise.resolve([])) },
+    quote: (s) => alpacaAssets.quote(s),
+    newsFetchedAt: new Map(),
+    chart: { bars: (s, range, interval) => yahooChart.bars(s, range as never, interval as never) },
+  };
+
   async function account() {
     try {
       const a = await broker.account();
@@ -139,5 +155,5 @@ export function buildContainer(cfg: Config): Container {
   }
   const snapshot = async () => buildSnapshot(store, await account(), state.killSwitch);
 
-  return { cfg, store, carteraDeps, radarDeps, marketData, broker, risk, runDeps, snapshot, account };
+  return { cfg, store, carteraDeps, radarDeps, tickerDeps, marketData, broker, risk, runDeps, snapshot, account };
 }

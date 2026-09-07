@@ -1,4 +1,4 @@
-import type { AssetInfo, SnapshotLite } from "@thesis/core";
+import type { AssetInfo, LiveQuote, SnapshotLite } from "@thesis/core";
 import type { HttpClient } from "../http/index.js";
 import { ALPACA_DATA, alpacaHeaders, alpacaTradingBase, type AlpacaConfig } from "./client.js";
 
@@ -9,7 +9,7 @@ interface AssetResp {
   tradable: boolean;
 }
 interface SnapshotResp {
-  latestTrade?: { p?: number };
+  latestTrade?: { p?: number; t?: string };
   dailyBar?: { c?: number; v?: number };
   prevDailyBar?: { c?: number; v?: number };
 }
@@ -23,6 +23,15 @@ export class AlpacaAssets {
   async list(): Promise<AssetInfo[]> {
     const rows = await this.http.getJson<AssetResp[]>(`${alpacaTradingBase(this.cfg.paper)}/v2/assets?status=active&asset_class=us_equity`, alpacaHeaders(this.cfg));
     return rows.map((a) => ({ symbol: a.symbol, name: a.name, exchange: a.exchange, tradable: a.tradable }));
+  }
+  /** Precio vivo para la página por ticker: último trade, cierre previo y hora. null si no hay dato. */
+  async quote(symbol: string): Promise<LiveQuote | null> {
+    const sym = symbol.toUpperCase();
+    const r = await this.http.getJson<Record<string, SnapshotResp>>(`${ALPACA_DATA}/v2/stocks/snapshots?symbols=${sym}&feed=iex`, alpacaHeaders(this.cfg));
+    const s = r[sym];
+    const price = s?.latestTrade?.p ?? s?.dailyBar?.c ?? null;
+    if (price === null || price === undefined) return null;
+    return { symbol: sym, price, prevClose: s?.prevDailyBar?.c ?? null, asOf: s?.latestTrade?.t ?? null };
   }
   /** 100 símbolos por llamada. Precio = último trade o cierre diario; volumen = barra diaria (IEX). */
   async snapshots(symbols: string[]): Promise<SnapshotLite[]> {
