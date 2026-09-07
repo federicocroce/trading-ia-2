@@ -1,4 +1,4 @@
-import type { Order, Outcome, RawEvent, Thesis, ThesisProposal } from "@thesis/core";
+import type { Order, Outcome, Position, RawEvent, RiskReport, SymbolProfile, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -25,7 +25,32 @@ export interface Store {
   allOutcomesWithTheses(): Promise<Array<{ thesis: Thesis; outcome: Outcome }>>;
 }
 
-export class MemoryStore implements Store {
+/** Lo que la cartera real necesita de la persistencia (spec etapa 1 §3.1). Repo lo implementa junto con Store. */
+export interface CarteraStore {
+  positions(): Promise<Position[]>;
+  upsertPosition(p: Position): Promise<void>;
+  deletePosition(symbol: string): Promise<void>;
+  transactions(): Promise<Transaction[]>;
+  insertTransactions(t: Transaction[]): Promise<number>;
+  profile(symbol: string): Promise<{ profile: SymbolProfile; updatedAt: string } | null>;
+  saveProfile(p: SymbolProfile): Promise<void>;
+  upsertVerdicts(rows: VerdictRow[]): Promise<void>;
+  latestVerdicts(): Promise<VerdictRow[]>;
+  verdictsToMeasure(before: string, horizon: 7 | 30): Promise<VerdictRow[]>;
+  setMeasurement(verdictDate: string, symbol: string, m: Partial<Pick<VerdictRow, "close7d" | "spy7d" | "alpha7dPct" | "close30d" | "spy30d" | "alpha30dPct">>): Promise<void>;
+  allVerdicts(): Promise<VerdictRow[]>;
+  saveRisk(date: string, report: RiskReport): Promise<void>;
+  latestRisk(): Promise<{ date: string; report: RiskReport } | null>;
+  recentFilingTitles(ticker: string, limit: number): Promise<string[]>;
+  recentNewsTitles(query: string, limit: number): Promise<string[]>;
+}
+
+export class MemoryStore implements Store, CarteraStore {
+  positionsMap = new Map<string, Position>();
+  txs = new Map<string, Transaction>();
+  profiles = new Map<string, { profile: SymbolProfile; updatedAt: string }>();
+  verdicts = new Map<string, VerdictRow>();
+  risks = new Map<string, RiskReport>();
   events = new Map<string, RawEvent & { filterPassed: boolean | null; filterReason: string | null }>();
   theses = new Map<string, Thesis>();
   orders = new Map<string, Order>();
@@ -110,5 +135,72 @@ export class MemoryStore implements Store {
   }
   async allOutcomesWithTheses() {
     return [...this.outcomes.values()].map((outcome) => ({ outcome, thesis: this.theses.get(outcome.thesisId)! })).filter((x) => x.thesis);
+  }
+
+  // ---------- cartera ----------
+  async positions() {
+    return [...this.positionsMap.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
+  }
+  async upsertPosition(p: Position) {
+    this.positionsMap.set(p.symbol.toUpperCase(), { ...p, symbol: p.symbol.toUpperCase() });
+  }
+  async deletePosition(symbol: string) {
+    this.positionsMap.delete(symbol.toUpperCase());
+  }
+  async transactions() {
+    return [...this.txs.values()].sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async insertTransactions(t: Transaction[]) {
+    let n = 0;
+    for (const tx of t) {
+      const key = tx.externalId ?? `${tx.date}|${tx.symbol.toUpperCase()}|${tx.type}|${tx.quantity}|${tx.price}`;
+      if ([...this.txs.values()].some((x) => (x.externalId ?? `${x.date}|${x.symbol}|${x.type}|${x.quantity}|${x.price}`) === key)) continue;
+      this.txs.set(tx.id, { ...tx, symbol: tx.symbol.toUpperCase() });
+      n++;
+    }
+    return n;
+  }
+  async profile(symbol: string) {
+    return this.profiles.get(symbol.toUpperCase()) ?? null;
+  }
+  async saveProfile(p: SymbolProfile) {
+    this.profiles.set(p.symbol.toUpperCase(), { profile: p, updatedAt: new Date().toISOString() });
+  }
+  async upsertVerdicts(rows: VerdictRow[]) {
+    for (const r of rows) {
+      const k = `${r.verdictDate}|${r.symbol}`;
+      const prev = this.verdicts.get(k);
+      this.verdicts.set(k, prev ? { ...r, close7d: prev.close7d, spy7d: prev.spy7d, alpha7dPct: prev.alpha7dPct, close30d: prev.close30d, spy30d: prev.spy30d, alpha30dPct: prev.alpha30dPct, measuredAt: prev.measuredAt } : r);
+    }
+  }
+  async latestVerdicts() {
+    const all = [...this.verdicts.values()];
+    const last = all.map((v) => v.verdictDate).sort().at(-1);
+    return all.filter((v) => v.verdictDate === last).sort((a, b) => a.symbol.localeCompare(b.symbol));
+  }
+  async verdictsToMeasure(before: string, horizon: 7 | 30) {
+    return [...this.verdicts.values()].filter((v) => v.verdictDate <= before && (horizon === 7 ? v.close7d : v.close30d) === null);
+  }
+  async setMeasurement(verdictDate: string, symbol: string, m: Partial<Pick<VerdictRow, "close7d" | "spy7d" | "alpha7dPct" | "close30d" | "spy30d" | "alpha30dPct">>) {
+    const k = `${verdictDate}|${symbol}`;
+    const v = this.verdicts.get(k);
+    if (v) this.verdicts.set(k, { ...v, ...m, measuredAt: new Date().toISOString() });
+  }
+  async allVerdicts() {
+    return [...this.verdicts.values()].sort((a, b) => b.verdictDate.localeCompare(a.verdictDate) || a.symbol.localeCompare(b.symbol));
+  }
+  async saveRisk(date: string, report: RiskReport) {
+    this.risks.set(date, report);
+  }
+  async latestRisk() {
+    const date = [...this.risks.keys()].sort().at(-1);
+    return date ? { date, report: this.risks.get(date)! } : null;
+  }
+  async recentFilingTitles(ticker: string, limit: number) {
+    return [...this.events.values()].filter((e) => e.ticker === ticker.toUpperCase() && e.source === "edgar").sort((a, b) => b.observedAt.localeCompare(a.observedAt)).slice(0, limit).map((e) => e.title);
+  }
+  async recentNewsTitles(query: string, limit: number) {
+    const q = query.toLowerCase();
+    return [...this.events.values()].filter((e) => e.source === "ar_official" && e.title.toLowerCase().includes(q)).sort((a, b) => b.observedAt.localeCompare(a.observedAt)).slice(0, limit).map((e) => e.title);
   }
 }
