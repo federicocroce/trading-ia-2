@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, numeric, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, date } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, date } from "drizzle-orm/pg-core";
 
 /** Enums espejo de @thesis/core. Si cambian ahí, cambian acá (test de paridad en schema.test.ts). */
 export const eventTypeEnum = pgEnum("event_type", ["fda", "earnings", "legal", "macro_ar", "operational"]);
@@ -111,4 +111,85 @@ export const outcomes = pgTable("outcomes", {
   closeReason: closeReasonEnum("close_reason").notNull(),
   closedAt: timestamp("closed_at", { withTimezone: true }).notNull(),
   notes: text("notes").notNull().default(""),
+});
+
+/** Cartera real del dueño (spec etapa 1: docs/superpowers/specs/2026-09-07-cartera-etapa1-design.md). */
+export const marketEnum = pgEnum("market", ["us", "adr", "ar"]);
+export const layerEnum = pgEnum("layer", ["riesgo", "nucleo", "cobertura"]);
+export const verbEnum = pgEnum("verb", ["VENDER", "REVISAR", "MANTENER", "SUMAR"]);
+export const txTypeEnum = pgEnum("tx_type", ["BUY", "SELL", "DIVIDEND", "TRANSFER"]);
+
+export const positions = pgTable("positions", {
+  symbol: text("symbol").primaryKey(),
+  quantity: numeric("quantity", { precision: 18, scale: 8 }).notNull(),
+  avgCost: numeric("avg_cost", { precision: 14, scale: 4 }).notNull(),
+  currency: text("currency").notNull().default("USD"),
+  market: marketEnum("market").notNull(),
+  layer: layerEnum("layer").notNull().default("riesgo"),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    symbol: text("symbol").notNull(),
+    type: txTypeEnum("type").notNull(),
+    quantity: numeric("quantity", { precision: 18, scale: 8 }).notNull(),
+    price: numeric("price", { precision: 14, scale: 4 }).notNull(),
+    fees: numeric("fees", { precision: 14, scale: 4 }).notNull().default("0"),
+    date: date("date").notNull(),
+    currency: text("currency").notNull().default("USD"),
+    platform: text("platform"),
+    externalId: text("external_id"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("transactions_dedupe").on(t.date, t.symbol, t.type, t.quantity, t.price), uniqueIndex("transactions_external").on(t.externalId)],
+);
+
+export const symbolMeta = pgTable("symbol_meta", {
+  symbol: text("symbol").primaryKey(),
+  name: text("name"),
+  country: text("country"),
+  industry: text("industry"),
+  marketCap: numeric("market_cap", { precision: 20, scale: 0 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const portfolioVerdicts = pgTable(
+  "portfolio_verdicts",
+  {
+    verdictDate: date("verdict_date").notNull(),
+    symbol: text("symbol").notNull(),
+    verb: verbEnum("verb").notNull(),
+    reason: text("reason").notNull(),
+    narrative: text("narrative"),
+    warning: text("warning"),
+    close: numeric("close", { precision: 14, scale: 4 }).notNull(),
+    spot: numeric("spot", { precision: 14, scale: 4 }),
+    stop: numeric("stop", { precision: 14, scale: 4 }),
+    target: numeric("target", { precision: 14, scale: 4 }),
+    gainPct: numeric("gain_pct", { precision: 10, scale: 4 }).notNull(),
+    weightPct: numeric("weight_pct", { precision: 8, scale: 4 }).notNull(),
+    spyClose: numeric("spy_close", { precision: 14, scale: 4 }),
+    degradedBy: text("degraded_by"),
+    promptVersion: text("prompt_version"),
+    close7d: numeric("close_7d", { precision: 14, scale: 4 }),
+    spy7d: numeric("spy_7d", { precision: 14, scale: 4 }),
+    alpha7dPct: numeric("alpha_7d_pct", { precision: 10, scale: 4 }),
+    close30d: numeric("close_30d", { precision: 14, scale: 4 }),
+    spy30d: numeric("spy_30d", { precision: 14, scale: 4 }),
+    alpha30dPct: numeric("alpha_30d_pct", { precision: 10, scale: 4 }),
+    measuredAt: timestamp("measured_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.verdictDate, t.symbol] })],
+);
+
+export const portfolioRisk = pgTable("portfolio_risk", {
+  snapshotDate: date("snapshot_date").primaryKey(),
+  report: jsonb("report").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

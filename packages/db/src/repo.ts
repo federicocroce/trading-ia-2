@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Order, Outcome, RawEvent, Thesis, ThesisProposal } from "@thesis/core";
+import type { Order, Outcome, Position, RawEvent, RiskReport, SymbolProfile, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -166,6 +166,96 @@ export class Repo {
     const rows = await this.db.select({ t: s.theses, o: s.outcomes }).from(s.outcomes).innerJoin(s.theses, eq(s.theses.id, s.outcomes.thesisId)).orderBy(s.outcomes.closedAt);
     return rows.map((r) => ({ thesis: toThesis(r.t), outcome: toOutcome(r.o) }));
   }
+  // ---------- cartera (spec etapa 1) ----------
+  async positions(): Promise<Position[]> {
+    const rows = await this.db.select().from(s.positions).orderBy(s.positions.symbol);
+    return rows.map((r) => ({ symbol: r.symbol, quantity: num(r.quantity), avgCost: num(r.avgCost), currency: r.currency, market: r.market, layer: r.layer, notes: r.notes }));
+  }
+  async upsertPosition(p: Position): Promise<void> {
+    const v = { symbol: p.symbol.toUpperCase(), quantity: str(p.quantity), avgCost: str(p.avgCost), currency: p.currency, market: p.market, layer: p.layer, notes: p.notes, updatedAt: new Date() };
+    await this.db.insert(s.positions).values(v).onConflictDoUpdate({ target: s.positions.symbol, set: v });
+  }
+  async deletePosition(symbol: string): Promise<void> {
+    await this.db.delete(s.positions).where(eq(s.positions.symbol, symbol.toUpperCase()));
+  }
+  async transactions(): Promise<Transaction[]> {
+    const rows = await this.db.select().from(s.transactions).orderBy(desc(s.transactions.date));
+    return rows.map((r) => ({ id: r.id, symbol: r.symbol, type: r.type, quantity: num(r.quantity), price: num(r.price), fees: num(r.fees), date: r.date, currency: r.currency, platform: r.platform, externalId: r.externalId, notes: r.notes }));
+  }
+  /** Ignora duplicados por external_id o por (fecha, símbolo, tipo, cantidad, precio). Devuelve cuántas entraron. */
+  async insertTransactions(txs: Transaction[]): Promise<number> {
+    if (!txs.length) return 0;
+    let inserted = 0;
+    for (const t of txs) {
+      const rows = await this.db
+        .insert(s.transactions)
+        .values({ id: t.id, symbol: t.symbol.toUpperCase(), type: t.type, quantity: str(t.quantity), price: str(t.price), fees: str(t.fees), date: t.date, currency: t.currency, platform: t.platform, externalId: t.externalId, notes: t.notes })
+        .onConflictDoNothing()
+        .returning({ id: s.transactions.id });
+      inserted += rows.length;
+    }
+    return inserted;
+  }
+  async profile(symbol: string): Promise<{ profile: SymbolProfile; updatedAt: string } | null> {
+    const r = (await this.db.select().from(s.symbolMeta).where(eq(s.symbolMeta.symbol, symbol.toUpperCase())))[0];
+    if (!r) return null;
+    return { profile: { symbol: r.symbol, name: r.name, country: r.country, industry: r.industry, marketCap: r.marketCap === null ? null : num(r.marketCap) }, updatedAt: r.updatedAt.toISOString() };
+  }
+  async saveProfile(p: SymbolProfile): Promise<void> {
+    const v = { symbol: p.symbol.toUpperCase(), name: p.name, country: p.country, industry: p.industry, marketCap: p.marketCap === null ? null : str(p.marketCap), updatedAt: new Date() };
+    await this.db.insert(s.symbolMeta).values(v).onConflictDoUpdate({ target: s.symbolMeta.symbol, set: v });
+  }
+  private verdictToRow(v: VerdictRow) {
+    const n = (x: number | null) => (x === null ? null : str(x));
+    return { verdictDate: v.verdictDate, symbol: v.symbol, verb: v.verb, reason: v.reason, narrative: v.narrative, warning: v.warning, close: str(v.close), spot: n(v.spot), stop: n(v.stop), target: n(v.target), gainPct: str(v.gainPct), weightPct: str(v.weightPct), spyClose: n(v.spyClose), degradedBy: v.degradedBy, promptVersion: v.promptVersion, close7d: n(v.close7d), spy7d: n(v.spy7d), alpha7dPct: n(v.alpha7dPct), close30d: n(v.close30d), spy30d: n(v.spy30d), alpha30dPct: n(v.alpha30dPct), measuredAt: v.measuredAt ? new Date(v.measuredAt) : null };
+  }
+  private rowToVerdict(r: typeof s.portfolioVerdicts.$inferSelect): VerdictRow {
+    const n = (x: string | null) => (x === null ? null : num(x));
+    return { verdictDate: r.verdictDate, symbol: r.symbol, verb: r.verb, reason: r.reason, narrative: r.narrative, warning: r.warning, close: num(r.close), spot: n(r.spot), stop: n(r.stop), target: n(r.target), gainPct: num(r.gainPct), weightPct: num(r.weightPct), spyClose: n(r.spyClose), degradedBy: r.degradedBy, promptVersion: r.promptVersion, close7d: n(r.close7d), spy7d: n(r.spy7d), alpha7dPct: n(r.alpha7dPct), close30d: n(r.close30d), spy30d: n(r.spy30d), alpha30dPct: n(r.alpha30dPct), measuredAt: r.measuredAt?.toISOString() ?? null };
+  }
+  /** Upsert por (fecha, símbolo). No pisa la medición ya hecha. */
+  async upsertVerdicts(rows: VerdictRow[]): Promise<void> {
+    for (const v of rows) {
+      const row = this.verdictToRow(v);
+      const { verdictDate: _d, symbol: _s, close7d: _a, spy7d: _b, alpha7dPct: _c, close30d: _e, spy30d: _f, alpha30dPct: _g, measuredAt: _h, ...set } = row;
+      await this.db.insert(s.portfolioVerdicts).values(row).onConflictDoUpdate({ target: [s.portfolioVerdicts.verdictDate, s.portfolioVerdicts.symbol], set });
+    }
+  }
+  async latestVerdicts(): Promise<VerdictRow[]> {
+    const last = (await this.db.select({ d: sql<string | null>`max(${s.portfolioVerdicts.verdictDate})` }).from(s.portfolioVerdicts))[0]?.d;
+    if (!last) return [];
+    return (await this.db.select().from(s.portfolioVerdicts).where(eq(s.portfolioVerdicts.verdictDate, last)).orderBy(s.portfolioVerdicts.symbol)).map((r) => this.rowToVerdict(r));
+  }
+  async verdictsToMeasure(before: string, horizon: 7 | 30): Promise<VerdictRow[]> {
+    const col = horizon === 7 ? s.portfolioVerdicts.close7d : s.portfolioVerdicts.close30d;
+    return (await this.db.select().from(s.portfolioVerdicts).where(and(sql`${s.portfolioVerdicts.verdictDate} <= ${before}`, sql`${col} is null`))).map((r) => this.rowToVerdict(r));
+  }
+  async setMeasurement(verdictDate: string, symbol: string, m: Partial<Pick<VerdictRow, "close7d" | "spy7d" | "alpha7dPct" | "close30d" | "spy30d" | "alpha30dPct">>): Promise<void> {
+    const set: Record<string, unknown> = { measuredAt: new Date() };
+    for (const [k, v] of Object.entries(m)) set[k] = v === null || v === undefined ? null : str(v);
+    await this.db.update(s.portfolioVerdicts).set(set).where(and(eq(s.portfolioVerdicts.verdictDate, verdictDate), eq(s.portfolioVerdicts.symbol, symbol)));
+  }
+  async allVerdicts(): Promise<VerdictRow[]> {
+    return (await this.db.select().from(s.portfolioVerdicts).orderBy(desc(s.portfolioVerdicts.verdictDate), s.portfolioVerdicts.symbol)).map((r) => this.rowToVerdict(r));
+  }
+  async saveRisk(date: string, report: RiskReport): Promise<void> {
+    await this.db.insert(s.portfolioRisk).values({ snapshotDate: date, report }).onConflictDoUpdate({ target: s.portfolioRisk.snapshotDate, set: { report } });
+  }
+  async latestRisk(): Promise<{ date: string; report: RiskReport } | null> {
+    const r = (await this.db.select().from(s.portfolioRisk).orderBy(desc(s.portfolioRisk.snapshotDate)).limit(1))[0];
+    return r ? { date: r.snapshotDate, report: r.report as RiskReport } : null;
+  }
+  /** Títulos de filings recientes del ticker (contexto para la narrativa). */
+  async recentFilingTitles(ticker: string, limit = 8): Promise<string[]> {
+    const rows = await this.db.select({ title: s.rawEvents.title }).from(s.rawEvents).where(and(eq(s.rawEvents.ticker, ticker.toUpperCase()), eq(s.rawEvents.source, "edgar"))).orderBy(desc(s.rawEvents.observedAt)).limit(limit);
+    return rows.map((r) => r.title);
+  }
+  /** Noticias argentinas que mencionan a la empresa (contexto para ADRs). */
+  async recentNewsTitles(query: string, limit = 5): Promise<string[]> {
+    const rows = await this.db.select({ title: s.rawEvents.title }).from(s.rawEvents).where(and(eq(s.rawEvents.source, "ar_official"), sql`${s.rawEvents.title} ilike ${"%" + query + "%"}`)).orderBy(desc(s.rawEvents.observedAt)).limit(limit);
+    return rows.map((r) => r.title);
+  }
+
 }
 
 function toRawEvent(r: typeof s.rawEvents.$inferSelect): RawEvent {
