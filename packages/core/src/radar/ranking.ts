@@ -11,7 +11,8 @@ export interface Fundamentals {
   metrics: FinnhubMetrics;
   peers: string[];
   industry: string | null;
-  mcapUsd: number;
+  /** null = desconocida (ADR cuya relación no se conoce); cuenta como riesgo alto. */
+  mcapUsd: number | null;
   dollarVolumeUsd: number;
   priceUsd: number;
   nextEarnings: string | null;

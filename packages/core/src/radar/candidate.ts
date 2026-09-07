@@ -63,13 +63,13 @@ export function positionSize(i: { entryHigh: number; stop: number | null; portfo
 }
 
 /** 1 (tranquilo) a 10 (especulativo). Tabla de la spec. */
-export function riskScore(i: { beta: number | null; atrPct: number | null; debtToEquity: number | null; dollarVolumeUsd: number; mcapUsd: number }): number {
+export function riskScore(i: { beta: number | null; atrPct: number | null; debtToEquity: number | null; dollarVolumeUsd: number; mcapUsd: number | null }): number {
   let r = 1;
   if (i.beta !== null) r += i.beta > 1.5 ? 2 : i.beta > 1.2 ? 1 : 0;
   if (i.atrPct !== null) r += i.atrPct > 4 ? 2 : i.atrPct > 2.5 ? 1 : 0;
   if (i.debtToEquity !== null) r += i.debtToEquity > 1.5 ? 2 : i.debtToEquity > 0.8 ? 1 : 0;
   r += i.dollarVolumeUsd < 10e6 ? 2 : i.dollarVolumeUsd < 25e6 ? 1 : 0;
-  r += i.mcapUsd < 2e9 ? 2 : i.mcapUsd < 10e9 ? 1 : 0;
+  r += i.mcapUsd === null || i.mcapUsd < 2e9 ? 2 : i.mcapUsd < 10e9 ? 1 : 0;
   return Math.min(10, r);
 }
 
@@ -118,8 +118,15 @@ export function decideCandidate(
   const close = gate.close;
   const entryHigh = round2(close * 1.02);
   const stop = computeTrailingStop(i.candles);
-  const target = computeTarget(close, stop);
-  const size = positionSize({ entryHigh, stop, portfolioUsd: i.portfolioUsd }, p.sizing);
+  // Cierre bajo el stop dinámico: viene cayendo desde un máximo reciente. Para un candidato nuevo
+  // no es una compra: se observa hasta que el stop vuelva a quedar por debajo del precio.
+  const belowStop = stop !== null && close <= stop;
+  if (belowStop) {
+    flags.push("bajo_stop");
+    reasons.push("bajo_stop");
+  }
+  const target = belowStop ? null : computeTarget(close, stop);
+  const size = belowStop ? null : positionSize({ entryHigh, stop, portfolioUsd: i.portfolioUsd }, p.sizing);
   const risk = riskScore({ beta: i.f.metrics["beta"] ?? null, atrPct: gate.atrPct, debtToEquity: i.f.metrics["totalDebt/totalEquityAnnual"] ?? null, dollarVolumeUsd: i.f.dollarVolumeUsd, mcapUsd: i.f.mcapUsd });
   return { verdict: reasons.length ? "OBSERVAR" : "COMPRAR", flags, entryLow: close, entryHigh, stop, target, size: size ? { qty: size.qty, sizeUsd: size.sizeUsd } : null, riskScore: risk, reasons, gate };
 }

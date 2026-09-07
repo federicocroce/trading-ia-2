@@ -1,34 +1,504 @@
 {
-  "sectors": ["Tecnología", "Comunicación", "Consumo discrecional", "Consumo básico", "Salud", "Financiero", "Industriales", "Energía", "Materiales", "Servicios públicos", "Inmobiliario", "Otros"],
-  "themes": ["IA", "semiconductores", "nube_software", "ciberseguridad", "defensa", "petroleo_gas", "renovables", "nuclear_uranio", "litio_baterias", "oro_mineria", "bitcoin", "fintech", "bancos", "biotech", "consumo", "infraestructura", "argentina", "china_taiwan", "dividendos", "small_caps"],
+  "sectors": [
+    "Tecnología",
+    "Comunicación",
+    "Consumo discrecional",
+    "Consumo básico",
+    "Salud",
+    "Financiero",
+    "Industriales",
+    "Energía",
+    "Materiales",
+    "Servicios públicos",
+    "Inmobiliario",
+    "Otros"
+  ],
+  "themes": [
+    "IA",
+    "semiconductores",
+    "nube_software",
+    "ciberseguridad",
+    "defensa",
+    "petroleo_gas",
+    "renovables",
+    "nuclear_uranio",
+    "litio_baterias",
+    "oro_mineria",
+    "bitcoin",
+    "fintech",
+    "bancos",
+    "biotech",
+    "consumo",
+    "infraestructura",
+    "argentina",
+    "china_taiwan",
+    "dividendos",
+    "small_caps"
+  ],
   "industryToSector": {
-    "Technology": "Tecnología", "Semiconductors": "Tecnología", "Software": "Tecnología", "Electronic Equipment": "Tecnología", "Computer Hardware": "Tecnología", "Electronic Equipment, Instruments & Components": "Tecnología",
-    "Media": "Comunicación", "Telecommunication": "Comunicación", "Communications": "Comunicación", "Entertainment": "Comunicación", "Interactive Media & Services": "Comunicación",
-    "Retail": "Consumo discrecional", "Automobiles": "Consumo discrecional", "Hotels, Restaurants & Leisure": "Consumo discrecional", "Textiles, Apparel & Luxury Goods": "Consumo discrecional", "Leisure Products": "Consumo discrecional", "Auto Components": "Consumo discrecional", "Distributors": "Consumo discrecional", "Household Durables": "Consumo discrecional", "Specialty Retail": "Consumo discrecional",
-    "Food Products": "Consumo básico", "Beverages": "Consumo básico", "Consumer products": "Consumo básico", "Tobacco": "Consumo básico", "Food & Staples Retailing": "Consumo básico", "Household Products": "Consumo básico", "Personal Products": "Consumo básico",
-    "Pharmaceuticals": "Salud", "Biotechnology": "Salud", "Health Care": "Salud", "Medical Devices": "Salud", "Life Sciences Tools & Services": "Salud", "Health Care Providers & Services": "Salud", "Health Care Equipment & Supplies": "Salud",
-    "Banking": "Financiero", "Financial Services": "Financiero", "Insurance": "Financiero", "Capital Markets": "Financiero", "Consumer Finance": "Financiero", "Diversified Financial Services": "Financiero", "Thrifts & Mortgage Finance": "Financiero",
-    "Aerospace & Defense": "Industriales", "Machinery": "Industriales", "Industrial Conglomerates": "Industriales", "Airlines": "Industriales", "Logistics & Transportation": "Industriales", "Building": "Industriales", "Construction": "Industriales", "Electrical Equipment": "Industriales", "Commercial Services & Supplies": "Industriales", "Trading Companies & Distributors": "Industriales", "Road & Rail": "Industriales", "Marine": "Industriales", "Professional Services": "Industriales", "Air Freight & Logistics": "Industriales", "Construction & Engineering": "Industriales", "Transportation Infrastructure": "Industriales",
-    "Energy": "Energía", "Oil & Gas": "Energía", "Oil, Gas & Consumable Fuels": "Energía", "Energy Equipment & Services": "Energía",
-    "Metals & Mining": "Materiales", "Chemicals": "Materiales", "Packaging": "Materiales", "Construction Materials": "Materiales", "Paper & Forest": "Materiales", "Containers & Packaging": "Materiales",
-    "Utilities": "Servicios públicos", "Electric Utilities": "Servicios públicos", "Gas Utilities": "Servicios públicos", "Water Utilities": "Servicios públicos",
-    "Real Estate": "Inmobiliario", "Equity Real Estate Investment Trusts (REITs)": "Inmobiliario", "Real Estate Management & Development": "Inmobiliario"
+    "Technology": "Tecnología",
+    "Semiconductors": "Tecnología",
+    "Software": "Tecnología",
+    "Electronic Equipment": "Tecnología",
+    "Computer Hardware": "Tecnología",
+    "Electronic Equipment, Instruments & Components": "Tecnología",
+    "Media": "Comunicación",
+    "Telecommunication": "Comunicación",
+    "Communications": "Comunicación",
+    "Entertainment": "Comunicación",
+    "Interactive Media & Services": "Comunicación",
+    "Retail": "Consumo discrecional",
+    "Automobiles": "Consumo discrecional",
+    "Hotels, Restaurants & Leisure": "Consumo discrecional",
+    "Textiles, Apparel & Luxury Goods": "Consumo discrecional",
+    "Leisure Products": "Consumo discrecional",
+    "Auto Components": "Consumo discrecional",
+    "Distributors": "Consumo discrecional",
+    "Household Durables": "Consumo discrecional",
+    "Specialty Retail": "Consumo discrecional",
+    "Food Products": "Consumo básico",
+    "Beverages": "Consumo básico",
+    "Consumer products": "Consumo básico",
+    "Tobacco": "Consumo básico",
+    "Food & Staples Retailing": "Consumo básico",
+    "Household Products": "Consumo básico",
+    "Personal Products": "Consumo básico",
+    "Pharmaceuticals": "Salud",
+    "Biotechnology": "Salud",
+    "Health Care": "Salud",
+    "Medical Devices": "Salud",
+    "Life Sciences Tools & Services": "Salud",
+    "Health Care Providers & Services": "Salud",
+    "Health Care Equipment & Supplies": "Salud",
+    "Banking": "Financiero",
+    "Financial Services": "Financiero",
+    "Insurance": "Financiero",
+    "Capital Markets": "Financiero",
+    "Consumer Finance": "Financiero",
+    "Diversified Financial Services": "Financiero",
+    "Thrifts & Mortgage Finance": "Financiero",
+    "Aerospace & Defense": "Industriales",
+    "Machinery": "Industriales",
+    "Industrial Conglomerates": "Industriales",
+    "Airlines": "Industriales",
+    "Logistics & Transportation": "Industriales",
+    "Building": "Industriales",
+    "Construction": "Industriales",
+    "Electrical Equipment": "Industriales",
+    "Commercial Services & Supplies": "Industriales",
+    "Trading Companies & Distributors": "Industriales",
+    "Road & Rail": "Industriales",
+    "Marine": "Industriales",
+    "Professional Services": "Industriales",
+    "Air Freight & Logistics": "Industriales",
+    "Construction & Engineering": "Industriales",
+    "Transportation Infrastructure": "Industriales",
+    "Energy": "Energía",
+    "Oil & Gas": "Energía",
+    "Oil, Gas & Consumable Fuels": "Energía",
+    "Energy Equipment & Services": "Energía",
+    "Metals & Mining": "Materiales",
+    "Chemicals": "Materiales",
+    "Packaging": "Materiales",
+    "Construction Materials": "Materiales",
+    "Paper & Forest": "Materiales",
+    "Containers & Packaging": "Materiales",
+    "Utilities": "Servicios públicos",
+    "Electric Utilities": "Servicios públicos",
+    "Gas Utilities": "Servicios públicos",
+    "Water Utilities": "Servicios públicos",
+    "Real Estate": "Inmobiliario",
+    "Equity Real Estate Investment Trusts (REITs)": "Inmobiliario",
+    "Real Estate Management & Development": "Inmobiliario",
+    "Diversified Consumer Services": "Consumo discrecional"
   },
   "industryToThemes": {
-    "Semiconductors": ["semiconductores"], "Software": ["nube_software"], "Aerospace & Defense": ["defensa"], "Energy": ["petroleo_gas"], "Oil & Gas": ["petroleo_gas"], "Oil, Gas & Consumable Fuels": ["petroleo_gas"], "Energy Equipment & Services": ["petroleo_gas"],
-    "Banking": ["bancos"], "Biotechnology": ["biotech"], "Pharmaceuticals": ["biotech"], "Metals & Mining": ["oro_mineria"], "Retail": ["consumo"], "Specialty Retail": ["consumo"], "Consumer products": ["consumo"], "Food Products": ["consumo"], "Beverages": ["consumo"],
-    "Utilities": ["infraestructura"], "Electric Utilities": ["infraestructura"], "Construction": ["infraestructura"], "Building": ["infraestructura"], "Construction & Engineering": ["infraestructura"], "Transportation Infrastructure": ["infraestructura"]
+    "Semiconductors": [
+      "semiconductores"
+    ],
+    "Software": [
+      "nube_software"
+    ],
+    "Aerospace & Defense": [
+      "defensa"
+    ],
+    "Energy": [
+      "petroleo_gas"
+    ],
+    "Oil & Gas": [
+      "petroleo_gas"
+    ],
+    "Oil, Gas & Consumable Fuels": [
+      "petroleo_gas"
+    ],
+    "Energy Equipment & Services": [
+      "petroleo_gas"
+    ],
+    "Banking": [
+      "bancos"
+    ],
+    "Biotechnology": [
+      "biotech"
+    ],
+    "Pharmaceuticals": [
+      "biotech"
+    ],
+    "Metals & Mining": [
+      "oro_mineria"
+    ],
+    "Retail": [
+      "consumo"
+    ],
+    "Specialty Retail": [
+      "consumo"
+    ],
+    "Consumer products": [
+      "consumo"
+    ],
+    "Food Products": [
+      "consumo"
+    ],
+    "Beverages": [
+      "consumo"
+    ],
+    "Utilities": [
+      "infraestructura"
+    ],
+    "Electric Utilities": [
+      "infraestructura"
+    ],
+    "Construction": [
+      "infraestructura"
+    ],
+    "Building": [
+      "infraestructura"
+    ],
+    "Construction & Engineering": [
+      "infraestructura"
+    ],
+    "Transportation Infrastructure": [
+      "infraestructura"
+    ],
+    "Diversified Consumer Services": [
+      "consumo"
+    ]
   },
   "symbolToThemes": {
-    "NVDA": ["IA", "semiconductores"], "AMD": ["IA", "semiconductores"], "AVGO": ["IA", "semiconductores"], "TSM": ["semiconductores", "china_taiwan", "IA"], "ASML": ["semiconductores"], "MU": ["semiconductores", "IA"], "ARM": ["semiconductores", "IA"],
-    "MSFT": ["IA", "nube_software"], "GOOGL": ["IA", "nube_software"], "GOOG": ["IA", "nube_software"], "AMZN": ["IA", "nube_software", "consumo"], "META": ["IA"], "PLTR": ["IA", "defensa"], "ORCL": ["IA", "nube_software"], "SNOW": ["IA", "nube_software"], "NOW": ["nube_software"], "CRM": ["nube_software"],
-    "MARA": ["bitcoin"], "HUT": ["bitcoin"], "RIOT": ["bitcoin"], "CLSK": ["bitcoin"], "IBIT": ["bitcoin"], "COIN": ["bitcoin", "fintech"], "MSTR": ["bitcoin"],
-    "YPF": ["argentina", "petroleo_gas"], "VIST": ["argentina", "petroleo_gas"], "GGAL": ["argentina", "bancos"], "PAM": ["argentina", "infraestructura"], "BMA": ["argentina", "bancos"], "SUPV": ["argentina", "bancos"], "BBAR": ["argentina", "bancos"], "TGS": ["argentina", "petroleo_gas"], "CEPU": ["argentina", "infraestructura"], "EDN": ["argentina", "infraestructura"], "LOMA": ["argentina", "infraestructura"], "CRESY": ["argentina"], "IRS": ["argentina"], "TEO": ["argentina"], "MELI": ["argentina", "consumo", "fintech"], "GLOB": ["argentina", "nube_software"], "ARGT": ["argentina"],
-    "NEM": ["oro_mineria"], "GLD": ["oro_mineria"], "GOLD": ["oro_mineria"], "AEM": ["oro_mineria"], "GDX": ["oro_mineria"], "CCJ": ["nuclear_uranio"], "URA": ["nuclear_uranio"], "UEC": ["nuclear_uranio"], "ALB": ["litio_baterias"], "LIT": ["litio_baterias"], "SQM": ["litio_baterias"], "LAC": ["litio_baterias"],
-    "LMT": ["defensa"], "RTX": ["defensa"], "NOC": ["defensa"], "GD": ["defensa"], "LHX": ["defensa"], "ITA": ["defensa"], "CRWD": ["ciberseguridad", "nube_software"], "PANW": ["ciberseguridad"], "ZS": ["ciberseguridad"], "FTNT": ["ciberseguridad"], "CIBR": ["ciberseguridad"],
-    "XOM": ["petroleo_gas"], "CVX": ["petroleo_gas"], "XLE": ["petroleo_gas"], "USO": ["petroleo_gas"], "ENPH": ["renovables"], "FSLR": ["renovables"], "ICLN": ["renovables"], "NEE": ["renovables", "infraestructura"],
-    "SCHD": ["dividendos"], "VYM": ["dividendos"], "IWM": ["small_caps"], "SOFI": ["fintech"], "NU": ["fintech"], "PYPL": ["fintech"], "SQ": ["fintech"], "XLF": ["bancos", "fintech"], "JPM": ["bancos"], "BAC": ["bancos"],
-    "QQQ": ["IA", "nube_software"], "XLK": ["IA", "semiconductores"], "SMH": ["semiconductores", "IA"], "EWT": ["china_taiwan", "semiconductores"], "XLV": ["biotech"], "XLI": ["infraestructura", "defensa"], "XLU": ["infraestructura", "dividendos"], "ILF": ["argentina"]
+    "NVDA": [
+      "IA",
+      "semiconductores"
+    ],
+    "AMD": [
+      "IA",
+      "semiconductores"
+    ],
+    "AVGO": [
+      "IA",
+      "semiconductores"
+    ],
+    "TSM": [
+      "semiconductores",
+      "china_taiwan",
+      "IA"
+    ],
+    "ASML": [
+      "semiconductores"
+    ],
+    "MU": [
+      "semiconductores",
+      "IA"
+    ],
+    "ARM": [
+      "semiconductores",
+      "IA"
+    ],
+    "MSFT": [
+      "IA",
+      "nube_software"
+    ],
+    "GOOGL": [
+      "IA",
+      "nube_software"
+    ],
+    "GOOG": [
+      "IA",
+      "nube_software"
+    ],
+    "AMZN": [
+      "IA",
+      "nube_software",
+      "consumo"
+    ],
+    "META": [
+      "IA"
+    ],
+    "PLTR": [
+      "IA",
+      "defensa"
+    ],
+    "ORCL": [
+      "IA",
+      "nube_software"
+    ],
+    "SNOW": [
+      "IA",
+      "nube_software"
+    ],
+    "NOW": [
+      "nube_software"
+    ],
+    "CRM": [
+      "nube_software"
+    ],
+    "MARA": [
+      "bitcoin"
+    ],
+    "HUT": [
+      "bitcoin"
+    ],
+    "RIOT": [
+      "bitcoin"
+    ],
+    "CLSK": [
+      "bitcoin"
+    ],
+    "IBIT": [
+      "bitcoin"
+    ],
+    "COIN": [
+      "bitcoin",
+      "fintech"
+    ],
+    "MSTR": [
+      "bitcoin"
+    ],
+    "YPF": [
+      "argentina",
+      "petroleo_gas"
+    ],
+    "VIST": [
+      "argentina",
+      "petroleo_gas"
+    ],
+    "GGAL": [
+      "argentina",
+      "bancos"
+    ],
+    "PAM": [
+      "argentina",
+      "infraestructura"
+    ],
+    "BMA": [
+      "argentina",
+      "bancos"
+    ],
+    "SUPV": [
+      "argentina",
+      "bancos"
+    ],
+    "BBAR": [
+      "argentina",
+      "bancos"
+    ],
+    "TGS": [
+      "argentina",
+      "petroleo_gas"
+    ],
+    "CEPU": [
+      "argentina",
+      "infraestructura"
+    ],
+    "EDN": [
+      "argentina",
+      "infraestructura"
+    ],
+    "LOMA": [
+      "argentina",
+      "infraestructura"
+    ],
+    "CRESY": [
+      "argentina"
+    ],
+    "IRS": [
+      "argentina"
+    ],
+    "TEO": [
+      "argentina"
+    ],
+    "MELI": [
+      "argentina",
+      "consumo",
+      "fintech"
+    ],
+    "GLOB": [
+      "argentina",
+      "nube_software"
+    ],
+    "ARGT": [
+      "argentina"
+    ],
+    "NEM": [
+      "oro_mineria"
+    ],
+    "GLD": [
+      "oro_mineria"
+    ],
+    "GOLD": [
+      "oro_mineria"
+    ],
+    "AEM": [
+      "oro_mineria"
+    ],
+    "GDX": [
+      "oro_mineria"
+    ],
+    "CCJ": [
+      "nuclear_uranio"
+    ],
+    "URA": [
+      "nuclear_uranio"
+    ],
+    "UEC": [
+      "nuclear_uranio"
+    ],
+    "ALB": [
+      "litio_baterias"
+    ],
+    "LIT": [
+      "litio_baterias"
+    ],
+    "SQM": [
+      "litio_baterias"
+    ],
+    "LAC": [
+      "litio_baterias"
+    ],
+    "LMT": [
+      "defensa"
+    ],
+    "RTX": [
+      "defensa"
+    ],
+    "NOC": [
+      "defensa"
+    ],
+    "GD": [
+      "defensa"
+    ],
+    "LHX": [
+      "defensa"
+    ],
+    "ITA": [
+      "defensa"
+    ],
+    "CRWD": [
+      "ciberseguridad",
+      "nube_software"
+    ],
+    "PANW": [
+      "ciberseguridad"
+    ],
+    "ZS": [
+      "ciberseguridad"
+    ],
+    "FTNT": [
+      "ciberseguridad"
+    ],
+    "CIBR": [
+      "ciberseguridad"
+    ],
+    "XOM": [
+      "petroleo_gas"
+    ],
+    "CVX": [
+      "petroleo_gas"
+    ],
+    "XLE": [
+      "petroleo_gas"
+    ],
+    "USO": [
+      "petroleo_gas"
+    ],
+    "ENPH": [
+      "renovables"
+    ],
+    "FSLR": [
+      "renovables"
+    ],
+    "ICLN": [
+      "renovables"
+    ],
+    "NEE": [
+      "renovables",
+      "infraestructura"
+    ],
+    "SCHD": [
+      "dividendos"
+    ],
+    "VYM": [
+      "dividendos"
+    ],
+    "IWM": [
+      "small_caps"
+    ],
+    "SOFI": [
+      "fintech"
+    ],
+    "NU": [
+      "fintech"
+    ],
+    "PYPL": [
+      "fintech"
+    ],
+    "SQ": [
+      "fintech"
+    ],
+    "XLF": [
+      "bancos",
+      "fintech"
+    ],
+    "JPM": [
+      "bancos"
+    ],
+    "BAC": [
+      "bancos"
+    ],
+    "QQQ": [
+      "IA",
+      "nube_software"
+    ],
+    "XLK": [
+      "IA",
+      "semiconductores"
+    ],
+    "SMH": [
+      "semiconductores",
+      "IA"
+    ],
+    "EWT": [
+      "china_taiwan",
+      "semiconductores"
+    ],
+    "XLV": [
+      "biotech"
+    ],
+    "XLI": [
+      "infraestructura",
+      "defensa"
+    ],
+    "XLU": [
+      "infraestructura",
+      "dividendos"
+    ],
+    "ILF": [
+      "argentina"
+    ]
   },
-  "symbolToAssetClass": { "BTC": "cripto", "ETH": "cripto", "SOL": "cripto", "USDC": "efectivo", "USDT": "efectivo" }
+  "symbolToAssetClass": {
+    "BTC": "cripto",
+    "ETH": "cripto",
+    "SOL": "cripto",
+    "USDC": "efectivo",
+    "USDT": "efectivo"
+  }
 }

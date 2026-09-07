@@ -46,6 +46,19 @@ describe("/taxonomy", () => {
   });
 });
 
+describe("/taxonomy/apply", () => {
+  it("etiqueta por regla las posiciones (o los símbolos pedidos) a partir del perfil guardado", async () => {
+    const { a, store } = app();
+    await store.upsertPosition({ symbol: "GGAL", quantity: 1, avgCost: 1, currency: "USD", market: "adr", layer: "riesgo", notes: null });
+    await store.saveProfile({ symbol: "GGAL", name: "Galicia", country: "AR", industry: "Banking", marketCap: null });
+    const r = await (await post(a, "/taxonomy/apply")).json();
+    expect(r.tagged).toBe(1);
+    const t = await (await a.request("/taxonomy/GGAL")).json();
+    expect(t.assetClass).toBe("adr");
+    expect(t.sector).toBe("Otros"); // Banking no está en la taxonomía del test
+  });
+});
+
 describe("/radar", () => {
   it("scan en segundo plano con estado; 409 si ya corre; rank, refresh, plan, candidates con filtro, measurement", async () => {
     const { a } = app();

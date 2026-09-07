@@ -1,0 +1,1 @@
+ALTER TABLE "fundamentals" ALTER COLUMN "mcap_usd" DROP NOT NULL;

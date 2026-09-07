@@ -280,10 +280,10 @@ export class Repo {
     return out;
   }
   private rowToFundamentals(r: typeof s.fundamentals.$inferSelect): Fundamentals {
-    return { symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers as string[]) ?? [], industry: r.industry, mcapUsd: num(r.mcapUsd), dollarVolumeUsd: num(r.dollarVolumeUsd), priceUsd: num(r.priceUsd), nextEarnings: r.nextEarnings, insiderBuys90d: r.insiderBuys90d, insiderSells90d: r.insiderSells90d, analyst: r.analyst as Fundamentals["analyst"], earningsSurprises: r.earningsSurprises as Fundamentals["earningsSurprises"] };
+    return { symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers as string[]) ?? [], industry: r.industry, mcapUsd: r.mcapUsd === null ? null : num(r.mcapUsd), dollarVolumeUsd: num(r.dollarVolumeUsd), priceUsd: num(r.priceUsd), nextEarnings: r.nextEarnings, insiderBuys90d: r.insiderBuys90d, insiderSells90d: r.insiderSells90d, analyst: r.analyst as Fundamentals["analyst"], earningsSurprises: r.earningsSurprises as Fundamentals["earningsSurprises"] };
   }
   async saveFundamentals(f: Fundamentals): Promise<void> {
-    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, updatedAt: new Date() };
+    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: f.mcapUsd === null ? null : str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, updatedAt: new Date() };
     await this.db.insert(s.fundamentals).values(v).onConflictDoUpdate({ target: s.fundamentals.symbol, set: v });
   }
   async fundamentals(symbol: string): Promise<Fundamentals | null> {

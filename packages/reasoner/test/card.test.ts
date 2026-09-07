@@ -31,6 +31,7 @@ describe("ficha de candidato", () => {
     expect(parseCard({ ...good, degrade: true, degradeReason: "8-K: guidance recortado" }, input.themeOptions).degrade).toBe(true);
     expect(() => parseCard({ ...good, verdict: "VENDER" }, input.themeOptions)).toThrow();
     expect(() => parseCard({ ...good, moat: "enorme" }, input.themeOptions)).toThrow();
+    expect(parseCard({ ...good, degradeReason: "" }, input.themeOptions).degradeReason).toBeUndefined(); // el modelo manda "" cuando no degrada
   });
   it("GeminiCardWriter manda system, mensaje y tool candidate_card forzada", async () => {
     const { f, calls } = fakeFetch(good);

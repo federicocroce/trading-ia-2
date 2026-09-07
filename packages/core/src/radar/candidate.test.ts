@@ -52,6 +52,7 @@ describe("riskScore", () => {
     expect(riskScore({ beta: 2, atrPct: 5, debtToEquity: 2, dollarVolumeUsd: 6e6, mcapUsd: 1e9 })).toBe(10);
     expect(riskScore({ beta: 1.3, atrPct: 3, debtToEquity: 1, dollarVolumeUsd: 20e6, mcapUsd: 5e9 })).toBe(6);
     expect(riskScore({ beta: null, atrPct: null, debtToEquity: null, dollarVolumeUsd: 100e6, mcapUsd: 50e9 })).toBe(1);
+    expect(riskScore({ beta: null, atrPct: null, debtToEquity: null, dollarVolumeUsd: 100e6, mcapUsd: null })).toBe(3); // capitalización desconocida (ADR) cuenta como chica
   });
 });
 
@@ -82,6 +83,18 @@ describe("decideCandidate", () => {
     expect(d.target).toBeGreaterThan(100);
     expect(d.size!.qty).toBeGreaterThan(0);
     expect(d.riskScore).toBeGreaterThanOrEqual(1);
+  });
+  it("cierre bajo el stop dinámico (viene cayendo desde un máximo reciente) → OBSERVAR sin tamaño", () => {
+    // sube 80→110 y en las últimas 5 velas cae a 100: sigue sobre la SMA200 pero bajo el chandelier
+    const closes = [...Array.from({ length: 255 }, (_, i) => 80 + (30 * i) / 254), 108, 105, 103, 101, 100];
+    const c = series(closes);
+    const d = decideCandidate({ f: f(), candles: c, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.stop).toBeGreaterThan(d.entryLow);
+    expect(d.verdict).toBe("OBSERVAR");
+    expect(d.flags).toContain("bajo_stop");
+    expect(d.size).toBeNull();
+    expect(d.target).toBeNull();
   });
   it("residente crónico → OBSERVAR", () => {
     const d = decideCandidate({ f: f(), candles: up, nthAppearance: 4, portfolioUsd: null, today }, policy);

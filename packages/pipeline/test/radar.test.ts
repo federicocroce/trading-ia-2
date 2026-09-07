@@ -74,6 +74,22 @@ describe("scanUniverse", () => {
   });
 });
 
+describe("scanUniverse con ADRs", () => {
+  it("perfil en moneda local sin volumen de Finnhub: usa el volumen de Yahoo y deja la capitalización desconocida", async () => {
+    const { store, d } = deps({
+      assets: { list: async () => [{ symbol: "GGAL", name: "Grupo Financiero Galicia", exchange: "NASDAQ", tradable: true }], snapshots: async (s) => s.map((x) => ({ symbol: x, price: 44.36, iexVolume: 100_000 })) },
+      fundamentals: { ...deps().d.fundamentals, profile: async (s) => ({ symbol: s, name: "GGAL", country: "AR", industry: "Banking", marketCap: null, currency: "ARS", shareOutstanding: 1325 }), metrics: async () => ({ peTTM: 10 }) },
+      history: { candles: async () => series(Array(99).fill(44.36)).map((c) => ({ ...c, volume: 830_000 })) },
+    });
+    const r = await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    expect(r.fundamentalsOk).toBe(1);
+    const f = await store.fundamentals("GGAL");
+    expect(f?.mcapUsd).toBeNull();
+    expect(f?.dollarVolumeUsd).toBeCloseTo(830_000 * 44.36, -3);
+    expect((await store.tags("GGAL"))?.assetClass).toBe("adr");
+  });
+});
+
 describe("rankRadar", () => {
   it("rankea, filtra, decide, escribe ficha (solo degrada) y guarda ETFs", async () => {
     const { store, d } = deps();

@@ -11,7 +11,7 @@ import { GeminiToolCaller, type GeminiCallerOptions, type ToolSpec } from "./gem
 export const CARD_SYSTEM = `Sos analista de renta variable. Recibís UNA empresa candidata con su veredicto ya decidido por reglas (COMPRAR u OBSERVAR), su score fundamental contra pares con el detalle por eje (valuación, calidad, crecimiento, balance), sus métricas y las medianas del grupo, banderas, insiders, consenso, últimas sorpresas de resultados, títulos de filings recientes y la lista de temas permitidos.
 
 Escribí en español, breve y concreto:
-- summary: qué hace la empresa, máximo dos oraciones. Si no lo sabés con lo recibido, decilo.
+- summary: qué hace la empresa, máximo dos oraciones. Para esto sí podés usar lo que sabés de la empresa por su nombre (es información pública y estable); si no la conocés, decilo. Todo lo demás (números, comparaciones, riesgos) sale solo de lo recibido.
 - whyRanks: por qué rankea donde rankea, máximo dos oraciones, citando números recibidos y su lugar entre pares.
 - mainRisk: el riesgo principal, una oración, basado en datos recibidos (deuda, márgenes, sorpresas negativas, insiders vendiendo, resultados cerca).
 - moat: debil, moderado, fuerte o desconocido. Solo fuerte con evidencia en los números (márgenes y ROE muy por encima del grupo de forma sostenida).
@@ -53,7 +53,9 @@ const CardSchema = z
 
 /** Valida la salida del modelo; los temas fuera de la lista se descartan (el modelo no inventa categorías). */
 export function parseCard(args: unknown, themeOptions: string[]): Card {
-  const c = CardSchema.parse(args);
+  // El modelo suele mandar degradeReason: "" cuando no degrada; se trata como ausente.
+  const raw = args && typeof args === "object" && "degradeReason" in args && !String((args as { degradeReason: unknown }).degradeReason ?? "").trim() ? { ...(args as object), degradeReason: undefined } : args;
+  const c = CardSchema.parse(raw);
   const themes = [...new Set(c.themes)].filter((t) => themeOptions.includes(t));
   return { summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat, themes, degrade: c.degrade, ...(c.degradeReason ? { degradeReason: c.degradeReason } : {}) };
 }

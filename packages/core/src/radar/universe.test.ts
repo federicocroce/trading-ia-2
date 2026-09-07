@@ -14,6 +14,12 @@ describe("universo", () => {
     expect(isEligibleAsset({ symbol: "OTC1", name: "Otc", exchange: "OTC", tradable: true }).ok).toBe(false);
     expect(isEligibleAsset({ symbol: "Z", name: "Z", exchange: "NYSE", tradable: false }).ok).toBe(false);
   });
+  it("excluye fondos y fideicomisos por nombre (ETF, ETN, Fund, Grayscale, Bitcoin/Ethereum Trust…)", () => {
+    for (const name of ["Grayscale Ethereum Trust", "iShares Bitcoin Trust", "SPDR Gold Shares", "Vanguard Total Market ETF", "ProShares UltraPro QQQ", "Some Income Fund"]) {
+      expect(isEligibleAsset({ symbol: "XXX", name, exchange: "NYSE", tradable: true }).ok).toBe(false);
+    }
+    expect(isEligibleAsset({ symbol: "KRG", name: "Kite Realty Group Trust", exchange: "NYSE", tradable: true }).ok).toBe(true); // REIT legítimo
+  });
   it("pre-filtro: precio y volumen IEX en USD; sin dato no pasa", () => {
     expect(passesPreFilter({ symbol: "A", price: 10, iexVolume: 100_000 }, pre).ok).toBe(true);
     expect(passesPreFilter({ symbol: "A", price: 4, iexVolume: 1e6 }, pre).reason).toMatch(/precio/);
@@ -30,5 +36,14 @@ describe("universo", () => {
     expect(qualityBar({ ...f, metrics: {} }, q).reason).toMatch(/volumen/);
     expect(qualityBar({ ...f, profile: { ...f.profile, shareOutstanding: 0.5 } }, q).reason).toMatch(/capitalización/);
     expect(qualityBar({ ...f, priceUsd: 3 }, q).reason).toMatch(/precio/);
+  });
+  it("ADR: volumen de Yahoo cuando Finnhub no lo tiene y capitalización desconocida permitida", () => {
+    const adr = { profile: { shareOutstanding: 1325, currency: "ARS", country: "AR", industry: "Banking", name: "GGAL" }, metrics: {}, priceUsd: 44.36 };
+    expect(qualityBar(adr, q).ok).toBe(false);
+    const r = qualityBar(adr, q, { volumeOverrideUsd: 36.8e6, allowUnknownMcap: true });
+    expect(r.ok).toBe(true);
+    expect(r.mcapUsd).toBeNull();
+    expect(r.dollarVolumeUsd).toBe(36.8e6);
+    expect(qualityBar(adr, q, { volumeOverrideUsd: 1e6, allowUnknownMcap: true }).reason).toMatch(/volumen/);
   });
 });

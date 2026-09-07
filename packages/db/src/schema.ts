@@ -174,7 +174,7 @@ export const fundamentals = pgTable("fundamentals", {
   metrics: jsonb("metrics").notNull(),
   peers: jsonb("peers").notNull().default([]),
   industry: text("industry"),
-  mcapUsd: numeric("mcap_usd", { precision: 20, scale: 0 }).notNull(),
+  mcapUsd: numeric("mcap_usd", { precision: 20, scale: 0 }),
   dollarVolumeUsd: numeric("dollar_volume_usd", { precision: 20, scale: 0 }).notNull(),
   priceUsd: numeric("price_usd", { precision: 14, scale: 4 }).notNull(),
   nextEarnings: date("next_earnings"),

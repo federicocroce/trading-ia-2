@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { AssetClassSchema, type Tags } from "@thesis/core";
+import { applyTaxonomy } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 
 /** Etiquetas por ticker (spec etapa 2 §5): lectura, opciones y edición manual (que nunca se pisa). */
@@ -12,6 +13,12 @@ export function taxonomyRoutes(c: Container) {
   app.get("/taxonomy/options", (ctx) =>
     ctx.json({ assetClasses: AssetClassSchema.options, sectors: taxonomy.sectors, themes: taxonomy.themes, exposures: ["rv_us", "rv_internacional", "emergentes", "sector", "commodity", "bonos", "cripto", "argentina"], roles: ["nucleo", "satelite", "cobertura"] }),
   );
+  /** Etiqueta por regla los símbolos pedidos (default: las posiciones de Cartera). Lo manual no se pisa. */
+  app.post("/taxonomy/apply", async (ctx) => {
+    const body = (await ctx.req.json().catch(() => ({}))) as { symbols?: unknown };
+    const symbols = Array.isArray(body.symbols) && body.symbols.length ? body.symbols.map(String) : (await c.radarDeps.store.positions()).map((p) => p.symbol);
+    return ctx.json({ tagged: await applyTaxonomy(c.radarDeps, symbols) });
+  });
   app.get("/taxonomy/:symbol", async (ctx) => {
     const t = await store.tags(ctx.req.param("symbol").toUpperCase());
     return t ? ctx.json(t) : ctx.json({ error: "sin etiquetas" }, 404);

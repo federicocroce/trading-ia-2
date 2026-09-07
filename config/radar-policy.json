@@ -12,7 +12,7 @@
   },
   "prefilter": {
     "minPrice": 5,
-    "minIexDollarVolume": 500000
+    "minIexDollarVolume": 100000
   },
   "technical": {
     "maxReturn21dPct": 15,
