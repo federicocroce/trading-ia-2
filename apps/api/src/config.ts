@@ -4,8 +4,7 @@ import path from "node:path";
 /** Configuración desde env + universe.json. Sin valores secretos hardcodeados. */
 export interface Config {
   databaseUrl: string;
-  anthropicApiKey: string | undefined;
-  anthropicModel: string | undefined;
+  reasoner: ReasonerConfig;
   alpaca: { keyId: string; secretKey: string; paper: true };
   userAgent: string;
   courtListenerToken: string | undefined;
@@ -26,6 +25,43 @@ export interface Universe {
   adr: string[];
   /** ticker -> nombre legal para CourtListener. */
   legalNames: Record<string, string>;
+}
+
+export type ReasonerKind = "anthropic" | "gemini";
+export interface ReasonerConfig {
+  kind: ReasonerKind;
+  anthropicApiKey?: string;
+  anthropicModel?: string;
+  /** GOOGLE_AI_API_KEY_1..4, en orden, sin vacías. */
+  geminiKeys: string[];
+  /** GEMINI_MODELS separado por coma; undefined = default del reasoner. */
+  geminiModels?: string[];
+}
+
+/**
+ * Elige el razonador por lo que haya configurado. Sin REASONER: Anthropic si hay key,
+ * si no Gemini si hay keys, si no error. REASONER=gemini|anthropic fuerza uno.
+ */
+export function resolveReasoner(env: Record<string, string | undefined>): ReasonerConfig {
+  const geminiKeys = [1, 2, 3, 4].map((n) => env[`GOOGLE_AI_API_KEY_${n}`]?.trim()).filter((k): k is string => !!k);
+  const anthropicApiKey = env["ANTHROPIC_API_KEY"]?.trim() || undefined;
+  const models = env["GEMINI_MODELS"]?.split(",").map((m) => m.trim()).filter(Boolean);
+  const forced = env["REASONER"]?.trim();
+  let kind: ReasonerKind;
+  if (forced === "gemini" || forced === "anthropic") kind = forced;
+  else if (forced) throw new Error(`REASONER=${forced} desconocido (gemini|anthropic)`);
+  else if (anthropicApiKey) kind = "anthropic";
+  else if (geminiKeys.length) kind = "gemini";
+  else throw new Error("razonador sin credenciales: configurá ANTHROPIC_API_KEY o GOOGLE_AI_API_KEY_1..4");
+  if (kind === "gemini" && !geminiKeys.length) throw new Error("REASONER=gemini requiere GOOGLE_AI_API_KEY_1..4");
+  if (kind === "anthropic" && !anthropicApiKey) throw new Error("REASONER=anthropic requiere ANTHROPIC_API_KEY");
+  return {
+    kind,
+    geminiKeys,
+    ...(anthropicApiKey ? { anthropicApiKey } : {}),
+    ...(env["ANTHROPIC_MODEL"] ? { anthropicModel: env["ANTHROPIC_MODEL"] } : {}),
+    ...(models?.length ? { geminiModels: models } : {}),
+  };
 }
 
 const req = (k: string): string => {
@@ -61,8 +97,7 @@ export async function loadConfig(root?: string): Promise<Config> {
   if (process.env["ALPACA_PAPER"] === "false") throw new Error("ALPACA_PAPER=false no permitido en v1");
   return {
     databaseUrl: req("DATABASE_URL"),
-    anthropicApiKey: process.env["ANTHROPIC_API_KEY"],
-    anthropicModel: process.env["ANTHROPIC_MODEL"],
+    reasoner: resolveReasoner(process.env),
     alpaca: { keyId: req("ALPACA_KEY_ID"), secretKey: req("ALPACA_SECRET_KEY"), paper: true },
     userAgent: process.env["SEC_USER_AGENT"] ?? "thesis-engine research contact@example.com",
     courtListenerToken: process.env["COURTLISTENER_TOKEN"],

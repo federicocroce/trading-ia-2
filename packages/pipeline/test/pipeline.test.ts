@@ -95,6 +95,18 @@ describe("dailyRun", () => {
     const s = await dailyRun(deps, { since: "2026-09-01", today: "2026-09-04" });
     expect(s.errors).toHaveLength(1);
   });
+  it("si el razonador falla, el evento queda pendiente y se razona en la corrida siguiente", async () => {
+    let fail = true;
+    const good = new FakeReasoner(0.7);
+    const flaky: Reasoner = { promptVersion: "v", propose: async (b) => { if (fail) throw new Error("HTTP 503 high demand"); return good.propose(b); } };
+    const { deps, store } = mkDeps(flaky, [ev()]);
+    await dailyRun(deps, { since: "2026-09-01", today: "2026-09-04" });
+    expect(await store.unfilteredEvents()).toHaveLength(1);
+    fail = false;
+    const s = await dailyRun(deps, { since: "2026-09-01", today: "2026-09-04" });
+    expect(s.proposed).toHaveLength(1);
+    expect(await store.unfilteredEvents()).toHaveLength(0);
+  });
 });
 
 describe("approve → risk → broker → close → calibration", () => {

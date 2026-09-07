@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { AlpacaBroker, AlpacaMarketData, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, ManualCsvIngestor, NasdaqEarningsIngestor, createHttpClient, createTradingHttp } from "@thesis/adapters";
-import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type Ingestor, type MarketData, type PortfolioSnapshot, type RiskEngine } from "@thesis/core";
+import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type Ingestor, type MarketData, type PortfolioSnapshot, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, type RunDeps, type Store } from "@thesis/pipeline";
-import { AnthropicReasoner } from "@thesis/reasoner";
-import type { Config } from "./config.js";
+import { AnthropicReasoner, GeminiReasoner } from "@thesis/reasoner";
+import type { Config, ReasonerConfig } from "./config.js";
 
 /** Estado mutable mínimo del proceso. */
 export const state = { killSwitch: false, lastRun: null as null | { at: string; summary: unknown } };
@@ -18,6 +18,14 @@ export interface Container {
   runDeps: RunDeps;
   snapshot: () => Promise<PortfolioSnapshot>;
   account: () => Promise<{ equity: number; lastEquity: number }>;
+}
+
+/** Un razonador por proveedor; el prompt, la validación y pMarket son los mismos. */
+export function buildReasoner(r: ReasonerConfig): Reasoner {
+  if (r.kind === "gemini") {
+    return new GeminiReasoner({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
+  }
+  return new AnthropicReasoner({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
 }
 
 export function buildContainer(cfg: Config): Container {
@@ -43,7 +51,7 @@ export function buildContainer(cfg: Config): Container {
     store,
     ingestors,
     filter: new DefaultFilter((t) => marketData.getQuote(t), { ...DEFAULT_FILTER_CONFIG, allowlist: cfg.universe.adr }),
-    reasoner: new AnthropicReasoner({ ...(cfg.anthropicApiKey ? { apiKey: cfg.anthropicApiKey } : {}), ...(cfg.anthropicModel ? { model: cfg.anthropicModel } : {}) }),
+    reasoner: buildReasoner(cfg.reasoner),
     documents: new EdgarDocumentProvider(http),
     marketData,
     minEdge: cfg.minEdge,

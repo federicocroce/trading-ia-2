@@ -48,11 +48,12 @@ export async function dailyRun(deps: RunDeps, opts: { since: string; today: stri
   // 2. Filtro sobre todo lo no evaluado (incluye lo de corridas anteriores)
   const pending = await deps.store.unfilteredEvents();
   const { passed, dropped } = await deps.filter.apply(pending, { today: opts.today, maxCandidates: deps.maxCandidates });
-  await deps.store.markFilter([
-    ...passed.map((e) => ({ id: e.id, passed: true, reason: null })),
-    ...dropped.filter((d) => d.reason !== "budget exceeded").map((d) => ({ id: d.event.id, passed: false, reason: d.reason })),
-    // "budget exceeded" queda sin evaluar: entra mañana.
-  ]);
+  // Los descartados se marcan ya. Los que pasan se marcan recién cuando hay tesis: si el
+  // razonador falla (cuota, 503, red) el evento queda pendiente y entra en la corrida siguiente.
+  // "budget exceeded" también queda sin evaluar: entra mañana.
+  await deps.store.markFilter(
+    dropped.filter((d) => d.reason !== "budget exceeded").map((d) => ({ id: d.event.id, passed: false, reason: d.reason })),
+  );
   summary.passed = passed.length;
   summary.dropped = dropped.length;
 
@@ -63,6 +64,7 @@ export async function dailyRun(deps: RunDeps, opts: { since: string; today: stri
       const bundle = await buildBundle(event, deps);
       const proposal = enforceMarketProbability(await deps.reasoner.propose(bundle), bundle);
       const thesis = await deps.store.insertThesis(event.id, proposal, deps.reasoner.promptVersion, deps.minEdge);
+      await deps.store.markFilter([{ id: event.id, passed: true, reason: null }]);
       (thesis.status === "proposed" ? summary.proposed : summary.rejected).push(thesis);
       log(`thesis ${thesis.status}`, { ticker: thesis.ticker, edge: thesis.edge });
     } catch (e) {
