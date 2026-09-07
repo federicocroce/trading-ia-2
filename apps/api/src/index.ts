@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import cron from "node-cron";
-import { dailyRun, syncOrders } from "@thesis/pipeline";
+import { dailyRun, measureVerdicts, runCartera, syncOrders } from "@thesis/pipeline";
 import { loadConfig } from "./config.js";
 import { buildContainer, state } from "./container.js";
 import { buildApp } from "./routes/index.js";
@@ -22,6 +22,18 @@ cron.schedule(cfg.dailyCron, async () => {
   }
 });
 cron.schedule("*/15 9-17 * * 1-5", () => syncOrders(c.store, c.broker).catch((e) => console.error("[cron] sync failed", e)));
+
+// Veredicto diario de la cartera real + medición de los veredictos viejos contra SPY.
+cron.schedule(cfg.carteraCron, async () => {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const s = await runCartera(c.carteraDeps, { today });
+    const m = await measureVerdicts(c.carteraDeps, { today });
+    console.log(`[cron] cartera: ${s.verdicts.length} veredictos, ${s.errors.length} errores, medidos ${m.measured7}/${m.measured30}`);
+  } catch (e) {
+    console.error("[cron] cartera failed", e);
+  }
+});
 
 serve({ fetch: app.fetch, port: cfg.port }, () => {
   console.log(`thesis-engine api on :${cfg.port} (paper only) — daily cron "${cfg.dailyCron}"`);

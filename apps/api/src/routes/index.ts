@@ -5,6 +5,7 @@ import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHu
 import { z } from "zod";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
+import { carteraRoutes } from "./cartera.js";
 
 export function buildApp(c: Container) {
   const app = new Hono();
@@ -62,6 +63,9 @@ export function buildApp(c: Container) {
     return ctx.json(summary);
   });
   app.post("/sync", async (ctx) => ctx.json({ synced: await syncOrders(c.store, c.broker) }));
+
+  // ---- cartera real ----
+  app.route("/", carteraRoutes(c));
 
   // ---- calibración ----
   app.get("/calibration", async (ctx) => {

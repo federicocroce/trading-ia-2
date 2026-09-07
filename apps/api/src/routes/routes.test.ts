@@ -28,6 +28,7 @@ function container(): Container {
   return {
     cfg: {} as never,
     store,
+    carteraDeps: { store, history: { candles: async () => [] }, profiles: { profile: async () => null }, narrator: null, spot: async () => null },
     marketData,
     broker,
     risk: new DefaultRiskEngine(),

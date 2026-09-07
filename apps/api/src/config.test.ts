@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { AnthropicReasoner, GeminiReasoner } from "@thesis/reasoner";
+import { AnthropicNarrator, AnthropicReasoner, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
 import { resolveReasoner } from "./config.js";
-import { buildReasoner } from "./container.js";
+import { buildNarrator, buildReasoner } from "./container.js";
 
 const gemini = { GOOGLE_AI_API_KEY_1: "g1", GOOGLE_AI_API_KEY_2: "g2" };
 
@@ -41,5 +41,12 @@ describe("buildReasoner", () => {
   });
   it("anthropic → AnthropicReasoner", () => {
     expect(buildReasoner({ kind: "anthropic", anthropicApiKey: "sk", geminiKeys: [] })).toBeInstanceOf(AnthropicReasoner);
+  });
+});
+
+describe("buildNarrator", () => {
+  it("sigue la misma regla que el razonador", () => {
+    expect(buildNarrator({ kind: "gemini", geminiKeys: ["g1"] })).toBeInstanceOf(GeminiNarrator);
+    expect(buildNarrator({ kind: "anthropic", anthropicApiKey: "sk", geminiKeys: [] })).toBeInstanceOf(AnthropicNarrator);
   });
 });

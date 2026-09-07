@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { AlpacaBroker, AlpacaMarketData, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, ManualCsvIngestor, NasdaqEarningsIngestor, createHttpClient, createTradingHttp } from "@thesis/adapters";
-import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type Ingestor, type MarketData, type PortfolioSnapshot, type Reasoner, type RiskEngine } from "@thesis/core";
+import { AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, YahooPriceHistory, createHttpClient, createTradingHttp } from "@thesis/adapters";
+import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
-import { EdgarDocumentProvider, buildSnapshot, type RunDeps, type Store } from "@thesis/pipeline";
-import { AnthropicReasoner, GeminiReasoner } from "@thesis/reasoner";
+import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type RunDeps, type Store } from "@thesis/pipeline";
+import { AnthropicNarrator, AnthropicReasoner, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
 import type { Config, ReasonerConfig } from "./config.js";
 
 /** Estado mutable mínimo del proceso. */
@@ -11,7 +11,9 @@ export const state = { killSwitch: false, lastRun: null as null | { at: string; 
 
 export interface Container {
   cfg: Config;
-  store: Store;
+  store: Store & CarteraStore;
+  /** Cartera real del dueño (spec etapa 1). */
+  carteraDeps: CarteraDeps;
   marketData: MarketData;
   broker: Broker;
   risk: RiskEngine;
@@ -26,6 +28,14 @@ export function buildReasoner(r: ReasonerConfig): Reasoner {
     return new GeminiReasoner({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
   }
   return new AnthropicReasoner({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
+}
+
+/** Narrador de posiciones: misma regla de proveedor que el razonador. Solo puede degradar. */
+export function buildNarrator(r: ReasonerConfig): PositionNarrator {
+  if (r.kind === "gemini") {
+    return new GeminiNarrator({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
+  }
+  return new AnthropicNarrator({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
 }
 
 export function buildContainer(cfg: Config): Container {
@@ -59,6 +69,18 @@ export function buildContainer(cfg: Config): Container {
     log: (msg, extra) => console.log(`[pipeline] ${msg}`, extra ?? ""),
   };
 
+  // Cartera real: velas de Yahoo (respaldo Alpaca), perfil de Finnhub si hay key, spot de Alpaca.
+  const yahooHttp = createHttpClient({ userAgent: "Mozilla/5.0 (compatible; thesis-engine)" });
+  const history = new FallbackPriceHistory(new YahooPriceHistory(yahooHttp), new AlpacaPriceHistory(http, cfg.alpaca), (m) => console.log(m));
+  const carteraDeps: CarteraDeps = {
+    store,
+    history,
+    profiles: cfg.finnhubToken ? new FinnhubProfiles(http, cfg.finnhubToken) : NO_PROFILES,
+    narrator: buildNarrator(cfg.reasoner),
+    spot: async (symbol) => (await marketData.getQuote(symbol))?.price ?? null,
+    log: (msg, extra) => console.log(msg, extra ?? ""),
+  };
+
   async function account() {
     try {
       const a = await broker.account();
@@ -69,5 +91,5 @@ export function buildContainer(cfg: Config): Container {
   }
   const snapshot = async () => buildSnapshot(store, await account(), state.killSwitch);
 
-  return { cfg, store, marketData, broker, risk, runDeps, snapshot, account };
+  return { cfg, store, carteraDeps, marketData, broker, risk, runDeps, snapshot, account };
 }

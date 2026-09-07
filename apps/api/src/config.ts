@@ -8,12 +8,16 @@ export interface Config {
   alpaca: { keyId: string; secretKey: string; paper: true };
   userAgent: string;
   courtListenerToken: string | undefined;
+  /** Perfil de empresa (país, industria) para el panel de riesgo. Opcional. */
+  finnhubToken: string | undefined;
   port: number;
   minEdge: number;
   maxCandidates: number;
   capitalFallbackUsd: number;
   /** Cron de la corrida diaria (hora local del proceso). */
   dailyCron: string;
+  /** Cron del veredicto de cartera (después de la corrida de tesis). */
+  carteraCron: string;
   universe: Universe;
   csvPath: string;
 }
@@ -101,11 +105,13 @@ export async function loadConfig(root?: string): Promise<Config> {
     alpaca: { keyId: req("ALPACA_KEY_ID"), secretKey: req("ALPACA_SECRET_KEY"), paper: true },
     userAgent: process.env["SEC_USER_AGENT"] ?? "thesis-engine research contact@example.com",
     courtListenerToken: process.env["COURTLISTENER_TOKEN"],
+    finnhubToken: process.env["FINNHUB_API_KEY"]?.trim() || undefined,
     port: Number(process.env["PORT"] ?? 3001),
     minEdge: Number(process.env["MIN_EDGE"] ?? 0.1),
     maxCandidates: Number(process.env["MAX_CANDIDATES"] ?? 8),
     capitalFallbackUsd: Number(process.env["CAPITAL_USD"] ?? 100_000),
     dailyCron: process.env["DAILY_CRON"] ?? "30 7 * * 1-5",
+    carteraCron: process.env["CARTERA_CRON"] ?? "45 7 * * 1-5",
     universe,
     csvPath: process.env["MANUAL_CSV"] ?? path.join(root, "config", "events.csv"),
   };
