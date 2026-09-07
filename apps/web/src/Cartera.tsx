@@ -1,0 +1,180 @@
+import { useCallback, useEffect, useState } from "react";
+import { api, type Measurement, type Position, type RiskReport, type Verdict } from "./api";
+
+const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
+const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(1)}%`);
+
+const EMPTY: Position = { symbol: "", quantity: 0, avgCost: 0, currency: "USD", market: "us", layer: "riesgo", notes: null };
+
+/** Pestaña Cartera (spec etapa 1 §8): posiciones con veredicto, riesgo calculado y medición contra SPY. */
+export function Cartera() {
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [verdicts, setVerdicts] = useState<Verdict[]>([]);
+  const [risk, setRisk] = useState<{ date: string; report: RiskReport } | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement | null>(null);
+  const [form, setForm] = useState<Position | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const [p, v, r, m] = await Promise.all([api.cartera.positions(), api.cartera.verdicts(), api.cartera.risk(), api.cartera.measurement()]);
+    setPositions(p);
+    setVerdicts(v);
+    setRisk(r);
+    setMeasurement(m);
+  }, []);
+  useEffect(() => {
+    load().catch((e) => setMsg(String(e)));
+  }, [load]);
+
+  async function run() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const s = await api.cartera.run();
+      setMsg(`${s.verdicts.length} veredictos para ${s.date}. Medidos: ${s.measured.measured7} a 7d, ${s.measured.measured30} a 30d.${s.errors.length ? ` Errores: ${s.errors.map((e) => `${e.symbol}: ${e.error}`).join(" · ")}` : ""}`);
+      await load();
+    } catch (e) {
+      setMsg(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function save() {
+    if (!form) return;
+    setBusy(true);
+    try {
+      await api.cartera.upsertPosition({ ...form, symbol: form.symbol.toUpperCase(), quantity: Number(form.quantity), avgCost: Number(form.avgCost) });
+      setForm(null);
+      await load();
+    } catch (e) {
+      setMsg(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(symbol: string) {
+    if (!confirm(`¿Borrar ${symbol} de la cartera?`)) return;
+    await api.cartera.deletePosition(symbol);
+    await load();
+  }
+
+  const vBy = new Map(verdicts.map((v) => [v.symbol, v]));
+  const date = verdicts[0]?.verdictDate;
+
+  return (
+    <>
+      <div className="card row">
+        <b>Cartera real</b>
+        <span className="muted">{date ? `veredictos del ${date}` : "sin veredictos todavía"}</span>
+        <div className="spacer" style={{ flex: 1 }} />
+        <button className="ghost" onClick={() => setForm({ ...EMPTY })} disabled={busy}>Agregar posición</button>
+        <button className="primary" onClick={run} disabled={busy}>{busy ? "Corriendo…" : "Actualizar veredictos"}</button>
+      </div>
+      {msg && <div className="card">{msg}</div>}
+      {form && (
+        <div className="card form-row">
+          <input placeholder="símbolo" value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value })} />
+          <input type="number" placeholder="cantidad" value={form.quantity || ""} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+          <input type="number" placeholder="costo promedio" value={form.avgCost || ""} onChange={(e) => setForm({ ...form, avgCost: Number(e.target.value) })} />
+          <select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value as Position["market"] })}>
+            <option value="us">US</option><option value="adr">ADR</option><option value="ar">Argentina</option>
+          </select>
+          <select value={form.layer} onChange={(e) => setForm({ ...form, layer: e.target.value as Position["layer"] })}>
+            <option value="riesgo">riesgo (stop duro)</option><option value="nucleo">núcleo</option><option value="cobertura">cobertura</option>
+          </select>
+          <input placeholder="notas" value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value || null })} />
+          <button className="primary" onClick={save} disabled={busy || !form.symbol || form.quantity <= 0 || form.avgCost <= 0}>Guardar</button>
+          <button className="ghost" onClick={() => setForm(null)}>Cancelar</button>
+        </div>
+      )}
+      <div className="card" style={{ overflowX: "auto" }}>
+        <table>
+          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>cierre</th><th>ganancia</th><th>peso</th><th>veredicto</th><th>stop</th><th>objetivo</th><th></th></tr></thead>
+          <tbody>
+            {positions.map((p) => {
+              const v = vBy.get(p.symbol);
+              return (
+                <Row key={p.symbol} p={p} v={v} open={open === p.symbol} onToggle={() => setOpen(open === p.symbol ? null : p.symbol)} onEdit={() => setForm({ ...p })} onRemove={() => remove(p.symbol)} />
+              );
+            })}
+            {!positions.length && <tr><td colSpan={10} className="muted">Sin posiciones. Agregá una o corré <span className="mono">pnpm import:v1</span>.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {risk && <Risk r={risk.report} date={risk.date} />}
+      {measurement && <MeasurementCard m={measurement} />}
+    </>
+  );
+}
+
+function Row({ p, v, open, onToggle, onEdit, onRemove }: { p: Position; v: Verdict | undefined; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void }) {
+  return (
+    <>
+      <tr>
+        <td><b>{p.symbol}</b> <span className="muted">{p.market}{p.layer !== "riesgo" ? ` · ${p.layer}` : ""}</span></td>
+        <td className="mono">{f2(p.quantity)}</td>
+        <td className="mono">{f2(p.avgCost)}</td>
+        <td className="mono">{f2(v?.close)}</td>
+        <td className={v ? (v.gainPct >= 0 ? "ok" : "bad") : ""}>{pct(v?.gainPct)}</td>
+        <td className="mono">{v ? `${v.weightPct.toFixed(1)}%` : "—"}</td>
+        <td>{v ? <span className={`verb ${v.verb}`}>{v.verb}</span> : <span className="muted">sin veredicto</span>}</td>
+        <td className="mono">{f2(v?.stop)}</td>
+        <td className="mono">{f2(v?.target)}</td>
+        <td style={{ whiteSpace: "nowrap" }}>
+          {v && <button className="ghost" onClick={onToggle}>{open ? "Cerrar" : "Ver"}</button>}{" "}
+          <button className="ghost" onClick={onEdit}>Editar</button>{" "}
+          <button className="ghost" onClick={onRemove}>Borrar</button>
+        </td>
+      </tr>
+      {open && v && (
+        <tr>
+          <td colSpan={10}>
+            <div><b>Por qué:</b> {v.reason}</div>
+            {v.narrative && <div style={{ marginTop: 6 }}><b>Modelo:</b> {v.narrative}{v.degradedBy && <span className="muted"> (degradó el veredicto)</span>}</div>}
+            {v.warning && <div className="warn" style={{ marginTop: 6 }}><b>Aviso:</b> {v.warning}</div>}
+            <div className="muted mono" style={{ marginTop: 6 }}>spot {f2(v.spot)} · SPY {f2(v.spyClose)} · {v.verdictDate}</div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function Risk({ r, date }: { r: RiskReport; date: string }) {
+  const top = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(0)}%`).join(" · ");
+  return (
+    <div className="card">
+      <b>Riesgo de cartera</b> <span className="muted">({date})</span>
+      <div className="kpis" style={{ marginTop: 8 }}>
+        <div className="kpi"><b>${money(r.totalValue)}</b><span>valor a cierre</span></div>
+        <div className="kpi"><b>{f2(r.portfolioBeta)}</b><span>beta vs SPY (63 ruedas)</span></div>
+        <div className="kpi"><b className="bad">{pct(r.stressSpyMinus20Pct)}</b><span>si SPY cae 20% (lineal)</span></div>
+        <div className="kpi"><b>{r.correlatedPairs.length}</b><span>pares con correlación &gt; 0.7</span></div>
+      </div>
+      {r.concentration.warnings.map((w) => <div key={w} className="warn" style={{ marginTop: 6 }}>⚠ {w}</div>)}
+      <div style={{ marginTop: 8 }}><b>País:</b> {top(r.concentration.byCountry)}</div>
+      <div><b>Industria:</b> {top(r.concentration.byIndustry)}</div>
+      {r.correlatedPairs.length > 0 && <div><b>Correlacionados:</b> {r.correlatedPairs.map((p) => `${p.a}–${p.b} ${p.corr.toFixed(2)}`).join(" · ")}</div>}
+      <div className="muted" style={{ marginTop: 6 }}>Liquidez (días para salir al 10% del volumen): {r.liquidity.map((l) => `${l.symbol} ${f2(l.daysToLiquidate, 1)}`).join(" · ")}</div>
+      {r.notes.map((n) => <div key={n} className="muted">{n}</div>)}
+    </div>
+  );
+}
+
+function MeasurementCard({ m }: { m: Measurement }) {
+  const verbs = ["VENDER", "REVISAR", "MANTENER", "SUMAR"] as const;
+  const cell = (b: { n: number; hitRate: number | null; avgAlpha: number | null }) => (b.n ? `${b.n} · ${b.hitRate === null ? "—" : `${(b.hitRate * 100).toFixed(0)}%`} · ${pct(b.avgAlpha)}` : "—");
+  return (
+    <div className="card">
+      <b>Medición contra SPY</b> <span className="muted">{m.total} veredictos, {m.pending} pendientes de medir</span>
+      <table style={{ marginTop: 8 }}>
+        <thead><tr><th>verbo</th><th>7 días (n · acierto · alpha medio)</th><th>30 días</th></tr></thead>
+        <tbody>{verbs.map((v) => <tr key={v}><td><span className={`verb ${v}`}>{v}</span></td><td className="mono">{cell(m.byVerb[v].h7)}</td><td className="mono">{cell(m.byVerb[v].h30)}</td></tr>)}</tbody>
+      </table>
+      <div className="muted" style={{ marginTop: 6 }}>VENDER acierta si el papel rindió menos que SPY después; MANTENER/SUMAR si rindió más; REVISAR no se puntúa. Los MANTENER diarios de una misma posición están correlacionados: leé la tendencia, no el n.</div>
+    </div>
+  );
+}

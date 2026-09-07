@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Thesis } from "./api";
+import { Cartera } from "./Cartera";
 
-type Tab = "proposed" | "open" | "history" | "calibration";
+type Tab = "cartera" | "proposed" | "open" | "history" | "calibration";
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("proposed");
+  const [tab, setTab] = useState<Tab>("cartera");
   const [health, setHealth] = useState<Awaited<ReturnType<typeof api.health>> | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -39,9 +40,9 @@ export function App() {
       <header>
         <h1>thesis-engine</h1>
         <nav>
-          {(["proposed", "open", "history", "calibration"] as Tab[]).map((t) => (
+          {(["cartera", "proposed", "open", "history", "calibration"] as Tab[]).map((t) => (
             <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
-              {{ proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
+              {{ cartera: "Cartera", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
             </button>
           ))}
         </nav>
@@ -58,6 +59,7 @@ export function App() {
       <main>
         {!health && <div className="err">No se puede hablar con la API (¿está corriendo `pnpm dev:api`?)</div>}
         {msg && <div className="card">{msg}</div>}
+        {tab === "cartera" && <Cartera />}
         {tab === "proposed" && <ThesisList status="proposed" actions="review" />}
         {tab === "open" && <ThesisList status="open,approved" actions="close" />}
         {tab === "history" && <ThesisList status="closed,rejected" actions="none" />}

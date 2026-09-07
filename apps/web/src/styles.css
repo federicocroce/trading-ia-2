@@ -25,3 +25,10 @@ table { width: 100%; border-collapse: collapse; } td, th { text-align: left; pad
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); }
 .err { color: var(--bad); margin: 8px 0; }
+.verb { display: inline-block; padding: 2px 9px; border-radius: 999px; font-weight: 600; font-size: 12px; border: 1px solid var(--line); }
+.verb.VENDER { background: var(--bad); color: #fff; border-color: transparent; }
+.verb.REVISAR { background: #b8860b; color: #fff; border-color: transparent; }
+.verb.SUMAR { background: var(--ok); color: #fff; border-color: transparent; }
+.warn { color: #b8860b; }
+.form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.form-row input, .form-row select { width: 120px; }
