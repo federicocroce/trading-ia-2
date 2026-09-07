@@ -30,7 +30,7 @@ export interface RadarPolicy {
   technical: { maxReturn21dPct: number; earningsWithinDays: number };
   sizing: { riskPerTradePct: number; maxPositionPct: number; fallbackPortfolioUsd: number };
   candidates: { top: number; preselect: number; chronicWeeks: number };
-  contribution: { monthlyUsd: number; coreTargetPct: number; maxPositionPct: number; maxNewPositionsPerMonth: number };
+  contribution: { monthlyUsd: number; coreTargetPct: number; maxPositionPct: number; maxNewPositionsPerMonth: number; maxLinePctOfContribution: number };
 }
 
 export type ThemesSource = "regla" | "modelo" | "manual";

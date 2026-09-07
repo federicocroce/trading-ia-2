@@ -1,0 +1,48 @@
+import { describe, expect, it } from "vitest";
+import { planContribution, type EtfConfig, type PlanInput } from "../index.js";
+
+const c = { monthlyUsd: 6500, coreTargetPct: 40, maxPositionPct: 15, maxNewPositionsPerMonth: 2, maxLinePctOfContribution: 50 };
+const core: EtfConfig[] = [
+  { symbol: "VTI", name: "VTI", role: "nucleo", exposure: "rv_us", ter: 0.03, themes: [], coreWeight: 0.6 },
+  { symbol: "VEA", name: "VEA", role: "nucleo", exposure: "rv_internacional", ter: 0.05, themes: [], coreWeight: 0.25 },
+  { symbol: "VWO", name: "VWO", role: "nucleo", exposure: "emergentes", ter: 0.08, themes: [], coreWeight: 0.15 },
+];
+const base: PlanInput = {
+  month: "2026-09", portfolioValueUsd: 100_000,
+  positions: [{ symbol: "TSM", valueUsd: 7_000, assetClass: "adr" }, { symbol: "YPF", valueUsd: 65_000, assetClass: "adr" }, { symbol: "GGAL", valueUsd: 28_000, assetClass: "adr" }],
+  sumarCandidates: [], buyCandidates: [], coreEtfs: core, spyClose: 500, closes: { VTI: 300, VEA: 55, VWO: 48, TSM: 428, NVDA: 180, AMD: 160 },
+};
+
+describe("planContribution", () => {
+  it("núcleo vacío → todo el aporte al núcleo, repartido por peso objetivo", () => {
+    const p = planContribution(base, c);
+    expect(p.totalUsd).toBe(6500);
+    expect(p.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["VTI", "nucleo", 3900], ["VEA", "nucleo", 1625], ["VWO", "nucleo", 975]]);
+    expect(p.lines[0]!.close).toBe(300);
+    expect(p.lines[0]!.spyClose).toBe(500);
+  });
+  it("núcleo lleno → SUMAR primero (tope 50% del aporte), luego COMPRAR por score; máximo de nuevas; sobrante al núcleo", () => {
+    const i: PlanInput = {
+      ...base,
+      positions: [{ symbol: "VTI", valueUsd: 45_000, assetClass: "etf", role: "nucleo" }, { symbol: "TSM", valueUsd: 7_000, assetClass: "adr" }, { symbol: "YPF", valueUsd: 20_000, assetClass: "adr" }, { symbol: "GGAL", valueUsd: 28_000, assetClass: "adr" }],
+      sumarCandidates: [{ symbol: "TSM", valueUsd: 7_000, weightPct: 7 }],
+      buyCandidates: [{ symbol: "AMD", kind: "stock", score: 1.5, sizeUsd: 9_000, close: 160 }, { symbol: "NVDA", kind: "stock", score: 2.1, sizeUsd: 14_994, close: 180 }, { symbol: "XLE", kind: "etf", score: null, sizeUsd: 5_000, close: 90 }],
+    };
+    const p = planContribution(i, { ...c, maxNewPositionsPerMonth: 1 });
+    expect(p.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["TSM", "sumar", 3250], ["NVDA", "comprar", 3250]]);
+    const p2 = planContribution({ ...i, sumarCandidates: [] }, { ...c, maxNewPositionsPerMonth: 1 });
+    expect(p2.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["NVDA", "comprar", 3250], ["VTI", "nucleo", 1950], ["VEA", "nucleo", 813], ["VWO", "nucleo", 487]]);
+    expect(p2.notes.join(" ")).toMatch(/máximo de posiciones nuevas/i);
+  });
+  it("sin candidatos y núcleo lleno → todo al núcleo con nota", () => {
+    const p = planContribution({ ...base, positions: [{ symbol: "VTI", valueUsd: 50_000, assetClass: "etf", role: "nucleo" }, { symbol: "YPF", valueUsd: 50_000, assetClass: "adr" }] }, c);
+    expect(p.lines.every((l) => l.kind === "nucleo")).toBe(true);
+    expect(p.lines.reduce((s, l) => s + l.amountUsd, 0)).toBe(6500);
+    expect(p.notes.join(" ")).toMatch(/sin candidatos/i);
+  });
+  it("sin núcleo definido → sobrante queda en nota", () => {
+    const p = planContribution({ ...base, coreEtfs: [] }, c);
+    expect(p.lines).toEqual([]);
+    expect(p.notes.join(" ")).toMatch(/6500/);
+  });
+});

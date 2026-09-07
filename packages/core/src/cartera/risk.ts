@@ -5,11 +5,13 @@ export interface RiskInput {
   candles: Record<string, Candle[]>;
   spy: Candle[];
   profiles: Record<string, SymbolProfile | null>;
+  /** Etiquetas por símbolo (etapa 2): sector y temas para concentración. */
+  tags?: Record<string, { sector: string; themes: string[] }>;
 }
 export interface RiskReport {
   totalValue: number;
   weights: Array<{ symbol: string; value: number; weightPct: number }>;
-  concentration: { byCountry: Record<string, number>; byIndustry: Record<string, number>; hhiCountry: number; hhiIndustry: number; warnings: string[] };
+  concentration: { byCountry: Record<string, number>; byIndustry: Record<string, number>; bySector: Record<string, number>; byTheme: Record<string, number>; hhiCountry: number; hhiIndustry: number; warnings: string[] };
   correlatedPairs: Array<{ a: string; b: string; corr: number }>;
   betas: Record<string, number | null>;
   portfolioBeta: number | null;
@@ -83,9 +85,23 @@ export function buildRiskReport(i: RiskInput): RiskReport {
     const ind = i.profiles[p.symbol]?.industry ?? "desconocida";
     byIndustry[ind] = round2((byIndustry[ind] ?? 0) + w);
   }
+  // Sector y tema (etiquetas): una acción aporta todo su peso a cada uno de sus temas.
+  const bySector: Record<string, number> = {};
+  const byTheme: Record<string, number> = {};
+  if (i.tags) {
+    for (const p of i.positions) {
+      const tg = i.tags[p.symbol];
+      if (!tg) continue;
+      const w = weights.find((x) => x.symbol === p.symbol)!.weightPct;
+      bySector[tg.sector] = round2((bySector[tg.sector] ?? 0) + w);
+      for (const th of tg.themes) byTheme[th] = round2((byTheme[th] ?? 0) + w);
+    }
+  }
   const warnings: string[] = [];
   for (const [k, v] of Object.entries(byCountry)) if (v > 40) warnings.push(`País ${k}: ${v}% de la cartera (> 40%)`);
   for (const [k, v] of Object.entries(byIndustry)) if (v > 40 && k !== "desconocida") warnings.push(`Industria ${k}: ${v}% de la cartera (> 40%)`);
+  for (const [k, v] of Object.entries(bySector)) if (v > 40 && k !== "Otros") warnings.push(`Sector ${k}: ${v}% de la cartera (> 40%)`);
+  for (const [k, v] of Object.entries(byTheme)) if (v > 40) warnings.push(`Tema ${k}: ${v}% de la cartera (> 40%)`);
 
   const rets: Record<string, number[]> = {};
   for (const p of i.positions) rets[p.symbol] = dailyReturns((i.candles[p.symbol] ?? []).slice(-127));
@@ -115,5 +131,5 @@ export function buildRiskReport(i: RiskInput): RiskReport {
     return { symbol: p.symbol, avgDollarVolume30d: avgDollar, daysToLiquidate: avgShares > 0 ? round4(p.quantity / (avgShares * 0.1)) : null };
   });
 
-  return { totalValue, weights, concentration: { byCountry, byIndustry, hhiCountry: hhi(byCountry), hhiIndustry: hhi(byIndustry), warnings }, correlatedPairs, betas, portfolioBeta, stressSpyMinus20Pct, liquidity, notes };
+  return { totalValue, weights, concentration: { byCountry, byIndustry, bySector, byTheme, hhiCountry: hhi(byCountry), hhiIndustry: hhi(byIndustry), warnings }, correlatedPairs, betas, portfolioBeta, stressSpyMinus20Pct, liquidity, notes };
 }

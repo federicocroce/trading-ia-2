@@ -65,3 +65,26 @@ describe("buildRiskReport", () => {
     expect(l.daysToLiquidate).toBeCloseTo(100 / (100 * 0.1), 4); // 100 acciones, 10 por día
   });
 });
+
+describe("concentración por sector y tema", () => {
+  it("una acción aporta todo su peso a cada tema; aviso > 40% por tema", () => {
+    const r = buildRiskReport({
+      positions: [pos("AAA", 10), pos("BBB", 10), pos("ARG", 100, "adr")],
+      candles: { AAA: doubleSpy, BBB: doubleSpy, ARG: flat },
+      spy,
+      profiles: { AAA: null, BBB: null, ARG: null },
+      tags: { AAA: { sector: "Tecnología", themes: ["IA", "semiconductores"] }, BBB: { sector: "Tecnología", themes: ["IA"] }, ARG: { sector: "Energía", themes: ["argentina"] } },
+    });
+    const wA = r.weights.find((w) => w.symbol === "AAA")!.weightPct;
+    const wB = r.weights.find((w) => w.symbol === "BBB")!.weightPct;
+    expect(r.concentration.byTheme["IA"]).toBeCloseTo(wA + wB, 1);
+    expect(r.concentration.byTheme["semiconductores"]).toBeCloseTo(wA, 1);
+    expect(r.concentration.bySector["Tecnología"]).toBeCloseTo(wA + wB, 1);
+    expect(r.concentration.warnings.some((w) => /Tema IA/.test(w))).toBe(wA + wB > 40);
+  });
+  it("sin tags, mapas vacíos", () => {
+    const r = buildRiskReport({ positions: [pos("AAA", 10)], candles: { AAA: doubleSpy }, spy, profiles: { AAA: null } });
+    expect(r.concentration.byTheme).toEqual({});
+    expect(r.concentration.bySector).toEqual({});
+  });
+});
