@@ -6,3 +6,6 @@ export * from "./alpaca/index.js";
 export * from "./ar/index.js";
 export * from "./courtlistener/index.js";
 export * from "./fda/index.js";
+export * from "./yahoo/index.js";
+export * from "./finnhub/index.js";
+export * from "./history.js";
