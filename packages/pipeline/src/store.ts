@@ -58,6 +58,7 @@ export interface RadarStore {
   scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>): Promise<void>;
   scanPending(scanDate: string): Promise<string[]>;
   scanStatus(scanDate: string): Promise<Record<ScanStage, number>>;
+  scanSymbols(scanDate: string, stage: ScanStage): Promise<string[]>;
   latestScanDate(): Promise<string | null>;
   upsertCandidates(rows: CandidateRow[]): Promise<void>;
   latestCandidates(): Promise<CandidateRow[]>;
@@ -265,6 +266,9 @@ export class MemoryStore implements Store, CarteraStore, RadarStore {
     const out: Record<ScanStage, number> = { alpaca_ok: 0, finnhub_ok: 0, excluded: 0, error: 0 };
     for (const r of this.scan.values()) if (r.scanDate === scanDate) out[r.stage]++;
     return out;
+  }
+  async scanSymbols(scanDate: string, stage: ScanStage) {
+    return [...this.scan.values()].filter((r) => r.scanDate === scanDate && r.stage === stage).map((r) => r.symbol).sort();
   }
   async latestScanDate() {
     return [...this.scan.values()].map((r) => r.scanDate).sort().at(-1) ?? null;

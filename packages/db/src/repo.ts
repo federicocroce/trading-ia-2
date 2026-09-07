@@ -309,6 +309,9 @@ export class Repo {
     for (const r of rows) out[r.stage as ScanStage] = Number(r.n);
     return out;
   }
+  async scanSymbols(scanDate: string, stage: ScanStage): Promise<string[]> {
+    return (await this.db.select({ symbol: s.universeScan.symbol }).from(s.universeScan).where(and(eq(s.universeScan.scanDate, scanDate), eq(s.universeScan.stage, stage))).orderBy(s.universeScan.symbol)).map((r) => r.symbol);
+  }
   async latestScanDate(): Promise<string | null> {
     return (await this.db.select({ d: sql<string | null>`max(${s.universeScan.scanDate})` }).from(s.universeScan))[0]?.d ?? null;
   }

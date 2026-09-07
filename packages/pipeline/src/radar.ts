@@ -248,10 +248,30 @@ export interface RankSummary {
   errors: Array<{ symbol: string; error: string }>;
 }
 
+/** Fundamentals frescos, restringidos a lo aprobado en el último barrido (lo excluido después no rankea aunque siga fresco). */
+async function rankableFundamentals(deps: RadarDeps, today: string): Promise<Map<string, Fundamentals>> {
+  const fresh = await deps.store.freshFundamentals(FRESH_DAYS, today);
+  const scanDate = await deps.store.latestScanDate();
+  const ok = scanDate ? new Set(await deps.store.scanSymbols(scanDate, "finnhub_ok")) : null;
+  return new Map(fresh.filter((f) => !ok || ok.has(f.symbol)).map((f) => [f.symbol, f]));
+}
+
+/** Escribe la ficha de un candidato y aplica sus efectos (degradar, temas). Devuelve null si el modelo falló. */
+async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: { flags: string[]; entryLow: number; stop: number | null; target: number | null; riskScore: number }, ins: { buys: number; sells: number } | null): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
+  if (!deps.cardWriter) return null;
+  const sym = f.symbol;
+  const tags = (await deps.store.tags(sym)) ?? (await tagSymbol(deps, sym, { industry: f.industry, country: null }));
+  const profile = await deps.store.profile(sym);
+  const input: CardInput = { symbol: sym, name: profile?.profile.name ?? null, industry: f.industry, sector: tags.sector, themes: tags.themes, themeOptions: deps.taxonomy.themes, verdict, score: r.score, axes: r.axes, rankInGroup: r.rankInGroup, groupSize: r.groupSize, basis: r.basis, own: ownMetrics(f), medians: r.medians, peers: r.group, flags: d.flags, insiders: ins, analyst: f.analyst, surprises: f.earningsSurprises, filings: await deps.filings(sym).catch(() => []), close: d.entryLow, stop: d.stop, target: d.target, riskScore: d.riskScore };
+  const c = await deps.cardWriter.write(input);
+  if (c.themes.length) await tagSymbol(deps, sym, { industry: f.industry, country: null }, c.themes, "modelo");
+  return { card: { summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat }, degrade: c.degrade, degradeReason: c.degradeReason ?? null };
+}
+
 export async function rankRadar(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null }): Promise<RankSummary> {
   const log = deps.log ?? (() => {});
   const { store, policy } = deps;
-  const all = new Map((await store.freshFundamentals(FRESH_DAYS, opts.today)).map((f) => [f.symbol, f]));
+  const all = await rankableFundamentals(deps, opts.today);
   const { ranked, skipped } = rankStocks(all, policy.weights);
   const pre = ranked.slice(0, policy.candidates.preselect);
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
@@ -298,17 +318,15 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       let card: { summary: string; whyRanks: string; mainRisk: string; moat: string } | null = null;
       if (deps.cardWriter) {
         try {
-          const tags = (await store.tags(sym)) ?? (await tagSymbol(deps, sym, { industry: f.industry, country: null }));
-          const profile = await store.profile(sym);
-          const input: CardInput = { symbol: sym, name: profile?.profile.name ?? null, industry: f.industry, sector: tags.sector, themes: tags.themes, themeOptions: deps.taxonomy.themes, verdict, score: r.score, axes: r.axes, rankInGroup: r.rankInGroup, groupSize: r.groupSize, basis: r.basis, own: ownMetrics(f), medians: r.medians, peers: r.group, flags: d.flags, insiders: ins, analyst, surprises, filings: await deps.filings(sym).catch(() => []), close: d.entryLow, stop: d.stop, target: d.target, riskScore: d.riskScore };
-          const c = await deps.cardWriter.write(input);
-          card = { summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat };
-          if (c.degrade && verdict === "COMPRAR") {
-            verdict = "OBSERVAR";
-            degradedBy = "narrator";
-            d.flags.push(`degradado: ${c.degradeReason ?? "sin motivo"}`);
+          const w = await writeCardFor(deps, f, r, verdict, d, ins);
+          if (w) {
+            card = w.card;
+            if (w.degrade && verdict === "COMPRAR") {
+              verdict = "OBSERVAR";
+              degradedBy = "narrator";
+              d.flags.push(`degradado: ${w.degradeReason ?? "sin motivo"}`);
+            }
           }
-          if (c.themes.length) await tagSymbol(deps, sym, { industry: f.industry, country: null }, c.themes, "modelo");
         } catch (e) {
           errors.push({ symbol: sym, error: String(e) });
           log(`[radar] ficha falló para ${sym}`, { error: String(e).slice(0, 120) });
@@ -347,6 +365,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const { candles, errors } = await candlesFor(deps, latest.map((c) => c.symbol));
+  const needCards = deps.cardWriter && latest.some((c) => c.kind === "stock" && c.summary === null);
+  const ranked = needCards ? new Map(rankStocks(await rankableFundamentals(deps, opts.today), policy.weights).ranked.map((r) => [r.symbol, r])) : null;
   const rows: CandidateRow[] = [];
   for (const prev of latest) {
     const c = candles[prev.symbol];
@@ -369,8 +389,28 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
       continue;
     }
-    const degraded = prev.degradedBy === "narrator";
-    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado"))], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
+    let degraded = prev.degradedBy === "narrator";
+    let card = { summary: prev.summary, whyRanks: prev.whyRanks, mainRisk: prev.mainRisk, moat: prev.moat };
+    let degradeFlag: string | null = null;
+    // Ficha pendiente (cuota agotada en el ranking): se completa acá, con las mismas reglas.
+    if (prev.summary === null && deps.cardWriter && ranked) {
+      const r = ranked.get(prev.symbol);
+      if (r) {
+        try {
+          const w = await writeCardFor(deps, f, r, d.verdict, d, f.insiderBuys90d === null ? null : { buys: f.insiderBuys90d, sells: f.insiderSells90d ?? 0 });
+          if (w) {
+            card = w.card;
+            if (w.degrade && d.verdict === "COMPRAR") {
+              degraded = true;
+              degradeFlag = `degradado: ${w.degradeReason ?? "sin motivo"}`;
+            }
+          }
+        } catch (e) {
+          errors.push({ symbol: prev.symbol, error: String(e) });
+        }
+      }
+    }
+    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
   }
   await store.upsertCandidates(rows);
   return { refreshed: rows.length, errors };

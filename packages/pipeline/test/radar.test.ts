@@ -137,7 +137,30 @@ describe("rankRadar", () => {
   });
 });
 
+describe("rankRadar solo con el último barrido", () => {
+  it("un símbolo con fundamentals frescos pero excluido en el último barrido no rankea", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    // Segundo barrido: SA queda excluida (p. ej. por el filtro de fondos) aunque sus fundamentals sigan frescos.
+    await store.scanUpsert(symbols.map((s) => ({ scanDate: "2026-05-18", symbol: s, stage: s === "SA" ? "excluded" : "finnhub_ok", reason: s === "SA" ? "fondo" : null })));
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: null });
+    expect(r.candidates.some((c) => c.symbol === "SA")).toBe(false);
+    expect(r.candidates.filter((c) => c.kind === "stock").length).toBeGreaterThan(0);
+  });
+});
+
 describe("refreshRadar", () => {
+  it("completa las fichas que faltan (cuota agotada en el ranking)", async () => {
+    const { store, d } = deps({ cardWriter: null });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: null });
+    expect((await store.latestCandidates()).every((c) => c.summary === null)).toBe(true);
+    const withWriter = { ...d, cardWriter: deps().d.cardWriter };
+    await refreshRadar(withWriter, { today: "2026-05-20", portfolioUsd: null });
+    const after = await store.latestCandidates();
+    expect(after.filter((c) => c.kind === "stock").every((c) => c.summary !== null)).toBe(true);
+    expect(after.find((c) => c.symbol === "SB")?.verdict).toBe("OBSERVAR"); // la ficha degrada también en el refresco
+  });
   it("actualiza cierre y stop, conserva score, ficha y nthAppearance", async () => {
     const { store, d } = deps();
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
