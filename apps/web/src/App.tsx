@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Thesis } from "./api";
 import { Cartera } from "./Cartera";
+import { Radar } from "./Radar";
 
-type Tab = "cartera" | "proposed" | "open" | "history" | "calibration";
+type Tab = "cartera" | "radar" | "proposed" | "open" | "history" | "calibration";
 
 export function App() {
   const [tab, setTab] = useState<Tab>("cartera");
@@ -40,9 +41,9 @@ export function App() {
       <header>
         <h1>thesis-engine</h1>
         <nav>
-          {(["cartera", "proposed", "open", "history", "calibration"] as Tab[]).map((t) => (
+          {(["cartera", "radar", "proposed", "open", "history", "calibration"] as Tab[]).map((t) => (
             <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
-              {{ cartera: "Cartera", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
+              {{ cartera: "Cartera", radar: "Radar", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
             </button>
           ))}
         </nav>
@@ -60,6 +61,7 @@ export function App() {
         {!health && <div className="err">No se puede hablar con la API (¿está corriendo `pnpm dev:api`?)</div>}
         {msg && <div className="card">{msg}</div>}
         {tab === "cartera" && <Cartera />}
+        {tab === "radar" && <Radar />}
         {tab === "proposed" && <ThesisList status="proposed" actions="review" />}
         {tab === "open" && <ThesisList status="open,approved" actions="close" />}
         {tab === "history" && <ThesisList status="closed,rejected" actions="none" />}

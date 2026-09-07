@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Measurement, type Position, type RiskReport, type Verdict } from "./api";
+import { api, type Measurement, type Position, type RiskReport, type Tags, type Verdict } from "./api";
+import { TagChips, TagEditor } from "./Tags";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -17,6 +18,8 @@ export function Cartera() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [tags, setTags] = useState<Record<string, Tags | null>>({});
+  const [editingTags, setEditingTags] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [p, v, r, m] = await Promise.all([api.cartera.positions(), api.cartera.verdicts(), api.cartera.risk(), api.cartera.measurement()]);
@@ -24,6 +27,9 @@ export function Cartera() {
     setVerdicts(v);
     setRisk(r);
     setMeasurement(m);
+    const t: Record<string, Tags | null> = {};
+    await Promise.all(p.map(async (x) => { t[x.symbol] = await api.taxonomy.get(x.symbol).catch(() => null); }));
+    setTags(t);
   }, []);
   useEffect(() => {
     load().catch((e) => setMsg(String(e)));
@@ -92,15 +98,15 @@ export function Cartera() {
       )}
       <div className="card" style={{ overflowX: "auto" }}>
         <table>
-          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>cierre</th><th>ganancia</th><th>peso</th><th>veredicto</th><th>stop</th><th>objetivo</th><th></th></tr></thead>
+          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>cierre</th><th>ganancia</th><th>peso</th><th>veredicto</th><th>stop</th><th>objetivo</th><th>etiquetas</th><th></th></tr></thead>
           <tbody>
             {positions.map((p) => {
               const v = vBy.get(p.symbol);
               return (
-                <Row key={p.symbol} p={p} v={v} open={open === p.symbol} onToggle={() => setOpen(open === p.symbol ? null : p.symbol)} onEdit={() => setForm({ ...p })} onRemove={() => remove(p.symbol)} />
+                <Row key={p.symbol} p={p} v={v} tags={tags[p.symbol] ?? null} open={open === p.symbol} onToggle={() => setOpen(open === p.symbol ? null : p.symbol)} onEdit={() => setForm({ ...p })} onRemove={() => remove(p.symbol)} editingTags={editingTags === p.symbol} onEditTags={() => setEditingTags(editingTags === p.symbol ? null : p.symbol)} onTagsSaved={() => { setEditingTags(null); void load(); }} />
               );
             })}
-            {!positions.length && <tr><td colSpan={10} className="muted">Sin posiciones. Agregá una o corré <span className="mono">pnpm import:v1</span>.</td></tr>}
+            {!positions.length && <tr><td colSpan={11} className="muted">Sin posiciones. Agregá una o corré <span className="mono">pnpm import:v1</span>.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -110,7 +116,7 @@ export function Cartera() {
   );
 }
 
-function Row({ p, v, open, onToggle, onEdit, onRemove }: { p: Position; v: Verdict | undefined; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void }) {
+function Row({ p, v, tags, open, onToggle, onEdit, onRemove, editingTags, onEditTags, onTagsSaved }: { p: Position; v: Verdict | undefined; tags: Tags | null; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void; editingTags: boolean; onEditTags: () => void; onTagsSaved: () => void }) {
   return (
     <>
       <tr>
@@ -123,15 +129,18 @@ function Row({ p, v, open, onToggle, onEdit, onRemove }: { p: Position; v: Verdi
         <td>{v ? <span className={`verb ${v.verb}`}>{v.verb}</span> : <span className="muted">sin veredicto</span>}</td>
         <td className="mono">{f2(v?.stop)}</td>
         <td className="mono">{f2(v?.target)}</td>
+        <td><TagChips tags={tags} /></td>
         <td style={{ whiteSpace: "nowrap" }}>
           {v && <button className="ghost" onClick={onToggle}>{open ? "Cerrar" : "Ver"}</button>}{" "}
           <button className="ghost" onClick={onEdit}>Editar</button>{" "}
+          <button className="ghost" onClick={onEditTags}>Etiquetas</button>{" "}
           <button className="ghost" onClick={onRemove}>Borrar</button>
         </td>
       </tr>
+      {editingTags && <tr><td colSpan={11}><TagEditor symbol={p.symbol} current={tags} onSaved={onTagsSaved} onCancel={onEditTags} /></td></tr>}
       {open && v && (
         <tr>
-          <td colSpan={10}>
+          <td colSpan={11}>
             <div><b>Por qué:</b> {v.reason}</div>
             {v.narrative && <div style={{ marginTop: 6 }}><b>Modelo:</b> {v.narrative}{v.degradedBy && <span className="muted"> (degradó el veredicto)</span>}</div>}
             {v.warning && <div className="warn" style={{ marginTop: 6 }}><b>Aviso:</b> {v.warning}</div>}
@@ -157,6 +166,8 @@ function Risk({ r, date }: { r: RiskReport; date: string }) {
       {r.concentration.warnings.map((w) => <div key={w} className="warn" style={{ marginTop: 6 }}>⚠ {w}</div>)}
       <div style={{ marginTop: 8 }}><b>País:</b> {top(r.concentration.byCountry)}</div>
       <div><b>Industria:</b> {top(r.concentration.byIndustry)}</div>
+      {Object.keys(r.concentration.bySector ?? {}).length > 0 && <div><b>Sector:</b> {top(r.concentration.bySector)}</div>}
+      {Object.keys(r.concentration.byTheme ?? {}).length > 0 && <div><b>Temas:</b> {top(r.concentration.byTheme)}</div>}
       {r.correlatedPairs.length > 0 && <div><b>Correlacionados:</b> {r.correlatedPairs.map((p) => `${p.a}–${p.b} ${p.corr.toFixed(2)}`).join(" · ")}</div>}
       <div className="muted" style={{ marginTop: 6 }}>Liquidez (días para salir al 10% del volumen): {r.liquidity.map((l) => `${l.symbol} ${f2(l.daysToLiquidate, 1)}`).join(" · ")}</div>
       {r.notes.map((n) => <div key={n} className="muted">{n}</div>)}
