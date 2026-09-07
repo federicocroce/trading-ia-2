@@ -84,3 +84,44 @@ export interface CandidateRow {
   alpha90dPct: number | null;
   measuredAt: string | null;
 }
+
+/** Ficha de candidato escrita por el modelo (spec §9). El verbo ya está decidido; solo puede degradar. */
+export interface CardInput {
+  symbol: string;
+  name: string | null;
+  industry: string | null;
+  sector: string;
+  themes: string[];
+  themeOptions: string[];
+  verdict: "COMPRAR" | "OBSERVAR";
+  score: number;
+  axes: Record<string, number | null>;
+  rankInGroup: number;
+  groupSize: number;
+  basis: "pares" | "industria";
+  own: Record<string, number | null>;
+  medians: Record<string, number | null>;
+  peers: string[];
+  flags: string[];
+  insiders: { buys: number; sells: number } | null;
+  analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null;
+  surprises: Array<{ period: string; surprisePercent: number | null }> | null;
+  filings: string[];
+  close: number;
+  stop: number | null;
+  target: number | null;
+  riskScore: number;
+}
+export interface Card {
+  summary: string;
+  whyRanks: string;
+  mainRisk: string;
+  moat: "debil" | "moderado" | "fuerte" | "desconocido";
+  themes: string[];
+  degrade: boolean;
+  degradeReason?: string;
+}
+export interface CardWriter {
+  readonly promptVersion: string;
+  write(input: CardInput): Promise<Card>;
+}

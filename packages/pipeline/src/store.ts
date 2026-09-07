@@ -1,4 +1,4 @@
-import type { Order, Outcome, Position, RawEvent, RiskReport, SymbolProfile, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
+import type { CandidateRow, ContributionPlan, Fundamentals, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -45,7 +45,36 @@ export interface CarteraStore {
   recentNewsTitles(query: string, limit: number): Promise<string[]>;
 }
 
-export class MemoryStore implements Store, CarteraStore {
+/** Lo que el Radar necesita de la persistencia (spec etapa 2 §11). */
+export interface RadarStore {
+  tags(symbol: string): Promise<Tags | null>;
+  saveTags(symbol: string, t: Tags): Promise<void>;
+  allTags(): Promise<Record<string, Tags>>;
+  saveFundamentals(f: Fundamentals): Promise<void>;
+  fundamentals(symbol: string): Promise<Fundamentals | null>;
+  freshFundamentals(maxAgeDays: number, today: string): Promise<Fundamentals[]>;
+  scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>): Promise<void>;
+  scanPending(scanDate: string): Promise<string[]>;
+  scanStatus(scanDate: string): Promise<Record<ScanStage, number>>;
+  latestScanDate(): Promise<string | null>;
+  upsertCandidates(rows: CandidateRow[]): Promise<void>;
+  latestCandidates(): Promise<CandidateRow[]>;
+  candidateHistory(symbol: string, weeks: number): Promise<CandidateRow[]>;
+  candidatesToMeasure(before: string, horizon: 7 | 30 | 90): Promise<CandidateRow[]>;
+  setCandidateMeasurement(date: string, symbol: string, m: Partial<Pick<CandidateRow, "close7d" | "spy7d" | "alpha7dPct" | "close30d" | "spy30d" | "alpha30dPct" | "close90d" | "spy90d" | "alpha90dPct">>): Promise<void>;
+  allCandidates(): Promise<CandidateRow[]>;
+  savePlan(p: ContributionPlan): Promise<void>;
+  latestPlan(): Promise<ContributionPlan | null>;
+  plansToMeasure(before: string): Promise<ContributionPlan[]>;
+  updatePlanLines(month: string, lines: PlanLine[]): Promise<void>;
+}
+
+export class MemoryStore implements Store, CarteraStore, RadarStore {
+  tagsMap = new Map<string, Tags>();
+  fundamentalsMap = new Map<string, Fundamentals>();
+  scan = new Map<string, { scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>();
+  candidates = new Map<string, CandidateRow>();
+  plans = new Map<string, ContributionPlan>();
   positionsMap = new Map<string, Position>();
   txs = new Map<string, Transaction>();
   profiles = new Map<string, { profile: SymbolProfile; updatedAt: string }>();
@@ -202,5 +231,80 @@ export class MemoryStore implements Store, CarteraStore {
   async recentNewsTitles(query: string, limit: number) {
     const q = query.toLowerCase();
     return [...this.events.values()].filter((e) => e.source === "ar_official" && e.title.toLowerCase().includes(q)).sort((a, b) => b.observedAt.localeCompare(a.observedAt)).slice(0, limit).map((e) => e.title);
+  }
+
+  // ---------- radar ----------
+  async tags(symbol: string) {
+    return this.tagsMap.get(symbol.toUpperCase()) ?? null;
+  }
+  async saveTags(symbol: string, t: Tags) {
+    this.tagsMap.set(symbol.toUpperCase(), t);
+  }
+  async allTags() {
+    return Object.fromEntries(this.tagsMap);
+  }
+  async saveFundamentals(f: Fundamentals) {
+    this.fundamentalsMap.set(f.symbol.toUpperCase(), { ...f, symbol: f.symbol.toUpperCase() });
+  }
+  async fundamentals(symbol: string) {
+    return this.fundamentalsMap.get(symbol.toUpperCase()) ?? null;
+  }
+  async freshFundamentals(maxAgeDays: number, today: string) {
+    const since = new Date(Date.parse(today) - maxAgeDays * 86_400_000).toISOString().slice(0, 10);
+    return [...this.fundamentalsMap.values()].filter((f) => f.asOf >= since);
+  }
+  async scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>) {
+    for (const r of rows) this.scan.set(`${r.scanDate}|${r.symbol.toUpperCase()}`, { ...r, symbol: r.symbol.toUpperCase() });
+  }
+  async scanPending(scanDate: string) {
+    return [...this.scan.values()].filter((r) => r.scanDate === scanDate && r.stage === "alpaca_ok").map((r) => r.symbol).sort();
+  }
+  async scanStatus(scanDate: string) {
+    const out: Record<ScanStage, number> = { alpaca_ok: 0, finnhub_ok: 0, excluded: 0, error: 0 };
+    for (const r of this.scan.values()) if (r.scanDate === scanDate) out[r.stage]++;
+    return out;
+  }
+  async latestScanDate() {
+    return [...this.scan.values()].map((r) => r.scanDate).sort().at(-1) ?? null;
+  }
+  async upsertCandidates(rows: CandidateRow[]) {
+    for (const c of rows) {
+      const k = `${c.candidateDate}|${c.symbol}`;
+      const prev = this.candidates.get(k);
+      this.candidates.set(k, prev ? { ...c, close7d: prev.close7d, spy7d: prev.spy7d, alpha7dPct: prev.alpha7dPct, close30d: prev.close30d, spy30d: prev.spy30d, alpha30dPct: prev.alpha30dPct, close90d: prev.close90d, spy90d: prev.spy90d, alpha90dPct: prev.alpha90dPct, measuredAt: prev.measuredAt } : c);
+    }
+  }
+  async latestCandidates() {
+    const all = [...this.candidates.values()];
+    const last = all.map((c) => c.candidateDate).sort().at(-1);
+    return all.filter((c) => c.candidateDate === last).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+  }
+  async candidateHistory(symbol: string, weeks: number) {
+    return [...this.candidates.values()].filter((c) => c.symbol === symbol.toUpperCase()).sort((a, b) => b.candidateDate.localeCompare(a.candidateDate)).slice(0, weeks * 7);
+  }
+  async candidatesToMeasure(before: string, horizon: 7 | 30 | 90) {
+    return [...this.candidates.values()].filter((c) => c.candidateDate <= before && (horizon === 7 ? c.close7d : horizon === 30 ? c.close30d : c.close90d) === null);
+  }
+  async setCandidateMeasurement(date: string, symbol: string, m: Partial<Pick<CandidateRow, "close7d" | "spy7d" | "alpha7dPct" | "close30d" | "spy30d" | "alpha30dPct" | "close90d" | "spy90d" | "alpha90dPct">>) {
+    const k = `${date}|${symbol}`;
+    const c = this.candidates.get(k);
+    if (c) this.candidates.set(k, { ...c, ...m, measuredAt: new Date().toISOString() });
+  }
+  async allCandidates() {
+    return [...this.candidates.values()].sort((a, b) => b.candidateDate.localeCompare(a.candidateDate) || a.symbol.localeCompare(b.symbol));
+  }
+  async savePlan(p: ContributionPlan) {
+    this.plans.set(p.month, p);
+  }
+  async latestPlan() {
+    const m = [...this.plans.keys()].sort().at(-1);
+    return m ? this.plans.get(m)! : null;
+  }
+  async plansToMeasure(before: string) {
+    return [...this.plans.values()].filter((p) => p.month <= before.slice(0, 7) && p.lines.some((l) => l.alpha30dPct === null || l.alpha90dPct === null));
+  }
+  async updatePlanLines(month: string, lines: PlanLine[]) {
+    const p = this.plans.get(month);
+    if (p) this.plans.set(month, { ...p, lines });
   }
 }
