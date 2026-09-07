@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MUERTO_MS, QuotaTracker, attemptOrder, classifyError, dailyResetAt, withRotation } from "../src/gemini/rotation.js";
+import { MUERTO_MS, QuotaTracker, RETRYABLE_COOLDOWN_MS, attemptOrder, classifyError, dailyResetAt, withRotation } from "../src/gemini/rotation.js";
 
 describe("attemptOrder", () => {
   it("recorre modelo-mayor, key-menor (la cuota free es por modelo)", () => {
@@ -92,6 +92,22 @@ describe("withRotation", () => {
     await withRotation({ models, keys, tracker, now: () => now, attempt: async (m, k) => { if (m === "A" && k === "k0") throw new Error("HTTP 429 quota limit: 0"); return "ok"; } });
     expect(tracker.isExhausted("A", 0)).toBe(true);
     expect(tracker.resetAt("A", 0)).toBe(now + MUERTO_MS);
+  });
+
+  it("un modelo con 503 en todas las keys queda en pausa 10 minutos; la próxima llamada lo saltea", async () => {
+    let now = 1_000_000;
+    const tracker = new QuotaTracker(() => now);
+    const calls: string[] = [];
+    const attempt = async (m: string, k: string) => { calls.push(`${m}:${k}`); if (m === "A") throw new Error("HTTP 503 UNAVAILABLE high demand"); return "ok"; };
+    await withRotation({ models, keys, tracker, attempt, now: () => now });
+    expect(calls).toEqual(["A:k0", "A:k1", "B:k0"]);
+    expect(tracker.resetAt("A", 0)).toBe(now + RETRYABLE_COOLDOWN_MS);
+    expect(tracker.resetAt("A", 1)).toBe(now + RETRYABLE_COOLDOWN_MS);
+    calls.length = 0;
+    await withRotation({ models, keys, tracker, attempt, now: () => now });
+    expect(calls).toEqual(["B:k0"]);
+    now += RETRYABLE_COOLDOWN_MS + 1;
+    expect(tracker.isExhausted("A", 0)).toBe(false);
   });
 
   it("si todos fallan, lanza el último error", async () => {

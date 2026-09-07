@@ -15,6 +15,8 @@ interface YahooChart {
   };
 }
 
+const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
+
 /** Parser puro del chart API v8 de Yahoo. */
 export function parseYahooChart(json: unknown): Candle[] {
   const d = json as YahooChart;
@@ -26,7 +28,8 @@ export function parseYahooChart(json: unknown): Candle[] {
   r.timestamp.forEach((ts, i) => {
     const close = q.close[i];
     if (close === null || close === undefined) return;
-    out.push({ date: new Date(ts * 1000).toISOString().slice(0, 10), open: q.open[i] ?? close, high: q.high[i] ?? close, low: q.low[i] ?? close, close, volume: q.volume[i] ?? 0 });
+    // Yahoo devuelve floats con ruido (44.36000061035156): se redondea a 4 decimales en la fuente.
+    out.push({ date: new Date(ts * 1000).toISOString().slice(0, 10), open: r4(q.open[i] ?? close), high: r4(q.high[i] ?? close), low: r4(q.low[i] ?? close), close: r4(close), volume: q.volume[i] ?? 0 });
   });
   return out;
 }

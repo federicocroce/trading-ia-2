@@ -10,6 +10,10 @@ describe("parseYahooChart", () => {
       { date: "2025-09-02", open: 2, high: 3, low: 1.5, close: 2.5, volume: 200 },
     ]);
   });
+  it("redondea el ruido de coma flotante a 4 decimales", () => {
+    const noisy = { chart: { result: [{ timestamp: [1756684800], indicators: { quote: [{ open: [44.36000061035156], high: [45], low: [44], close: [44.36000061035156], volume: [1] }] } }], error: null } };
+    expect(parseYahooChart(noisy)[0]!.close).toBe(44.36);
+  });
   it("error de Yahoo lanza", () => {
     expect(() => parseYahooChart({ chart: { result: null, error: { code: "Not Found", description: "No data" } } })).toThrow(/No data/);
   });

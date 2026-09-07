@@ -15,7 +15,8 @@ Etapas 1 a 6 implementadas y testeadas (85 tests, incluida integración contra P
 | Paper trading | `packages/adapters/src/alpaca` | Broker Alpaca paper (el constructor rechaza cuentas reales), market data, opciones |
 | Orquestación | `packages/pipeline` | Corrida diaria, aprobación/rechazo humano, cierre con PnL real, reporte de calibración (§7) |
 | API + cron | `apps/api` | Hono; corrida diaria lun–vie 07:30, sync de órdenes cada 15 min |
-| UI | `apps/web` | Propuestas (aprobar/rechazar), abiertas (cerrar), historial, calibración |
+| Cartera real | `packages/core/src/cartera`, `packages/pipeline/src/cartera.ts` | Veredicto diario por posición con reglas duras, panel de riesgo calculado, narrativa que solo degrada, medición contra SPY a 7/30 días |
+| UI | `apps/web` | Cartera (veredictos, riesgo, medición), propuestas (aprobar/rechazar), abiertas (cerrar), historial, calibración |
 
 ## Setup
 
@@ -45,6 +46,19 @@ pnpm run:daily              # una corrida a mano (ingesta → filtro → razonam
 Flujo: la corrida deja tesis en **Propuestas**. Vos abrís cada una, leés razonamiento e invalidación, y aprobás (pasa por riesgo y va a Alpaca paper) o rechazás (queda registrado, para medir tu criterio). Cuando el evento se resuelve, en **Abiertas** cerrás la posición diciendo si pasó lo predicho; eso alimenta **Calibración**.
 
 Eventos con fecha que no tienen API gratuita (PDUFA, fallos, licitaciones) se cargan a mano en `config/events.csv`. El universo de tickers está en `config/universe.json`.
+
+## Cartera real
+
+Pestaña **Cartera** (primera del menú): tus posiciones reales con un veredicto diario por posición, **VENDER / REVISAR / MANTENER / SUMAR**, stop dinámico, objetivo, ganancia, peso, el por qué en dos líneas, un panel de riesgo calculado (concentración por país e industria, pares correlacionados, beta, estrés si SPY cae 20%, liquidez) y la medición de cada veredicto contra SPY a 7 y 30 días. Diseño en [`docs/superpowers/specs/2026-09-07-cartera-etapa1-design.md`](docs/superpowers/specs/2026-09-07-cartera-etapa1-design.md).
+
+Reglas, no prompts: el verbo lo deciden reglas puras en `packages/core/src/cartera` (stop *chandelier* 22/3, jerarquía portada de trading v1, criterio SUMAR explícito). El modelo (Gemini o Claude) escribe la narrativa con los números que recibe y **solo puede degradar** MANTENER/SUMAR a REVISAR citando un filing o noticia; nunca sube un verbo ni decide VENDER. Sin precio de hoy, el veredicto es REVISAR con aviso: no se inventa nada.
+
+```bash
+pnpm import:v1 [ruta/a/trading.db]   # una vez: posiciones y operaciones desde trading v1 (busca ../trading y ../../trading)
+curl -X POST localhost:3002/cartera/run   # o el botón "Actualizar veredictos"; el cron corre lun–vie 07:45 (CARTERA_CRON)
+```
+
+Posiciones y operaciones también se cargan y editan en la UI. Precios diarios de Yahoo con respaldo de Alpaca; perfil de empresa de Finnhub si hay `FINNHUB_API_KEY`. Importar requiere `node:sqlite` (Node 24; en Node 22, `NODE_OPTIONS=--experimental-sqlite`).
 
 ## Criterio de salida de paper (DESIGN.md §7)
 

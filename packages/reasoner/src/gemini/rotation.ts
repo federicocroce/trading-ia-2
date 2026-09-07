@@ -11,6 +11,8 @@ export type ErrorKind = "muerto" | "quota" | "retryable" | "otro";
 
 /** Una semana: "este modelo no está en tu plan" no se arregla esperando a mañana. */
 export const MUERTO_MS = 7 * 24 * 60 * 60 * 1000;
+/** Pausa de un modelo que dio 503 con TODAS las keys: la saturación es del modelo, no de la key. */
+export const RETRYABLE_COOLDOWN_MS = 10 * 60 * 1000;
 
 export interface Attempt<M extends string = string> {
   model: M;
@@ -98,6 +100,7 @@ export async function withRotation<T, M extends string>(o: RotationOptions<T, M>
   const now = o.now ?? Date.now;
   let lastError: Error | null = null;
   let skipped = 0;
+  const retryableByModel = new Map<string, number>();
   for (const { model, keyIndex } of attemptOrder(o.models, o.keys.length)) {
     if (o.tracker.isExhausted(model, keyIndex)) {
       skipped++;
@@ -112,6 +115,14 @@ export async function withRotation<T, M extends string>(o: RotationOptions<T, M>
       log(`[gemini] ${model} key#${keyIndex + 1} falló (${kind}): ${err.message.slice(0, 160)}`);
       if (kind === "muerto") o.tracker.markExhausted(model, keyIndex, new Date(now() + MUERTO_MS));
       else if (kind === "quota") o.tracker.markExhausted(model, keyIndex, dailyResetAt(new Date(now())));
+      else if (kind === "retryable") {
+        const n = (retryableByModel.get(model) ?? 0) + 1;
+        retryableByModel.set(model, n);
+        if (n === o.keys.length) {
+          log(`[gemini] ${model} saturado con todas las keys: pausa ${RETRYABLE_COOLDOWN_MS / 60_000} min`);
+          for (let k = 0; k < o.keys.length; k++) o.tracker.markExhausted(model, k, new Date(now() + RETRYABLE_COOLDOWN_MS));
+        }
+      }
       lastError = err;
     }
   }

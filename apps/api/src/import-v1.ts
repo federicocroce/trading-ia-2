@@ -48,7 +48,10 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv
 if (isMain) {
   const root = await findRoot();
   const cfg = await loadConfig(root);
-  const dbPath = process.argv[2] ?? path.join(root, "..", "trading", "data", "trading.db");
+  // trading v1 puede estar al lado del repo o un nivel más arriba (Docu/Fede/trading vs Docu/Fede/trading v2/thesis-engine).
+  const { existsSync } = await import("node:fs");
+  const candidates = [path.join(root, "..", "trading", "data", "trading.db"), path.join(root, "..", "..", "trading", "data", "trading.db")];
+  const dbPath = process.argv[2] ?? candidates.find((c) => existsSync(c)) ?? candidates[0]!;
   const r = await importV1(new Repo(createDb(cfg.databaseUrl)), dbPath);
   console.log(`importadas ${r.positions} posiciones y ${r.transactions} operaciones nuevas desde ${dbPath}`);
   process.exit(0);
