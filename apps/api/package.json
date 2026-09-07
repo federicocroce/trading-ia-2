@@ -9,7 +9,8 @@
     "run:daily": "tsx src/cli.ts daily",
     "run:sync": "tsx src/cli.ts sync",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "import:v1": "tsx src/import-v1.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",

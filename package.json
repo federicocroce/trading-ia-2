@@ -18,7 +18,8 @@
     "dev:web": "pnpm --filter @thesis/web dev",
     "run:daily": "pnpm --filter @thesis/api run:daily",
     "run:sync": "pnpm --filter @thesis/api run:sync",
-    "smoke:sources": "pnpm --filter @thesis/api exec tsx src/smoke-sources.ts"
+    "smoke:sources": "pnpm --filter @thesis/api exec tsx src/smoke-sources.ts",
+    "import:v1": "pnpm --filter @thesis/api import:v1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
