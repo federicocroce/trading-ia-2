@@ -51,7 +51,7 @@ describe("FinnhubProfiles", () => {
       "https://finnhub.io/api/v1/stock/profile2?symbol=ZZZZ": {},
     });
     const p = new FinnhubProfiles(http, "tok");
-    expect(await p.profile("TSM")).toEqual({ symbol: "TSM", name: "Taiwan Semiconductor", country: "TW", industry: "Semiconductors", marketCap: 1_000_000_000 });
+    expect(await p.profile("TSM")).toEqual({ symbol: "TSM", name: "Taiwan Semiconductor", country: "TW", industry: "Semiconductors", marketCap: 1_000_000_000, currency: null, shareOutstanding: null });
     expect(await p.profile("ZZZZ")).toBeNull();
   });
 });

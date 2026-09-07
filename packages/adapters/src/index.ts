@@ -9,3 +9,4 @@ export * from "./fda/index.js";
 export * from "./yahoo/index.js";
 export * from "./finnhub/index.js";
 export * from "./history.js";
+export * from "./ratelimit.js";
