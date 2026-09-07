@@ -16,7 +16,8 @@ Etapas 1 a 6 implementadas y testeadas (85 tests, incluida integración contra P
 | Orquestación | `packages/pipeline` | Corrida diaria, aprobación/rechazo humano, cierre con PnL real, reporte de calibración (§7) |
 | API + cron | `apps/api` | Hono; corrida diaria lun–vie 07:30, sync de órdenes cada 15 min |
 | Cartera real | `packages/core/src/cartera`, `packages/pipeline/src/cartera.ts` | Veredicto diario por posición con reglas duras, panel de riesgo calculado, narrativa que solo degrada, medición contra SPY a 7/30 días |
-| UI | `apps/web` | Cartera (veredictos, riesgo, medición), propuestas (aprobar/rechazar), abiertas (cerrar), historial, calibración |
+| Radar | `packages/core/src/radar`, `packages/pipeline/src/radar.ts` | Universo semanal (Alpaca + Finnhub), ranking contra pares, candidatos COMPRAR/OBSERVAR, ETFs, plan del aporte, taxonomía, medición 7/30/90 |
+| UI | `apps/web` | Cartera (veredictos, riesgo, medición), Radar (candidatos, ETFs, plan, etiquetas), propuestas, abiertas, historial, calibración |
 
 ## Setup
 
@@ -59,6 +60,25 @@ curl -X POST localhost:3002/cartera/run   # o el botón "Actualizar veredictos";
 ```
 
 Posiciones y operaciones también se cargan y editan en la UI. Precios diarios de Yahoo con respaldo de Alpaca; perfil de empresa de Finnhub si hay `FINNHUB_API_KEY`. Importar requiere `node:sqlite` (Node 24; en Node 22, `NODE_OPTIONS=--experimental-sqlite`).
+
+## Radar (candidatos nuevos)
+
+Pestaña **Radar**: acciones US para **COMPRAR / OBSERVAR** y ETFs curados, más el **plan del aporte mensual**. Diseño en [`docs/superpowers/specs/2026-09-07-radar-etapa2-design.md`](docs/superpowers/specs/2026-09-07-radar-etapa2-design.md).
+
+- **Universo** (domingo 20:00, `RADAR_SCAN_CRON`, o botón *Barrer universo*): ~12.500 acciones de Alpaca → precio ≥ 5 y volumen → fundamentals de Finnhub (≤ 55/min, ≈ 1 h) → capitalización ≥ USD 500M y volumen ≥ USD 5M/día. Reanudable: si se corta, retoma donde iba. Requiere `FINNHUB_API_KEY`.
+- **Ranking**: fundamental primero, **contra pares** (mismo negocio): valuación, calidad, crecimiento y balance como z-scores dentro del grupo; pesos en `config/radar-policy.json`. Lo técnico filtra, no rankea: bajo la SMA200 queda afuera; subió > 15% en 21 ruedas o reporta en ≤ 10 días → OBSERVAR; 4ª semana seguida como candidato → OBSERVAR. Salen 40 con entrada, stop chandelier, objetivo 2:1, tamaño (1% de riesgo, tope 10%) y riesgo 1–10.
+- **ETFs** (`config/etfs.json`): fuerza relativa contra SPY; los de núcleo se compran por calendario (NUCLEO), satélites y coberturas COMPRAR/OBSERVAR.
+- **Plan del aporte** (1.º de mes 08:00, `RADAR_PLAN_CRON`): primero el núcleo hasta su objetivo, después SUMAR de Cartera y COMPRAR del Radar por score, con topes por línea y por posición. Montos en `config/radar-policy.json` (`contribution`).
+- **Ficha** por candidato (modelo): qué hace, por qué rankea, riesgo principal, foso, temas sugeridos. Solo puede degradar COMPRAR → OBSERVAR citando un dato.
+- **Taxonomía** (`config/taxonomia.json`): clase de activo, sector por industria y temas transversales (IA, defensa, argentina, bitcoin…). Reglas + sugerencias del modelo; lo que editás a mano nunca se pisa. Sirve para filtrar y para la concentración por sector y tema en Cartera.
+- **Medición**: cada aparición se mide contra SPY a 7/30/90 días. OBSERVAR es el grupo de control: si COMPRAR no le gana, los filtros no agregan valor.
+
+```bash
+pnpm radar:scan      # barrido (reanudable; Ctrl+C corta al terminar el símbolo actual)
+pnpm radar:rank      # ranking + candidatos + ETFs + fichas
+pnpm radar:refresh   # refresco diario + medición
+pnpm radar:plan      # plan del aporte del mes
+```
 
 ## Criterio de salida de paper (DESIGN.md §7)
 
