@@ -1,0 +1,67 @@
+import { describe, expect, it } from "vitest";
+import { beta, buildRiskReport, correlation, hhi, type Candle, type Position } from "./index.js";
+
+const series = (closes: number[], volume = 1_000_000): Candle[] =>
+  closes.map((c, i) => ({ date: `2026-01-${String(i + 1).padStart(2, "0")}`, open: c, high: c, low: c, close: c, volume }));
+const walk = (n: number, start: number, step: (i: number) => number) => {
+  const out = [start];
+  for (let i = 1; i < n; i++) out.push(out[i - 1]! * (1 + step(i)));
+  return out;
+};
+const spy = series(walk(130, 100, (i) => (i % 2 ? 0.01 : -0.005)));
+const doubleSpy = series(walk(130, 50, (i) => (i % 2 ? 0.02 : -0.01))); // beta ≈ 2, corr 1
+const flat = series(Array(130).fill(20), 100);
+
+const pos = (symbol: string, quantity: number, market: Position["market"] = "us"): Position => ({ symbol, quantity, avgCost: 1, currency: "USD", market, layer: "riesgo", notes: null });
+
+describe("estadísticos", () => {
+  it("correlación 1 entre series proporcionales, null con < 20 puntos", () => {
+    expect(correlation([1, 2, 3, 4, 5].concat(Array(20).fill(1)), [2, 4, 6, 8, 10].concat(Array(20).fill(2)))).toBeCloseTo(1, 6);
+    expect(correlation([1, 2], [2, 4])).toBeNull();
+  });
+  it("beta ≈ 2 de una serie que se mueve el doble", () => {
+    const r = (c: Candle[]) => c.slice(1).map((x, i) => x.close / c[i]!.close - 1);
+    expect(beta(r(doubleSpy), r(spy))).toBeCloseTo(2, 1);
+  });
+  it("HHI de dos mitades = 5000; de uno solo = 10000", () => {
+    expect(hhi({ AR: 50, US: 50 })).toBe(5000);
+    expect(hhi({ AR: 100 })).toBe(10000);
+  });
+});
+
+describe("buildRiskReport", () => {
+  const r = buildRiskReport({
+    positions: [pos("AAA", 10), pos("BBB", 10), pos("ARG", 100, "adr")],
+    candles: { AAA: doubleSpy, BBB: doubleSpy, ARG: flat },
+    spy,
+    profiles: {
+      AAA: { symbol: "AAA", name: null, country: "US", industry: "Semis", marketCap: null },
+      BBB: { symbol: "BBB", name: null, country: "US", industry: "Semis", marketCap: null },
+      ARG: null,
+    },
+  });
+  it("pesos por valor de cierre", () => {
+    const last = doubleSpy[129]!.close;
+    const total = 10 * last * 2 + 100 * 20;
+    expect(r.totalValue).toBeCloseTo(total, 2);
+    expect(r.weights.find((w) => w.symbol === "ARG")!.weightPct).toBeCloseTo((2000 / total) * 100, 1);
+  });
+  it("país del perfil, o del mercado si no hay perfil; aviso > 40%", () => {
+    expect(Object.keys(r.concentration.byCountry).sort()).toEqual(["AR", "US"]);
+    expect(r.concentration.warnings.some((w) => /Semis|US|AR/.test(w))).toBe(true);
+  });
+  it("lista pares con correlación > 0.7", () => {
+    expect(r.correlatedPairs).toEqual([{ a: "AAA", b: "BBB", corr: 1 }]);
+  });
+  it("beta por posición y estrés lineal", () => {
+    expect(r.betas["AAA"]).toBeCloseTo(2, 1);
+    expect(r.betas["ARG"]).toBeCloseTo(0, 1);
+    const expected = r.weights.reduce((s, w) => s + (w.weightPct / 100) * (r.betas[w.symbol] ?? 0) * -20, 0);
+    expect(r.stressSpyMinus20Pct).toBeCloseTo(expected, 1);
+  });
+  it("liquidez: días para liquidar al 10% del volumen medio", () => {
+    const l = r.liquidity.find((x) => x.symbol === "ARG")!;
+    expect(l.avgDollarVolume30d).toBe(20 * 100);
+    expect(l.daysToLiquidate).toBeCloseTo(100 / (100 * 0.1), 4); // 100 acciones, 10 por día
+  });
+});
