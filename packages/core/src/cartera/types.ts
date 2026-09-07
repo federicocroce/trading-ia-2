@@ -72,6 +72,10 @@ export interface SymbolProfile {
   country: string | null;
   industry: string | null;
   marketCap: number | null;
+  /** Moneda de los estados contables (ADRs: local). */
+  currency?: string | null;
+  /** Acciones en circulación, en millones (para capitalización en USD con precio de Alpaca). */
+  shareOutstanding?: number | null;
 }
 export interface Profiles {
   profile(symbol: string): Promise<SymbolProfile | null>;

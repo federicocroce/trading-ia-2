@@ -1,0 +1,9 @@
+{
+  "weights": { "valuation": 0.35, "quality": 0.3, "growth": 0.25, "balance": 0.1 },
+  "quality": { "minMcapUsd": 500000000, "minDollarVolumeUsd": 5000000, "minPrice": 5 },
+  "prefilter": { "minPrice": 5, "minIexDollarVolume": 500000 },
+  "technical": { "maxReturn21dPct": 15, "earningsWithinDays": 10 },
+  "sizing": { "riskPerTradePct": 1, "maxPositionPct": 10, "fallbackPortfolioUsd": 150000 },
+  "candidates": { "top": 40, "preselect": 150, "chronicWeeks": 4 },
+  "contribution": { "monthlyUsd": 6500, "coreTargetPct": 40, "maxPositionPct": 15, "maxNewPositionsPerMonth": 2 }
+}
