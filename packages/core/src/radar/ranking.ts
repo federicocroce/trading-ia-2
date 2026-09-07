@@ -1,0 +1,133 @@
+import type { FinnhubMetrics } from "./universe.js";
+import type { RadarPolicy } from "./types.js";
+
+/**
+ * Ranking fundamental contra pares (spec etapa 2 §6). Puro.
+ * z robusto = (x − mediana) / (1.4826 × MAD), winsorizado a ±3, dentro del grupo de comparación.
+ */
+export interface Fundamentals {
+  symbol: string;
+  asOf: string;
+  metrics: FinnhubMetrics;
+  peers: string[];
+  industry: string | null;
+  mcapUsd: number;
+  dollarVolumeUsd: number;
+  priceUsd: number;
+  nextEarnings: string | null;
+  insiderBuys90d: number | null;
+  insiderSells90d: number | null;
+  analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null;
+  earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null;
+}
+
+export type Axis = "valuation" | "quality" | "growth" | "balance";
+export const AXES: Axis[] = ["valuation", "quality", "growth", "balance"];
+export const AXIS_METRICS: Record<Axis, Array<{ key: string; invert: boolean; positiveOnly?: boolean }>> = {
+  valuation: [
+    { key: "peTTM", invert: true, positiveOnly: true },
+    { key: "evEbitdaTTM", invert: true, positiveOnly: true },
+    { key: "psTTM", invert: true, positiveOnly: true },
+  ],
+  quality: [{ key: "roeTTM", invert: false }, { key: "operatingMarginTTM", invert: false }, { key: "netProfitMarginTTM", invert: false }],
+  growth: [{ key: "revenueGrowthTTMYoy", invert: false }, { key: "revenueGrowth5Y", invert: false }, { key: "epsGrowthTTMYoy", invert: false }],
+  balance: [{ key: "totalDebt/totalEquityAnnual", invert: true }, { key: "currentRatioAnnual", invert: false }],
+};
+
+const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
+
+export function median(xs: number[]): number | null {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+}
+
+export function robustZ(values: Array<number | null>): Array<number | null> {
+  const present = values.filter((v): v is number => v !== null && Number.isFinite(v));
+  const med = median(present);
+  if (med === null) return values.map(() => null);
+  const mad = median(present.map((v) => Math.abs(v - med)));
+  const scale = mad === null || mad === 0 ? 0 : 1.4826 * mad;
+  return values.map((v) => {
+    if (v === null || !Number.isFinite(v)) return null;
+    if (scale === 0) return 0;
+    return round4(Math.max(-3, Math.min(3, (v - med) / scale)));
+  });
+}
+
+const metricOf = (f: Fundamentals, spec: { key: string; positiveOnly?: boolean }): number | null => {
+  const v = f.metrics[spec.key];
+  if (v === null || v === undefined || !Number.isFinite(v)) return null;
+  if (spec.positiveOnly && v <= 0) return null;
+  return v;
+};
+
+/** Grupo de comparación: pares ∩ universo (máx 10); si < minSize, la industria; si tampoco, null. */
+export function peerGroup(symbol: string, all: Map<string, Fundamentals>, minSize = 4): { members: string[]; basis: "pares" | "industria" } | null {
+  const f = all.get(symbol);
+  if (!f) return null;
+  const peers = [...new Set(f.peers.map((p) => p.toUpperCase()))].filter((p) => p !== symbol && all.has(p)).slice(0, 10);
+  if (peers.length >= minSize) return { members: peers, basis: "pares" };
+  if (f.industry) {
+    const ind = [...all.values()].filter((x) => x.symbol !== symbol && x.industry === f.industry).map((x) => x.symbol);
+    if (ind.length >= minSize) return { members: ind, basis: "industria" };
+  }
+  return null;
+}
+
+export interface RankedStock {
+  symbol: string;
+  score: number;
+  axes: Record<Axis, number | null>;
+  group: string[];
+  basis: "pares" | "industria";
+  rankInGroup: number;
+  groupSize: number;
+  /** Mediana del grupo (incluido el símbolo) por métrica, para la ficha. */
+  medians: Record<string, number | null>;
+}
+
+/** Score de un miembro dentro de un conjunto (el conjunto incluye al miembro). null si ≤ 1 eje disponible. */
+function scoreWithin(symbol: string, set: Fundamentals[], weights: RadarPolicy["weights"]): { score: number; axes: Record<Axis, number | null> } | null {
+  const idx = set.findIndex((f) => f.symbol === symbol);
+  const axes = {} as Record<Axis, number | null>;
+  for (const axis of AXES) {
+    const zs: number[] = [];
+    for (const spec of AXIS_METRICS[axis]) {
+      const z = robustZ(set.map((f) => metricOf(f, spec)))[idx];
+      if (z !== null && z !== undefined) zs.push(spec.invert ? -z : z);
+    }
+    axes[axis] = zs.length ? round4(zs.reduce((a, b) => a + b, 0) / zs.length) : null;
+  }
+  const available = AXES.filter((a) => axes[a] !== null);
+  if (available.length <= 1) return null;
+  const wsum = available.reduce((s, a) => s + weights[a], 0);
+  const score = round4(available.reduce((s, a) => s + weights[a] * axes[a]!, 0) / wsum);
+  return { score, axes };
+}
+
+export function rankStocks(all: Map<string, Fundamentals>, weights: RadarPolicy["weights"]): { ranked: RankedStock[]; skipped: Array<{ symbol: string; reason: string }> } {
+  const ranked: RankedStock[] = [];
+  const skipped: Array<{ symbol: string; reason: string }> = [];
+  for (const f of all.values()) {
+    const g = peerGroup(f.symbol, all);
+    if (!g) {
+      skipped.push({ symbol: f.symbol, reason: "sin_pares" });
+      continue;
+    }
+    const set = [f, ...g.members.map((m) => all.get(m)!)];
+    const own = scoreWithin(f.symbol, set, weights);
+    if (!own) {
+      skipped.push({ symbol: f.symbol, reason: "ejes_insuficientes" });
+      continue;
+    }
+    const scores = set.map((m) => ({ symbol: m.symbol, score: scoreWithin(m.symbol, set, weights)?.score ?? Number.NEGATIVE_INFINITY })).sort((a, b) => b.score - a.score);
+    const rankInGroup = scores.findIndex((s) => s.symbol === f.symbol) + 1;
+    const medians: Record<string, number | null> = {};
+    for (const axis of AXES) for (const spec of AXIS_METRICS[axis]) medians[spec.key] = median(set.map((m) => metricOf(m, spec)).filter((v): v is number => v !== null));
+    ranked.push({ symbol: f.symbol, score: own.score, axes: own.axes, group: g.members, basis: g.basis, rankInGroup, groupSize: set.length, medians });
+  }
+  ranked.sort((a, b) => b.score - a.score);
+  return { ranked, skipped };
+}
