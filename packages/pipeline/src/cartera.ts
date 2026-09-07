@@ -70,6 +70,7 @@ export async function runCartera(deps: CarteraDeps, opts: { today: string }): Pr
   });
   const spy = candles["SPY"] ?? [];
   const spyClose = spy[spy.length - 1]?.close ?? null;
+  for (const [sym, c] of Object.entries(candles)) if (c.length) await deps.store.upsertCandles(sym, c).catch(() => {});
 
   // 2. Perfiles (cache 7 días) y riesgo de cartera.
   const profiles: Record<string, SymbolProfile | null> = {};

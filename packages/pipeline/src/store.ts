@@ -1,4 +1,4 @@
-import type { CandidateRow, ContributionPlan, Fundamentals, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
+import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -23,6 +23,7 @@ export interface Store {
   openOrders(): Promise<Order[]>;
   insertOutcome(o: Outcome): Promise<void>;
   allOutcomesWithTheses(): Promise<Array<{ thesis: Thesis; outcome: Outcome }>>;
+  thesesForTicker(ticker: string, limit?: number): Promise<Thesis[]>;
 }
 
 /** Lo que la cartera real necesita de la persistencia (spec etapa 1 §3.1). Repo lo implementa junto con Store. */
@@ -45,6 +46,18 @@ export interface CarteraStore {
   recentNewsTitles(query: string, limit: number): Promise<string[]>;
   /** Etiquetas por símbolo (etapa 2), para concentración por sector y tema. */
   allTags(): Promise<Record<string, Tags>>;
+  /** Velas diarias persistidas (la página por ticker lee de acá). */
+  upsertCandles(symbol: string, candles: Candle[]): Promise<void>;
+}
+
+/** Lo que la página por ticker necesita además (etapa 2b). */
+export interface TickerStore {
+  description(symbol: string): Promise<SymbolDescription | null>;
+  saveDescription(d: SymbolDescription): Promise<void>;
+  upsertCandles(symbol: string, candles: Candle[]): Promise<void>;
+  candles(symbol: string, fromDate: string): Promise<Candle[]>;
+  upsertNews(items: NewsItem[]): Promise<number>;
+  news(symbol: string, limit?: number): Promise<NewsItem[]>;
 }
 
 /** Lo que el Radar necesita de la persistencia (spec etapa 2 §11). */
@@ -72,7 +85,10 @@ export interface RadarStore {
   updatePlanLines(month: string, lines: PlanLine[]): Promise<void>;
 }
 
-export class MemoryStore implements Store, CarteraStore, RadarStore {
+export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore {
+  descriptions = new Map<string, SymbolDescription>();
+  candlesMap = new Map<string, Map<string, Candle>>();
+  newsMap = new Map<string, NewsItem>();
   tagsMap = new Map<string, Tags>();
   fundamentalsMap = new Map<string, Fundamentals>();
   scan = new Map<string, { scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>();
@@ -167,6 +183,38 @@ export class MemoryStore implements Store, CarteraStore, RadarStore {
   }
   async allOutcomesWithTheses() {
     return [...this.outcomes.values()].map((outcome) => ({ outcome, thesis: this.theses.get(outcome.thesisId)! })).filter((x) => x.thesis);
+  }
+  async thesesForTicker(ticker: string, limit = 20) {
+    return [...this.theses.values()].filter((t) => t.ticker === ticker.toUpperCase()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
+  }
+  // ---------- página por ticker ----------
+  async description(symbol: string) {
+    return this.descriptions.get(symbol.toUpperCase()) ?? null;
+  }
+  async saveDescription(d: SymbolDescription) {
+    this.descriptions.set(d.symbol.toUpperCase(), d);
+  }
+  async upsertCandles(symbol: string, candles: Candle[]) {
+    const sym = symbol.toUpperCase();
+    const m = this.candlesMap.get(sym) ?? new Map<string, Candle>();
+    for (const c of candles) m.set(c.date, c);
+    this.candlesMap.set(sym, m);
+  }
+  async candles(symbol: string, fromDate: string) {
+    return [...(this.candlesMap.get(symbol.toUpperCase())?.values() ?? [])].filter((c) => c.date >= fromDate).sort((a, b) => a.date.localeCompare(b.date));
+  }
+  async upsertNews(items: NewsItem[]) {
+    let n = 0;
+    for (const i of items) {
+      const k = `${i.symbol.toUpperCase()}|${i.url}`;
+      if (this.newsMap.has(k)) continue;
+      this.newsMap.set(k, { ...i, symbol: i.symbol.toUpperCase() });
+      n++;
+    }
+    return n;
+  }
+  async news(symbol: string, limit = 20) {
+    return [...this.newsMap.values()].filter((n) => n.symbol === symbol.toUpperCase()).sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
   }
 
   // ---------- cartera ----------

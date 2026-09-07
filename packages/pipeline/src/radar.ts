@@ -221,6 +221,7 @@ async function candlesFor(deps: RadarDeps, symbols: string[]): Promise<{ candles
       else errors.push({ symbol: sym, error: String(r.reason) });
     });
   }
+  for (const [sym, c] of Object.entries(candles)) if (c.length) await deps.store.upsertCandles(sym, c).catch(() => {});
   return { candles, errors };
 }
 
@@ -275,6 +276,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   const { ranked, skipped } = rankStocks(all, policy.weights);
   const pre = ranked.slice(0, policy.candidates.preselect);
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
+  if (spy.length) await store.upsertCandles("SPY", spy).catch(() => {});
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const { candles, errors } = await candlesFor(deps, pre.map((r) => r.symbol));
 

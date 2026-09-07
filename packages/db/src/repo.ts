@@ -166,6 +166,10 @@ export class Repo {
     const rows = await this.db.select({ t: s.theses, o: s.outcomes }).from(s.outcomes).innerJoin(s.theses, eq(s.theses.id, s.outcomes.thesisId)).orderBy(s.outcomes.closedAt);
     return rows.map((r) => ({ thesis: toThesis(r.t), outcome: toOutcome(r.o) }));
   }
+  async thesesForTicker(ticker: string, limit = 20): Promise<Thesis[]> {
+    return (await this.db.select().from(s.theses).where(eq(s.theses.ticker, ticker.toUpperCase())).orderBy(desc(s.theses.createdAt)).limit(limit)).map(toThesis);
+  }
+
   // ---------- cartera (spec etapa 1) ----------
   async positions(): Promise<Position[]> {
     const rows = await this.db.select().from(s.positions).orderBy(s.positions.symbol);

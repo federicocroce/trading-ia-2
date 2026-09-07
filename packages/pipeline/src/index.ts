@@ -7,3 +7,4 @@ export * from "./close.js";
 export * from "./calibration.js";
 export * from "./cartera.js";
 export * from "./radar.js";
+export * from "./ticker.js";
