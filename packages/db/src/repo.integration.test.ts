@@ -7,7 +7,8 @@ const url = process.env["DATABASE_URL"];
 const d = url ? describe : describe.skip;
 
 d("Repo (Postgres real)", () => {
-  const db = createDb(url);
+  // Sin DATABASE_URL el describe está en skip, pero vitest igual evalúa el cuerpo: no abrir conexión.
+  const db = (url ? createDb(url) : null) as ReturnType<typeof createDb>;
   const repo = new Repo(db);
   const ticker = `T${randomUUID().slice(0, 4).toUpperCase()}`;
 
