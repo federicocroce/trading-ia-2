@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Order, Outcome, Position, RawEvent, RiskReport, SymbolProfile, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
+import type { CandidateRow, ContributionPlan, Fundamentals, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -199,10 +199,10 @@ export class Repo {
   async profile(symbol: string): Promise<{ profile: SymbolProfile; updatedAt: string } | null> {
     const r = (await this.db.select().from(s.symbolMeta).where(eq(s.symbolMeta.symbol, symbol.toUpperCase())))[0];
     if (!r) return null;
-    return { profile: { symbol: r.symbol, name: r.name, country: r.country, industry: r.industry, marketCap: r.marketCap === null ? null : num(r.marketCap) }, updatedAt: r.updatedAt.toISOString() };
+    return { profile: { symbol: r.symbol, name: r.name, country: r.country, industry: r.industry, marketCap: r.marketCap === null ? null : num(r.marketCap), currency: r.currency, shareOutstanding: r.shareOutstanding === null ? null : num(r.shareOutstanding) }, updatedAt: r.updatedAt.toISOString() };
   }
   async saveProfile(p: SymbolProfile): Promise<void> {
-    const v = { symbol: p.symbol.toUpperCase(), name: p.name, country: p.country, industry: p.industry, marketCap: p.marketCap === null ? null : str(p.marketCap), updatedAt: new Date() };
+    const v = { symbol: p.symbol.toUpperCase(), name: p.name, country: p.country, industry: p.industry, marketCap: p.marketCap === null ? null : str(p.marketCap), currency: p.currency ?? null, shareOutstanding: p.shareOutstanding === null || p.shareOutstanding === undefined ? null : str(p.shareOutstanding), updatedAt: new Date() };
     await this.db.insert(s.symbolMeta).values(v).onConflictDoUpdate({ target: s.symbolMeta.symbol, set: v });
   }
   private verdictToRow(v: VerdictRow) {
@@ -254,6 +254,118 @@ export class Repo {
   async recentNewsTitles(query: string, limit = 5): Promise<string[]> {
     const rows = await this.db.select({ title: s.rawEvents.title }).from(s.rawEvents).where(and(eq(s.rawEvents.source, "ar_official"), sql`${s.rawEvents.title} ilike ${"%" + query + "%"}`)).orderBy(desc(s.rawEvents.observedAt)).limit(limit);
     return rows.map((r) => r.title);
+  }
+
+  // ---------- radar (spec etapa 2) ----------
+  private rowToTags(r: typeof s.symbolMeta.$inferSelect): Tags | null {
+    if (!r.assetClass) return null;
+    return { assetClass: r.assetClass as Tags["assetClass"], sector: r.sector ?? "Otros", industry: r.industry, themes: (r.themes as string[]) ?? [], themesSource: (r.themesSource as Tags["themesSource"]) ?? "regla" };
+  }
+  async tags(symbol: string): Promise<Tags | null> {
+    const r = (await this.db.select().from(s.symbolMeta).where(eq(s.symbolMeta.symbol, symbol.toUpperCase())))[0];
+    return r ? this.rowToTags(r) : null;
+  }
+  async saveTags(symbol: string, t: Tags): Promise<void> {
+    const sym = symbol.toUpperCase();
+    const set = { assetClass: t.assetClass, sector: t.sector, industry: t.industry, themes: t.themes, themesSource: t.themesSource, updatedAt: new Date() };
+    await this.db.insert(s.symbolMeta).values({ symbol: sym, ...set }).onConflictDoUpdate({ target: s.symbolMeta.symbol, set });
+  }
+  async allTags(): Promise<Record<string, Tags>> {
+    const rows = await this.db.select().from(s.symbolMeta).where(sql`${s.symbolMeta.assetClass} is not null`);
+    const out: Record<string, Tags> = {};
+    for (const r of rows) {
+      const t = this.rowToTags(r);
+      if (t) out[r.symbol] = t;
+    }
+    return out;
+  }
+  private rowToFundamentals(r: typeof s.fundamentals.$inferSelect): Fundamentals {
+    return { symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers as string[]) ?? [], industry: r.industry, mcapUsd: num(r.mcapUsd), dollarVolumeUsd: num(r.dollarVolumeUsd), priceUsd: num(r.priceUsd), nextEarnings: r.nextEarnings, insiderBuys90d: r.insiderBuys90d, insiderSells90d: r.insiderSells90d, analyst: r.analyst as Fundamentals["analyst"], earningsSurprises: r.earningsSurprises as Fundamentals["earningsSurprises"] };
+  }
+  async saveFundamentals(f: Fundamentals): Promise<void> {
+    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, updatedAt: new Date() };
+    await this.db.insert(s.fundamentals).values(v).onConflictDoUpdate({ target: s.fundamentals.symbol, set: v });
+  }
+  async fundamentals(symbol: string): Promise<Fundamentals | null> {
+    const r = (await this.db.select().from(s.fundamentals).where(eq(s.fundamentals.symbol, symbol.toUpperCase())))[0];
+    return r ? this.rowToFundamentals(r) : null;
+  }
+  async freshFundamentals(maxAgeDays: number, today: string): Promise<Fundamentals[]> {
+    const since = new Date(Date.parse(today) - maxAgeDays * 86_400_000).toISOString().slice(0, 10);
+    return (await this.db.select().from(s.fundamentals).where(sql`${s.fundamentals.asOf} >= ${since}`)).map((r) => this.rowToFundamentals(r));
+  }
+  async scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>): Promise<void> {
+    for (let i = 0; i < rows.length; i += 500) {
+      const chunk = rows.slice(i, i + 500).map((r) => ({ scanDate: r.scanDate, symbol: r.symbol.toUpperCase(), stage: r.stage, reason: r.reason, updatedAt: new Date() }));
+      await this.db.insert(s.universeScan).values(chunk).onConflictDoUpdate({ target: [s.universeScan.scanDate, s.universeScan.symbol], set: { stage: sql`excluded.stage`, reason: sql`excluded.reason`, updatedAt: sql`excluded.updated_at` } });
+    }
+  }
+  async scanPending(scanDate: string): Promise<string[]> {
+    return (await this.db.select({ symbol: s.universeScan.symbol }).from(s.universeScan).where(and(eq(s.universeScan.scanDate, scanDate), eq(s.universeScan.stage, "alpaca_ok"))).orderBy(s.universeScan.symbol)).map((r) => r.symbol);
+  }
+  async scanStatus(scanDate: string): Promise<Record<ScanStage, number>> {
+    const rows = await this.db.select({ stage: s.universeScan.stage, n: sql<number>`count(*)::int` }).from(s.universeScan).where(eq(s.universeScan.scanDate, scanDate)).groupBy(s.universeScan.stage);
+    const out: Record<ScanStage, number> = { alpaca_ok: 0, finnhub_ok: 0, excluded: 0, error: 0 };
+    for (const r of rows) out[r.stage as ScanStage] = Number(r.n);
+    return out;
+  }
+  async latestScanDate(): Promise<string | null> {
+    return (await this.db.select({ d: sql<string | null>`max(${s.universeScan.scanDate})` }).from(s.universeScan))[0]?.d ?? null;
+  }
+  private candidateToRow(c: CandidateRow) {
+    const n = (x: number | null) => (x === null ? null : str(x));
+    return { candidateDate: c.candidateDate, symbol: c.symbol, kind: c.kind, verdict: c.verdict, score: n(c.score), axes: c.axes, peerGroup: c.peerGroup, rankInGroup: c.rankInGroup, groupSize: c.groupSize, close: str(c.close), entryLow: n(c.entryLow), entryHigh: n(c.entryHigh), stop: n(c.stop), target: n(c.target), sizeUsd: n(c.sizeUsd), sizeQty: c.sizeQty, riskScore: c.riskScore, flags: c.flags, nthAppearance: c.nthAppearance, summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat, degradedBy: c.degradedBy, promptVersion: c.promptVersion, spyClose: n(c.spyClose), close7d: n(c.close7d), spy7d: n(c.spy7d), alpha7dPct: n(c.alpha7dPct), close30d: n(c.close30d), spy30d: n(c.spy30d), alpha30dPct: n(c.alpha30dPct), close90d: n(c.close90d), spy90d: n(c.spy90d), alpha90dPct: n(c.alpha90dPct), measuredAt: c.measuredAt ? new Date(c.measuredAt) : null };
+  }
+  private rowToCandidate(r: typeof s.radarCandidates.$inferSelect): CandidateRow {
+    const n = (x: string | null) => (x === null ? null : num(x));
+    return { candidateDate: r.candidateDate, symbol: r.symbol, kind: r.kind as CandidateRow["kind"], verdict: r.verdict as CandidateRow["verdict"], score: n(r.score), axes: (r.axes as CandidateRow["axes"]) ?? {}, peerGroup: (r.peerGroup as string[]) ?? [], rankInGroup: r.rankInGroup, groupSize: r.groupSize, close: num(r.close), entryLow: n(r.entryLow), entryHigh: n(r.entryHigh), stop: n(r.stop), target: n(r.target), sizeUsd: n(r.sizeUsd), sizeQty: r.sizeQty, riskScore: r.riskScore, flags: (r.flags as string[]) ?? [], nthAppearance: r.nthAppearance, summary: r.summary, whyRanks: r.whyRanks, mainRisk: r.mainRisk, moat: r.moat, degradedBy: r.degradedBy, promptVersion: r.promptVersion, spyClose: n(r.spyClose), close7d: n(r.close7d), spy7d: n(r.spy7d), alpha7dPct: n(r.alpha7dPct), close30d: n(r.close30d), spy30d: n(r.spy30d), alpha30dPct: n(r.alpha30dPct), close90d: n(r.close90d), spy90d: n(r.spy90d), alpha90dPct: n(r.alpha90dPct), measuredAt: r.measuredAt?.toISOString() ?? null };
+  }
+  /** Upsert por (fecha, símbolo). No pisa la medición ya hecha. */
+  async upsertCandidates(rows: CandidateRow[]): Promise<void> {
+    for (const c of rows) {
+      const row = this.candidateToRow(c);
+      const { candidateDate: _d, symbol: _s, close7d: _a, spy7d: _b, alpha7dPct: _c, close30d: _e, spy30d: _f, alpha30dPct: _g, close90d: _h, spy90d: _i, alpha90dPct: _j, measuredAt: _k, ...set } = row;
+      await this.db.insert(s.radarCandidates).values(row).onConflictDoUpdate({ target: [s.radarCandidates.candidateDate, s.radarCandidates.symbol], set });
+    }
+  }
+  async latestCandidates(): Promise<CandidateRow[]> {
+    const last = (await this.db.select({ d: sql<string | null>`max(${s.radarCandidates.candidateDate})` }).from(s.radarCandidates))[0]?.d;
+    if (!last) return [];
+    return (await this.db.select().from(s.radarCandidates).where(eq(s.radarCandidates.candidateDate, last)).orderBy(desc(s.radarCandidates.score))).map((r) => this.rowToCandidate(r));
+  }
+  async candidateHistory(symbol: string, weeks: number): Promise<CandidateRow[]> {
+    return (await this.db.select().from(s.radarCandidates).where(eq(s.radarCandidates.symbol, symbol.toUpperCase())).orderBy(desc(s.radarCandidates.candidateDate)).limit(weeks * 7)).map((r) => this.rowToCandidate(r));
+  }
+  async candidatesToMeasure(before: string, horizon: 7 | 30 | 90): Promise<CandidateRow[]> {
+    const col = horizon === 7 ? s.radarCandidates.close7d : horizon === 30 ? s.radarCandidates.close30d : s.radarCandidates.close90d;
+    return (await this.db.select().from(s.radarCandidates).where(and(sql`${s.radarCandidates.candidateDate} <= ${before}`, sql`${col} is null`))).map((r) => this.rowToCandidate(r));
+  }
+  async setCandidateMeasurement(date: string, symbol: string, m: Partial<Pick<CandidateRow, "close7d" | "spy7d" | "alpha7dPct" | "close30d" | "spy30d" | "alpha30dPct" | "close90d" | "spy90d" | "alpha90dPct">>): Promise<void> {
+    const set: Record<string, unknown> = { measuredAt: new Date() };
+    for (const [k, v] of Object.entries(m)) set[k] = v === null || v === undefined ? null : str(v);
+    await this.db.update(s.radarCandidates).set(set).where(and(eq(s.radarCandidates.candidateDate, date), eq(s.radarCandidates.symbol, symbol)));
+  }
+  async allCandidates(): Promise<CandidateRow[]> {
+    return (await this.db.select().from(s.radarCandidates).orderBy(desc(s.radarCandidates.candidateDate), s.radarCandidates.symbol)).map((r) => this.rowToCandidate(r));
+  }
+  private rowToPlan(r: typeof s.contributionPlans.$inferSelect): ContributionPlan {
+    return { month: r.planMonth, totalUsd: num(r.totalUsd), lines: (r.lines as PlanLine[]) ?? [], notes: (r.notes as string[]) ?? [] };
+  }
+  async savePlan(p: ContributionPlan): Promise<void> {
+    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes };
+    await this.db.insert(s.contributionPlans).values(v).onConflictDoUpdate({ target: s.contributionPlans.planMonth, set: v });
+  }
+  async latestPlan(): Promise<ContributionPlan | null> {
+    const r = (await this.db.select().from(s.contributionPlans).orderBy(desc(s.contributionPlans.planMonth)).limit(1))[0];
+    return r ? this.rowToPlan(r) : null;
+  }
+  /** Planes de meses ≤ `before` con alguna línea sin medir. */
+  async plansToMeasure(before: string): Promise<ContributionPlan[]> {
+    const rows = await this.db.select().from(s.contributionPlans).where(sql`${s.contributionPlans.planMonth} <= ${before.slice(0, 7)}`);
+    return rows.map((r) => this.rowToPlan(r)).filter((p) => p.lines.some((l) => l.alpha30dPct === null || l.alpha90dPct === null));
+  }
+  async updatePlanLines(month: string, lines: PlanLine[]): Promise<void> {
+    await this.db.update(s.contributionPlans).set({ lines }).where(eq(s.contributionPlans.planMonth, month));
   }
 
 }

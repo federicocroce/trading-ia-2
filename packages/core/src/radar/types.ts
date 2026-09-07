@@ -41,3 +41,46 @@ export interface Tags {
   themes: string[];
   themesSource: ThemesSource;
 }
+
+/** Etapa del barrido semanal por símbolo (spec §4). */
+export type ScanStage = "alpaca_ok" | "finnhub_ok" | "excluded" | "error";
+
+/** Fila persistida de un candidato del Radar (acción o ETF) con su medición. */
+export interface CandidateRow {
+  candidateDate: string;
+  symbol: string;
+  kind: "stock" | "etf";
+  verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO";
+  score: number | null;
+  axes: Record<string, number | null>;
+  peerGroup: string[];
+  rankInGroup: number | null;
+  groupSize: number | null;
+  close: number;
+  entryLow: number | null;
+  entryHigh: number | null;
+  stop: number | null;
+  target: number | null;
+  sizeUsd: number | null;
+  sizeQty: number | null;
+  riskScore: number | null;
+  flags: string[];
+  nthAppearance: number;
+  summary: string | null;
+  whyRanks: string | null;
+  mainRisk: string | null;
+  moat: string | null;
+  degradedBy: string | null;
+  promptVersion: string | null;
+  spyClose: number | null;
+  close7d: number | null;
+  spy7d: number | null;
+  alpha7dPct: number | null;
+  close30d: number | null;
+  spy30d: number | null;
+  alpha30dPct: number | null;
+  close90d: number | null;
+  spy90d: number | null;
+  alpha90dPct: number | null;
+  measuredAt: string | null;
+}

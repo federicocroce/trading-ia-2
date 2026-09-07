@@ -14,6 +14,12 @@ d("Repo (Postgres real)", () => {
   // Corre contra la DB que apunte DATABASE_URL (puede ser la de desarrollo): no dejar residuos,
   // o aparecen en calibración y como comparables del razonador.
   afterAll(async () => {
+    const rsym = `R${ticker}`;
+    await db.delete(schema.radarCandidates).where(eq(schema.radarCandidates.symbol, rsym));
+    await db.delete(schema.universeScan).where(eq(schema.universeScan.symbol, rsym));
+    await db.delete(schema.fundamentals).where(eq(schema.fundamentals.symbol, rsym));
+    await db.delete(schema.symbolMeta).where(eq(schema.symbolMeta.symbol, rsym));
+    await db.delete(schema.contributionPlans).where(eq(schema.contributionPlans.planMonth, "2099-01"));
     const csym = `C${ticker}`;
     await db.delete(schema.portfolioVerdicts).where(eq(schema.portfolioVerdicts.symbol, csym));
     await db.delete(schema.symbolMeta).where(eq(schema.symbolMeta.symbol, csym));
@@ -89,9 +95,49 @@ d("Repo (Postgres real)", () => {
     expect((await repo.verdictsToMeasure("2099-01-08", 7)).some((v) => v.symbol === sym)).toBe(false);
     expect((await repo.allVerdicts()).find((v) => v.symbol === sym)?.alpha7dPct).toBe(9);
 
-    const report = { totalValue: 1, weights: [], concentration: { byCountry: {}, byIndustry: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, liquidity: [], notes: [] };
+    const report = { totalValue: 1, weights: [], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, liquidity: [], notes: [] };
     await repo.saveRisk("2099-01-01", report);
     await repo.saveRisk("2099-01-01", { ...report, totalValue: 2 });
     expect((await repo.latestRisk())?.report.totalValue).toBe(2);
+  });
+
+  it("radar: etiquetas, fundamentals, barrido, candidatos y planes", async () => {
+    const sym = `R${ticker}`;
+    await repo.saveTags(sym, { assetClass: "accion_us", sector: "Tecnología", industry: "Semiconductors", themes: ["IA"], themesSource: "regla" });
+    await repo.saveTags(sym, { assetClass: "accion_us", sector: "Tecnología", industry: "Semiconductors", themes: ["IA", "semiconductores"], themesSource: "manual" });
+    expect((await repo.tags(sym))?.themesSource).toBe("manual");
+    expect((await repo.allTags())[sym]?.themes).toEqual(["IA", "semiconductores"]);
+
+    const fund = { symbol: sym, asOf: "2099-01-01", metrics: { peTTM: 20 }, peers: ["AAA"], industry: "Semiconductors", mcapUsd: 1e9, dollarVolumeUsd: 2e7, priceUsd: 10, nextEarnings: null, insiderBuys90d: 1, insiderSells90d: 0, analyst: null, earningsSurprises: null };
+    await repo.saveFundamentals(fund);
+    await repo.saveFundamentals({ ...fund, metrics: { peTTM: 21 } });
+    expect((await repo.fundamentals(sym))?.metrics["peTTM"]).toBe(21);
+    expect((await repo.freshFundamentals(7, "2099-01-05")).some((f) => f.symbol === sym)).toBe(true);
+    expect((await repo.freshFundamentals(7, "2099-02-05")).some((f) => f.symbol === sym)).toBe(false);
+
+    await repo.scanUpsert([{ scanDate: "2099-01-01", symbol: sym, stage: "alpaca_ok", reason: null }]);
+    expect(await repo.scanPending("2099-01-01")).toContain(sym);
+    await repo.scanUpsert([{ scanDate: "2099-01-01", symbol: sym, stage: "finnhub_ok", reason: null }]);
+    expect(await repo.scanPending("2099-01-01")).not.toContain(sym);
+    expect((await repo.scanStatus("2099-01-01")).finnhub_ok).toBeGreaterThanOrEqual(1);
+    expect(await repo.latestScanDate()).toBe("2099-01-01");
+
+    const cand = { candidateDate: "2099-01-01", symbol: sym, kind: "stock" as const, verdict: "COMPRAR" as const, score: 1.2, axes: { valuation: 1 }, peerGroup: ["AAA"], rankInGroup: 1, groupSize: 5, close: 10, entryLow: 10, entryHigh: 10.2, stop: 9, target: 12, sizeUsd: 1000, sizeQty: 98, riskScore: 3, flags: ["dividendo"], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: 500, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null };
+    await repo.upsertCandidates([cand]);
+    await repo.upsertCandidates([{ ...cand, score: 1.5 }]);
+    expect((await repo.latestCandidates()).find((c) => c.symbol === sym)?.score).toBe(1.5);
+    expect((await repo.candidateHistory(sym, 4)).length).toBe(1);
+    expect((await repo.candidatesToMeasure("2099-01-08", 7)).some((c) => c.symbol === sym)).toBe(true);
+    await repo.setCandidateMeasurement("2099-01-01", sym, { close7d: 11, spy7d: 505, alpha7dPct: 9 });
+    expect((await repo.candidatesToMeasure("2099-01-08", 7)).some((c) => c.symbol === sym)).toBe(false);
+    expect((await repo.allCandidates()).find((c) => c.symbol === sym)?.alpha7dPct).toBe(9);
+
+    const plan = { month: "2099-01", totalUsd: 6500, lines: [{ symbol: sym, kind: "comprar" as const, amountUsd: 6500, rationale: "r", close: 10, spyClose: 500, alpha30dPct: null, alpha90dPct: null }], notes: [] };
+    await repo.savePlan(plan);
+    await repo.savePlan({ ...plan, totalUsd: 6600 });
+    expect((await repo.latestPlan())?.totalUsd).toBe(6600);
+    expect((await repo.plansToMeasure("2099-03-01")).some((p) => p.month === "2099-01")).toBe(true);
+    await repo.updatePlanLines("2099-01", [{ ...plan.lines[0]!, alpha30dPct: 2, alpha90dPct: 3 }]);
+    expect((await repo.plansToMeasure("2099-05-01")).some((p) => p.month === "2099-01")).toBe(false);
   });
 });
