@@ -17,7 +17,8 @@ Etapas 1 a 6 implementadas y testeadas (85 tests, incluida integración contra P
 | API + cron | `apps/api` | Hono; corrida diaria lun–vie 07:30, sync de órdenes cada 15 min |
 | Cartera real | `packages/core/src/cartera`, `packages/pipeline/src/cartera.ts` | Veredicto diario por posición con reglas duras, panel de riesgo calculado, narrativa que solo degrada, medición contra SPY a 7/30 días |
 | Radar | `packages/core/src/radar`, `packages/pipeline/src/radar.ts` | Universo semanal (Alpaca + Finnhub), ranking contra pares, candidatos COMPRAR/OBSERVAR, ETFs, plan del aporte, taxonomía, medición 7/30/90 |
-| UI | `apps/web` | Cartera (veredictos, riesgo, medición), Radar (candidatos, ETFs, plan, etiquetas), propuestas, abiertas, historial, calibración |
+| Ficha por ticker | `packages/pipeline/src/ticker.ts`, `apps/api/src/routes/ticker.ts` | Página global por símbolo: perfil, precio vivo, gráfico, posición y veredicto, fundamentals y pares, tesis, operaciones, noticias. Todo servido desde la base |
+| UI | `apps/web` | Cartera (veredictos, riesgo, medición), Radar (candidatos, ETFs, plan, etiquetas), ficha por ticker, propuestas, abiertas, historial, calibración |
 
 ## Setup
 
@@ -78,6 +79,24 @@ pnpm radar:scan      # barrido (reanudable; Ctrl+C corta al terminar el símbolo
 pnpm radar:rank      # ranking + candidatos + ETFs + fichas
 pnpm radar:refresh   # refresco diario + medición
 pnpm radar:plan      # plan del aporte del mes
+```
+
+## Ficha por ticker
+
+Cualquier símbolo de Cartera o Radar es clickeable y abre su página (`/?symbol=GGAL`, también sirve para un ticker que el sistema no conoce). Portada de trading v1, con la misma idea: todo lo que se sabe del papel en un solo lugar.
+
+- **Perfil**: nombre, sector e industria, mercado, empleados, web, desde cuándo cotiza y resumen del negocio (Yahoo; se guarda 30 días).
+- **Precio**: último precio de Alpaca con variación contra el cierre anterior; si el dato tiene más de 3 días lo marca como viejo.
+- **Gráfico**: velas, línea o área, con volumen; 1D/1S intradía (Yahoo en vivo), 1M/3M/1A/5A diario. Dibuja costo promedio, stop y objetivo cuando existen.
+- **Tu posición** y el veredicto vigente de Cartera con su razón, narrativa y aviso.
+- **Fundamentales** de Finnhub (los del último barrido) y, si es candidato del Radar, la ficha, los ejes y la tabla contra pares.
+- **Tesis** por evento, **operaciones** (compras, ventas, dividendos, total invertido; un traspaso entre plataformas no cuenta como inversión) y **noticias** (Finnhub 24 h), filings SEC y prensa argentina.
+
+Qué se guarda y qué se pide en vivo: descripción, velas diarias (las refrescan Cartera y Radar al correr) y noticias van a la base (`symbol_meta`, `candles_daily`, `news`); precio y gráfico intradía se piden en el momento.
+
+```
+GET /ticker/:symbol                      # la página completa (JSON)
+GET /ticker/:symbol/chart?range=1y&interval=1d
 ```
 
 ## Criterio de salida de paper (DESIGN.md §7)

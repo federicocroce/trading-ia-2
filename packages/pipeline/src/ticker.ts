@@ -132,7 +132,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
   const buys = sum("BUY");
   const sells = sum("SELL");
   const dividends = sum("DIVIDEND");
-  const transfers = sum("TRANSFER");
+  // TRANSFER es un movimiento entre plataformas (Buenbit → Nexo), no plata nueva: no entra en "invertido".
   const arNews = description?.longName ? await store.recentNewsTitles(description.longName.split(" ")[0] ?? symbol, 5) : [];
 
   return {
@@ -147,7 +147,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     peers,
     theses,
     transactions: mine,
-    transactionSummary: { buys, sells, dividends, invested: round2(buys.total + transfers.total - sells.total) },
+    transactionSummary: { buys, sells, dividends, invested: round2(buys.total - sells.total) },
     candles,
     news,
     filings,

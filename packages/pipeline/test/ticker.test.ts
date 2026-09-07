@@ -24,7 +24,11 @@ describe("buildTicker", () => {
   it("arma la página con todo lo guardado y completa descripción, velas y noticias si faltan (y las persiste)", async () => {
     const { store, deps, calls } = setup();
     await store.upsertPosition({ symbol: "GGAL", quantity: 100, avgCost: 30, currency: "USD", market: "adr", layer: "riesgo", notes: null });
-    await store.insertTransactions([{ id: "t1", symbol: "GGAL", type: "BUY", quantity: 100, price: 30, fees: 0, date: "2026-01-02", currency: "USD", platform: "Nexo", externalId: "e1", notes: null }]);
+    await store.insertTransactions([
+      { id: "t1", symbol: "GGAL", type: "BUY", quantity: 100, price: 30, fees: 0, date: "2026-01-02", currency: "USD", platform: "Buenbit", externalId: "e1", notes: null },
+      // Mover la tenencia de plataforma no es invertir: no suma al total invertido.
+      { id: "t2", symbol: "GGAL", type: "TRANSFER", quantity: 100, price: 49, fees: 0, date: "2026-04-18", currency: "USD", platform: "Nexo", externalId: "e2", notes: null },
+    ]);
     await store.saveTags("GGAL", { assetClass: "adr", sector: "Financiero", industry: "Banking", themes: ["argentina", "bancos"], themesSource: "regla" });
     await store.upsertVerdicts([{ verdictDate: today, symbol: "GGAL", verb: "MANTENER", reason: "r", narrative: "n", warning: null, close: 40, spot: 41, stop: 38, target: 44, gainPct: 33, weightPct: 26, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null }]);
     const t = await buildTicker(deps, "ggal", { today });
@@ -37,7 +41,7 @@ describe("buildTicker", () => {
     expect(t.position?.pnlUsd).toBe(1100);
     expect(t.verdict?.verb).toBe("MANTENER");
     expect(t.tags?.themes).toEqual(["argentina", "bancos"]);
-    expect(t.transactions).toHaveLength(1);
+    expect(t.transactions).toHaveLength(2);
     expect(t.transactionSummary).toEqual({ buys: { count: 1, total: 3000 }, sells: { count: 0, total: 0 }, dividends: { count: 0, total: 0 }, invested: 3000 });
     expect(t.candles.length).toBe(99);
     expect(t.news[0]?.headline).toBe("Noticia");
