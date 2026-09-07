@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import cron from "node-cron";
-import { dailyRun, measureVerdicts, runCartera, syncOrders } from "@thesis/pipeline";
+import { buildContributionPlan, dailyRun, measureRadar, measureVerdicts, rankRadar, refreshRadar, runCartera, scanUniverse, syncOrders } from "@thesis/pipeline";
 import { loadConfig } from "./config.js";
 import { buildContainer, state } from "./container.js";
 import { buildApp } from "./routes/index.js";
@@ -32,6 +32,41 @@ cron.schedule(cfg.carteraCron, async () => {
     console.log(`[cron] cartera: ${s.verdicts.length} veredictos, ${s.errors.length} errores, medidos ${m.measured7}/${m.measured30}`);
   } catch (e) {
     console.error("[cron] cartera failed", e);
+  }
+});
+
+// Radar: barrido + ranking semanal, refresco + medición diarios, plan mensual.
+const isoToday = () => new Date().toISOString().slice(0, 10);
+cron.schedule(cfg.radarScanCron, async () => {
+  if (state.scan.running) return;
+  state.scan = { running: true, stopRequested: false, startedAt: new Date().toISOString(), progress: null, last: null };
+  try {
+    const today = isoToday();
+    state.scan.last = await scanUniverse(c.radarDeps, { scanDate: today, today });
+    const r = await rankRadar(c.radarDeps, { today, portfolioUsd: (await c.store.latestRisk())?.report.totalValue ?? null });
+    console.log(`[cron] radar: barrido ${JSON.stringify(state.scan.last)}; ${r.candidates.length} candidatos, ${r.errors.length} errores`);
+  } catch (e) {
+    console.error("[cron] radar scan failed", e);
+  } finally {
+    state.scan.running = false;
+  }
+});
+cron.schedule(cfg.radarRefreshCron, async () => {
+  const today = isoToday();
+  try {
+    const r = await refreshRadar(c.radarDeps, { today, portfolioUsd: (await c.store.latestRisk())?.report.totalValue ?? null });
+    const m = await measureRadar(c.radarDeps, { today });
+    console.log(`[cron] radar refresh: ${r.refreshed} candidatos, medidos ${JSON.stringify(m)}`);
+  } catch (e) {
+    console.error("[cron] radar refresh failed", e);
+  }
+});
+cron.schedule(cfg.radarPlanCron, async () => {
+  try {
+    const p = await buildContributionPlan(c.radarDeps, { month: isoToday().slice(0, 7), portfolioUsd: null });
+    console.log(`[cron] plan del aporte ${p.month}: ${p.lines.length} líneas`);
+  } catch (e) {
+    console.error("[cron] radar plan failed", e);
   }
 });
 

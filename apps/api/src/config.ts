@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
+import { EtfConfigSchema, RadarPolicySchema, TaxonomyConfigSchema, type EtfConfig, type RadarPolicy, type TaxonomyConfig } from "@thesis/core";
 
 /** Configuración desde env + universe.json. Sin valores secretos hardcodeados. */
 export interface Config {
@@ -18,6 +20,11 @@ export interface Config {
   dailyCron: string;
   /** Cron del veredicto de cartera (después de la corrida de tesis). */
   carteraCron: string;
+  /** Radar: barrido semanal, refresco diario, plan mensual. */
+  radarScanCron: string;
+  radarRefreshCron: string;
+  radarPlanCron: string;
+  radar: RadarConfig;
   universe: Universe;
   csvPath: string;
 }
@@ -68,6 +75,22 @@ export function resolveReasoner(env: Record<string, string | undefined>): Reason
   };
 }
 
+export interface RadarConfig {
+  taxonomy: TaxonomyConfig;
+  etfs: EtfConfig[];
+  policy: RadarPolicy;
+}
+
+/** Lee y valida config/taxonomia.json, config/etfs.json y config/radar-policy.json. */
+export async function loadRadarConfig(root: string): Promise<RadarConfig> {
+  const read = async (name: string) => JSON.parse(await readFile(path.join(root, "config", name), "utf8")) as unknown;
+  return {
+    taxonomy: TaxonomyConfigSchema.parse(await read("taxonomia.json")),
+    etfs: z.array(EtfConfigSchema).parse(await read("etfs.json")),
+    policy: RadarPolicySchema.parse(await read("radar-policy.json")),
+  };
+}
+
 const req = (k: string): string => {
   const v = process.env[k];
   if (!v) throw new Error(`env ${k} requerida`);
@@ -112,6 +135,10 @@ export async function loadConfig(root?: string): Promise<Config> {
     capitalFallbackUsd: Number(process.env["CAPITAL_USD"] ?? 100_000),
     dailyCron: process.env["DAILY_CRON"] ?? "30 7 * * 1-5",
     carteraCron: process.env["CARTERA_CRON"] ?? "45 7 * * 1-5",
+    radarScanCron: process.env["RADAR_SCAN_CRON"] ?? "0 20 * * 0",
+    radarRefreshCron: process.env["RADAR_REFRESH_CRON"] ?? "50 7 * * 1-5",
+    radarPlanCron: process.env["RADAR_PLAN_CRON"] ?? "0 8 1 * *",
+    radar: await loadRadarConfig(root),
     universe,
     csvPath: process.env["MANUAL_CSV"] ?? path.join(root, "config", "events.csv"),
   };

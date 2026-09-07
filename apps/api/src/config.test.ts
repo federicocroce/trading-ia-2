@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { AnthropicNarrator, AnthropicReasoner, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
+import { fileURLToPath } from "node:url";
+import { AnthropicCardWriter, AnthropicNarrator, AnthropicReasoner, GeminiCardWriter, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
 import { resolveReasoner } from "./config.js";
-import { buildNarrator, buildReasoner } from "./container.js";
+import { buildCardWriter, buildNarrator, buildReasoner } from "./container.js";
+import { loadRadarConfig } from "./config.js";
 
 const gemini = { GOOGLE_AI_API_KEY_1: "g1", GOOGLE_AI_API_KEY_2: "g2" };
 
@@ -48,5 +50,22 @@ describe("buildNarrator", () => {
   it("sigue la misma regla que el razonador", () => {
     expect(buildNarrator({ kind: "gemini", geminiKeys: ["g1"] })).toBeInstanceOf(GeminiNarrator);
     expect(buildNarrator({ kind: "anthropic", anthropicApiKey: "sk", geminiKeys: [] })).toBeInstanceOf(AnthropicNarrator);
+  });
+});
+
+describe("buildCardWriter", () => {
+  it("sigue la misma regla que el razonador", () => {
+    expect(buildCardWriter({ kind: "gemini", geminiKeys: ["g1"] })).toBeInstanceOf(GeminiCardWriter);
+    expect(buildCardWriter({ kind: "anthropic", anthropicApiKey: "sk", geminiKeys: [] })).toBeInstanceOf(AnthropicCardWriter);
+  });
+});
+
+describe("loadRadarConfig", () => {
+  it("lee y valida taxonomia, etfs y política desde config/", async () => {
+    const root = fileURLToPath(new URL("../../..", import.meta.url));
+    const c = await loadRadarConfig(root);
+    expect(c.taxonomy.themes).toContain("IA");
+    expect(c.etfs.some((e) => e.role === "nucleo")).toBe(true);
+    expect(c.policy.contribution.monthlyUsd).toBe(6500);
   });
 });

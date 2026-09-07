@@ -19,7 +19,11 @@
     "run:daily": "pnpm --filter @thesis/api run:daily",
     "run:sync": "pnpm --filter @thesis/api run:sync",
     "smoke:sources": "pnpm --filter @thesis/api exec tsx src/smoke-sources.ts",
-    "import:v1": "pnpm --filter @thesis/api import:v1"
+    "import:v1": "pnpm --filter @thesis/api import:v1",
+    "radar:scan": "pnpm --filter @thesis/api radar:scan",
+    "radar:rank": "pnpm --filter @thesis/api radar:rank",
+    "radar:refresh": "pnpm --filter @thesis/api radar:refresh",
+    "radar:plan": "pnpm --filter @thesis/api radar:plan"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -1,19 +1,32 @@
 import { readFile } from "node:fs/promises";
-import { AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, YahooPriceHistory, createHttpClient, createTradingHttp } from "@thesis/adapters";
-import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
+import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, YahooPriceHistory, createHttpClient, createTradingHttp } from "@thesis/adapters";
+import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
-import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type RunDeps, type Store } from "@thesis/pipeline";
-import { AnthropicNarrator, AnthropicReasoner, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
+import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store } from "@thesis/pipeline";
+import { AnthropicCardWriter, AnthropicNarrator, AnthropicReasoner, GeminiCardWriter, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
 import type { Config, ReasonerConfig } from "./config.js";
 
 /** Estado mutable mínimo del proceso. */
-export const state = { killSwitch: false, lastRun: null as null | { at: string; summary: unknown } };
+export interface ScanState {
+  running: boolean;
+  stopRequested: boolean;
+  startedAt: string | null;
+  progress: { done: number; total: number; stage: string } | null;
+  last: ScanSummary | null;
+}
+export const state = {
+  killSwitch: false,
+  lastRun: null as null | { at: string; summary: unknown },
+  scan: { running: false, stopRequested: false, startedAt: null, progress: null, last: null } as ScanState,
+};
 
 export interface Container {
   cfg: Config;
-  store: Store & CarteraStore;
+  store: Store & CarteraStore & RadarStore;
   /** Cartera real del dueño (spec etapa 1). */
   carteraDeps: CarteraDeps;
+  /** Radar de candidatos (spec etapa 2). */
+  radarDeps: RadarDeps;
   marketData: MarketData;
   broker: Broker;
   risk: RiskEngine;
@@ -37,6 +50,25 @@ export function buildNarrator(r: ReasonerConfig): PositionNarrator {
   }
   return new AnthropicNarrator({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
 }
+
+/** Ficha de candidato: misma regla de proveedor que el razonador. Solo puede degradar. */
+export function buildCardWriter(r: ReasonerConfig): CardWriter {
+  if (r.kind === "gemini") {
+    return new GeminiCardWriter({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
+  }
+  return new AnthropicCardWriter({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
+}
+
+/** Sin FINNHUB_API_KEY el Radar no puede barrer: cada llamada falla con un mensaje claro. */
+const NO_FUNDAMENTALS: FundamentalsSource = {
+  profile: async () => { throw new Error("FINNHUB_API_KEY requerida para el Radar"); },
+  metrics: async () => { throw new Error("FINNHUB_API_KEY requerida para el Radar"); },
+  peers: async () => [],
+  recommendation: async () => null,
+  earningsSurprises: async () => null,
+  insiders: async () => ({ buys: 0, sells: 0 }),
+  nextEarnings: async () => null,
+};
 
 export function buildContainer(cfg: Config): Container {
   const http = createHttpClient({ userAgent: cfg.userAgent });
@@ -81,6 +113,22 @@ export function buildContainer(cfg: Config): Container {
     log: (msg, extra) => console.log(msg, extra ?? ""),
   };
 
+  // Radar: universo de Alpaca, fundamentals de Finnhub (55/min), ficha del modelo, config editable.
+  const radarDeps: RadarDeps = {
+    store,
+    assets: new AlpacaAssets(http, cfg.alpaca),
+    fundamentals: cfg.finnhubToken ? new FinnhubFundamentals(http, cfg.finnhubToken, new RateLimiter(55)) : NO_FUNDAMENTALS,
+    history,
+    cardWriter: buildCardWriter(cfg.reasoner),
+    taxonomy: cfg.radar.taxonomy,
+    etfs: cfg.radar.etfs,
+    policy: cfg.radar.policy,
+    filings: (symbol) => store.recentFilingTitles(symbol, 8),
+    log: (msg, extra) => console.log(msg, extra ?? ""),
+    onProgress: (p) => { state.scan.progress = p; },
+    shouldStop: () => state.scan.stopRequested,
+  };
+
   async function account() {
     try {
       const a = await broker.account();
@@ -91,5 +139,5 @@ export function buildContainer(cfg: Config): Container {
   }
   const snapshot = async () => buildSnapshot(store, await account(), state.killSwitch);
 
-  return { cfg, store, carteraDeps, marketData, broker, risk, runDeps, snapshot, account };
+  return { cfg, store, carteraDeps, radarDeps, marketData, broker, risk, runDeps, snapshot, account };
 }

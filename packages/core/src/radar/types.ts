@@ -11,7 +11,7 @@ export interface EtfConfig {
   ter: number;
   themes: string[];
   /** Peso objetivo dentro del núcleo (solo role nucleo). */
-  coreWeight?: number;
+  coreWeight?: number | undefined;
 }
 
 export interface TaxonomyConfig {

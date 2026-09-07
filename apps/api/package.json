@@ -10,7 +10,11 @@
     "run:sync": "tsx src/cli.ts sync",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
-    "import:v1": "tsx src/import-v1.ts"
+    "import:v1": "tsx src/import-v1.ts",
+    "radar:scan": "tsx src/radar-cli.ts scan",
+    "radar:rank": "tsx src/radar-cli.ts rank",
+    "radar:refresh": "tsx src/radar-cli.ts refresh",
+    "radar:plan": "tsx src/radar-cli.ts plan"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
