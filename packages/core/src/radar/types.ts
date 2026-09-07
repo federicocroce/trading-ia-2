@@ -125,3 +125,44 @@ export interface CardWriter {
   readonly promptVersion: string;
   write(input: CardInput): Promise<Card>;
 }
+
+/** Página por ticker (etapa 2b). */
+export interface SymbolDescription {
+  symbol: string;
+  longName: string | null;
+  summary: string | null;
+  employees: number | null;
+  website: string | null;
+  exchangeName: string | null;
+  /** YYYY-MM-DD de la primera rueda (años cotizando), no de la fundación. */
+  firstTradeDate: string | null;
+  sector: string | null;
+  industry: string | null;
+  country: string | null;
+  updatedAt: string;
+}
+export interface NewsItem {
+  symbol: string;
+  /** YYYY-MM-DD */
+  date: string;
+  headline: string;
+  source: string | null;
+  url: string;
+  summary: string | null;
+}
+/** Barra para el gráfico: `time` en epoch segundos (intradiario) o medianoche UTC (diario). */
+export interface ChartBar {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+export interface LiveQuote {
+  symbol: string;
+  price: number;
+  prevClose: number | null;
+  /** ISO de la última operación. */
+  asOf: string | null;
+}

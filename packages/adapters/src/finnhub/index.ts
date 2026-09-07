@@ -1,4 +1,4 @@
-import type { FinnhubMetrics, Fundamentals, Profiles, SymbolProfile } from "@thesis/core";
+import type { FinnhubMetrics, Fundamentals, NewsItem, Profiles, SymbolProfile } from "@thesis/core";
 import type { HttpClient } from "../http/index.js";
 import { RateLimiter } from "../ratelimit.js";
 
@@ -85,6 +85,14 @@ export class FinnhubFundamentals implements Profiles {
       else if (t.transactionCode === "S") sells++;
     }
     return { buys, sells };
+  }
+  /** Noticias de empresa (free). Fecha desde epoch segundos; fuente vacía → null. */
+  async companyNews(symbol: string, from: string, to: string): Promise<NewsItem[]> {
+    const sym = symbol.toUpperCase();
+    const r = await this.get<Array<{ datetime?: number; headline?: string; source?: string; url?: string; summary?: string }>>(`company-news?symbol=${sym}&from=${from}&to=${to}`);
+    return (Array.isArray(r) ? r : [])
+      .filter((n) => n.headline && n.url && n.datetime)
+      .map((n) => ({ symbol: sym, date: new Date(n.datetime! * 1000).toISOString().slice(0, 10), headline: n.headline!, source: n.source?.trim() || null, url: n.url!, summary: n.summary?.trim() || null }));
   }
   async nextEarnings(symbol: string, today: string): Promise<string | null> {
     const r = await this.get<{ earningsCalendar?: Array<{ date: string; symbol: string }> }>(`calendar/earnings?from=${today}&to=${addDays(today, 120)}&symbol=${symbol.toUpperCase()}`);
