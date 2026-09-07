@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Candidate, type CandidateDetail, type ContributionPlan, type RadarMeasurement, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
+import { SymbolLink } from "./SymbolLink";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(1)}%`);
@@ -107,7 +108,7 @@ export function Radar() {
           <tbody>
             {etfs.map((c) => (
               <tr key={c.symbol}>
-                <td><b>{c.symbol}</b></td>
+                <td><SymbolLink symbol={c.symbol} /></td>
                 <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <span className="flag">{c.flags.join(" · ")}</span>}</td>
                 <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
                 <td className="mono">{f2(c.close)}</td><td className="mono">{f2(c.stop)}</td><td className="mono">{f2(c.target)}</td>
@@ -131,7 +132,7 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
   return (
     <>
       <tr>
-        <td><b>{c.symbol}</b>{c.nthAppearance > 1 && <span className="muted"> ×{c.nthAppearance}</span>}</td>
+        <td><SymbolLink symbol={c.symbol} />{c.nthAppearance > 1 && <span className="muted"> ×{c.nthAppearance}</span>}</td>
         <td><span className={`verb ${c.verdict}`}>{c.verdict}</span></td>
         <td className="mono">{f2(c.score)}</td>
         <td className="mono">{c.rankInGroup ?? "—"}/{c.groupSize ?? "—"}</td>
@@ -189,7 +190,7 @@ function PlanCard({ p }: { p: ContributionPlan }) {
       <table style={{ marginTop: 8 }}>
         <thead><tr><th>símbolo</th><th>tipo</th><th>monto</th><th>por qué</th><th>alpha 30d</th><th>alpha 90d</th></tr></thead>
         <tbody>
-          {p.lines.map((l, i) => <tr key={i}><td><b>{l.symbol}</b></td><td><span className="chip">{l.kind}</span></td><td className="mono">{money(l.amountUsd)}</td><td>{l.rationale}</td><td className="mono">{pct(l.alpha30dPct)}</td><td className="mono">{pct(l.alpha90dPct)}</td></tr>)}
+          {p.lines.map((l, i) => <tr key={i}><td><SymbolLink symbol={l.symbol} /></td><td><span className="chip">{l.kind}</span></td><td className="mono">{money(l.amountUsd)}</td><td>{l.rationale}</td><td className="mono">{pct(l.alpha30dPct)}</td><td className="mono">{pct(l.alpha90dPct)}</td></tr>)}
         </tbody>
       </table>
       {p.notes.map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}

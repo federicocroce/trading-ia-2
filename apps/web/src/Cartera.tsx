@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Measurement, type Position, type RiskReport, type Tags, type Verdict } from "./api";
 import { TagChips, TagEditor } from "./Tags";
+import { SymbolLink } from "./SymbolLink";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -120,7 +121,7 @@ function Row({ p, v, tags, open, onToggle, onEdit, onRemove, editingTags, onEdit
   return (
     <>
       <tr>
-        <td><b>{p.symbol}</b> <span className="muted">{p.market}{p.layer !== "riesgo" ? ` · ${p.layer}` : ""}</span></td>
+        <td><SymbolLink symbol={p.symbol} /> <span className="muted">{p.market}{p.layer !== "riesgo" ? ` · ${p.layer}` : ""}</span></td>
         <td className="mono">{f2(p.quantity)}</td>
         <td className="mono">{f2(p.avgCost)}</td>
         <td className="mono">{f2(v?.close)}</td>

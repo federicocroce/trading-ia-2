@@ -2,11 +2,25 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type Thesis } from "./api";
 import { Cartera } from "./Cartera";
 import { Radar } from "./Radar";
+import { Ticker } from "./Ticker";
 
 type Tab = "cartera" | "radar" | "proposed" | "open" | "history" | "calibration";
 
 export function App() {
   const [tab, setTab] = useState<Tab>("cartera");
+  const readSymbol = () => new URLSearchParams(window.location.search).get("symbol")?.toUpperCase() ?? null;
+  const [symbol, setSymbol] = useState<string | null>(readSymbol);
+  useEffect(() => {
+    const onPop = () => setSymbol(readSymbol());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  const closeSymbol = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("symbol");
+    window.history.pushState({}, "", url);
+    setSymbol(null);
+  };
   const [health, setHealth] = useState<Awaited<ReturnType<typeof api.health>> | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -60,12 +74,13 @@ export function App() {
       <main>
         {!health && <div className="err">No se puede hablar con la API (¿está corriendo `pnpm dev:api`?)</div>}
         {msg && <div className="card">{msg}</div>}
-        {tab === "cartera" && <Cartera />}
-        {tab === "radar" && <Radar />}
-        {tab === "proposed" && <ThesisList status="proposed" actions="review" />}
-        {tab === "open" && <ThesisList status="open,approved" actions="close" />}
-        {tab === "history" && <ThesisList status="closed,rejected" actions="none" />}
-        {tab === "calibration" && <Calibration />}
+        {symbol && <Ticker symbol={symbol} onBack={closeSymbol} />}
+        {!symbol && tab === "cartera" && <Cartera />}
+        {!symbol && tab === "radar" && <Radar />}
+        {!symbol && tab === "proposed" && <ThesisList status="proposed" actions="review" />}
+        {!symbol && tab === "open" && <ThesisList status="open,approved" actions="close" />}
+        {!symbol && tab === "history" && <ThesisList status="closed,rejected" actions="none" />}
+        {!symbol && tab === "calibration" && <Calibration />}
       </main>
     </>
   );

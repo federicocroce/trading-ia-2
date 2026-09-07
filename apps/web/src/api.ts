@@ -52,6 +52,31 @@ interface RBucket { n: number; avgAlpha: number | null; hitRate: number | null }
 export interface RadarMeasurement { total: number; pending: number; byVerdict: Record<string, Record<"h7" | "h30" | "h90", RBucket>>; comprarVsObservar: Record<"h7" | "h30" | "h90", { diff: number | null; nComprar: number; nObservar: number }> }
 export interface TaxonomyOptions { assetClasses: string[]; sectors: string[]; themes: string[] }
 
+export interface Candle { date: string; open: number; high: number; low: number; close: number; volume: number }
+export interface ChartBar { time: number; open: number; high: number; low: number; close: number; volume: number }
+export interface SymbolDescription { symbol: string; longName: string | null; summary: string | null; employees: number | null; website: string | null; exchangeName: string | null; firstTradeDate: string | null; sector: string | null; industry: string | null; country: string | null; updatedAt: string }
+export interface NewsItem { symbol: string; date: string; headline: string; source: string | null; url: string; summary: string | null }
+export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" | "DIVIDEND" | "TRANSFER"; quantity: number; price: number; fees: number; date: string; currency: string; platform: string | null; externalId: string | null; notes: string | null }
+export interface TickerPage {
+  symbol: string;
+  description: SymbolDescription | null;
+  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null } | null;
+  position: (Position & { valueUsd: number; pnlUsd: number; pnlPct: number; weightPct: number | null }) | null;
+  verdict: Verdict | null;
+  tags: Tags | null;
+  fundamentals: { asOf: string; metrics: Record<string, number | null>; peers: string[]; mcapUsd: number | null; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null;
+  candidate: Candidate | null;
+  peers: Array<{ symbol: string; metrics: Record<string, number | null> }>;
+  theses: Thesis[];
+  transactions: Transaction[];
+  transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; invested: number };
+  candles: Candle[];
+  news: NewsItem[];
+  filings: string[];
+  arNews: string[];
+  errors: string[];
+}
+
 const base = "/api";
 
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
@@ -97,6 +122,10 @@ export const api = {
     options: () => j<TaxonomyOptions>("/taxonomy/options"),
     get: (symbol: string) => j<Tags>(`/taxonomy/${symbol}`),
     put: (symbol: string, body: { assetClass?: string; sector?: string; themes?: string[] }) => j<Tags>(`/taxonomy/${symbol}`, { method: "PUT", body: JSON.stringify(body) }),
+  },
+  ticker: {
+    get: (symbol: string) => j<TickerPage>(`/ticker/${symbol}`),
+    chart: (symbol: string, range: string, interval: string) => j<ChartBar[]>(`/ticker/${symbol}/chart?range=${range}&interval=${interval}`),
   },
   calibration: () =>
     j<{

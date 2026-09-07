@@ -39,3 +39,7 @@ input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var
 .verb.NUCLEO { background: var(--accent); color: #fff; border-color: transparent; }
 .flag { display: inline-block; font-size: 11px; margin-right: 6px; color: var(--muted); }
 .progress { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; } .progress > div { height: 100%; background: var(--accent); }
+.symlink { color: var(--fg); text-decoration: none; border-bottom: 1px dotted var(--muted); } .symlink:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; }
+.seg { display: inline-flex; gap: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px; }
+.seg button { background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 4px; cursor: pointer; } .seg button.active { background: var(--card); color: var(--fg); }
