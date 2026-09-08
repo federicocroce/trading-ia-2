@@ -52,7 +52,7 @@ export interface CatchUpResult { at: string; ran: Array<{ id: string; label: str
 export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; running: boolean; lastResult: CatchUpResult | null }
 export interface TopPick { symbol: string; conviction: number; gainPct: number; lossPct: number; reasons: string[]; cautions: string[]; allAligned: boolean; close: number; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; score: number | null; rankInGroup: number | null; groupSize: number | null; summary: string | null; mainRisk: string | null; tags: Tags | null }
 export interface RadarTop { date: string | null; overweight: Record<string, number>; picks: TopPick[] }
-export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar"; amountUsd: number; rationale: string; alpha30dPct: number | null; alpha90dPct: number | null }
+export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar" | "seguimiento"; amountUsd: number; rationale: string; close: number | null; alpha30dPct: number | null; alpha90dPct: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null }
 export interface ContributionPlan { month: string; totalUsd: number; lines: PlanLine[]; notes: string[] }
 export interface ScanStatus { running: boolean; stopRequested: boolean; startedAt: string | null; progress: { done: number; total: number; stage: string } | null; last: { listed: number; prefiltered: number; fundamentalsOk: number; excluded: number; errors: number; stopped: boolean } | null; scanDate: string | null; status: Record<string, number> | null }
 interface RBucket { n: number; avgAlpha: number | null; hitRate: number | null }
@@ -134,7 +134,7 @@ export const api = {
     refreshWatchlist: () => j<{ symbols: number; rows: number; errors: Array<{ symbol: string; error: string }> }>("/radar/watchlist/refresh", { method: "POST" }),
     refreshArgentina: () => j<{ acciones: number; cedears: number; errors: Array<{ symbol: string; error: string }> }>("/radar/argentina", { method: "POST" }),
     plan: () => j<ContributionPlan | null>("/radar/plan"),
-    buildPlan: () => j<ContributionPlan>("/radar/plan", { method: "POST" }),
+    buildPlan: (amountUsd?: number) => j<ContributionPlan>(`/radar/plan${amountUsd ? `?amount=${Math.round(amountUsd)}` : ""}`, { method: "POST" }),
     measurement: () => j<RadarMeasurement>("/radar/measurement"),
   },
   taxonomy: {

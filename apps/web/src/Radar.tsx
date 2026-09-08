@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type ArgentinaData, type Candidate, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
+import { api, type ArgentinaData, type Candidate, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { HELP, RadarHelpModal, Th } from "./RadarHelp";
@@ -91,7 +91,7 @@ export function Radar() {
         </div>
       )}
       {top && <TopPicks t={top} plan={plan} />}
-      {plan && <PlanCard p={plan} />}
+      {plan && <PlanCard p={plan} busy={busy === "plan"} onBuild={async (amountUsd) => { await act("plan", async () => { const np = await api.radar.buildPlan(amountUsd); setPlan(np); return `Plan ${np.month} armado para ${money(np.totalUsd)}.`; }); }} />}
       {opts && (
         <div className="card form-row">
           <span className="muted">Filtrar:</span>
@@ -374,17 +374,43 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
   );
 }
 
-function PlanCard({ p }: { p: ContributionPlan }) {
+/** Plan del aporte: con el aporte del mes o con el monto que tengas líquido. Muestra el ticket para ejecutar. */
+function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountUsd: number) => Promise<void>; busy: boolean }) {
+  const [amount, setAmount] = useState<string>(String(p.totalUsd));
+  const qty = (l: PlanLine) => (l.close ? Math.floor(l.amountUsd / l.close) : null);
+  const KIND: Record<PlanLine["kind"], string> = { nucleo: "núcleo", sumar: "sumar", comprar: "comprar", seguimiento: "seguimiento" };
+  const risk = p.lines.reduce((s, l) => s + (l.stop && l.close && l.stop < l.close ? (qty(l) ?? 0) * (l.close - l.stop) : 0), 0);
   return (
-    <div className="card">
-      <b>Plan del aporte {p.month}</b> <span className="muted">{money(p.totalUsd)}</span>
+    <div className="card" style={{ overflowX: "auto" }}>
+      <div className="row">
+        <b>Plan del aporte {p.month}</b> <span className="muted">{money(p.totalUsd)}</span>
+        <div style={{ flex: 1 }} />
+        <span className="muted">Tengo para invertir USD</span>
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void onBuild(Number(amount)); }} style={{ width: 110 }} className="mono" />
+        <button className="primary" disabled={busy || !(Number(amount) > 0)} onClick={() => void onBuild(Number(amount))}>{busy ? "Armando…" : "Armar plan con este monto"}</button>
+      </div>
       <table style={{ marginTop: 8 }}>
-        <thead><tr><th>símbolo</th><th>tipo</th><th>monto</th><th>por qué</th><th>alpha 30d</th><th>alpha 90d</th></tr></thead>
+        <thead><tr><th>símbolo</th><th>tipo</th><th>monto</th><th>cantidad</th><th>precio</th><th>comprar hasta</th><th>stop</th><th>objetivo</th><th>por qué</th><th>alpha 30d</th><th>alpha 90d</th></tr></thead>
         <tbody>
-          {p.lines.map((l, i) => <tr key={i}><td><SymbolLink symbol={l.symbol} /></td><td><span className="chip">{l.kind}</span></td><td className="mono">{money(l.amountUsd)}</td><td>{l.rationale}</td><td className="mono">{pct(l.alpha30dPct)}</td><td className="mono">{pct(l.alpha90dPct)}</td></tr>)}
+          {p.lines.map((l, i) => (
+            <tr key={i}>
+              <td><SymbolLink symbol={l.symbol} /></td>
+              <td><span className="chip">{KIND[l.kind] ?? l.kind}</span></td>
+              <td className="mono">{money(l.amountUsd)}</td>
+              <td className="mono">{qty(l) ?? "—"}</td>
+              <td className="mono">{f2(l.close)}</td>
+              <td className="mono">{l.entryHigh ? f2(l.entryHigh) : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted">mercado</span> : "—"}</td>
+              <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : "—"}</td>
+              <td className="mono">{l.target ? <>{f2(l.target)}{l.close && <span className="ok"> {pct(((l.target - l.close) / l.close) * 100)}</span>}</> : "—"}</td>
+              <td>{l.rationale}</td>
+              <td className="mono">{pct(l.alpha30dPct)}</td><td className="mono">{pct(l.alpha90dPct)}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
+      {risk > 0 && <div className="muted" style={{ marginTop: 6 }}>Si todas las líneas con stop lo tocan, perdés {money(risk)}. Los ETFs de núcleo no llevan stop: se compran y se quedan.</div>}
       {p.notes.map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}
+      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>Regla: mientras el núcleo esté bajo su objetivo va el 60% del monto al núcleo; SUMAR hasta el 30% del resto; nuevas por convicción repartidas parejo, más una de tu seguimiento. Si un precio ya pasó "comprar hasta", no lo corras. Cargá las operaciones en Cartera cuando las hagas.</div>
     </div>
   );
 }

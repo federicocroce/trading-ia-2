@@ -35,7 +35,7 @@ export const RadarPolicySchema = z.object({
   technical: z.object({ maxReturn21dPct: z.number(), earningsWithinDays: z.number() }),
   sizing: z.object({ riskPerTradePct: z.number(), maxPositionPct: z.number(), fallbackPortfolioUsd: z.number() }),
   candidates: z.object({ top: z.number(), preselect: z.number(), chronicWeeks: z.number() }),
-  contribution: z.object({ monthlyUsd: z.number(), coreTargetPct: z.number(), maxPositionPct: z.number(), maxNewPositionsPerMonth: z.number(), maxLinePctOfContribution: z.number() }),
+  contribution: z.object({ monthlyUsd: z.number(), coreTargetPct: z.number(), maxPositionPct: z.number(), maxNewPositionsPerMonth: z.number(), maxLinePctOfContribution: z.number(), coreSharePctWhileBelowTarget: z.number().optional(), sumarSharePctOfRest: z.number().optional(), watchLinesMax: z.number().optional(), etfLinesMax: z.number().optional() }),
 });
 
 export function assetClassFor(i: { symbol: string; country: string | null; isEtf: boolean; positionMarket?: "us" | "adr" | "ar" }, t: TaxonomyConfig): AssetClass {

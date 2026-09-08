@@ -33,6 +33,10 @@
     "coreTargetPct": 40,
     "maxPositionPct": 15,
     "maxNewPositionsPerMonth": 2,
-    "maxLinePctOfContribution": 50
+    "maxLinePctOfContribution": 50,
+    "coreSharePctWhileBelowTarget": 60,
+    "sumarSharePctOfRest": 30,
+    "watchLinesMax": 1,
+    "etfLinesMax": 1
   }
 }

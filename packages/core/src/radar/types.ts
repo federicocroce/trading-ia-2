@@ -30,7 +30,16 @@ export interface RadarPolicy {
   technical: { maxReturn21dPct: number; earningsWithinDays: number };
   sizing: { riskPerTradePct: number; maxPositionPct: number; fallbackPortfolioUsd: number };
   candidates: { top: number; preselect: number; chronicWeeks: number };
-  contribution: { monthlyUsd: number; coreTargetPct: number; maxPositionPct: number; maxNewPositionsPerMonth: number; maxLinePctOfContribution: number };
+  contribution: {
+    monthlyUsd: number; coreTargetPct: number; maxPositionPct: number; maxNewPositionsPerMonth: number; maxLinePctOfContribution: number;
+    /** Mientras el núcleo esté bajo su objetivo, qué % del monto va al núcleo (default 60). */
+    coreSharePctWhileBelowTarget?: number | undefined;
+    /** Qué % de lo que queda después del núcleo puede ir a SUMAR (default 30). */
+    sumarSharePctOfRest?: number | undefined;
+    /** Máximo de líneas de seguimiento y de ETFs satélite por plan (default 1 y 1). */
+    watchLinesMax?: number | undefined;
+    etfLinesMax?: number | undefined;
+  };
 }
 
 export type ThemesSource = "regla" | "modelo" | "manual";

@@ -188,7 +188,8 @@ describe("plan y medición", () => {
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
     const plan = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
-    expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 3250], ["SA", "comprar", 3250]]);
+    // Regla v2: SUMAR hasta el 30% del resto; las dos nuevas (máximo por mes) se reparten parejo lo que queda.
+    expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 1950], ["SA", "comprar", 2275], ["SH", "comprar", 2275]]);
     expect((await store.latestPlan())?.month).toBe("2026-05");
 
     // medición: velas hasta 2026-05-18 → un candidato del 2026-04-01 tiene 7 y 30 días de vela posterior

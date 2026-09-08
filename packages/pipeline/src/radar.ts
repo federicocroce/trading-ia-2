@@ -31,6 +31,7 @@ import {
   type SymbolProfile,
   type Tags,
   type TaxonomyConfig,
+  topPicks,
 } from "@thesis/core";
 import type { CarteraStore, RadarStore } from "./store.js";
 
@@ -469,7 +470,7 @@ export async function measureRadar(deps: Pick<RadarDeps, "store" | "history">, o
 
 // ---------- plan del aporte ----------
 
-export async function buildContributionPlan(deps: RadarDeps, opts: { month: string; portfolioUsd: number | null }): Promise<ContributionPlan> {
+export async function buildContributionPlan(deps: RadarDeps, opts: { month: string; portfolioUsd: number | null; amountUsd?: number }): Promise<ContributionPlan> {
   const { store, policy } = deps;
   const positions = await store.positions();
   const risk = await store.latestRisk();
@@ -482,6 +483,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   for (const v of verdicts) closes[v.symbol] = v.close;
   const portfolioValueUsd = opts.portfolioUsd ?? risk?.report.totalValue ?? policy.sizing.fallbackPortfolioUsd;
   const etfOf = (s: string) => deps.etfs.find((e) => e.symbol === s);
+  const overweight = Object.fromEntries(Object.entries(risk?.report.concentration.byTheme ?? {}).filter(([, pct]) => pct > 40));
+  const conviction = new Map(topPicks(candidates, tags, overweight, 1000).map((p) => [p.symbol, p.conviction]));
   const plan = planContribution(
     {
       month: opts.month,
@@ -489,12 +492,19 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       positions: positions.map((p) => ({ symbol: p.symbol, valueUsd: weights.get(p.symbol)?.value ?? (closes[p.symbol] ?? p.avgCost) * p.quantity, assetClass: tags[p.symbol]?.assetClass ?? (etfOf(p.symbol) ? "etf" : p.market === "adr" ? "adr" : p.market === "ar" ? "accion_ar" : "accion_us"), ...(etfOf(p.symbol) || p.layer === "nucleo" ? { role: (etfOf(p.symbol)?.role ?? "nucleo") as EtfConfig["role"] } : {}) })),
       sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct })),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
-      buyCandidates: candidates.filter((c): c is CandidateRow & { kind: "stock" | "etf" } => c.verdict === "COMPRAR" && (c.kind === "stock" || c.kind === "etf")).map((c) => ({ symbol: c.symbol, kind: c.kind, score: c.score, sizeUsd: c.sizeUsd, close: c.close })),
+      // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
+      buyCandidates: candidates
+        .filter((c): c is CandidateRow & { kind: "stock" | "etf" | "watch" } => c.verdict === "COMPRAR" && (c.kind === "stock" || c.kind === "etf" || c.kind === "watch"))
+        .map((c) => ({
+          symbol: c.symbol, kind: c.kind, score: c.score, sizeUsd: c.sizeUsd, close: c.close, entryHigh: c.entryHigh, stop: c.stop, target: c.target,
+          priority: c.kind === "stock" ? (conviction.get(c.symbol) ?? null) : c.kind === "watch" ? -(c.riskScore ?? 10) : (c.axes["rs6m"] ?? null),
+        })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,
       closes,
     },
     policy.contribution,
+    opts.amountUsd ? { amountUsd: opts.amountUsd } : {},
   );
   await store.savePlan(plan);
   return plan;

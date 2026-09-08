@@ -117,7 +117,9 @@ export function radarRoutes(c: Container) {
   app.get("/radar/plan", async (ctx) => ctx.json(await store.latestPlan()));
   app.post("/radar/plan", async (ctx) => {
     const month = ctx.req.query("month") ?? new Date().toISOString().slice(0, 7);
-    return ctx.json(await buildContributionPlan(deps, { month, portfolioUsd: await portfolioUsd() }));
+    // ?amount=40000: plan para un monto líquido en vez del aporte mensual.
+    const amount = Number(ctx.req.query("amount"));
+    return ctx.json(await buildContributionPlan(deps, { month, portfolioUsd: await portfolioUsd(), ...(amount > 0 ? { amountUsd: amount } : {}) }));
   });
   app.get("/radar/measurement", async (ctx) => {
     const all = await store.allCandidates();
