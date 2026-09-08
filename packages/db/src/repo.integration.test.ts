@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { Repo, createDb, schema } from "./index.js";
 
 const url = process.env["DATABASE_URL"];
@@ -131,6 +131,11 @@ d("Repo (Postgres real)", () => {
     await repo.upsertCandidates([cand]);
     await repo.upsertCandidates([{ ...cand, score: 1.5 }]);
     expect((await repo.latestCandidates()).find((c) => c.symbol === sym)?.score).toBe(1.5);
+    // Última fecha por familia: una fila argentina más nueva no esconde el último ranking US.
+    await repo.upsertCandidates([{ ...cand, candidateDate: "2099-01-02", kind: "ar", verdict: "OBSERVAR", score: null }]);
+    const latest = (await repo.latestCandidates()).filter((c) => c.symbol === sym);
+    expect(latest.map((c) => `${c.kind}:${c.candidateDate}`).sort()).toEqual(["ar:2099-01-02", "stock:2099-01-01"]);
+    await db.delete(schema.radarCandidates).where(and(eq(schema.radarCandidates.symbol, sym), eq(schema.radarCandidates.candidateDate, "2099-01-02")));
     expect((await repo.candidateHistory(sym, 4)).length).toBe(1);
     expect((await repo.candidatesToMeasure("2099-01-08", 7)).some((c) => c.symbol === sym)).toBe(true);
     await repo.setCandidateMeasurement("2099-01-01", sym, { close7d: 11, spy7d: 505, alpha7dPct: 9 });

@@ -335,10 +335,16 @@ export class Repo {
       await this.db.insert(s.radarCandidates).values(row).onConflictDoUpdate({ target: [s.radarCandidates.candidateDate, s.radarCandidates.symbol], set });
     }
   }
+  /** Última fecha por familia: las filas argentinas (corren otro día) no esconden el último ranking US ni al revés. */
   async latestCandidates(): Promise<CandidateRow[]> {
-    const last = (await this.db.select({ d: sql<string | null>`max(${s.radarCandidates.candidateDate})` }).from(s.radarCandidates))[0]?.d;
-    if (!last) return [];
-    return (await this.db.select().from(s.radarCandidates).where(eq(s.radarCandidates.candidateDate, last)).orderBy(desc(s.radarCandidates.score))).map((r) => this.rowToCandidate(r));
+    const out: CandidateRow[] = [];
+    for (const kinds of [["stock", "etf"], ["ar", "cedear"]]) {
+      const last = (await this.db.select({ d: sql<string | null>`max(${s.radarCandidates.candidateDate})` }).from(s.radarCandidates).where(inArray(s.radarCandidates.kind, kinds)))[0]?.d;
+      if (!last) continue;
+      const rows = await this.db.select().from(s.radarCandidates).where(and(eq(s.radarCandidates.candidateDate, last), inArray(s.radarCandidates.kind, kinds))).orderBy(desc(s.radarCandidates.score));
+      out.push(...rows.map((r) => this.rowToCandidate(r)));
+    }
+    return out;
   }
   async candidateHistory(symbol: string, weeks: number): Promise<CandidateRow[]> {
     return (await this.db.select().from(s.radarCandidates).where(eq(s.radarCandidates.symbol, symbol.toUpperCase())).orderBy(desc(s.radarCandidates.candidateDate)).limit(weeks * 7)).map((r) => this.rowToCandidate(r));

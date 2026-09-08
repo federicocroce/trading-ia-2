@@ -358,10 +358,13 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
       this.candidates.set(k, prev ? { ...c, close7d: prev.close7d, spy7d: prev.spy7d, alpha7dPct: prev.alpha7dPct, close30d: prev.close30d, spy30d: prev.spy30d, alpha30dPct: prev.alpha30dPct, close90d: prev.close90d, spy90d: prev.spy90d, alpha90dPct: prev.alpha90dPct, measuredAt: prev.measuredAt } : c);
     }
   }
+  /** Última fecha por familia: las filas argentinas (corren otro día) no esconden el último ranking US ni al revés. */
   async latestCandidates() {
     const all = [...this.candidates.values()];
-    const last = all.map((c) => c.candidateDate).sort().at(-1);
-    return all.filter((c) => c.candidateDate === last).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+    const family = (c: CandidateRow) => (c.kind === "ar" || c.kind === "cedear" ? "ar" : "us");
+    const last: Record<string, string | undefined> = {};
+    for (const c of all) if (!last[family(c)] || c.candidateDate > last[family(c)]!) last[family(c)] = c.candidateDate;
+    return all.filter((c) => c.candidateDate === last[family(c)]).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
   }
   async candidateHistory(symbol: string, weeks: number) {
     return [...this.candidates.values()].filter((c) => c.symbol === symbol.toUpperCase()).sort((a, b) => b.candidateDate.localeCompare(a.candidateDate)).slice(0, weeks * 7);

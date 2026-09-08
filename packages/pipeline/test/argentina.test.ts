@@ -73,6 +73,17 @@ describe("refreshArgentina", () => {
     expect(calls.filter((c) => c.startsWith("us:"))).toEqual(["us:AAPL"]);
   });
 
+  it("las filas argentinas de hoy no esconden las acciones US del último ranking: latestCandidates es por familia", async () => {
+    const { store, deps } = setup();
+    const us = { candidateDate: "2026-09-07", symbol: "NVDA", kind: "stock" as const, verdict: "COMPRAR" as const, score: 1.2, axes: {}, peerGroup: [], rankInGroup: 1, groupSize: 10, close: 230, entryLow: 230, entryHigh: 234.6, stop: 214, target: 262, sizeUsd: 15_000, sizeQty: 66, riskScore: 4, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: 770, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null };
+    await store.upsertCandidates([us, { ...us, symbol: "VTI", kind: "etf", verdict: "NUCLEO" }, { ...us, symbol: "OLD", candidateDate: "2026-09-01" }]);
+    // Argentina corre un día después del último ranking US: las US siguen siendo "las últimas" de su familia.
+    await refreshArgentina(deps, { today: "2026-09-08" });
+    const rows = await store.latestCandidates();
+    expect(rows.filter((r) => r.kind === "stock" || r.kind === "etf").map((r) => r.symbol).sort()).toEqual(["NVDA", "VTI"]);
+    expect(rows.filter((r) => r.kind === "ar" || r.kind === "cedear").length).toBe(3);
+  });
+
   it("si el dólar o el riesgo país fallan, las acciones salen igual (sin precio en dólares) y los CEDEARs se saltean con error", async () => {
     const { store, deps } = setup();
     const roto: ArgentinaDeps = { ...deps, macro: { dolares: async () => { throw new Error("dolarapi caído"); }, riesgoPais: async () => null } };
