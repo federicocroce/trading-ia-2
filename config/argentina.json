@@ -1,50 +1,332 @@
 {
   "benchmark": "^MERV",
   "acciones": [
-    { "symbol": "GGAL.BA", "name": "Grupo Financiero Galicia", "adr": "GGAL", "sector": "Financiero", "themes": ["bancos"] },
-    { "symbol": "BMA.BA", "name": "Banco Macro", "adr": "BMA", "sector": "Financiero", "themes": ["bancos"] },
-    { "symbol": "BBAR.BA", "name": "Banco BBVA Argentina", "adr": "BBAR", "sector": "Financiero", "themes": ["bancos"] },
-    { "symbol": "SUPV.BA", "name": "Grupo Supervielle", "adr": "SUPV", "sector": "Financiero", "themes": ["bancos"] },
-    { "symbol": "VALO.BA", "name": "Banco de Valores", "adr": null, "sector": "Financiero", "themes": ["bancos"] },
-    { "symbol": "BYMA.BA", "name": "Bolsas y Mercados Argentinos", "adr": null, "sector": "Financiero", "themes": [] },
-    { "symbol": "YPFD.BA", "name": "YPF", "adr": "YPF", "sector": "Energía", "themes": ["petroleo_gas"] },
-    { "symbol": "PAMP.BA", "name": "Pampa Energía", "adr": "PAM", "sector": "Energía", "themes": ["petroleo_gas"] },
-    { "symbol": "TGSU2.BA", "name": "Transportadora de Gas del Sur", "adr": "TGS", "sector": "Energía", "themes": ["petroleo_gas", "infraestructura"] },
-    { "symbol": "TGNO4.BA", "name": "Transportadora de Gas del Norte", "adr": null, "sector": "Energía", "themes": ["petroleo_gas", "infraestructura"] },
-    { "symbol": "CEPU.BA", "name": "Central Puerto", "adr": "CEPU", "sector": "Servicios públicos", "themes": ["infraestructura"] },
-    { "symbol": "CECO2.BA", "name": "Central Costanera", "adr": null, "sector": "Servicios públicos", "themes": ["infraestructura"] },
-    { "symbol": "EDN.BA", "name": "Edenor", "adr": "EDN", "sector": "Servicios públicos", "themes": ["infraestructura"] },
-    { "symbol": "TRAN.BA", "name": "Transener", "adr": null, "sector": "Servicios públicos", "themes": ["infraestructura"] },
-    { "symbol": "METR.BA", "name": "MetroGAS", "adr": null, "sector": "Servicios públicos", "themes": ["infraestructura"] },
-    { "symbol": "DGCU2.BA", "name": "Distribuidora de Gas Cuyana", "adr": null, "sector": "Servicios públicos", "themes": ["infraestructura"] },
-    { "symbol": "TXAR.BA", "name": "Ternium Argentina", "adr": null, "sector": "Materiales", "themes": [] },
-    { "symbol": "ALUA.BA", "name": "Aluar", "adr": null, "sector": "Materiales", "themes": [] },
-    { "symbol": "LOMA.BA", "name": "Loma Negra", "adr": "LOMA", "sector": "Materiales", "themes": ["infraestructura"] },
-    { "symbol": "HARG.BA", "name": "Holcim Argentina", "adr": null, "sector": "Materiales", "themes": ["infraestructura"] },
-    { "symbol": "TECO2.BA", "name": "Telecom Argentina", "adr": "TEO", "sector": "Comunicación", "themes": [] },
-    { "symbol": "CVH.BA", "name": "Cablevisión Holding", "adr": null, "sector": "Comunicación", "themes": [] },
-    { "symbol": "CRES.BA", "name": "Cresud", "adr": "CRESY", "sector": "Consumo básico", "themes": ["consumo"] },
-    { "symbol": "IRSA.BA", "name": "IRSA", "adr": "IRS", "sector": "Inmobiliario", "themes": [] },
-    { "symbol": "COME.BA", "name": "Sociedad Comercial del Plata", "adr": null, "sector": "Industrial", "themes": [] },
-    { "symbol": "MIRG.BA", "name": "Mirgor", "adr": null, "sector": "Tecnología", "themes": ["consumo"] },
-    { "symbol": "AGRO.BA", "name": "Agrometal", "adr": null, "sector": "Industrial", "themes": [] },
-    { "symbol": "LEDE.BA", "name": "Ledesma", "adr": null, "sector": "Consumo básico", "themes": ["consumo"] },
-    { "symbol": "MOLI.BA", "name": "Molinos Río de la Plata", "adr": null, "sector": "Consumo básico", "themes": ["consumo"] },
-    { "symbol": "AUSO.BA", "name": "Autopistas del Sol", "adr": null, "sector": "Industrial", "themes": ["infraestructura"] },
-    { "symbol": "BOLT.BA", "name": "Boldt", "adr": null, "sector": "Consumo discrecional", "themes": [] },
-    { "symbol": "RICH.BA", "name": "Laboratorios Richmond", "adr": null, "sector": "Salud", "themes": [] }
+    {
+      "symbol": "GGAL.BA",
+      "name": "Grupo Financiero Galicia",
+      "adr": "GGAL",
+      "sector": "Financiero",
+      "themes": [
+        "bancos"
+      ]
+    },
+    {
+      "symbol": "BMA.BA",
+      "name": "Banco Macro",
+      "adr": "BMA",
+      "sector": "Financiero",
+      "themes": [
+        "bancos"
+      ]
+    },
+    {
+      "symbol": "BBAR.BA",
+      "name": "Banco BBVA Argentina",
+      "adr": "BBAR",
+      "sector": "Financiero",
+      "themes": [
+        "bancos"
+      ]
+    },
+    {
+      "symbol": "SUPV.BA",
+      "name": "Grupo Supervielle",
+      "adr": "SUPV",
+      "sector": "Financiero",
+      "themes": [
+        "bancos"
+      ]
+    },
+    {
+      "symbol": "VALO.BA",
+      "name": "Banco de Valores",
+      "adr": null,
+      "sector": "Financiero",
+      "themes": [
+        "bancos"
+      ]
+    },
+    {
+      "symbol": "BYMA.BA",
+      "name": "Bolsas y Mercados Argentinos",
+      "adr": null,
+      "sector": "Financiero",
+      "themes": []
+    },
+    {
+      "symbol": "YPFD.BA",
+      "name": "YPF",
+      "adr": "YPF",
+      "sector": "Energía",
+      "themes": [
+        "petroleo_gas"
+      ]
+    },
+    {
+      "symbol": "PAMP.BA",
+      "name": "Pampa Energía",
+      "adr": "PAM",
+      "sector": "Energía",
+      "themes": [
+        "petroleo_gas"
+      ]
+    },
+    {
+      "symbol": "TGSU2.BA",
+      "name": "Transportadora de Gas del Sur",
+      "adr": "TGS",
+      "sector": "Energía",
+      "themes": [
+        "petroleo_gas",
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "TGNO4.BA",
+      "name": "Transportadora de Gas del Norte",
+      "adr": null,
+      "sector": "Energía",
+      "themes": [
+        "petroleo_gas",
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "CEPU.BA",
+      "name": "Central Puerto",
+      "adr": "CEPU",
+      "sector": "Servicios públicos",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "CECO2.BA",
+      "name": "Central Costanera",
+      "adr": null,
+      "sector": "Servicios públicos",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "EDN.BA",
+      "name": "Edenor",
+      "adr": "EDN",
+      "sector": "Servicios públicos",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "TRAN.BA",
+      "name": "Transener",
+      "adr": null,
+      "sector": "Servicios públicos",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "METR.BA",
+      "name": "MetroGAS",
+      "adr": null,
+      "sector": "Servicios públicos",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "DGCU2.BA",
+      "name": "Distribuidora de Gas Cuyana",
+      "adr": null,
+      "sector": "Servicios públicos",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "TXAR.BA",
+      "name": "Ternium Argentina",
+      "adr": null,
+      "sector": "Materiales",
+      "themes": []
+    },
+    {
+      "symbol": "ALUA.BA",
+      "name": "Aluar",
+      "adr": null,
+      "sector": "Materiales",
+      "themes": []
+    },
+    {
+      "symbol": "LOMA.BA",
+      "name": "Loma Negra",
+      "adr": "LOMA",
+      "sector": "Materiales",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "HARG.BA",
+      "name": "Holcim Argentina",
+      "adr": null,
+      "sector": "Materiales",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "TECO2.BA",
+      "name": "Telecom Argentina",
+      "adr": "TEO",
+      "sector": "Comunicación",
+      "themes": []
+    },
+    {
+      "symbol": "CVH.BA",
+      "name": "Cablevisión Holding",
+      "adr": null,
+      "sector": "Comunicación",
+      "themes": []
+    },
+    {
+      "symbol": "CRES.BA",
+      "name": "Cresud",
+      "adr": "CRESY",
+      "sector": "Consumo básico",
+      "themes": [
+        "consumo"
+      ]
+    },
+    {
+      "symbol": "IRSA.BA",
+      "name": "IRSA",
+      "adr": "IRS",
+      "sector": "Inmobiliario",
+      "themes": []
+    },
+    {
+      "symbol": "COME.BA",
+      "name": "Sociedad Comercial del Plata",
+      "adr": null,
+      "sector": "Industrial",
+      "themes": []
+    },
+    {
+      "symbol": "MIRG.BA",
+      "name": "Mirgor",
+      "adr": null,
+      "sector": "Tecnología",
+      "themes": [
+        "consumo"
+      ]
+    },
+    {
+      "symbol": "AGRO.BA",
+      "name": "Agrometal",
+      "adr": null,
+      "sector": "Industrial",
+      "themes": []
+    },
+    {
+      "symbol": "LEDE.BA",
+      "name": "Ledesma",
+      "adr": null,
+      "sector": "Consumo básico",
+      "themes": [
+        "consumo"
+      ]
+    },
+    {
+      "symbol": "MOLI.BA",
+      "name": "Molinos Río de la Plata",
+      "adr": null,
+      "sector": "Consumo básico",
+      "themes": [
+        "consumo"
+      ]
+    },
+    {
+      "symbol": "AUSO.BA",
+      "name": "Autopistas del Sol",
+      "adr": null,
+      "sector": "Industrial",
+      "themes": [
+        "infraestructura"
+      ]
+    },
+    {
+      "symbol": "BOLT.BA",
+      "name": "Boldt",
+      "adr": null,
+      "sector": "Consumo discrecional",
+      "themes": []
+    },
+    {
+      "symbol": "RICH.BA",
+      "name": "Laboratorios Richmond",
+      "adr": null,
+      "sector": "Salud",
+      "themes": []
+    }
   ],
   "cedears": [
-    { "symbol": "AAPL.BA", "us": "AAPL", "ratio": 20 },
-    { "symbol": "MSFT.BA", "us": "MSFT", "ratio": 30 },
-    { "symbol": "GOOGL.BA", "us": "GOOGL", "ratio": 58 },
-    { "symbol": "AMZN.BA", "us": "AMZN", "ratio": 144 },
-    { "symbol": "NVDA.BA", "us": "NVDA", "ratio": 24 },
-    { "symbol": "META.BA", "us": "META", "ratio": 24 },
-    { "symbol": "TSLA.BA", "us": "TSLA", "ratio": 15 },
-    { "symbol": "KO.BA", "us": "KO", "ratio": 5 },
-    { "symbol": "XOM.BA", "us": "XOM", "ratio": 5 },
-    { "symbol": "MELI.BA", "us": "MELI", "ratio": 60 },
-    { "symbol": "BABA.BA", "us": "BABA", "ratio": 9 }
+    {
+      "symbol": "AAPL.BA",
+      "us": "AAPL",
+      "ratio": 20
+    },
+    {
+      "symbol": "MSFT.BA",
+      "us": "MSFT",
+      "ratio": 30
+    },
+    {
+      "symbol": "GOOGL.BA",
+      "us": "GOOGL",
+      "ratio": 58
+    },
+    {
+      "symbol": "AMZN.BA",
+      "us": "AMZN",
+      "ratio": 144
+    },
+    {
+      "symbol": "NVDA.BA",
+      "us": "NVDA",
+      "ratio": 24
+    },
+    {
+      "symbol": "META.BA",
+      "us": "META",
+      "ratio": 24
+    },
+    {
+      "symbol": "TSLA.BA",
+      "us": "TSLA",
+      "ratio": 15
+    },
+    {
+      "symbol": "KO.BA",
+      "us": "KO",
+      "ratio": 5
+    },
+    {
+      "symbol": "XOM.BA",
+      "us": "XOM",
+      "ratio": 10
+    },
+    {
+      "symbol": "MELI.BA",
+      "us": "MELI",
+      "ratio": 120
+    },
+    {
+      "symbol": "BABA.BA",
+      "us": "BABA",
+      "ratio": 9
+    }
   ]
 }

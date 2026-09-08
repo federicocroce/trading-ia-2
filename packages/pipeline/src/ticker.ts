@@ -123,10 +123,16 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     return stored;
   });
 
-  // Noticias (Finnhub), refresco cada 24 h por proceso.
+  // Noticias (Finnhub), refresco cada 24 h por proceso. Finnhub no cubre BYMA: un .BA usa las noticias de su ADR.
+  const newsSource = async (): Promise<string | null> => {
+    if (!symbol.endsWith(".BA")) return symbol;
+    return (await store.latestCandidates()).find((c) => c.symbol === symbol)?.peerGroup[0] ?? null;
+  };
   const fetchNews = async () => {
-    const items = await deps.news.companyNews(symbol, addDays(opts.today, -30), opts.today);
-    await store.upsertNews(items);
+    const src = await newsSource();
+    if (!src) return store.news(symbol, 20);
+    const items = await deps.news.companyNews(src, addDays(opts.today, -30), opts.today);
+    await store.upsertNews(items.map((i) => ({ ...i, symbol })));
     return store.news(symbol, 20);
   };
   const newsP = store.news(symbol, 20).then(async (stored) => {

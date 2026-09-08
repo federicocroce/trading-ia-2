@@ -127,6 +127,19 @@ describe("buildTicker", () => {
     expect(t2.candles.length).toBe(3);
     expect(t2.pending).toEqual(["precio"]);
   });
+  it("un .BA toma las noticias de su ADR (Finnhub no cubre BYMA) y sin ADR no pide nada", async () => {
+    const { store, deps, calls } = setup();
+    const base = { candidateDate: today, kind: "ar" as const, verdict: "OBSERVAR" as const, score: null, axes: {}, rankInGroup: null, groupSize: null, close: 6935, entryLow: null, entryHigh: null, stop: null, target: null, sizeUsd: null, sizeQty: null, riskScore: null, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null };
+    await store.upsertCandidates([{ ...base, symbol: "GGAL.BA", peerGroup: ["GGAL"] }, { ...base, symbol: "ALUA.BA", peerGroup: [] }]);
+    const t = await buildTicker(deps, "GGAL.BA", { today });
+    expect(calls.filter((c) => c.startsWith("news:"))).toEqual(["news:GGAL"]);
+    expect(t.news.map((n) => n.symbol)).toEqual(["GGAL.BA"]);
+    expect(t.errors).toEqual([]);
+    const a = await buildTicker(deps, "ALUA.BA", { today });
+    expect(calls.filter((c) => c.startsWith("news:"))).toEqual(["news:GGAL"]);
+    expect(a.news).toEqual([]);
+    expect(a.errors).toEqual([]);
+  });
   it("si Yahoo o Finnhub fallan, la página sale igual con lo que hay", async () => {
     const { deps } = setup();
     const bad: TickerDeps = { ...deps, descriptions: { description: async () => { throw new Error("yahoo"); } }, news: { companyNews: async () => { throw new Error("finnhub"); } }, quote: async () => null };
