@@ -62,7 +62,11 @@ export function radarRoutes(c: Container) {
     const body = await ctx.req.json<{ symbol?: string; note?: string }>().catch(() => ({}) as { symbol?: string; note?: string });
     const symbol = (body.symbol ?? "").trim().toUpperCase();
     if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) return ctx.json({ error: "símbolo inválido" }, 400);
-    await store.addWatch(symbol, body.note ?? null);
+    // Foto del alta (ciclo de vida): precio vivo (o último cierre) y, si el Radar ya lo conoce, su stop, objetivo y tesis.
+    const row = (await store.latestCandidates()).find((r) => r.symbol === symbol && r.kind !== "cedear");
+    const live = (await c.pricesDeps.quotes([symbol]).catch(() => []))[0] ?? null;
+    const entryPrice = live?.price ?? row?.close ?? (await store.candles(symbol, "2000-01-01")).at(-1)?.close ?? null;
+    await store.addWatch(symbol, { note: body.note ?? null, entryPrice, entryAction: row?.verdict ?? "manual", targetPrice: row?.target ?? null, stopLoss: row?.stop ?? null, thesis: row?.summary ?? null, horizonDays: 30 });
     const r = await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
     return ctx.json({ ...(await watchPayload()), refreshed: r });
   });

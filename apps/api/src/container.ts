@@ -31,6 +31,8 @@ export interface Container {
   radarDeps: RadarDeps;
   /** Argentina (etapa 3): macro, acciones de BYMA y CEDEARs. */
   argentinaDeps: ArgentinaDeps;
+  /** Precios vivos por lote para la watchlist y la cinta del header. */
+  pricesDeps: { quotes(symbols: string[]): Promise<import("@thesis/core").LiveQuote[]> };
   /** Solo para tests: reemplaza los pasos reales de "ponerme al día". */
   catchupRunners?: import("./catchup.js").Runners;
   /** Página por ticker (etapa 2b): agregador + gráfico intradiario en vivo. */
@@ -174,5 +176,17 @@ export function buildContainer(cfg: Config): Container {
   }
   const snapshot = async () => buildSnapshot(store, await account(), state.killSwitch);
 
-  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, marketData, broker, risk, runDeps, snapshot, account };
+  // Precios por lote: Alpaca para US (100 por llamada); los .BA uno por uno vía Yahoo.
+  const pricesDeps: Container["pricesDeps"] = {
+    quotes: async (symbols) => {
+      const us = symbols.filter((x) => !x.toUpperCase().endsWith(".BA"));
+      const ba = symbols.filter((x) => x.toUpperCase().endsWith(".BA"));
+      const [a, b] = await Promise.all([
+        us.length ? alpacaAssets.quotes(us).catch(() => []) : Promise.resolve([]),
+        Promise.all(ba.map((x) => yahooChart.quote(x).catch(() => null))),
+      ]);
+      return [...a, ...b.filter((q): q is NonNullable<typeof q> => q !== null)];
+    },
+  };
+  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, pricesDeps, marketData, broker, risk, runDeps, snapshot, account };
 }

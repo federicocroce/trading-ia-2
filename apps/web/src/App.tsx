@@ -3,6 +3,8 @@ import { api, type CatchUpStatus, type Thesis } from "./api";
 import { Cartera } from "./Cartera";
 import { Radar } from "./Radar";
 import { Ticker } from "./Ticker";
+import { Sidebar } from "./Sidebar";
+import { Tape } from "./Tape";
 
 const TABS = ["cartera", "radar", "proposed", "open", "history", "calibration"] as const;
 type Tab = (typeof TABS)[number];
@@ -47,6 +49,8 @@ export function App() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const [catchup, setCatchup] = useState<CatchUpStatus | null>(null);
+  const [sidebar, setSidebar] = useState<boolean>(() => { try { return localStorage.getItem("sidebar") !== "0"; } catch { return true; } });
+  const toggleSidebar = () => { setSidebar((v) => { try { localStorage.setItem("sidebar", v ? "0" : "1"); } catch { /* nada */ } return !v; }); };
   const refreshHealth = useCallback(() => Promise.all([api.health().then(setHealth).catch(() => setHealth(null)), api.catchup.status().then(setCatchup).catch(() => setCatchup(null))]), []);
   async function catchUpNow() {
     setBusy(true);
@@ -112,6 +116,9 @@ export function App() {
           {health?.killSwitch ? "Kill switch: ON (reactivar)" : "Kill switch"}
         </button>
       </header>
+      <Tape />
+      <div className="layout">
+      <Sidebar open={sidebar} onToggle={toggleSidebar} />
       <main>
         {!health && <div className="err">No se puede hablar con la API (¿está corriendo `pnpm dev:api`?)</div>}
         {msg && <div className="card">{msg}</div>}
@@ -123,6 +130,7 @@ export function App() {
         {!symbol && tab === "history" && <ThesisList status="closed,rejected" actions="none" />}
         {!symbol && tab === "calibration" && <Calibration />}
       </main>
+      </div>
     </>
   );
 }

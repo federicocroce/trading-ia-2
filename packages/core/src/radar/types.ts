@@ -178,3 +178,41 @@ export interface LiveQuote {
   /** Moneda del precio (ARS para los .BA). Sin valor = USD. */
   currency?: string | null;
 }
+
+/** Seguimiento (watchlist) con foto del alta y ciclo de vida, portado de trading v1. */
+export interface WatchSnapshot {
+  note?: string | null;
+  entryPrice?: number | null;
+  entryAction?: string | null;
+  targetPrice?: number | null;
+  stopLoss?: number | null;
+  thesis?: string | null;
+  horizonDays?: number | null;
+}
+export interface WatchEval {
+  status: "live" | "triggered" | "invalidated" | "expired";
+  lastPrice: number;
+  lastReturn: number;
+  lastEvaluatedAt: string;
+  resolvedAt: string | null;
+  resolutionPrice: number | null;
+  resolutionReturn: number | null;
+}
+export interface WatchItem {
+  symbol: string;
+  note: string | null;
+  addedAt: string;
+  entryPrice: number | null;
+  entryAction: string | null;
+  targetPrice: number | null;
+  stopLoss: number | null;
+  thesis: string | null;
+  horizonDays: number;
+  status: "live" | "triggered" | "invalidated" | "expired";
+  lastPrice: number | null;
+  lastReturn: number | null;
+  lastEvaluatedAt: string | null;
+  resolvedAt: string | null;
+  resolutionPrice: number | null;
+  resolutionReturn: number | null;
+}

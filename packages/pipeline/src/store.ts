@@ -1,4 +1,4 @@
-import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, MacroAr } from "@thesis/core";
+import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -94,14 +94,15 @@ export interface RadarStore {
   candles(symbol: string, since: string): Promise<Candle[]>;
   /** Lista de seguimiento: tickers elegidos a mano que reciben veredicto diario aunque el ranking no los elija. */
   watchlist(): Promise<WatchItem[]>;
-  addWatch(symbol: string, note?: string | null): Promise<void>;
+  /** Alta con la foto del momento (precio, stop, objetivo, tesis): habilita el ciclo de vida. Idempotente por símbolo. */
+  addWatch(symbol: string, snapshot?: WatchSnapshot | null): Promise<void>;
   removeWatch(symbol: string): Promise<void>;
+  /** Evaluación diaria del ciclo de vida (portado de v1). */
+  updateWatchEval(symbol: string, e: WatchEval): Promise<void>;
+  /** Fija el precio de alta de un ítem que no lo tenía (alta vieja). */
+  setWatchEntry?(symbol: string, entryPrice: number): Promise<void>;
 }
-export interface WatchItem {
-  symbol: string;
-  note: string | null;
-  addedAt: string;
-}
+
 export interface JobRun {
   lastDate: string;
   ranAt: string;
@@ -360,12 +361,21 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   async watchlist() {
     return [...this.watch.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
   }
-  async addWatch(symbol: string, note: string | null = null) {
+  async addWatch(symbol: string, snap: WatchSnapshot | null = null) {
     const sym = symbol.toUpperCase();
-    if (!this.watch.has(sym)) this.watch.set(sym, { symbol: sym, note, addedAt: new Date().toISOString() });
+    if (this.watch.has(sym)) return;
+    this.watch.set(sym, { symbol: sym, note: snap?.note ?? null, addedAt: new Date().toISOString(), entryPrice: snap?.entryPrice ?? null, entryAction: snap?.entryAction ?? null, targetPrice: snap?.targetPrice ?? null, stopLoss: snap?.stopLoss ?? null, thesis: snap?.thesis ?? null, horizonDays: snap?.horizonDays ?? 30, status: "live", lastPrice: null, lastReturn: null, lastEvaluatedAt: null, resolvedAt: null, resolutionPrice: null, resolutionReturn: null });
   }
   async removeWatch(symbol: string) {
     this.watch.delete(symbol.toUpperCase());
+  }
+  async updateWatchEval(symbol: string, e: WatchEval) {
+    const cur = this.watch.get(symbol.toUpperCase());
+    if (cur) this.watch.set(cur.symbol, { ...cur, ...e });
+  }
+  async setWatchEntry(symbol: string, entryPrice: number) {
+    const cur = this.watch.get(symbol.toUpperCase());
+    if (cur) this.watch.set(cur.symbol, { ...cur, entryPrice });
   }
   async markJobRun(step: string, lastDate: string, detail: string | null = null) {
     this.jobs.set(step, { lastDate, ranAt: new Date().toISOString(), detail });

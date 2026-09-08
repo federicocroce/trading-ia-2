@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type TickerPage } from "./api";
+import { api, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
+import { WatchlistButton } from "./WatchlistButton";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)}%`);
@@ -18,6 +19,9 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const [period, setPeriod] = useState<PeriodChange | null>(null);
   const [editingTags, setEditingTags] = useState(false);
   const [moreSummary, setMoreSummary] = useState(false);
+  const [watchItems, setWatchItems] = useState<WatchItem[]>([]);
+  const loadWatch = useCallback(() => api.radar.watchlist().then((w) => setWatchItems(w.items)).catch(() => null), []);
+  useEffect(() => { void loadWatch(); }, [loadWatch]);
   const load = useCallback(() => api.ticker.get(symbol).then(setT).catch((e) => setErr(String(e))), [symbol]);
   useEffect(() => {
     let alive = true;
@@ -57,6 +61,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           <h2 style={{ margin: 0, fontFamily: "ui-monospace, Menlo, monospace" }}>{t.symbol}</h2>
           {d?.longName && <span className="muted">— {d.longName}</span>}
           <TagChips tags={t.tags} />
+          <WatchlistButton symbol={t.symbol} items={watchItems} onChanged={() => { void loadWatch(); window.dispatchEvent(new Event("watchlist:changed")); }} />
           <button className="ghost" onClick={() => setEditingTags(!editingTags)}>Etiquetas</button>
         </div>
         {editingTags && <TagEditor symbol={t.symbol} current={t.tags} onSaved={() => { setEditingTags(false); void load(); }} onCancel={() => setEditingTags(false)} />}

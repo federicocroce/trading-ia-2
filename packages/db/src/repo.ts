@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
+import type { Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -440,12 +440,25 @@ export class Repo {
   }
 
   // ---------- lista de seguimiento ----------
-  async watchlist(): Promise<Array<{ symbol: string; note: string | null; addedAt: string }>> {
+  async watchlist(): Promise<WatchItem[]> {
     const rows = await this.db.select().from(s.watchlist).orderBy(s.watchlist.symbol);
-    return rows.map((r) => ({ symbol: r.symbol, note: r.note, addedAt: r.addedAt.toISOString() }));
+    const n = (v: string | null) => (v === null ? null : Number(v));
+    return rows.map((r) => ({
+      symbol: r.symbol, note: r.note, addedAt: r.addedAt.toISOString(),
+      entryPrice: n(r.entryPrice), entryAction: r.entryAction, targetPrice: n(r.targetPrice), stopLoss: n(r.stopLoss), thesis: r.thesis, horizonDays: r.horizonDays,
+      status: r.status as WatchItem["status"], lastPrice: n(r.lastPrice), lastReturn: n(r.lastReturn), lastEvaluatedAt: r.lastEvaluatedAt?.toISOString() ?? null,
+      resolvedAt: r.resolvedAt?.toISOString() ?? null, resolutionPrice: n(r.resolutionPrice), resolutionReturn: n(r.resolutionReturn),
+    }));
   }
-  async addWatch(symbol: string, note: string | null = null): Promise<void> {
-    await this.db.insert(s.watchlist).values({ symbol: symbol.toUpperCase(), note }).onConflictDoNothing();
+  async addWatch(symbol: string, snap: WatchSnapshot | null = null): Promise<void> {
+    const ns = (v: number | null | undefined) => (v === null || v === undefined ? null : str(v));
+    await this.db.insert(s.watchlist).values({ symbol: symbol.toUpperCase(), note: snap?.note ?? null, entryPrice: ns(snap?.entryPrice), entryAction: snap?.entryAction ?? null, targetPrice: ns(snap?.targetPrice), stopLoss: ns(snap?.stopLoss), thesis: snap?.thesis ?? null, horizonDays: snap?.horizonDays ?? 30 }).onConflictDoNothing();
+  }
+  async setWatchEntry(symbol: string, entryPrice: number): Promise<void> {
+    await this.db.update(s.watchlist).set({ entryPrice: str(entryPrice) }).where(eq(s.watchlist.symbol, symbol.toUpperCase()));
+  }
+  async updateWatchEval(symbol: string, e: WatchEval): Promise<void> {
+    await this.db.update(s.watchlist).set({ status: e.status, lastPrice: str(e.lastPrice), lastReturn: str(e.lastReturn), lastEvaluatedAt: new Date(e.lastEvaluatedAt), resolvedAt: e.resolvedAt ? new Date(e.resolvedAt) : null, resolutionPrice: e.resolutionPrice === null ? null : str(e.resolutionPrice), resolutionReturn: e.resolutionReturn === null ? null : str(e.resolutionReturn) }).where(eq(s.watchlist.symbol, symbol.toUpperCase()));
   }
   async removeWatch(symbol: string): Promise<void> {
     await this.db.delete(s.watchlist).where(eq(s.watchlist.symbol, symbol.toUpperCase()));

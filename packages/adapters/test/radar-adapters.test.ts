@@ -34,6 +34,9 @@ describe("AlpacaAssets", () => {
     const http = fixtureHttpClient({ "https://data.alpaca.markets/v2/stocks/snapshots?symbols=GGAL": { GGAL: { latestTrade: { p: 44.32, t: "2026-09-08T19:59:00Z" }, dailyBar: { c: 44.36, v: 1000 }, prevDailyBar: { c: 43.9, v: 900 } } } });
     expect(await new AlpacaAssets(http, cfg).quote("ggal")).toEqual({ symbol: "GGAL", price: 44.32, prevClose: 43.9, asOf: "2026-09-08T19:59:00Z" });
     expect(await new AlpacaAssets(fixtureHttpClient({ "https://data.alpaca.markets/v2/stocks/snapshots?symbols=ZZZ": {} }), cfg).quote("ZZZ")).toBeNull();
+    // Por lote: precio, cierre anterior y hora del último trade; los que no vienen quedan afuera.
+    const many = fixtureHttpClient({ "https://data.alpaca.markets/v2/stocks/snapshots?symbols=GGAL,ZZZ": { GGAL: { latestTrade: { p: 44.32, t: "2026-09-08T19:59:00Z" }, dailyBar: { c: 44.36, v: 1000 }, prevDailyBar: { c: 43.9, v: 900 } } } });
+    expect(await new AlpacaAssets(many, cfg).quotes(["ggal", "ZZZ"])).toEqual([{ symbol: "GGAL", price: 44.32, prevClose: 43.9, asOf: "2026-09-08T19:59:00Z" }]);
   });
   it("snapshot sin datos → price/volumen null", async () => {
     const http = fixtureHttpClient({ "https://data.alpaca.markets/v2/stocks/snapshots?symbols=": { A: {} } });

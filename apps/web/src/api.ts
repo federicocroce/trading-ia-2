@@ -46,7 +46,11 @@ export interface Candidate {
 }
 export interface CandidateDetail { candidate: Candidate; fundamentals: { metrics: Record<string, number | null>; peers: string[]; mcapUsd: number; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null; tags: Tags | null; profile: { name: string | null; country: string | null; industry: string | null } | null; peers: Array<{ symbol: string; metrics: Record<string, number | null> }> }
 export interface MacroAr { date: string; oficial: number | null; mep: number | null; ccl: number | null; blue: number | null; mayorista: number | null; brechaPct: number | null; riesgoPais: number | null; merval: number | null; mervalUsd: number | null }
-export interface Watchlist { items: Array<{ symbol: string; note: string | null; addedAt: string }>; rows: Candidate[] }
+export type WatchStatus = "live" | "triggered" | "invalidated" | "expired";
+export interface WatchItem { symbol: string; note: string | null; addedAt: string; entryPrice: number | null; entryAction: string | null; targetPrice: number | null; stopLoss: number | null; thesis: string | null; horizonDays: number; status: WatchStatus; lastPrice: number | null; lastReturn: number | null; lastEvaluatedAt: string | null; resolvedAt: string | null; resolutionPrice: number | null; resolutionReturn: number | null }
+export interface Watchlist { items: WatchItem[]; rows: Candidate[] }
+export interface PriceRow { symbol: string; price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; stale: boolean; currency: string | null }
+export interface Tape { at: string; tracked: number; gainers: PriceRow[]; losers: PriceRow[] }
 export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; acciones: Candidate[]; cedears: Candidate[] }
 export interface CatchUpResult { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }
 export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; running: boolean; lastResult: CatchUpResult | null }
@@ -141,6 +145,10 @@ export const api = {
     options: () => j<TaxonomyOptions>("/taxonomy/options"),
     get: (symbol: string) => j<Tags>(`/taxonomy/${symbol}`),
     put: (symbol: string, body: { assetClass?: string; sector?: string; themes?: string[] }) => j<Tags>(`/taxonomy/${symbol}`, { method: "PUT", body: JSON.stringify(body) }),
+  },
+  prices: {
+    get: (symbols: string[]) => (symbols.length ? j<PriceRow[]>(`/prices?symbols=${symbols.join(",")}`) : Promise.resolve([] as PriceRow[])),
+    tape: () => j<Tape>("/prices/tape"),
   },
   catchup: {
     status: () => j<CatchUpStatus>("/catchup"),

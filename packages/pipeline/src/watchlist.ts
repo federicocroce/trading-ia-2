@@ -1,5 +1,5 @@
-import type { Candle, CandidateRow, Fundamentals } from "@thesis/core";
-import { computeTrailingStop, decideCandidate, rankStocks, riskScore } from "@thesis/core";
+import type { Candle, CandidateRow, Fundamentals, WatchItem } from "@thesis/core";
+import { computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
 import { tagSymbol, type RadarDeps } from "./radar.js";
 
 /**
@@ -23,6 +23,25 @@ function baseRow(date: string, symbol: string, close: number): CandidateRow {
     summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null,
     close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null,
   };
+}
+
+/**
+ * Ciclo de vida (portado de v1): la foto del alta (precio, stop, objetivo, plazo) contra el cierre de hoy.
+ * Un alta vieja sin precio toma el cierre de hoy como entrada. Lo ya resuelto no se vuelve a evaluar.
+ */
+async function evaluateLifecycle(store: RadarDeps["store"], item: WatchItem, close: number, today: string): Promise<void> {
+  if (item.status !== "live") return;
+  let entry = item.entryPrice;
+  if (!entry || entry <= 0) {
+    entry = close;
+    await store.updateWatchEval(item.symbol, { status: "live", lastPrice: close, lastReturn: 0, lastEvaluatedAt: new Date().toISOString(), resolvedAt: null, resolutionPrice: null, resolutionReturn: null });
+    await store.setWatchEntry?.(item.symbol, close);
+  }
+  const daysSince = Math.max(0, Math.floor((Date.parse(today) - Date.parse(item.addedAt)) / 86_400_000));
+  const r = resolveWatchStatus({ entryPrice: entry, targetPrice: item.targetPrice, stopLoss: item.stopLoss, currentPrice: close, daysSince, horizonDays: item.horizonDays });
+  const now = new Date().toISOString();
+  const resolved = r.status !== "live";
+  await store.updateWatchEval(item.symbol, { status: r.status, lastPrice: close, lastReturn: r.returnPct, lastEvaluatedAt: now, resolvedAt: resolved ? now : null, resolutionPrice: resolved ? close : null, resolutionReturn: resolved ? r.returnPct : null });
 }
 
 export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null }): Promise<{ symbols: number; rows: number; errors: Array<{ symbol: string; error: string }> }> {
@@ -68,6 +87,7 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       }
       // Reglas de taxonomía cada día (barato): un tema nuevo en config llega solo. Lo manual no se pisa.
       await tagSymbol(deps, sym, { industry: f.industry, country: null }).catch(() => null);
+      await evaluateLifecycle(store, item, close, opts.today);
     } catch (e) {
       errors.push({ symbol: sym, error: errText(e) });
     }

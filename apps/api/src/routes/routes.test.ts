@@ -32,6 +32,7 @@ function container(): Container {
     radarDeps: { store, taxonomy: { sectors: [], themes: [], industryToSector: {}, industryToThemes: {}, symbolToThemes: {}, symbolToAssetClass: {} } } as never,
     tickerDeps: { store } as never,
     argentinaDeps: { store } as never,
+    pricesDeps: { quotes: async () => [] },
     catchupRunners: Object.fromEntries(["scan", "cartera", "radar", "argentina", "plan", "tesis"].map((id) => [id, async () => `${id} corrido`])) as never,
     marketData,
     broker,

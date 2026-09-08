@@ -73,3 +73,29 @@ describe("refreshWatchlist", () => {
     expect(r.rows).toBe(1);
   });
 });
+
+describe("ciclo de vida del seguimiento", () => {
+  it("evalúa cada ítem contra el precio de hoy: viva, gatillada al tocar el objetivo, invalidada al tocar el stop, expirada al vencer", async () => {
+    const { store, deps } = setup();
+    await store.addWatch("VST", { entryPrice: 150, targetPrice: 190, stopLoss: 140, thesis: "energía IA", horizonDays: 30 }); // hoy cierra 200 → gatillada
+    await store.addWatch("MP", { entryPrice: 60, targetPrice: 80, stopLoss: 50, horizonDays: 30 }); // hoy cierra 40 → invalidada
+    await store.addWatch("USAR", { entryPrice: 10, targetPrice: null, stopLoss: null, horizonDays: 30 }); // sin niveles: viva, con retorno
+    await refreshWatchlist(deps, { today, portfolioUsd: null });
+    const items = Object.fromEntries((await store.watchlist()).map((i) => [i.symbol, i]));
+    expect(items["VST"]).toMatchObject({ status: "triggered", lastPrice: 200, lastReturn: 33.33, resolutionPrice: 200, resolutionReturn: 33.33 });
+    expect(items["VST"]!.resolvedAt).not.toBeNull();
+    expect(items["MP"]).toMatchObject({ status: "invalidated", lastReturn: -33.33 });
+    expect(items["USAR"]).toMatchObject({ status: "live", lastPrice: 12, lastReturn: 20, resolvedAt: null });
+    // Los resueltos no se vuelven a evaluar: el estado queda fijo.
+    await refreshWatchlist({ ...deps, history: { candles: async (s: string) => (s === "VST" ? series(300, 100, 100) : deps.history.candles(s, 400)) } }, { today: "2026-09-09", portfolioUsd: null });
+    expect((await store.watchlist()).find((i) => i.symbol === "VST")?.status).toBe("triggered");
+  });
+  it("sin precio de alta (alta vieja) toma el cierre de hoy como entrada la primera vez", async () => {
+    const { store, deps } = setup();
+    await store.addWatch("USAR");
+    await refreshWatchlist(deps, { today, portfolioUsd: null });
+    const it = (await store.watchlist())[0]!;
+    expect(it.entryPrice).toBe(12);
+    expect(it.status).toBe("live");
+  });
+});

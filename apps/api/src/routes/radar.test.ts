@@ -3,6 +3,7 @@ import type { Candle } from "@thesis/core";
 import { MemoryStore } from "@thesis/pipeline";
 import { Hono } from "hono";
 import { radarRoutes } from "./radar.js";
+import { pricesRoutes } from "./prices.js";
 import { taxonomyRoutes } from "./taxonomy.js";
 import { state, type Container } from "../container.js";
 
@@ -31,7 +32,8 @@ function app() {
     config: { benchmark: "^MERV", acciones: [{ symbol: "GGAL.BA", name: "Galicia", adr: "GGAL", sector: "Financiero", themes: ["bancos"] }], cedears: [{ symbol: "AAPL.BA", us: "AAPL", ratio: 20 }] },
     policy: radarDeps.policy,
   };
-  const c = { store, radarDeps, argentinaDeps, carteraDeps: { store } } as unknown as Container;
+  const pricesDeps = { quotes: async (symbols: string[]) => symbols.filter((x) => x !== "ZZZ").map((x) => ({ symbol: x, price: x === "AAA" ? 101 : 50, prevClose: x === "AAA" ? 100 : 55, asOf: new Date().toISOString() })) };
+  const c = { store, radarDeps, argentinaDeps, pricesDeps, carteraDeps: { store } } as unknown as Container;
   const a = new Hono();
   a.route("/", radarRoutes(c));
   a.route("/", taxonomyRoutes(c));
@@ -146,6 +148,8 @@ describe("/radar/watchlist", () => {
     expect((await post(a, "/radar/watchlist", { symbol: "bad symbol" })).status).toBe(400);
     const added = await (await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" })).json();
     expect(added.items.map((i: { symbol: string }) => i.symbol)).toEqual(["AAA"]);
+    // Foto del alta: precio vivo y estado del ciclo de vida.
+    expect(added.items[0]).toMatchObject({ entryPrice: 101, entryAction: "manual", status: "live", horizonDays: 30 });
     expect(added.refreshed.rows).toBe(1);
     expect(added.rows[0].kind).toBe("watch");
     expect(["COMPRAR", "OBSERVAR"]).toContain(added.rows[0].verdict);
@@ -157,5 +161,22 @@ describe("/radar/watchlist", () => {
     const removed = await (await a.request("/radar/watchlist/AAA", { method: "DELETE" })).json();
     expect(removed.items).toEqual([]);
     expect(removed.rows).toEqual([]);
+  });
+});
+
+describe("/prices", () => {
+  it("cotizaciones por lote con variación y marca de precio viejo; la cinta trae los que más se movieron entre lo que la app sigue", async () => {
+    const { a, store } = app();
+    const pricesApp = new Hono();
+    pricesApp.route("/", pricesRoutes({ store, pricesDeps: { quotes: async (symbols: string[]) => symbols.map((x) => ({ symbol: x, price: x === "UP" ? 110 : x === "DN" ? 90 : 100, prevClose: 100, asOf: x === "OLD" ? "2020-01-01T00:00:00Z" : new Date().toISOString() })) } } as unknown as Container));
+    const rows = await (await pricesApp.request("/prices?symbols=up,dn,old")).json();
+    expect(rows.map((r: { symbol: string; changePct: number; stale: boolean }) => [r.symbol, r.changePct, r.stale])).toEqual([["DN", -10, false], ["OLD", 0, true], ["UP", 10, false]]);
+    await store.upsertPosition({ symbol: "UP", quantity: 1, avgCost: 1, currency: "USD", market: "us", layer: "riesgo", notes: null });
+    await store.addWatch("DN");
+    await store.addWatch("OLD");
+    const tape = await (await pricesApp.request("/prices/tape")).json();
+    expect(tape.gainers.map((r: { symbol: string }) => r.symbol)).toEqual(["UP"]);
+    expect(tape.losers.map((r: { symbol: string }) => r.symbol)).toEqual(["DN"]); // OLD queda afuera: precio viejo
+    void a;
   });
 });

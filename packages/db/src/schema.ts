@@ -349,4 +349,19 @@ export const watchlist = pgTable("watchlist", {
   symbol: text("symbol").primaryKey(),
   note: text("note"),
   addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  // Foto del alta (habilita el ciclo de vida, portado de v1).
+  entryPrice: numeric("entry_price", { precision: 14, scale: 4 }),
+  entryAction: text("entry_action"),
+  targetPrice: numeric("target_price", { precision: 14, scale: 4 }),
+  stopLoss: numeric("stop_loss", { precision: 14, scale: 4 }),
+  thesis: text("thesis"),
+  horizonDays: integer("horizon_days").notNull().default(30),
+  // Estado del ciclo de vida: live | triggered | invalidated | expired.
+  status: text("status").notNull().default("live"),
+  lastPrice: numeric("last_price", { precision: 14, scale: 4 }),
+  lastReturn: numeric("last_return", { precision: 10, scale: 4 }),
+  lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  resolutionPrice: numeric("resolution_price", { precision: 14, scale: 4 }),
+  resolutionReturn: numeric("resolution_return", { precision: 10, scale: 4 }),
 });

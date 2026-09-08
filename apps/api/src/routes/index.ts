@@ -10,6 +10,7 @@ import { carteraRoutes } from "./cartera.js";
 import { radarRoutes } from "./radar.js";
 import { taxonomyRoutes } from "./taxonomy.js";
 import { tickerRoutes } from "./ticker.js";
+import { pricesRoutes } from "./prices.js";
 
 export function buildApp(c: Container) {
   const app = new Hono();
@@ -76,6 +77,7 @@ export function buildApp(c: Container) {
   app.route("/", radarRoutes(c));
   app.route("/", taxonomyRoutes(c));
   app.route("/", tickerRoutes(c));
+  app.route("/", pricesRoutes(c));
 
   // ---- calibración ----
   app.get("/calibration", async (ctx) => {

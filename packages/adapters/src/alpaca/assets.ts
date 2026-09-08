@@ -33,6 +33,22 @@ export class AlpacaAssets {
     if (price === null || price === undefined) return null;
     return { symbol: sym, price, prevClose: s?.prevDailyBar?.c ?? null, asOf: s?.latestTrade?.t ?? null };
   }
+  /** Cotizaciones por lote (100 por llamada) para la watchlist y la cinta: precio, cierre anterior y hora. */
+  async quotes(symbols: string[]): Promise<LiveQuote[]> {
+    const out: LiveQuote[] = [];
+    const syms = symbols.map((x) => x.toUpperCase());
+    for (let i = 0; i < syms.length; i += 100) {
+      const batch = syms.slice(i, i + 100);
+      const r = await this.http.getJson<Record<string, SnapshotResp>>(`${ALPACA_DATA}/v2/stocks/snapshots?symbols=${batch.join(",")}&feed=iex`, alpacaHeaders(this.cfg));
+      for (const sym of batch) {
+        const snap = r[sym];
+        const price = snap?.latestTrade?.p ?? snap?.dailyBar?.c ?? null;
+        if (price === null || price === undefined) continue;
+        out.push({ symbol: sym, price, prevClose: snap?.prevDailyBar?.c ?? null, asOf: snap?.latestTrade?.t ?? null });
+      }
+    }
+    return out;
+  }
   /** 100 símbolos por llamada. Precio = último trade o cierre diario; volumen = barra diaria (IEX). */
   async snapshots(symbols: string[]): Promise<SnapshotLite[]> {
     const out: SnapshotLite[] = [];
