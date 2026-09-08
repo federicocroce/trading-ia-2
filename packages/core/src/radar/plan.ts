@@ -104,8 +104,10 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
 
   // 3. Nuevas: acciones por prioridad (convicción), una de seguimiento, un ETF satélite. Repartidas parejo.
   const byPriority = (a: PlanInput["buyCandidates"][number], b: PlanInput["buyCandidates"][number]) => (b.priority ?? -Infinity) - (a.priority ?? -Infinity) || (b.score ?? -Infinity) - (a.score ?? -Infinity);
+  // Un monto grande (3 aportes o más de una vez) admite una posición nueva extra: repartir 40k en 2 acciones es concentrar.
+  const maxNew = c.maxNewPositionsPerMonth + (aporte >= 3 * c.monthlyUsd ? 1 : 0);
   const pools: Array<{ kind: "stock" | "watch" | "etf"; max: number; countsAsNew: boolean }> = [
-    { kind: "stock", max: c.maxNewPositionsPerMonth, countsAsNew: true },
+    { kind: "stock", max: maxNew, countsAsNew: true },
     { kind: "watch", max: cfg.watchLinesMax, countsAsNew: false },
     { kind: "etf", max: cfg.etfLinesMax, countsAsNew: true },
   ];
@@ -117,7 +119,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     for (const b of i.buyCandidates.filter((x) => x.kind === pool.kind).sort(byPriority)) {
       if (taken >= pool.max) break;
       const isNew = valueOf(b.symbol) === 0;
-      if (pool.countsAsNew && isNew && newCount >= c.maxNewPositionsPerMonth) {
+      if (pool.countsAsNew && isNew && newCount >= maxNew) {
         skippedNew.push(b.symbol);
         continue;
       }
@@ -140,7 +142,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     });
     remaining -= used;
   }
-  if (skippedNew.length) notes.push(`Máximo de posiciones nuevas (${c.maxNewPositionsPerMonth}) alcanzado: ${skippedNew.join(", ")} quedan para la próxima.`);
+  if (skippedNew.length) notes.push(`Máximo de posiciones nuevas (${maxNew}) alcanzado: ${skippedNew.join(", ")} quedan para la próxima.`);
   if (!i.sumarCandidates.length && !i.buyCandidates.length) notes.push("Sin candidatos este mes: el aporte va al núcleo.");
 
   // 4. Sobrante al núcleo.
