@@ -375,8 +375,27 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
 }
 
 /** Plan del aporte: con el aporte del mes o con el monto que tengas líquido. Muestra el ticket para ejecutar. */
+type PlanSort = "prioridad" | "conviccion" | "objetivo";
+const PLAN_SORT_LABEL: Record<PlanSort, string> = { prioridad: "prioridad de compra", conviccion: "convicción", objetivo: "% al objetivo" };
+const readPlanSort = (): PlanSort => { try { const v = localStorage.getItem("plan.sort"); return v === "conviccion" || v === "objetivo" ? v : "prioridad"; } catch { return "prioridad"; } };
+const gainPct = (l: PlanLine) => (l.target && l.close ? (l.target / l.close - 1) * 100 : null);
+function sortPlanLines(lines: PlanLine[], sort: PlanSort): PlanLine[] {
+  if (sort === "prioridad") return lines;
+  const KIND_ORDER: Record<PlanLine["kind"], number> = { comprar: 0, seguimiento: 1, sumar: 2, nucleo: 3 };
+  const key = sort === "conviccion" ? (l: PlanLine) => l.priority ?? null : gainPct;
+  return [...lines].sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    if (ka !== null && kb !== null && ka !== kb) return kb - ka;
+    if ((ka === null) !== (kb === null)) return ka === null ? 1 : -1;
+    return KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
+  });
+}
+
 function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountUsd: number) => Promise<void>; busy: boolean }) {
   const [amount, setAmount] = useState<string>(String(p.totalUsd));
+  const [sort, setSort] = useState<PlanSort>(readPlanSort);
+  const changeSort = (s: PlanSort) => { setSort(s); try { localStorage.setItem("plan.sort", s); } catch { /* sin almacenamiento: no pasa nada */ } };
+  const lines = sortPlanLines(p.lines, sort);
   const qty = (l: PlanLine) => (l.close ? Math.floor(l.amountUsd / l.close) : null);
   const KIND: Record<PlanLine["kind"], string> = { nucleo: "núcleo", sumar: "sumar", comprar: "comprar", seguimiento: "seguimiento" };
   const risk = p.lines.reduce((s, l) => s + (l.stop && l.close && l.stop < l.close ? (qty(l) ?? 0) * (l.close - l.stop) : 0), 0);
@@ -385,6 +404,10 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
       <div className="row">
         <b>Plan del aporte {p.month}</b> <span className="muted">{money(p.totalUsd)}</span>
         <div style={{ flex: 1 }} />
+        <span className="muted">Ordenar por</span>
+        <select value={sort} onChange={(e) => changeSort(e.target.value as PlanSort)} title="Prioridad de compra: el orden en que el sistema asigna la plata (núcleo, sumar, nuevas por convicción, seguimiento). % al objetivo: ojo, es dos veces la distancia al stop, así que ordena por volatilidad.">
+          {(Object.keys(PLAN_SORT_LABEL) as PlanSort[]).map((k) => <option key={k} value={k}>{PLAN_SORT_LABEL[k]}</option>)}
+        </select>
         <span className="muted">Tengo para invertir USD</span>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void onBuild(Number(amount)); }} style={{ width: 110 }} className="mono" />
         <button className="primary" disabled={busy || !(Number(amount) > 0)} onClick={() => void onBuild(Number(amount))}>{busy ? "Armando…" : "Armar plan con este monto"}</button>
@@ -392,8 +415,8 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
       <table style={{ marginTop: 8 }}>
         <thead><tr><Th k="simbolo" /><th>tipo</th><th>monto</th><Th k="cantidad" /><Th k="precio" /><Th k="comprarHasta" /><Th k="stopPlan" /><Th k="objetivoPlan" /><th>por qué</th><Th k="alpha30" /><Th k="alpha90" /></tr></thead>
         <tbody>
-          {p.lines.map((l, i) => (
-            <tr key={i}>
+          {lines.map((l) => (
+            <tr key={`${l.kind}:${l.symbol}`}>
               <td><SymbolLink symbol={l.symbol} /></td>
               <td><span className="chip">{KIND[l.kind] ?? l.kind}</span></td>
               <td className="mono">{money(l.amountUsd)}</td>
@@ -409,6 +432,7 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
           ))}
         </tbody>
       </table>
+      {sort === "objetivo" && <div className="warn" style={{ marginTop: 6 }}>Ordenado por % al objetivo: ese % es dos veces la distancia al stop, así que arriba quedan los más volátiles, no los mejores. El orden de compra del sistema es "prioridad de compra".</div>}
       {risk > 0 && <div className="muted" style={{ marginTop: 6 }}>Si todas las líneas con stop lo tocan, perdés {money(risk)}. Los ETFs de núcleo no llevan stop: se compran y se quedan.</div>}
       {p.notes.map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}
       {p.leftOut && p.leftOut.length > 0 && (

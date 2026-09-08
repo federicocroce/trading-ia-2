@@ -69,6 +69,7 @@ describe("planContribution", () => {
     for (const b of i.buyCandidates) expect(mensual.lines.some((l) => l.symbol === b.symbol) || mensual.leftOut!.some((x) => x.symbol === b.symbol)).toBe(true);
     expect(p.lines.reduce((s, l) => s + l.amountUsd, 0)).toBe(40_000);
     expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).toMatch(/^3° por convicción de 3 COMPRAR del Radar/);
+    expect(p.lines.find((l) => l.symbol === "NVDA")!.priority).toBe(1.49);
     expect(p.lines.find((l) => l.symbol === "ZVRA")!.rationale).toMatch(/^1° por convicción de 3/);
     const nem = p.lines.find((l) => l.symbol === "NEM")!;
     expect([nem.stop, nem.target]).toEqual([118.5, 152.4]); // el stop y objetivo del veredicto de Cartera viajan a la línea SUMAR

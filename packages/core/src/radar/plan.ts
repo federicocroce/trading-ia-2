@@ -33,6 +33,8 @@ export interface PlanLine {
   target?: number | null;
   /** Solo núcleo: cuánto rindió el ETF en los últimos 12 meses. Contexto, no objetivo ni promesa. */
   ret12mPct?: number | null;
+  /** Prioridad con la que entró (convicción para acciones, −riesgo para seguimiento, FR 6m para ETFs). */
+  priority?: number | null;
 }
 export interface PlanOptions {
   /** Monto a repartir en vez del aporte mensual (plata líquida de una vez). */
@@ -151,7 +153,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       }
       const kind: PlanLine["kind"] = b.kind === "watch" ? "seguimiento" : "comprar";
       const why = b.kind === "watch" ? `tu lista de seguimiento, COMPRAR hoy${b.score !== null ? `, score ${b.score}` : ""}` : b.kind === "etf" ? "ETF satélite con fuerza relativa positiva" : `${placeOf.get(b.symbol) ?? "candidato del Radar"}, convicción ${b.priority ?? "—"}${b.score !== null ? `, score ${b.score}` : ""}`;
-      lines.push({ ...line(b.symbol, kind, amt, why), entryHigh: b.entryHigh ?? null, stop: b.stop ?? null, target: b.target ?? null });
+      lines.push({ ...line(b.symbol, kind, amt, why), entryHigh: b.entryHigh ?? null, stop: b.stop ?? null, target: b.target ?? null, priority: b.priority ?? null });
       used += amt;
     });
     remaining -= used;
