@@ -411,6 +411,12 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
       </table>
       {risk > 0 && <div className="muted" style={{ marginTop: 6 }}>Si todas las líneas con stop lo tocan, perdés {money(risk)}. Los ETFs de núcleo no llevan stop: se compran y se quedan.</div>}
       {p.notes.map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}
+      {p.leftOut && p.leftOut.length > 0 && (
+        <details style={{ marginTop: 4 }}>
+          <summary className="muted" style={{ cursor: "pointer" }}>Ver todos los que no entraron ({p.leftOut.length})</summary>
+          <table style={{ marginTop: 6 }}><tbody>{p.leftOut.map((x) => <tr key={x.symbol}><td><SymbolLink symbol={x.symbol} /></td><td className="muted">{x.reason}</td></tr>)}</tbody></table>
+        </details>
+      )}
       <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>Regla: mientras el núcleo esté bajo su objetivo va el 60% del monto al núcleo; SUMAR hasta el 30% del resto; nuevas por convicción repartidas parejo, más una de tu seguimiento. Si un precio ya pasó "comprar hasta", no lo corras. Cargá las operaciones en Cartera cuando las hagas.</div>
     </div>
   );

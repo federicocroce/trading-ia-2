@@ -33,7 +33,7 @@ describe("planContribution", () => {
     expect(p.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["TSM", "sumar", 1950], ["NVDA", "comprar", 3250], ["VTI", "nucleo", 780], ["VEA", "nucleo", 325], ["VWO", "nucleo", 195]]);
     const p2 = planContribution({ ...i, sumarCandidates: [] }, { ...c, maxNewPositionsPerMonth: 1 });
     expect(p2.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["NVDA", "comprar", 3250], ["VTI", "nucleo", 1950], ["VEA", "nucleo", 813], ["VWO", "nucleo", 487]]);
-    expect(p2.notes.join(" ")).toMatch(/AMD \(2° por convicción\): tope de 1 posiciones nuevas/);
+    expect(p2.notes.join(" ")).toMatch(/AMD \(2° por convicción: tope de 1 posiciones nuevas\)/);
   });
   it("un monto grande con el núcleo vacío: 60% al núcleo, SUMAR hasta 30% del resto, nuevas por convicción repartidas parejo, una de seguimiento, ticket completo", () => {
     const i: PlanInput = {
@@ -63,10 +63,10 @@ describe("planContribution", () => {
     const mensual = planContribution({ ...i, closes: i.closes }, c);
     expect(mensual.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["ZVRA", "NBN"]);
     // Explicabilidad: cada COMPRAR que no entró aparece en las notas con su lugar por convicción y el motivo.
-    expect(mensual.notes.join("\n")).toMatch(/NVDA \(3° por convicción\): tope de 2 posiciones nuevas/);
-    expect(mensual.notes.join("\n")).toMatch(/CRWV.*seguimiento/);
-    expect(mensual.notes.join("\n")).toMatch(/COPX/);
-    for (const b of i.buyCandidates) expect(mensual.lines.some((l) => l.symbol === b.symbol) || mensual.notes.join("\n").includes(b.symbol)).toBe(true);
+    expect(mensual.notes.join("\n")).toMatch(/NVDA \(3° por convicción: tope de 2 posiciones nuevas\)/);
+    expect(mensual.leftOut!.find((x) => x.symbol === "CRWV")?.reason).toMatch(/seguimiento/);
+    expect(mensual.leftOut!.some((x) => x.symbol === "COPX")).toBe(true);
+    for (const b of i.buyCandidates) expect(mensual.lines.some((l) => l.symbol === b.symbol) || mensual.leftOut!.some((x) => x.symbol === b.symbol)).toBe(true);
     expect(p.lines.reduce((s, l) => s + l.amountUsd, 0)).toBe(40_000);
     const nem = p.lines.find((l) => l.symbol === "NEM")!;
     expect([nem.stop, nem.target]).toEqual([118.5, 152.4]); // el stop y objetivo del veredicto de Cartera viajan a la línea SUMAR
