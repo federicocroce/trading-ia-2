@@ -25,6 +25,7 @@ export const HELP: Record<string, { label: string; short: string }> = {
   ratio: { label: "ratio", short: "Cuántos CEDEARs equivalen a una acción en EE.UU. Cambia con los splits: si el dólar implícito se va más de 10% del CCL, el ratio cargado está mal." },
   dolarImplicito: { label: "dólar implícito", short: "Precio del CEDEAR × ratio / precio en EE.UU.: el dólar que pagás comprando la acción vía CEDEAR." },
   vsCcl: { label: "vs CCL", short: "Dólar implícito contra el CCL. Más de +2% el CEDEAR está caro; menos de −2% está barato. Más de 10% en cualquier sentido: ratio dudoso, no oportunidad." },
+  seguimiento: { label: "seguimiento", short: "Tickers que elegís vos. Reciben todos los días veredicto técnico, stop, objetivo, tamaño y riesgo, y su rank contra pares si están en el universo, aunque el ranking no los elija. Ideal para historias (energía para IA, minerales) que el filtro de valor deja afuera." },
   conviccion: { label: "convicción", short: "score × fiabilidad del grupo (pares/10, tope 1) + 0.2 por consenso de compra, insiders que compran o sorpresa positiva − banderas negativas − 0.1 por punto de riesgo sobre 5 − 0.3 si el objetivo queda a menos de 5% − 0.3 si comparte un tema donde ya tenés más del 40% de la cartera." },
 };
 
@@ -90,6 +91,9 @@ export function RadarHelpModal({ onClose }: { onClose: () => void }) {
 
         <h3>ETFs</h3>
         <p><b>FR 3m / 6m / 12m</b>: fuerza relativa contra SPY, cuánto le ganó o perdió al S&amp;P 500 en ese plazo. <b>vs SMA200</b>: distancia al promedio de 200 ruedas. Los de núcleo (NUCLEO) se compran por calendario según el plan; satélites y coberturas salen COMPRAR u OBSERVAR por fuerza relativa.</p>
+
+        <h3>Seguimiento</h3>
+        <p>El Radar es un filtro de valor: las historias que ya están en el precio (energía para la IA, minerales críticos) rara vez entran como candidatas. La lista de seguimiento te deja seguirlas con las mismas reglas: veredicto técnico (COMPRAR si está sobre la SMA200 y no corrió más de 15% en 21 ruedas; si no OBSERVAR con la razón), stop chandelier, objetivo 2:1, tamaño y riesgo, más el rank contra pares cuando el papel está en el universo. No entran en "lo que más recomienda" ni en el plan del aporte: la decisión es tuya, el sistema te pone la disciplina.</p>
 
         <h3>Argentina</h3>
         <p>Las acciones de BYMA cotizan en pesos, así que se comparan contra el <b>Merval</b> y no contra SPY: COMPRAR si le ganan al índice a 6 meses y están sobre la media de 200 ruedas. No tienen score ni rank porque Finnhub no cubre el mercado local; cuando el papel tiene <b>ADR</b>, los fundamentals están en la ficha del ADR. El <b>precio USD</b> es el cierre en pesos al CCL del día. Los <b>CEDEARs</b> no son una recomendación: son un chequeo de a qué dólar estás comprando la acción de EE.UU. si la comprás en pesos. El <b>macro</b> (CCL, MEP, oficial, brecha, riesgo país, Merval en dólares) se guarda todos los días para tener la serie.</p>

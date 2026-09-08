@@ -103,6 +103,13 @@ GET /ticker/:symbol                      # la página completa (JSON)
 GET /ticker/:symbol/chart?range=1y&interval=1d
 ```
 
+## Seguimiento y temas de moda
+
+El Radar es un filtro de valor contra pares: las historias que ya están en el precio (energía para la IA, minerales críticos) rara vez entran como candidatas. Para eso hay dos herramientas:
+
+- **Lista de seguimiento** (card *Seguimiento* en Radar, `GET/POST/DELETE /radar/watchlist`): tickers que elegís vos. Cada día reciben el mismo tratamiento que un candidato: veredicto técnico (COMPRAR sobre la SMA200 y sin haber corrido más de 15% en 21 ruedas; si no, OBSERVAR con la razón), stop chandelier, objetivo 2:1, tamaño, riesgo, y su rank contra pares si están en el universo. Filas con `kind: "watch"`: no entran en convicción ni en el plan del aporte. Se refrescan con el Radar (07:50, "Ponerme al día") y al agregar uno.
+- **Temas** `energia_ia` (VST, CEG, TLN, NRG, OKLO, SMR, GEV, VRT, BE, ETN, PWR…) y `minerales_criticos` (MP, USAR, UUUU, ALB, SQM, FCX, SCCO, RIO, BHP…) en `config/taxonomia.json`, y ETFs satélite de cada tema en `config/etfs.json`: XLU, GRID, NLR y URA para energía; REMX, LIT y COPX para minerales. Los ETFs se deciden por fuerza relativa contra SPY, no por valuación: es la forma de estar en una narrativa sin pagar la acción cara.
+
 ## Argentina (etapa 3)
 
 Card **Argentina** en la pestaña Radar. Corre todos los días con el refresco del Radar (lun–vie 07:50), con el botón *Refrescar Argentina* o con `pnpm radar:argentina`. Configuración en `config/argentina.json`.

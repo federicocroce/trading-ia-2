@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { AXES, AXIS_METRICS, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
-import { buildContributionPlan, measureRadar, rankRadar, refreshArgentina, refreshRadar, scanUniverse } from "@thesis/pipeline";
+import { buildContributionPlan, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
 
@@ -50,6 +50,27 @@ export function radarRoutes(c: Container) {
     const r = await refreshArgentina(c.argentinaDeps, { today: today(ctx) });
     return ctx.json({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors });
   });
+  /** Lista de seguimiento: tickers elegidos a mano con veredicto diario aunque el ranking no los elija. */
+  const watchPayload = async () => {
+    const items = await store.watchlist();
+    const set = new Set(items.map((i) => i.symbol));
+    const rows = (await withTags(await store.latestCandidates())).filter((r) => r.kind === "watch" && set.has(r.symbol));
+    return { items, rows };
+  };
+  app.get("/radar/watchlist", async (ctx) => ctx.json(await watchPayload()));
+  app.post("/radar/watchlist", async (ctx) => {
+    const body = await ctx.req.json<{ symbol?: string; note?: string }>().catch(() => ({}) as { symbol?: string; note?: string });
+    const symbol = (body.symbol ?? "").trim().toUpperCase();
+    if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) return ctx.json({ error: "símbolo inválido" }, 400);
+    await store.addWatch(symbol, body.note ?? null);
+    const r = await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
+    return ctx.json({ ...(await watchPayload()), refreshed: r });
+  });
+  app.delete("/radar/watchlist/:symbol", async (ctx) => {
+    await store.removeWatch(ctx.req.param("symbol"));
+    return ctx.json(await watchPayload());
+  });
+  app.post("/radar/watchlist/refresh", async (ctx) => ctx.json(await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() })));
   app.get("/radar/candidates/:symbol", async (ctx) => {
     const symbol = ctx.req.param("symbol").toUpperCase();
     const cand = (await store.latestCandidates()).find((r) => r.symbol === symbol);

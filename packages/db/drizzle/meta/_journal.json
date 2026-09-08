@@ -50,6 +50,13 @@
       "when": 1788878381929,
       "tag": "0006_harsh_surge",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788886414683,
+      "tag": "0007_productive_mikhail_rasputin",
+      "breakpoints": true
     }
   ]
 }

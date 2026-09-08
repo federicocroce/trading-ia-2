@@ -1,4 +1,4 @@
-import { STEPS, buildContributionPlan, dailyRun, dueSteps, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, runCartera, scanUniverse, type DueStep, type StepId } from "@thesis/pipeline";
+import { STEPS, buildContributionPlan, dailyRun, dueSteps, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, type DueStep, type StepId } from "@thesis/pipeline";
 import { state, type Container } from "./container.js";
 
 /**
@@ -59,7 +59,8 @@ export function defaultRunners(): Runners {
     radar: async (c, today) => {
       const r = await refreshRadar(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
       const m = await measureRadar(c.radarDeps, { today });
-      return `${r.refreshed} candidatos refrescados, medidos 7d ${m.candidates["7"]} · 30d ${m.candidates["30"]} · 90d ${m.candidates["90"]}`;
+      const w = await refreshWatchlist(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
+      return `${r.refreshed} candidatos refrescados, seguimiento ${w.rows}/${w.symbols}, medidos 7d ${m.candidates["7"]} · 30d ${m.candidates["30"]} · 90d ${m.candidates["90"]}`;
     },
     argentina: async (c, today) => {
       const r = await refreshArgentina(c.argentinaDeps, { today });

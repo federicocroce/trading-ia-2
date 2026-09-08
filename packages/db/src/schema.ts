@@ -343,3 +343,10 @@ export const jobRuns = pgTable("job_runs", {
   ranAt: timestamp("ran_at", { withTimezone: true }).notNull().defaultNow(),
   detail: text("detail"),
 });
+
+/** Lista de seguimiento: tickers elegidos a mano (veredicto diario aunque el ranking no los elija). */
+export const watchlist = pgTable("watchlist", {
+  symbol: text("symbol").primaryKey(),
+  note: text("note"),
+  addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+});

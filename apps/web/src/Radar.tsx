@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type ArgentinaData, type Candidate, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
+import { api, type ArgentinaData, type Candidate, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { HELP, RadarHelpModal, Th } from "./RadarHelp";
@@ -17,6 +17,7 @@ export function Radar() {
   const [plan, setPlan] = useState<ContributionPlan | null>(null);
   const [top, setTop] = useState<RadarTop | null>(null);
   const [ar, setAr] = useState<ArgentinaData | null>(null);
+  const [watch, setWatch] = useState<Watchlist | null>(null);
   const [meas, setMeas] = useState<RadarMeasurement | null>(null);
   const [scan, setScan] = useState<ScanStatus | null>(null);
   const [opts, setOpts] = useState<TaxonomyOptions | null>(null);
@@ -30,11 +31,12 @@ export function Radar() {
   const load = useCallback(async () => {
     const q: Record<string, string> = {};
     for (const [k, v] of Object.entries(filter)) if (v) q[k] = v;
-    const [c, p, m, s, o, t, a] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options(), api.radar.top(5), api.radar.argentina()]);
+    const [c, p, m, s, o, t, a, w] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options(), api.radar.top(5), api.radar.argentina(), api.radar.watchlist()]);
     setCands(c);
     setPlan(p);
     setTop(t);
     setAr(a);
+    setWatch(w);
     setMeas(m);
     setScan(s);
     setOpts(o);
@@ -130,6 +132,7 @@ export function Radar() {
           </tbody>
         </table>
       </div>
+      {watch && <WatchCard w={watch} setWatch={setWatch} editing={editing} setEditing={setEditing} reload={load} />}
       {ar && <ArgentinaCard d={ar} editing={editing} setEditing={setEditing} reload={load} />}
       {meas && <MeasCard m={meas} />}
     </>
@@ -236,6 +239,71 @@ function TopPicks({ t, plan }: { t: RadarTop; plan: ContributionPlan | null }) {
 const ars = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `$${n.toLocaleString("es-AR", { maximumFractionDigits: n >= 100 ? 0 : 2 })}`);
 const delta = (cur: number | null, prev: number | null | undefined) => (cur !== null && prev !== null && prev !== undefined && prev !== 0 ? (cur / prev - 1) * 100 : null);
 const CEDEAR_FLAG: Record<string, string> = { en_linea: "en línea", caro_vs_ccl: "caro vs CCL", barato_vs_ccl: "barato vs CCL", ratio_dudoso: "ratio dudoso" };
+
+/** Lista de seguimiento: tickers elegidos a mano con las mismas reglas que un candidato. */
+function WatchCard({ w, setWatch, editing, setEditing, reload }: { w: Watchlist; setWatch: (w: Watchlist) => void; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
+  const [sym, setSym] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const rows = [...w.rows].sort((a, b) => (a.verdict === b.verdict ? (b.score ?? -Infinity) - (a.score ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
+  const rowFor = new Map(rows.map((r) => [r.symbol, r]));
+  const withoutRow = w.items.filter((i) => !rowFor.has(i.symbol)).map((i) => i.symbol);
+  async function add() {
+    const s = sym.trim().toUpperCase();
+    if (!s) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      setWatch(await api.radar.addWatch(s));
+      setSym("");
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(s: string) {
+    setWatch(await api.radar.removeWatch(s));
+  }
+  return (
+    <div className="card" style={{ overflowX: "auto" }}>
+      <div className="row">
+        <b>Seguimiento</b> <span className="muted help" title={HELP["seguimiento"]!.short}>({w.items.length}) tus tickers, con las reglas del Radar aunque el ranking no los elija</span>
+        <div style={{ flex: 1 }} />
+        <input value={sym} onChange={(e) => setSym(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void add(); }} placeholder="ticker (VST, MP, GGAL.BA…)" style={{ width: 180 }} />
+        <button className="primary" disabled={busy || !sym.trim()} onClick={() => void add()}>{busy ? "Agregando…" : "Agregar"}</button>
+      </div>
+      {err && <div className="err">{err}</div>}
+      {withoutRow.length > 0 && <div className="muted" style={{ marginTop: 6 }}>Sin datos todavía: {withoutRow.join(", ")} (se completan en el próximo refresco).</div>}
+      <table style={{ marginTop: 8 }}>
+        <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="score" /><Th k="rank" /><Th k="precio" /><Th k="entrada" /><Th k="stop" /><Th k="objetivo" /><Th k="tamano" /><Th k="riesgo" /><Th k="etiquetas" /><th></th></tr></thead>
+        <tbody>
+          {rows.map((c) => (
+            <tr key={c.symbol}>
+              <td><SymbolLink symbol={c.symbol} />{c.nthAppearance > 1 && <span className="muted"> ×{c.nthAppearance}</span>}</td>
+              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <span className="flag">{c.flags.join(" · ")}</span>}</td>
+              <td className="mono">{c.score === null ? <span className="muted" title="No está en el universo del Radar (o no pasó el quality bar): sin rank contra pares.">—</span> : f2(c.score)}</td>
+              <td className="mono">{c.rankInGroup !== null ? `${c.rankInGroup}/${c.groupSize}` : "—"}</td>
+              <td className="mono">{f2(c.close)}</td>
+              <td className="mono">{c.entryLow !== null ? `${f2(c.entryLow)}–${f2(c.entryHigh)}` : "—"}</td>
+              <td className="mono">{f2(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
+              <td className="mono">{f2(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
+              <td className="mono">{c.sizeQty ?? "—"}{c.sizeUsd !== null && <span className="muted"> · {money(c.sizeUsd)}</span>}</td>
+              <td className="mono">{c.riskScore !== null ? `${c.riskScore}/10` : "—"}</td>
+              <td><TagChips tags={c.tags} /></td>
+              <td className="row" style={{ gap: 4 }}>
+                <button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>
+                <button className="ghost" title="Sacar de la lista" onClick={() => void remove(c.symbol)}>Quitar</button>
+                {editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void reload(); }} onCancel={() => setEditing(null)} />}
+              </td>
+            </tr>
+          ))}
+          {!rows.length && <tr><td colSpan={12} className="muted">Todavía no seguís ningún ticker. Agregá uno arriba.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 /** Argentina (etapa 3): macro del día, acciones de BYMA contra el Merval y CEDEARs contra el CCL. */
 function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {

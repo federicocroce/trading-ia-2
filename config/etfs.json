@@ -129,7 +129,8 @@
     "ter": 0.09,
     "themes": [
       "infraestructura",
-      "dividendos"
+      "dividendos",
+      "energia_ia"
     ]
   },
   {
@@ -159,7 +160,8 @@
     "exposure": "sector",
     "ter": 0.69,
     "themes": [
-      "nuclear_uranio"
+      "nuclear_uranio",
+      "energia_ia"
     ]
   },
   {
@@ -169,7 +171,8 @@
     "exposure": "sector",
     "ter": 0.75,
     "themes": [
-      "litio_baterias"
+      "litio_baterias",
+      "minerales_criticos"
     ]
   },
   {
@@ -275,6 +278,48 @@
     "ter": 0.25,
     "themes": [
       "bitcoin"
+    ]
+  },
+  {
+    "symbol": "GRID",
+    "name": "First Trust Smart Grid Infrastructure",
+    "role": "satelite",
+    "exposure": "sector",
+    "ter": 0.59,
+    "themes": [
+      "energia_ia",
+      "infraestructura"
+    ]
+  },
+  {
+    "symbol": "NLR",
+    "name": "VanEck Uranium and Nuclear",
+    "role": "satelite",
+    "exposure": "sector",
+    "ter": 0.59,
+    "themes": [
+      "energia_ia",
+      "nuclear_uranio"
+    ]
+  },
+  {
+    "symbol": "REMX",
+    "name": "VanEck Rare Earth and Strategic Metals",
+    "role": "satelite",
+    "exposure": "sector",
+    "ter": 0.59,
+    "themes": [
+      "minerales_criticos"
+    ]
+  },
+  {
+    "symbol": "COPX",
+    "name": "Global X Copper Miners",
+    "role": "satelite",
+    "exposure": "sector",
+    "ter": 0.59,
+    "themes": [
+      "minerales_criticos"
     ]
   }
 ]

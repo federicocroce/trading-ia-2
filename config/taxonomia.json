@@ -33,7 +33,9 @@
     "argentina",
     "china_taiwan",
     "dividendos",
-    "small_caps"
+    "small_caps",
+    "energia_ia",
+    "minerales_criticos"
   ],
   "industryToSector": {
     "Technology": "Tecnología",
@@ -362,16 +364,20 @@
       "nuclear_uranio"
     ],
     "ALB": [
-      "litio_baterias"
+      "litio_baterias",
+      "minerales_criticos"
     ],
     "LIT": [
-      "litio_baterias"
+      "litio_baterias",
+      "minerales_criticos"
     ],
     "SQM": [
-      "litio_baterias"
+      "litio_baterias",
+      "minerales_criticos"
     ],
     "LAC": [
-      "litio_baterias"
+      "litio_baterias",
+      "minerales_criticos"
     ],
     "LMT": [
       "defensa"
@@ -488,10 +494,103 @@
     ],
     "XLU": [
       "infraestructura",
-      "dividendos"
+      "dividendos",
+      "energia_ia"
     ],
     "ILF": [
       "argentina"
+    ],
+    "VST": [
+      "energia_ia",
+      "infraestructura"
+    ],
+    "CEG": [
+      "energia_ia",
+      "infraestructura"
+    ],
+    "TLN": [
+      "energia_ia"
+    ],
+    "NRG": [
+      "energia_ia"
+    ],
+    "OKLO": [
+      "energia_ia",
+      "nuclear_uranio"
+    ],
+    "SMR": [
+      "energia_ia",
+      "nuclear_uranio"
+    ],
+    "GEV": [
+      "energia_ia",
+      "infraestructura"
+    ],
+    "VRT": [
+      "energia_ia"
+    ],
+    "BE": [
+      "energia_ia"
+    ],
+    "ETN": [
+      "energia_ia",
+      "infraestructura"
+    ],
+    "PWR": [
+      "energia_ia",
+      "infraestructura"
+    ],
+    "NNE": [
+      "energia_ia",
+      "nuclear_uranio"
+    ],
+    "GRID": [
+      "energia_ia",
+      "infraestructura"
+    ],
+    "NLR": [
+      "energia_ia",
+      "nuclear_uranio"
+    ],
+    "MP": [
+      "minerales_criticos"
+    ],
+    "USAR": [
+      "minerales_criticos"
+    ],
+    "UUUU": [
+      "minerales_criticos",
+      "nuclear_uranio"
+    ],
+    "FCX": [
+      "minerales_criticos"
+    ],
+    "SCCO": [
+      "minerales_criticos"
+    ],
+    "TECK": [
+      "minerales_criticos"
+    ],
+    "ERO": [
+      "minerales_criticos"
+    ],
+    "HBM": [
+      "minerales_criticos"
+    ],
+    "RIO": [
+      "minerales_criticos"
+    ],
+    "BHP": [
+      "minerales_criticos"
+    ],
+    "VALE": [
+      "minerales_criticos"
+    ],
+    "REMX": [
+      "minerales_criticos"
+    ],
+    "COPX": [
+      "minerales_criticos"
     ]
   },
   "symbolToAssetClass": {

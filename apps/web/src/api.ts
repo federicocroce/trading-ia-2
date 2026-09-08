@@ -40,12 +40,13 @@ export interface CarteraRun { date: string; verdicts: Verdict[]; risk: RiskRepor
 
 export interface Tags { assetClass: string; sector: string; industry: string | null; themes: string[]; themesSource: "regla" | "modelo" | "manual" }
 export interface Candidate {
-  candidateDate: string; symbol: string; kind: "stock" | "etf" | "ar" | "cedear"; verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO"; score: number | null; axes: Record<string, number | null>; peerGroup: string[]; rankInGroup: number | null; groupSize: number | null;
+  candidateDate: string; symbol: string; kind: "stock" | "etf" | "ar" | "cedear" | "watch"; verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO"; score: number | null; axes: Record<string, number | null>; peerGroup: string[]; rankInGroup: number | null; groupSize: number | null;
   close: number; entryLow: number | null; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; flags: string[]; nthAppearance: number;
   summary: string | null; whyRanks: string | null; mainRisk: string | null; moat: string | null; degradedBy: string | null; spyClose: number | null; alpha7dPct: number | null; alpha30dPct: number | null; alpha90dPct: number | null; tags: Tags | null;
 }
 export interface CandidateDetail { candidate: Candidate; fundamentals: { metrics: Record<string, number | null>; peers: string[]; mcapUsd: number; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null; tags: Tags | null; profile: { name: string | null; country: string | null; industry: string | null } | null; peers: Array<{ symbol: string; metrics: Record<string, number | null> }> }
 export interface MacroAr { date: string; oficial: number | null; mep: number | null; ccl: number | null; blue: number | null; mayorista: number | null; brechaPct: number | null; riesgoPais: number | null; merval: number | null; mervalUsd: number | null }
+export interface Watchlist { items: Array<{ symbol: string; note: string | null; addedAt: string }>; rows: Candidate[] }
 export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; acciones: Candidate[]; cedears: Candidate[] }
 export interface CatchUpResult { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }
 export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; running: boolean; lastResult: CatchUpResult | null }
@@ -127,6 +128,10 @@ export const api = {
     refresh: () => j<{ refreshed: number; errors: unknown[] }>("/radar/refresh", { method: "POST" }),
     top: (n = 5) => j<RadarTop>(`/radar/top?n=${n}`),
     argentina: () => j<ArgentinaData>("/radar/argentina"),
+    watchlist: () => j<Watchlist>("/radar/watchlist"),
+    addWatch: (symbol: string) => j<Watchlist>("/radar/watchlist", { method: "POST", body: JSON.stringify({ symbol }) }),
+    removeWatch: (symbol: string) => j<Watchlist>(`/radar/watchlist/${symbol}`, { method: "DELETE" }),
+    refreshWatchlist: () => j<{ symbols: number; rows: number; errors: Array<{ symbol: string; error: string }> }>("/radar/watchlist/refresh", { method: "POST" }),
     refreshArgentina: () => j<{ acciones: number; cedears: number; errors: Array<{ symbol: string; error: string }> }>("/radar/argentina", { method: "POST" }),
     plan: () => j<ContributionPlan | null>("/radar/plan"),
     buildPlan: () => j<ContributionPlan>("/radar/plan", { method: "POST" }),

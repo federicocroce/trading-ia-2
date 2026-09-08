@@ -139,3 +139,23 @@ describe("/radar/argentina", () => {
     expect(top.picks.some((p: { symbol: string }) => p.symbol.endsWith(".BA"))).toBe(false);
   });
 });
+
+describe("/radar/watchlist", () => {
+  it("alta, refresco con veredicto técnico, listado y baja", async () => {
+    const { a } = app();
+    expect((await post(a, "/radar/watchlist", { symbol: "bad symbol" })).status).toBe(400);
+    const added = await (await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" })).json();
+    expect(added.items.map((i: { symbol: string }) => i.symbol)).toEqual(["AAA"]);
+    expect(added.refreshed.rows).toBe(1);
+    expect(added.rows[0].kind).toBe("watch");
+    expect(["COMPRAR", "OBSERVAR"]).toContain(added.rows[0].verdict);
+    const list = await (await a.request("/radar/watchlist")).json();
+    expect(list.rows).toHaveLength(1);
+    // No aparece entre las acciones candidatas ni en el top de convicción.
+    expect((await (await a.request("/radar/candidates?kind=stock")).json()).some((c: { symbol: string }) => c.symbol === "AAA")).toBe(false);
+    expect((await (await a.request("/radar/top")).json()).picks.some((p: { symbol: string }) => p.symbol === "AAA")).toBe(false);
+    const removed = await (await a.request("/radar/watchlist/AAA", { method: "DELETE" })).json();
+    expect(removed.items).toEqual([]);
+    expect(removed.rows).toEqual([]);
+  });
+});

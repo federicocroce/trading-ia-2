@@ -338,7 +338,7 @@ export class Repo {
   /** Última fecha por familia: las filas argentinas (corren otro día) no esconden el último ranking US ni al revés. */
   async latestCandidates(): Promise<CandidateRow[]> {
     const out: CandidateRow[] = [];
-    for (const kinds of [["stock", "etf"], ["ar", "cedear"]]) {
+    for (const kinds of [["stock", "etf"], ["ar", "cedear"], ["watch"]]) {
       const last = (await this.db.select({ d: sql<string | null>`max(${s.radarCandidates.candidateDate})` }).from(s.radarCandidates).where(inArray(s.radarCandidates.kind, kinds)))[0]?.d;
       if (!last) continue;
       const rows = await this.db.select().from(s.radarCandidates).where(and(eq(s.radarCandidates.candidateDate, last), inArray(s.radarCandidates.kind, kinds))).orderBy(desc(s.radarCandidates.score));
@@ -437,6 +437,18 @@ export class Repo {
   async macroArSeries(days: number): Promise<MacroAr[]> {
     const rows = await this.db.select().from(s.macroArDaily).orderBy(desc(s.macroArDaily.date)).limit(days);
     return rows.map((r) => this.rowToMacro(r)).reverse();
+  }
+
+  // ---------- lista de seguimiento ----------
+  async watchlist(): Promise<Array<{ symbol: string; note: string | null; addedAt: string }>> {
+    const rows = await this.db.select().from(s.watchlist).orderBy(s.watchlist.symbol);
+    return rows.map((r) => ({ symbol: r.symbol, note: r.note, addedAt: r.addedAt.toISOString() }));
+  }
+  async addWatch(symbol: string, note: string | null = null): Promise<void> {
+    await this.db.insert(s.watchlist).values({ symbol: symbol.toUpperCase(), note }).onConflictDoNothing();
+  }
+  async removeWatch(symbol: string): Promise<void> {
+    await this.db.delete(s.watchlist).where(eq(s.watchlist.symbol, symbol.toUpperCase()));
   }
 
   // ---------- pasos programados ----------

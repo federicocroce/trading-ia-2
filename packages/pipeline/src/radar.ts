@@ -71,7 +71,7 @@ const HISTORY_DAYS = 260;
 
 // ---------- taxonomía ----------
 
-async function tagSymbol(deps: RadarDeps, symbol: string, profile: { industry: string | null; country: string | null } | null, proposedThemes: string[] = [], source: "regla" | "modelo" = "regla"): Promise<Tags> {
+export async function tagSymbol(deps: RadarDeps, symbol: string, profile: { industry: string | null; country: string | null } | null, proposedThemes: string[] = [], source: "regla" | "modelo" = "regla"): Promise<Tags> {
   const etf = deps.etfs.find((e) => e.symbol === symbol);
   const current = await deps.store.tags(symbol);
   const industry = profile?.industry ?? current?.industry ?? null;

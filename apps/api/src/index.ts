@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import cron from "node-cron";
-import { buildContributionPlan, dailyRun, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, runCartera, scanUniverse, syncOrders } from "@thesis/pipeline";
+import { buildContributionPlan, dailyRun, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, syncOrders } from "@thesis/pipeline";
 import { loadConfig } from "./config.js";
 import { buildContainer, state } from "./container.js";
 import { buildApp } from "./routes/index.js";
@@ -57,6 +57,8 @@ cron.schedule(cfg.radarRefreshCron, async () => {
   try {
     const r = await refreshRadar(c.radarDeps, { today, portfolioUsd: (await c.store.latestRisk())?.report.totalValue ?? null });
     const m = await measureRadar(c.radarDeps, { today });
+    const w = await refreshWatchlist(c.radarDeps, { today, portfolioUsd: (await c.store.latestRisk())?.report.totalValue ?? null }).catch((e) => { console.error("[cron] watchlist failed", e); return null; });
+    if (w) console.log(`[cron] seguimiento: ${w.rows} de ${w.symbols}, ${w.errors.length} errores`);
     const ar = await refreshArgentina(c.argentinaDeps, { today }).catch((e) => { console.error("[cron] argentina failed", e); return null; });
     if (ar) console.log(`[cron] argentina: ${ar.acciones} acciones, ${ar.cedears} cedears, ${ar.errors.length} errores`);
     console.log(`[cron] radar refresh: ${r.refreshed} candidatos, medidos ${JSON.stringify(m)}`);

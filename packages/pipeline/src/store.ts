@@ -90,6 +90,15 @@ export interface RadarStore {
   /** Última corrida de cada paso programado (ponerse al día). `lastDate` es la fecha que cubrió, no la hora en que corrió. */
   markJobRun(step: string, lastDate: string, detail?: string | null): Promise<void>;
   jobRuns(): Promise<Record<string, JobRun>>;
+  /** Lista de seguimiento: tickers elegidos a mano que reciben veredicto diario aunque el ranking no los elija. */
+  watchlist(): Promise<WatchItem[]>;
+  addWatch(symbol: string, note?: string | null): Promise<void>;
+  removeWatch(symbol: string): Promise<void>;
+}
+export interface WatchItem {
+  symbol: string;
+  note: string | null;
+  addedAt: string;
 }
 export interface JobRun {
   lastDate: string;
@@ -113,6 +122,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   risks = new Map<string, RiskReport>();
   macroAr = new Map<string, MacroAr>();
   jobs = new Map<string, JobRun>();
+  watch = new Map<string, WatchItem>();
   events = new Map<string, RawEvent & { filterPassed: boolean | null; filterReason: string | null }>();
   theses = new Map<string, Thesis>();
   orders = new Map<string, Order>();
@@ -345,6 +355,16 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   async macroArSeries(days: number) {
     return [...this.macroAr.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, days).reverse();
   }
+  async watchlist() {
+    return [...this.watch.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
+  }
+  async addWatch(symbol: string, note: string | null = null) {
+    const sym = symbol.toUpperCase();
+    if (!this.watch.has(sym)) this.watch.set(sym, { symbol: sym, note, addedAt: new Date().toISOString() });
+  }
+  async removeWatch(symbol: string) {
+    this.watch.delete(symbol.toUpperCase());
+  }
   async markJobRun(step: string, lastDate: string, detail: string | null = null) {
     this.jobs.set(step, { lastDate, ranAt: new Date().toISOString(), detail });
   }
@@ -361,7 +381,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   /** Última fecha por familia: las filas argentinas (corren otro día) no esconden el último ranking US ni al revés. */
   async latestCandidates() {
     const all = [...this.candidates.values()];
-    const family = (c: CandidateRow) => (c.kind === "ar" || c.kind === "cedear" ? "ar" : "us");
+    const family = (c: CandidateRow) => (c.kind === "ar" || c.kind === "cedear" ? "ar" : c.kind === "watch" ? "watch" : "us");
     const last: Record<string, string | undefined> = {};
     for (const c of all) if (!last[family(c)] || c.candidateDate > last[family(c)]!) last[family(c)] = c.candidateDate;
     return all.filter((c) => c.candidateDate === last[family(c)]).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
