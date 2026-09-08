@@ -26,6 +26,12 @@ export const HELP: Record<string, { label: string; short: string }> = {
   dolarImplicito: { label: "dólar implícito", short: "Precio del CEDEAR × ratio / precio en EE.UU.: el dólar que pagás comprando la acción vía CEDEAR." },
   vsCcl: { label: "vs CCL", short: "Dólar implícito contra el CCL. Más de +2% el CEDEAR está caro; menos de −2% está barato. Más de 10% en cualquier sentido: ratio dudoso, no oportunidad." },
   seguimiento: { label: "seguimiento", short: "Tickers que elegís vos. Reciben todos los días veredicto técnico, stop, objetivo, tamaño y riesgo, y su rank contra pares si están en el universo, aunque el ranking no los elija. Ideal para historias (energía para IA, minerales) que el filtro de valor deja afuera." },
+  cantidad: { label: "cantidad", short: "Acciones o cuotas que compra el monto de la línea al precio de hoy (redondeado hacia abajo)." },
+  comprarHasta: { label: "comprar hasta", short: "Precio máximo para entrar: el cierre más 2%. Si ya lo pasó, no lo corras; esperá al día siguiente. 'mercado' = se compra al precio que esté." },
+  stopPlan: { label: "stop", short: "Si cierra por debajo, se vende: la tesis se anuló. El % es lo que perdés desde el precio de hoy. No tiene plazo." },
+  objetivoPlan: { label: "objetivo", short: "Precio al que la operación paga 2 veces lo que arriesga hasta el stop. El % es la distancia desde hoy. No tiene plazo ni es un pronóstico: se llega cuando se llega, o no se llega si antes toca el stop." },
+  alpha30: { label: "alpha 30d", short: "Se completa 30 días después del plan: cuánto le ganó o perdió la línea al S&P 500 en ese período, haya tocado o no el objetivo. Es la medición, no el objetivo." },
+  alpha90: { label: "alpha 90d", short: "Lo mismo a 90 días." },
   conviccion: { label: "convicción", short: "score × fiabilidad del grupo (pares/10, tope 1) + 0.2 por consenso de compra, insiders que compran o sorpresa positiva − banderas negativas − 0.1 por punto de riesgo sobre 5 − 0.3 si el objetivo queda a menos de 5% − 0.3 si comparte un tema donde ya tenés más del 40% de la cartera." },
 };
 

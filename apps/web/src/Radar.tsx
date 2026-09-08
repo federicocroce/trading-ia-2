@@ -390,7 +390,7 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
         <button className="primary" disabled={busy || !(Number(amount) > 0)} onClick={() => void onBuild(Number(amount))}>{busy ? "Armando…" : "Armar plan con este monto"}</button>
       </div>
       <table style={{ marginTop: 8 }}>
-        <thead><tr><th>símbolo</th><th>tipo</th><th>monto</th><th>cantidad</th><th>precio</th><th>comprar hasta</th><th>stop</th><th>objetivo</th><th>por qué</th><th>alpha 30d</th><th>alpha 90d</th></tr></thead>
+        <thead><tr><Th k="simbolo" /><th>tipo</th><th>monto</th><Th k="cantidad" /><Th k="precio" /><Th k="comprarHasta" /><Th k="stopPlan" /><Th k="objetivoPlan" /><th>por qué</th><Th k="alpha30" /><Th k="alpha90" /></tr></thead>
         <tbody>
           {p.lines.map((l, i) => (
             <tr key={i}>
