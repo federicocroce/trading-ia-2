@@ -114,6 +114,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     { kind: "etf", max: cfg.etfLinesMax, countsAsNew: true },
   ];
   const chosen: PlanInput["buyCandidates"] = [];
+  const placeOf = new Map<string, string>();
   /** Todo COMPRAR que no entró, con su lugar en la fila y el motivo: el plan tiene que poder explicarse solo. */
   const leftOut: Array<{ symbol: string; reason: string }> = [];
   const POOL_LABEL: Record<"stock" | "watch" | "etf", string> = { stock: "posiciones nuevas", watch: "de seguimiento", etf: "ETF satélite" };
@@ -133,6 +134,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         return;
       }
       chosen.push(b);
+      if (pool.kind === "stock") placeOf.set(b.symbol, `${idx + 1}° por convicción de ${queue.length} COMPRAR del Radar`);
       taken++;
       if (pool.countsAsNew && isNew) newCount++;
     });
@@ -148,7 +150,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         return;
       }
       const kind: PlanLine["kind"] = b.kind === "watch" ? "seguimiento" : "comprar";
-      const why = b.kind === "watch" ? `tu lista de seguimiento, COMPRAR hoy${b.score !== null ? `, score ${b.score}` : ""}` : b.kind === "etf" ? "ETF satélite con fuerza relativa positiva" : `candidato del Radar, convicción ${b.priority ?? "—"}${b.score !== null ? `, score ${b.score}` : ""}`;
+      const why = b.kind === "watch" ? `tu lista de seguimiento, COMPRAR hoy${b.score !== null ? `, score ${b.score}` : ""}` : b.kind === "etf" ? "ETF satélite con fuerza relativa positiva" : `${placeOf.get(b.symbol) ?? "candidato del Radar"}, convicción ${b.priority ?? "—"}${b.score !== null ? `, score ${b.score}` : ""}`;
       lines.push({ ...line(b.symbol, kind, amt, why), entryHigh: b.entryHigh ?? null, stop: b.stop ?? null, target: b.target ?? null });
       used += amt;
     });
