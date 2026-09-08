@@ -32,6 +32,7 @@ function container(): Container {
     radarDeps: { store, taxonomy: { sectors: [], themes: [], industryToSector: {}, industryToThemes: {}, symbolToThemes: {}, symbolToAssetClass: {} } } as never,
     tickerDeps: { store } as never,
     argentinaDeps: { store } as never,
+    catchupRunners: Object.fromEntries(["scan", "cartera", "radar", "argentina", "plan", "tesis"].map((id) => [id, async () => `${id} corrido`])) as never,
     marketData,
     broker,
     risk: new DefaultRiskEngine(),
@@ -42,7 +43,7 @@ function container(): Container {
 }
 
 describe("API routes", () => {
-  it("run → theses → approve → portfolio → close → calibration", async () => {
+  it("run → theses → approve → portfolio → close → calibration", { timeout: 30_000 }, async () => {
     const app = buildApp(container());
     expect((await app.request("/health")).status).toBe(200);
 
@@ -83,5 +84,28 @@ describe("API routes", () => {
     expect(res.status).toBe(422);
     expect((await res.json()).reason).toBe("kill_switch");
     await app.request("/kill-switch", { method: "POST", body: JSON.stringify({ on: false }), headers: { "Content-Type": "application/json" } });
+  });
+});
+
+describe("/catchup", () => {
+  it("lista lo pendiente, corre solo eso, lo registra y no lo repite", async () => {
+    const c = container();
+    const app = buildApp(c);
+    const store = c.store;
+    // Estado compartido del proceso: que no dependa de lo que hicieron otros tests.
+    state.lastRun = null;
+    state.catchup = { running: false, last: null };
+    const before = await (await app.request("/catchup")).json();
+    expect(before.due.map((d: { id: string }) => d.id)).toEqual(["scan", "cartera", "radar", "argentina", "plan", "tesis"]);
+    const run = await (await app.request("/catchup", { method: "POST" })).json();
+    expect(run.ran.map((r: { id: string; ok: boolean }) => `${r.id}:${r.ok}`)).toEqual(["scan:true", "cartera:true", "radar:true", "argentina:true", "plan:true", "tesis:true"]);
+    const jobs = await store.jobRuns();
+    // El barrido se registra cuando termina en segundo plano; los demás quedan registrados ya.
+    expect(Object.keys(jobs).sort()).toEqual(["argentina", "cartera", "plan", "radar", "tesis"]);
+    const after = await (await app.request("/catchup")).json();
+    expect(after.due.map((d: { id: string }) => d.id)).toEqual(["scan"]);
+    expect(after.lastResult.ran).toHaveLength(6);
+    const again = await (await app.request("/catchup", { method: "POST" })).json();
+    expect(again.ran.map((r: { id: string }) => r.id)).toEqual(["scan"]);
   });
 });

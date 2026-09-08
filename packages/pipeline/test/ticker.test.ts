@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, SymbolDescription } from "@thesis/core";
-import { MemoryStore, buildTicker, type TickerDeps } from "../src/index.js";
+import { MemoryStore, buildTicker, liveQuotes, type TickerDeps } from "../src/index.js";
 
 const series = (closes: number[], start = "2026-06-01"): Candle[] => closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c + 1, low: c - 1, close: c, volume: 1_000_000 }));
 const today = "2026-09-08";
@@ -108,11 +108,12 @@ describe("buildTicker", () => {
   });
   it("modo rápido (live: false): no espera a la red, dispara lo que falta en segundo plano y lo marca pendiente", async () => {
     const { store, deps, calls } = setup();
-    const slow = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 30));
+    // Las fuentes no responden hasta que el test las libera: si el modo rápido esperara, el test se colgaría.
+    let release = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    const slow = <T,>(v: T) => gate.then(() => v);
     const lento: TickerDeps = { ...deps, descriptions: { description: (s) => { calls.push(`desc:${s}`); return slow(desc(s)); } }, history: { candles: (s) => { calls.push(`history:${s}`); return slow(series([1, 2, 3])); } }, news: { companyNews: (s) => { calls.push(`news:${s}`); return slow([]); } }, quote: () => slow({ symbol: "NVDA", price: 1, prevClose: 1, asOf: null }) };
-    const t0 = Date.now();
     const t = await buildTicker(lento, "NVDA", { today, live: false });
-    expect(Date.now() - t0).toBeLessThan(25);
     expect(t.description).toBeNull();
     expect(t.candles).toEqual([]);
     expect(t.quote).toBeNull();
@@ -120,7 +121,8 @@ describe("buildTicker", () => {
     expect(t.pending.sort()).toEqual(["descripción", "noticias", "precio", "velas"]);
     expect(Object.keys(t.timings)).toContain("total");
     // Lo que faltaba se completó atrás: la próxima llamada lo sirve desde la base.
-    await new Promise((r) => setTimeout(r, 60));
+    release();
+    await new Promise((r) => setTimeout(r, 20));
     expect((await store.description("NVDA"))?.longName).toBe("NVDA Inc");
     const t2 = await buildTicker(lento, "NVDA", { today, live: false });
     expect(t2.description?.longName).toBe("NVDA Inc");
@@ -148,5 +150,26 @@ describe("buildTicker", () => {
     expect(t.news).toEqual([]);
     expect(t.quote).toBeNull();
     expect(t.errors.length).toBe(2);
+  });
+});
+
+describe("liveQuotes", () => {
+  it("pide todos los precios en paralelo con variación diaria; un error o un timeout dan null sin frenar al resto", async () => {
+    const started: string[] = [];
+    const quote = async (s: string) => {
+      started.push(s);
+      if (s === "CAIDO") throw new Error("fuente caída");
+      if (s === "LENTO") return new Promise<never>(() => {});
+      return { symbol: s, price: 41, prevClose: 40, asOf: "2026-09-08T14:00:00Z" };
+    };
+    const q = await liveQuotes(quote, ["ggal", "CAIDO", "LENTO"], { timeoutMs: 20 });
+    expect(started).toEqual(["GGAL", "CAIDO", "LENTO"]);
+    expect(q["GGAL"]).toEqual({ price: 41, prevClose: 40, change: 1, changePct: 2.5, asOf: "2026-09-08T14:00:00Z", currency: null });
+    expect(q["CAIDO"]).toBeNull();
+    expect(q["LENTO"]).toBeNull();
+  });
+  it("sin cierre previo no hay variación; la moneda viaja con el precio", async () => {
+    const q = await liveQuotes(async (s) => ({ symbol: s, price: 10, prevClose: null, asOf: null, currency: "ARS" }), ["GGAL.BA"]);
+    expect(q["GGAL.BA"]).toEqual({ price: 10, prevClose: null, change: null, changePct: null, asOf: null, currency: "ARS" });
   });
 });

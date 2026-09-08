@@ -24,6 +24,8 @@ export interface Config {
   radarScanCron: string;
   radarRefreshCron: string;
   radarPlanCron: string;
+  /** Chequeo automático de pasos pendientes al arrancar y cada 30 min (CATCHUP_AUTO=0 lo apaga). */
+  catchupAuto: boolean;
   radar: RadarConfig;
   universe: Universe;
   csvPath: string;
@@ -140,6 +142,7 @@ export async function loadConfig(root?: string): Promise<Config> {
     radarScanCron: process.env["RADAR_SCAN_CRON"] ?? "0 20 * * 0",
     radarRefreshCron: process.env["RADAR_REFRESH_CRON"] ?? "50 7 * * 1-5",
     radarPlanCron: process.env["RADAR_PLAN_CRON"] ?? "0 8 1 * *",
+    catchupAuto: process.env["CATCHUP_AUTO"] !== "0",
     radar: await loadRadarConfig(root),
     universe,
     csvPath: process.env["MANUAL_CSV"] ?? path.join(root, "config", "events.csv"),

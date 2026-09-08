@@ -335,3 +335,11 @@ export const macroArDaily = pgTable("macro_ar_daily", {
   mervalUsd: numeric("merval_usd", { precision: 14, scale: 4 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Última corrida registrada de cada paso programado (para ponerse al día tras un apagado). */
+export const jobRuns = pgTable("job_runs", {
+  step: text("step").primaryKey(),
+  lastDate: text("last_date").notNull(),
+  ranAt: timestamp("ran_at", { withTimezone: true }).notNull().defaultNow(),
+  detail: text("detail"),
+});

@@ -18,6 +18,8 @@ export const state = {
   killSwitch: false,
   lastRun: null as null | { at: string; summary: unknown },
   scan: { running: false, stopRequested: false, startedAt: null, progress: null, last: null } as ScanState,
+  /** Ponerse al día: evita corridas superpuestas y guarda el último resultado para la UI. */
+  catchup: { running: false, last: null as null | { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> } },
 };
 
 export interface Container {
@@ -29,6 +31,8 @@ export interface Container {
   radarDeps: RadarDeps;
   /** Argentina (etapa 3): macro, acciones de BYMA y CEDEARs. */
   argentinaDeps: ArgentinaDeps;
+  /** Solo para tests: reemplaza los pasos reales de "ponerme al día". */
+  catchupRunners?: import("./catchup.js").Runners;
   /** Página por ticker (etapa 2b): agregador + gráfico intradiario en vivo. */
   tickerDeps: TickerDeps & { chart: { bars(symbol: string, range: string, interval: string): Promise<import("@thesis/core").ChartBar[]> } };
   marketData: MarketData;

@@ -47,6 +47,8 @@ export interface Candidate {
 export interface CandidateDetail { candidate: Candidate; fundamentals: { metrics: Record<string, number | null>; peers: string[]; mcapUsd: number; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null; tags: Tags | null; profile: { name: string | null; country: string | null; industry: string | null } | null; peers: Array<{ symbol: string; metrics: Record<string, number | null> }> }
 export interface MacroAr { date: string; oficial: number | null; mep: number | null; ccl: number | null; blue: number | null; mayorista: number | null; brechaPct: number | null; riesgoPais: number | null; merval: number | null; mervalUsd: number | null }
 export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; acciones: Candidate[]; cedears: Candidate[] }
+export interface CatchUpResult { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }
+export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; running: boolean; lastResult: CatchUpResult | null }
 export interface TopPick { symbol: string; conviction: number; gainPct: number; lossPct: number; reasons: string[]; cautions: string[]; allAligned: boolean; close: number; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; score: number | null; rankInGroup: number | null; groupSize: number | null; summary: string | null; mainRisk: string | null; tags: Tags | null }
 export interface RadarTop { date: string | null; overweight: Record<string, number>; picks: TopPick[] }
 export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar"; amountUsd: number; rationale: string; alpha30dPct: number | null; alpha90dPct: number | null }
@@ -61,10 +63,12 @@ export interface ChartBar { time: number; open: number; high: number; low: numbe
 export interface SymbolDescription { symbol: string; longName: string | null; summary: string | null; employees: number | null; website: string | null; exchangeName: string | null; firstTradeDate: string | null; sector: string | null; industry: string | null; country: string | null; updatedAt: string }
 export interface NewsItem { symbol: string; date: string; headline: string; source: string | null; url: string; summary: string | null }
 export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" | "DIVIDEND" | "TRANSFER"; quantity: number; price: number; fees: number; date: string; currency: string; platform: string | null; externalId: string | null; notes: string | null }
+/** Precio vivo con la variación del día contra el cierre previo. */
+export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null }
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
-  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null } | null;
+  quote: Quote | null;
   position: (Position & { valueUsd: number; pnlUsd: number; pnlPct: number; weightPct: number | null }) | null;
   verdict: Verdict | null;
   tags: Tags | null;
@@ -104,6 +108,7 @@ export const api = {
   run: () => j<{ proposed: unknown[]; rejected: unknown[]; errors: unknown[]; newEvents: number; passed: number }>("/run", { method: "POST" }),
   cartera: {
     positions: () => j<Position[]>("/cartera/positions"),
+    quotes: () => j<{ asOf: string; quotes: Record<string, Quote | null> }>("/cartera/quotes"),
     upsertPosition: (p: Position) => j<{ ok: boolean }>("/cartera/positions", { method: "POST", body: JSON.stringify(p) }),
     deletePosition: (symbol: string) => j<{ ok: boolean }>(`/cartera/positions/${symbol}`, { method: "DELETE" }),
     run: () => j<CarteraRun>("/cartera/run", { method: "POST" }),
@@ -131,6 +136,10 @@ export const api = {
     options: () => j<TaxonomyOptions>("/taxonomy/options"),
     get: (symbol: string) => j<Tags>(`/taxonomy/${symbol}`),
     put: (symbol: string, body: { assetClass?: string; sector?: string; themes?: string[] }) => j<Tags>(`/taxonomy/${symbol}`, { method: "PUT", body: JSON.stringify(body) }),
+  },
+  catchup: {
+    status: () => j<CatchUpStatus>("/catchup"),
+    run: () => j<CatchUpResult>("/catchup", { method: "POST" }),
   },
   ticker: {
     get: (symbol: string, o: { live?: boolean } = {}) => j<TickerPage>(`/ticker/${symbol}${o.live === false ? "?live=0" : ""}`),

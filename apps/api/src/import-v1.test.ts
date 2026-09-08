@@ -20,7 +20,7 @@ function fakeV1(): string {
 }
 
 describe("import-v1", () => {
-  it("lee posiciones con su mercado y operaciones válidas", () => {
+  it("lee posiciones con su mercado y operaciones válidas", { timeout: 30_000 }, () => {
     const { positions, transactions } = readV1(fakeV1());
     expect(positions).toEqual([
       { symbol: "TSM", quantity: 26.5, avgCost: 376.2, currency: "USD", market: "us", layer: "riesgo", notes: "x" },

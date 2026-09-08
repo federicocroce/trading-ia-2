@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { summarizeMeasurement } from "@thesis/core";
-import { measureVerdicts, runCartera } from "@thesis/pipeline";
+import { liveQuotes, measureVerdicts, runCartera } from "@thesis/pipeline";
 import { randomUUID } from "node:crypto";
 import type { Container } from "../container.js";
 
@@ -42,6 +42,13 @@ export function carteraRoutes(c: Container) {
   app.delete("/cartera/positions/:symbol", async (ctx) => {
     await store.deletePosition(ctx.req.param("symbol"));
     return ctx.json({ ok: true });
+  });
+
+  /** Precio vivo de cada posición con variación diaria, para la tabla. Una fuente caída da null, no error. */
+  app.get("/cartera/quotes", async (ctx) => {
+    const symbols = (await store.positions()).map((p) => p.symbol);
+    const quotes = await liveQuotes(c.tickerDeps.quote, symbols, { log: (m) => console.warn(m) });
+    return ctx.json({ asOf: new Date().toISOString(), quotes });
   });
 
   app.get("/cartera/transactions", async (ctx) => ctx.json(await store.transactions()));

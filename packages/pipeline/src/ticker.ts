@@ -61,6 +61,34 @@ export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promis
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 120);
 
+/** Del precio crudo a lo que muestra la UI: variación diaria en moneda y en % contra el cierre previo. */
+export type QuoteView = NonNullable<TickerPage["quote"]>;
+export function shapeQuote(q: LiveQuote): QuoteView {
+  const change = q.prevClose ? round2(q.price - q.prevClose) : null;
+  return { price: q.price, prevClose: q.prevClose, change, changePct: q.prevClose ? round2(((q.price - q.prevClose) / q.prevClose) * 100) : null, asOf: q.asOf, currency: q.currency ?? null };
+}
+
+/**
+ * Precio vivo de varios símbolos a la vez (la tabla de Cartera): todos en paralelo, cada uno con su
+ * timeout. Una fuente caída o colgada da null para ese símbolo y no frena al resto.
+ */
+export async function liveQuotes(quote: TickerDeps["quote"], symbols: string[], opts: { timeoutMs?: number; log?: (msg: string) => void } = {}): Promise<Record<string, QuoteView | null>> {
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_SOURCE_TIMEOUT_MS;
+  const entries = await Promise.all(
+    symbols.map(async (raw) => {
+      const symbol = raw.toUpperCase();
+      try {
+        const q = await withTimeout(quote(symbol), timeoutMs, `precio ${symbol}`);
+        return [symbol, q ? shapeQuote(q) : null] as const;
+      } catch (e) {
+        opts.log?.(`[cartera] precio ${symbol}: ${errText(e)}`);
+        return [symbol, null] as const;
+      }
+    }),
+  );
+  return Object.fromEntries(entries);
+}
+
 /**
  * Regla de carga: lo guardado se sirve al instante. Si falta, se pide con timeout; si está viejo,
  * se sirve igual y se refresca en segundo plano para la próxima visita. Las fuentes corren en paralelo.
@@ -151,11 +179,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     return fresh ?? [];
   });
 
-  const quoteP = guarded("precio", () => deps.quote(symbol)).then((q): TickerPage["quote"] => {
-    if (!q) return null;
-    const change = q.prevClose ? round2(q.price - q.prevClose) : null;
-    return { price: q.price, prevClose: q.prevClose, change, changePct: q.prevClose ? round2(((q.price - q.prevClose) / q.prevClose) * 100) : null, asOf: q.asOf, currency: q.currency ?? null };
-  });
+  const quoteP = guarded("precio", () => deps.quote(symbol)).then((q): TickerPage["quote"] => (q ? shapeQuote(q) : null));
 
   const dbStart = Date.now();
   const [description, candles, news, quote, positions, verdicts, tags, fundamentals, candidates, theses, txs, filings, risk] = await Promise.all([

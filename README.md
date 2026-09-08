@@ -52,7 +52,7 @@ Eventos con fecha que no tienen API gratuita (PDUFA, fallos, licitaciones) se ca
 
 ## Cartera real
 
-Pestaña **Cartera** (primera del menú): tus posiciones reales con un veredicto diario por posición, **VENDER / REVISAR / MANTENER / SUMAR**, stop dinámico, objetivo, ganancia, peso, el por qué en dos líneas, un panel de riesgo calculado (concentración por país e industria, pares correlacionados, beta, estrés si SPY cae 20%, liquidez) y la medición de cada veredicto contra SPY a 7 y 30 días. Diseño en [`docs/superpowers/specs/2026-09-07-cartera-etapa1-design.md`](docs/superpowers/specs/2026-09-07-cartera-etapa1-design.md).
+Pestaña **Cartera** (primera del menú): tus posiciones reales con un veredicto diario por posición, **VENDER / REVISAR / MANTENER / SUMAR**, precio vivo con la variación del día al lado, valor, P&L en USD y en %, totales de la cartera (solo posiciones en USD), stop dinámico, objetivo, peso, el por qué en dos líneas, un panel de riesgo calculado (concentración por país e industria, pares correlacionados, beta, estrés si SPY cae 20%, liquidez) y la medición de cada veredicto contra SPY a 7 y 30 días. Diseño en [`docs/superpowers/specs/2026-09-07-cartera-etapa1-design.md`](docs/superpowers/specs/2026-09-07-cartera-etapa1-design.md).
 
 Reglas, no prompts: el verbo lo deciden reglas puras en `packages/core/src/cartera` (stop *chandelier* 22/3, jerarquía portada de trading v1, criterio SUMAR explícito). El modelo (Gemini o Claude) escribe la narrativa con los números que recibe y **solo puede degradar** MANTENER/SUMAR a REVISAR citando un filing o noticia; nunca sube un verbo ni decide VENDER. Sin precio de hoy, el veredicto es REVISAR con aviso: no se inventa nada.
 
@@ -61,7 +61,7 @@ pnpm import:v1 [ruta/a/trading.db]   # una vez: posiciones y operaciones desde t
 curl -X POST localhost:3002/cartera/run   # o el botón "Actualizar veredictos"; el cron corre lun–vie 07:45 (CARTERA_CRON)
 ```
 
-Posiciones y operaciones también se cargan y editan en la UI. Precios diarios de Yahoo con respaldo de Alpaca; perfil de empresa de Finnhub si hay `FINNHUB_API_KEY`. Importar requiere `node:sqlite` (Node 24; en Node 22, `NODE_OPTIONS=--experimental-sqlite`).
+Posiciones y operaciones también se cargan y editan en la UI. Precios diarios de Yahoo con respaldo de Alpaca; perfil de empresa de Finnhub si hay `FINNHUB_API_KEY`. El precio vivo de la tabla sale de Alpaca (Yahoo para los `.BA`) con 6 s de timeout por símbolo; si una fuente no responde, esa fila usa el cierre del veredicto y se ve apagada, y los totales avisan cuántas quedaron sin precio. Importar requiere `node:sqlite` (Node 24; en Node 22, `NODE_OPTIONS=--experimental-sqlite`).
 
 ## Radar (candidatos nuevos)
 
@@ -117,6 +117,31 @@ Card **Argentina** en la pestaña Radar. Corre todos los días con el refresco d
 GET  /radar/argentina    # macro del día + serie de 60 días + acciones + cedears
 POST /radar/argentina    # refresco
 ```
+
+## Operación diaria: qué corre solo y qué hacés vos
+
+Mientras la API esté prendida, todo corre solo (hora local):
+
+| Cuándo | Paso | Dónde se ve |
+|---|---|---|
+| lun–vie 07:30 | Tesis por eventos (`DAILY_CRON`) | Propuestas, Abiertas, Historial |
+| lun–vie 07:45 | Veredictos de Cartera + medición (`CARTERA_CRON`) | Cartera |
+| lun–vie 07:50 | Refresco y medición del Radar + Argentina (`RADAR_REFRESH_CRON`) | Radar |
+| domingo 20:00 | Barrido del universo + ranking (`RADAR_SCAN_CRON`) | Radar |
+| día 1, 08:00 | Plan del aporte (`RADAR_PLAN_CRON`) | Radar, plan del aporte |
+
+**Ponerme al día.** Si la máquina estaba apagada o dormida a esa hora, no hace falta acordarse de nada: la API chequea un minuto después de arrancar y cada 30 minutos qué pasos quedaron sin correr (según `job_runs`, la última fecha cubierta por cada paso, con lo que ya hay en la base como respaldo) y corre solo esos, en orden: barrido y ranking (en segundo plano), Cartera, Radar, Argentina, plan, tesis. Lo ya hecho no se repite. El botón **Ponerme al día** del encabezado hace lo mismo a mano y muestra qué está pendiente; `CATCHUP_AUTO=0` apaga el chequeo automático. Rutas: `GET /catchup` (estado) y `POST /catchup` (correr).
+
+**Siempre prendido (macOS).** Para que la API y el web arranquen al iniciar sesión y se relancen si se caen:
+
+```bash
+scripts/launchd/install.sh      # agentes com.thesis-engine.api y .web; logs en ~/Library/Logs/thesis-engine
+scripts/launchd/uninstall.sh
+```
+
+Docker Desktop queda configurado para arrancar al iniciar sesión y la base tiene `restart: unless-stopped`, así que después de un reinicio todo vuelve solo. Si querés que la Mac se despierte sola a la hora de los crons (opcional, pide sudo): `sudo pmset repeat wakeorpoweron MTWRF 07:25:00`. Sin eso, cuando la abras se pone al día en el primer chequeo.
+
+**Tu rutina.** Cada mañana: Cartera (¿VENDER o REVISAR?), Radar (¿cambió lo que más recomienda?), Argentina (¿CCL, riesgo país?). El día 1: seguir el plan del aporte, comprar a mano en el broker y cargar las operaciones. Los lunes: mirar los candidatos nuevos del ranking del domingo. Los botones del Radar (Barrer universo, Rankear, Refrescar, Refrescar Argentina, Regenerar plan) fuerzan un paso a mano; con "Ponerme al día" casi nunca hacen falta.
 
 ## Criterio de salida de paper (DESIGN.md §7)
 

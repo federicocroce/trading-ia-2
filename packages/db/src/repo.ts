@@ -432,6 +432,16 @@ export class Repo {
     const rows = await this.db.select().from(s.macroArDaily).orderBy(desc(s.macroArDaily.date)).limit(days);
     return rows.map((r) => this.rowToMacro(r)).reverse();
   }
+
+  // ---------- pasos programados ----------
+  async markJobRun(step: string, lastDate: string, detail: string | null = null): Promise<void> {
+    const ranAt = new Date();
+    await this.db.insert(s.jobRuns).values({ step, lastDate, ranAt, detail }).onConflictDoUpdate({ target: s.jobRuns.step, set: { lastDate, ranAt, detail } });
+  }
+  async jobRuns(): Promise<Record<string, { lastDate: string; ranAt: string; detail: string | null }>> {
+    const rows = await this.db.select().from(s.jobRuns);
+    return Object.fromEntries(rows.map((r) => [r.step, { lastDate: r.lastDate, ranAt: r.ranAt.toISOString(), detail: r.detail }]));
+  }
 }
 
 function toRawEvent(r: typeof s.rawEvents.$inferSelect): RawEvent {

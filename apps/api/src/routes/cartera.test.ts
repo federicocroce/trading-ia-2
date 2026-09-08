@@ -10,7 +10,7 @@ const today = new Date(Date.parse("2026-06-01") + 98 * 86_400_000).toISOString()
 
 function app() {
   const store = new MemoryStore();
-  const c = { store, carteraDeps: { store, history: { candles: async (s: string) => mk(99, s === "SPY" ? 500 : 40) }, profiles: { profile: async () => null }, narrator: null, spot: async () => null } } as unknown as Container;
+  const c = { store, carteraDeps: { store, history: { candles: async (s: string) => mk(99, s === "SPY" ? 500 : 40) }, profiles: { profile: async () => null }, narrator: null, spot: async () => null }, tickerDeps: { quote: async (s: string) => { if (s === "BAD") throw new Error("fuente caída"); return { symbol: s, price: 41, prevClose: 40, asOf: null }; } } } as unknown as Container;
   const a = new Hono();
   a.route("/", carteraRoutes(c));
   return a;
@@ -33,6 +33,15 @@ describe("/cartera", () => {
     expect(m.byVerb.MANTENER.h7.n).toBe(0);
     expect((await a.request("/cartera/positions/YPF", { method: "DELETE" })).status).toBe(200);
     expect(await (await a.request("/cartera/positions")).json()).toHaveLength(0);
+  });
+  it("precios vivos de las posiciones: uno por símbolo con variación diaria, null si la fuente falla", async () => {
+    const a = app();
+    await post(a, "/cartera/positions", { symbol: "ypf", quantity: 100, avgCost: 30, market: "adr" });
+    await post(a, "/cartera/positions", { symbol: "bad", quantity: 1, avgCost: 1, market: "us" });
+    const r = await (await a.request("/cartera/quotes")).json();
+    expect(r.quotes.YPF).toMatchObject({ price: 41, prevClose: 40, change: 1, changePct: 2.5 });
+    expect(r.quotes.BAD).toBeNull();
+    expect(typeof r.asOf).toBe("string");
   });
   it("operaciones: inserta y dedupea", async () => {
     const a = app();

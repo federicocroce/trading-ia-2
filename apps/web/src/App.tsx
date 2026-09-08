@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Thesis } from "./api";
+import { api, type CatchUpStatus, type Thesis } from "./api";
 import { Cartera } from "./Cartera";
 import { Radar } from "./Radar";
 import { Ticker } from "./Ticker";
@@ -25,7 +25,21 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const refreshHealth = useCallback(() => api.health().then(setHealth).catch(() => setHealth(null)), []);
+  const [catchup, setCatchup] = useState<CatchUpStatus | null>(null);
+  const refreshHealth = useCallback(() => Promise.all([api.health().then(setHealth).catch(() => setHealth(null)), api.catchup.status().then(setCatchup).catch(() => setCatchup(null))]), []);
+  async function catchUpNow() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await api.catchup.run();
+      setMsg(r.ran.length ? `Al día: ${r.ran.map((x) => `${x.label} → ${x.ok ? x.detail : `falló (${x.detail})`}`).join(" · ")}` : "No había nada pendiente.");
+    } catch (e) {
+      setMsg(String(e));
+    } finally {
+      setBusy(false);
+      void refreshHealth();
+    }
+  }
   useEffect(() => {
     void refreshHealth();
     // La API se reinicia sola al editar código (tsx watch): reintentar para que el aviso se vaya solo.
@@ -66,8 +80,11 @@ export function App() {
         </nav>
         <div className="spacer" />
         <span className="tag">paper</span>
-        {health?.lastRun && <span className="muted">última corrida {new Date(health.lastRun.at).toLocaleString()}</span>}
-        <button className="ghost" onClick={run} disabled={busy}>
+        {catchup && (catchup.due.length === 0 ? <span className="muted" title="Todos los pasos programados corrieron para la última fecha esperada.">✓ al día</span> : <span className="warn" title={catchup.due.map((d) => `${d.label}: última ${d.last ?? "nunca"}, esperada ${d.expected}`).join("\n")}>pendiente: {catchup.due.map((d) => d.label).join(", ")}</span>)}
+        <button className={catchup && catchup.due.length > 0 ? "primary" : "ghost"} onClick={catchUpNow} disabled={busy || !!catchup?.running} title="Corre solo los pasos programados que quedaron sin correr (máquina apagada o dormida). Lo ya hecho no se repite.">
+          {busy || catchup?.running ? "Poniéndome al día…" : "Ponerme al día"}
+        </button>
+        <button className="ghost" onClick={run} disabled={busy} title="Fuerza el pipeline de tesis por eventos ahora, aunque ya haya corrido hoy.">
           {busy ? "Corriendo…" : "Correr pipeline"}
         </button>
         <button className={health?.killSwitch ? "primary" : "danger"} onClick={toggleKill} disabled={!health}>

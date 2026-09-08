@@ -5,6 +5,7 @@ import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHu
 import { z } from "zod";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
+import { catchUpStatus, runCatchUp } from "../catchup.js";
 import { carteraRoutes } from "./cartera.js";
 import { radarRoutes } from "./radar.js";
 import { taxonomyRoutes } from "./taxonomy.js";
@@ -15,6 +16,9 @@ export function buildApp(c: Container) {
   app.use("*", cors());
 
   app.get("/health", async (ctx) => ctx.json({ ok: true, paper: true, killSwitch: state.killSwitch, lastRun: state.lastRun }));
+  /** Ponerse al día: qué pasos quedaron sin correr y correrlos (solo esos). */
+  app.get("/catchup", async (ctx) => ctx.json(await catchUpStatus(c)));
+  app.post("/catchup", async (ctx) => ctx.json(await runCatchUp(c)));
 
   // ---- tesis ----
   app.get("/theses", async (ctx) => {

@@ -87,6 +87,14 @@ export interface RadarStore {
   saveMacroAr(m: MacroAr): Promise<void>;
   latestMacroAr(): Promise<MacroAr | null>;
   macroArSeries(days: number): Promise<MacroAr[]>;
+  /** Última corrida de cada paso programado (ponerse al día). `lastDate` es la fecha que cubrió, no la hora en que corrió. */
+  markJobRun(step: string, lastDate: string, detail?: string | null): Promise<void>;
+  jobRuns(): Promise<Record<string, JobRun>>;
+}
+export interface JobRun {
+  lastDate: string;
+  ranAt: string;
+  detail: string | null;
 }
 
 export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore {
@@ -104,6 +112,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   verdicts = new Map<string, VerdictRow>();
   risks = new Map<string, RiskReport>();
   macroAr = new Map<string, MacroAr>();
+  jobs = new Map<string, JobRun>();
   events = new Map<string, RawEvent & { filterPassed: boolean | null; filterReason: string | null }>();
   theses = new Map<string, Thesis>();
   orders = new Map<string, Order>();
@@ -335,6 +344,12 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async macroArSeries(days: number) {
     return [...this.macroAr.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, days).reverse();
+  }
+  async markJobRun(step: string, lastDate: string, detail: string | null = null) {
+    this.jobs.set(step, { lastDate, ranAt: new Date().toISOString(), detail });
+  }
+  async jobRuns() {
+    return Object.fromEntries(this.jobs);
   }
   async upsertCandidates(rows: CandidateRow[]) {
     for (const c of rows) {

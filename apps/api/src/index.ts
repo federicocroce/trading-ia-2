@@ -4,6 +4,7 @@ import { buildContributionPlan, dailyRun, measureRadar, measureVerdicts, rankRad
 import { loadConfig } from "./config.js";
 import { buildContainer, state } from "./container.js";
 import { buildApp } from "./routes/index.js";
+import { runCatchUp } from "./catchup.js";
 
 const cfg = await loadConfig();
 const c = buildContainer(cfg);
@@ -71,6 +72,14 @@ cron.schedule(cfg.radarPlanCron, async () => {
     console.error("[cron] radar plan failed", e);
   }
 });
+
+// Ponerse al día solo: si la máquina estaba apagada o dormida a la hora de un cron, se corre lo que faltó
+// un minuto después de arrancar y se vuelve a chequear cada 30 minutos. Lo ya hecho no se repite (job_runs).
+if (cfg.catchupAuto) {
+  const tick = () => runCatchUp(c).then((r) => { if (r.ran.length) console.log(`[catchup] ${r.ran.map((x) => `${x.label}: ${x.ok ? "ok" : "falló"}`).join(" · ")}`); }).catch((e) => console.error("[catchup] failed", e));
+  setTimeout(tick, 60_000);
+  setInterval(tick, 30 * 60_000);
+}
 
 serve({ fetch: app.fetch, port: cfg.port }, () => {
   console.log(`thesis-engine api on :${cfg.port} (paper only) — daily cron "${cfg.dailyCron}"`);
