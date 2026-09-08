@@ -142,6 +142,7 @@ export function buildContainer(cfg: Config): Container {
     news: { companyNews: (s, from, to) => (finnhub ? finnhub.companyNews(s, from, to) : Promise.resolve([])) },
     quote: (s) => alpacaAssets.quote(s),
     newsFetchedAt: new Map(),
+      log: (m: string) => console.warn(m),
     chart: { bars: (s, range, interval) => yahooChart.bars(s, range as never, interval as never) },
   };
 

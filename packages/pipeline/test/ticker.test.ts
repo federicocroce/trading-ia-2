@@ -61,6 +61,72 @@ describe("buildTicker", () => {
     expect(t.description?.longName).toBe("NVDA Inc");
     expect(t.candles.length).toBe(99);
   });
+  it("una fuente colgada no bloquea la página: corta al timeout, avisa y las cuatro fuentes corren en paralelo", async () => {
+    const { deps } = setup();
+    const never = () => new Promise<never>(() => {});
+    const slow = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 40));
+    const hung: TickerDeps = { ...deps, descriptions: { description: never }, news: { companyNews: never }, quote: never, history: { candles: never } };
+    const t0 = Date.now();
+    const t = await buildTicker(hung, "NVDA", { today, timeoutMs: 30 });
+    expect(Date.now() - t0).toBeLessThan(500);
+    expect(t.description).toBeNull();
+    expect(t.candles).toEqual([]);
+    expect(t.news).toEqual([]);
+    expect(t.quote).toBeNull();
+    expect(t.errors).toHaveLength(4);
+    expect(t.errors.every((e) => e.includes("tardó más de 30 ms"))).toBe(true);
+    // En paralelo: cuatro fuentes de 40 ms no suman 160 ms.
+    const par: TickerDeps = { ...deps, descriptions: { description: (s) => slow(desc(s)) }, news: { companyNews: (s) => slow([{ symbol: s, date: "2026-09-07", headline: "N", source: null, url: `https://n/${s}`, summary: null }]) }, quote: (s) => slow({ symbol: s, price: 1, prevClose: 1, asOf: null }), history: { candles: () => slow(series([1, 2, 3])) } };
+    const t1 = Date.now();
+    const p = await buildTicker(par, "NVDA", { today, timeoutMs: 1000 });
+    expect(Date.now() - t1).toBeLessThan(120);
+    expect(p.errors).toEqual([]);
+    expect(p.candles.length).toBe(3);
+  });
+  it("descripción, velas y noticias viejas se sirven ya y se refrescan en segundo plano", async () => {
+    const { store, deps, calls } = setup();
+    await store.saveDescription({ ...desc("GGAL"), longName: "Vieja", updatedAt: "2026-06-01T00:00:00.000Z" });
+    await store.upsertCandles("GGAL", series([30, 31], "2026-08-20"));
+    await store.upsertNews([{ symbol: "GGAL", date: "2026-08-01", headline: "Vieja noticia", source: null, url: "https://n/old", summary: null }]);
+    deps.newsFetchedAt!.set("GGAL", Date.now() - 48 * 3_600_000);
+    const t = await buildTicker(deps, "GGAL", { today });
+    // Lo guardado sale sin esperar a la red.
+    expect(t.description?.longName).toBe("Vieja");
+    expect(t.candles.length).toBe(2);
+    expect(t.news.map((n) => n.headline)).toEqual(["Vieja noticia"]);
+    expect(t.errors).toEqual([]);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls.sort()).toEqual(["desc:GGAL", "history:GGAL", "news:GGAL"]);
+    expect((await store.description("GGAL"))?.longName).toBe("GGAL Inc");
+    expect((await store.candles("GGAL", "2020-01-01")).length).toBe(99);
+    expect((await store.news("GGAL", 20)).length).toBe(2);
+    // Una segunda llamada inmediata no vuelve a disparar el refresco de noticias.
+    calls.length = 0;
+    await buildTicker(deps, "GGAL", { today });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls).toEqual([]);
+  });
+  it("modo rápido (live: false): no espera a la red, dispara lo que falta en segundo plano y lo marca pendiente", async () => {
+    const { store, deps, calls } = setup();
+    const slow = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 30));
+    const lento: TickerDeps = { ...deps, descriptions: { description: (s) => { calls.push(`desc:${s}`); return slow(desc(s)); } }, history: { candles: (s) => { calls.push(`history:${s}`); return slow(series([1, 2, 3])); } }, news: { companyNews: (s) => { calls.push(`news:${s}`); return slow([]); } }, quote: () => slow({ symbol: "NVDA", price: 1, prevClose: 1, asOf: null }) };
+    const t0 = Date.now();
+    const t = await buildTicker(lento, "NVDA", { today, live: false });
+    expect(Date.now() - t0).toBeLessThan(25);
+    expect(t.description).toBeNull();
+    expect(t.candles).toEqual([]);
+    expect(t.quote).toBeNull();
+    expect(t.errors).toEqual([]);
+    expect(t.pending.sort()).toEqual(["descripción", "noticias", "precio", "velas"]);
+    expect(Object.keys(t.timings)).toContain("total");
+    // Lo que faltaba se completó atrás: la próxima llamada lo sirve desde la base.
+    await new Promise((r) => setTimeout(r, 60));
+    expect((await store.description("NVDA"))?.longName).toBe("NVDA Inc");
+    const t2 = await buildTicker(lento, "NVDA", { today, live: false });
+    expect(t2.description?.longName).toBe("NVDA Inc");
+    expect(t2.candles.length).toBe(3);
+    expect(t2.pending).toEqual(["precio"]);
+  });
   it("si Yahoo o Finnhub fallan, la página sale igual con lo que hay", async () => {
     const { deps } = setup();
     const bad: TickerDeps = { ...deps, descriptions: { description: async () => { throw new Error("yahoo"); } }, news: { companyNews: async () => { throw new Error("finnhub"); } }, quote: async () => null };

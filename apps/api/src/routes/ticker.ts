@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { ChartBar } from "@thesis/core";
-import { buildTicker } from "@thesis/pipeline";
+import { buildTicker, withTimeout } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 
 /**
@@ -13,6 +13,9 @@ const INTERVALS = new Set(["5m", "15m", "1h", "1d", "1wk"]);
 const RANGE_DAYS: Record<string, number> = { "1d": 1, "5d": 5, "1mo": 31, "3mo": 92, "6mo": 183, "1y": 366, "2y": 731, "5y": 1827 };
 const DAY = 86_400_000;
 
+/** Yahoo en vivo no puede colgar el gráfico: pasado esto, 502 y el front avisa. */
+const CHART_TIMEOUT_MS = 8_000;
+
 export function tickerRoutes(c: Container) {
   const app = new Hono();
   const deps = c.tickerDeps;
@@ -21,7 +24,9 @@ export function tickerRoutes(c: Container) {
   app.get("/ticker/:symbol", async (ctx) => {
     const symbol = ctx.req.param("symbol").toUpperCase();
     if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) return ctx.json({ error: "símbolo inválido" }, 400);
-    return ctx.json(await buildTicker(deps, symbol, { today: today(ctx.req.query("today")) }));
+    // ?live=0: modo rápido, solo lo guardado; lo que falta se completa atrás y la UI vuelve a pedir.
+    const live = ctx.req.query("live") !== "0";
+    return ctx.json(await buildTicker(deps, symbol, { today: today(ctx.req.query("today")), live }));
   });
 
   app.get("/ticker/:symbol/chart", async (ctx) => {
@@ -41,7 +46,7 @@ export function tickerRoutes(c: Container) {
       }
     }
     try {
-      return ctx.json(await deps.chart.bars(symbol, range, interval));
+      return ctx.json(await withTimeout(deps.chart.bars(symbol, range, interval), CHART_TIMEOUT_MS, "gráfico"));
     } catch (e) {
       return ctx.json({ error: String(e).slice(0, 200) }, 502);
     }

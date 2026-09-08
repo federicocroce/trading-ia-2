@@ -20,10 +20,14 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const [moreSummary, setMoreSummary] = useState(false);
   const load = useCallback(() => api.ticker.get(symbol).then(setT).catch((e) => setErr(String(e))), [symbol]);
   useEffect(() => {
+    let alive = true;
     setT(null);
     setErr(null);
-    void load();
-  }, [load]);
+    // Dos fases: primero lo guardado (rápido) para pintar ya; después la página completa con precio vivo.
+    api.ticker.get(symbol, { live: false }).then((p) => { if (alive && p) setT((cur) => cur ?? p); }).catch(() => null);
+    api.ticker.get(symbol).then((p) => { if (alive) setT(p); }).catch((e) => { if (alive) setErr(String(e)); });
+    return () => { alive = false; };
+  }, [symbol]);
   const onPeriod = useCallback((p: PeriodChange | null) => setPeriod(p), []);
 
   if (err) return <div className="card"><button className="ghost" onClick={onBack}>← Volver</button><div className="err">{err}</div></div>;
@@ -190,6 +194,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.arNews.length > 0 && <div style={{ marginTop: 8 }}><span className="muted">Prensa argentina:</span> {t.arNews.map((f) => <div key={f} className="muted">{f}</div>)}</div>}
         </div>
       )}
+      {t.pending.length > 0 && <div className="card muted">Completando {t.pending.join(", ")}…</div>}
       {t.errors.length > 0 && <div className="card muted">Fuentes que no respondieron: {t.errors.join(" · ")}</div>}
     </>
   );

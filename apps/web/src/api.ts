@@ -77,6 +77,8 @@ export interface TickerPage {
   filings: string[];
   arNews: string[];
   errors: string[];
+  pending: string[];
+  timings: Record<string, number>;
 }
 
 const base = "/api";
@@ -127,7 +129,7 @@ export const api = {
     put: (symbol: string, body: { assetClass?: string; sector?: string; themes?: string[] }) => j<Tags>(`/taxonomy/${symbol}`, { method: "PUT", body: JSON.stringify(body) }),
   },
   ticker: {
-    get: (symbol: string) => j<TickerPage>(`/ticker/${symbol}`),
+    get: (symbol: string, o: { live?: boolean } = {}) => j<TickerPage>(`/ticker/${symbol}${o.live === false ? "?live=0" : ""}`),
     chart: (symbol: string, range: string, interval: string) => j<ChartBar[]>(`/ticker/${symbol}/chart?range=${range}&interval=${interval}`),
   },
   calibration: () =>

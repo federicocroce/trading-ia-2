@@ -95,6 +95,8 @@ Cualquier símbolo de Cartera o Radar es clickeable y abre su página (`/?symbol
 
 Qué se guarda y qué se pide en vivo: descripción, velas diarias (las refrescan Cartera y Radar al correr) y noticias van a la base (`symbol_meta`, `candles_daily`, `news`); precio y gráfico intradía se piden en el momento.
 
+Regla de carga: lo guardado se sirve al instante. Si falta, se pide con un timeout de 6 s por fuente; si está viejo, se sirve igual y se refresca en segundo plano para la próxima visita. Las cuatro fuentes externas (descripción, velas, noticias, precio) corren en paralelo, así que la primera visita a un símbolo nuevo tarda lo que la más lenta (≈ 5 s) y las siguientes menos de 1 s. Una fuente colgada nunca bloquea la página: aparece en `errors`.
+
 ```
 GET /ticker/:symbol                      # la página completa (JSON)
 GET /ticker/:symbol/chart?range=1y&interval=1d
