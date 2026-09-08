@@ -112,21 +112,28 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     { kind: "etf", max: cfg.etfLinesMax, countsAsNew: true },
   ];
   const chosen: PlanInput["buyCandidates"] = [];
-  const skippedNew: string[] = [];
+  /** Todo COMPRAR que no entró, con su lugar en la fila y el motivo: el plan tiene que poder explicarse solo. */
+  const leftOut: string[] = [];
+  const POOL_LABEL: Record<"stock" | "watch" | "etf", string> = { stock: "posiciones nuevas", watch: "de seguimiento", etf: "ETF satélite" };
   let newCount = 0;
   for (const pool of pools) {
     let taken = 0;
-    for (const b of i.buyCandidates.filter((x) => x.kind === pool.kind).sort(byPriority)) {
-      if (taken >= pool.max) break;
+    const queue = i.buyCandidates.filter((x) => x.kind === pool.kind).sort(byPriority);
+    queue.forEach((b, idx) => {
+      const place = pool.kind === "stock" ? `${idx + 1}° por convicción` : pool.kind === "watch" ? "seguimiento" : "ETF";
       const isNew = valueOf(b.symbol) === 0;
+      if (taken >= pool.max) {
+        leftOut.push(`${b.symbol} (${place}): tope de ${pool.max} ${POOL_LABEL[pool.kind]}`);
+        return;
+      }
       if (pool.countsAsNew && isNew && newCount >= maxNew) {
-        skippedNew.push(b.symbol);
-        continue;
+        leftOut.push(`${b.symbol} (${place}): tope de ${maxNew} posiciones nuevas`);
+        return;
       }
       chosen.push(b);
       taken++;
       if (pool.countsAsNew && isNew) newCount++;
-    }
+    });
   }
   if (chosen.length && remaining >= MIN_LINE_USD) {
     const per = Math.floor(remaining / chosen.length);
@@ -134,7 +141,10 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     chosen.forEach((b, idx) => {
       const share = idx === chosen.length - 1 ? remaining - used : per;
       const amt = Math.floor(Math.min(share, maxLine, b.sizeUsd ?? share, capFor(b.symbol)));
-      if (amt < MIN_LINE_USD) return;
+      if (amt < MIN_LINE_USD) {
+        leftOut.push(`${b.symbol}: quedaría con menos de USD ${MIN_LINE_USD} (tope por posición o monto chico)`);
+        return;
+      }
       const kind: PlanLine["kind"] = b.kind === "watch" ? "seguimiento" : "comprar";
       const why = b.kind === "watch" ? `tu lista de seguimiento, COMPRAR hoy${b.score !== null ? `, score ${b.score}` : ""}` : b.kind === "etf" ? "ETF satélite con fuerza relativa positiva" : `candidato del Radar, convicción ${b.priority ?? "—"}${b.score !== null ? `, score ${b.score}` : ""}`;
       lines.push({ ...line(b.symbol, kind, amt, why), entryHigh: b.entryHigh ?? null, stop: b.stop ?? null, target: b.target ?? null });
@@ -142,7 +152,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     });
     remaining -= used;
   }
-  if (skippedNew.length) notes.push(`Máximo de posiciones nuevas (${maxNew}) alcanzado: ${skippedNew.join(", ")} quedan para la próxima.`);
+  if (leftOut.length) notes.push(`No entraron esta vez: ${leftOut.join(" · ")}.`);
   if (!i.sumarCandidates.length && !i.buyCandidates.length) notes.push("Sin candidatos este mes: el aporte va al núcleo.");
 
   // 4. Sobrante al núcleo.
