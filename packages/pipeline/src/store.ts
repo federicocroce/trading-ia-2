@@ -90,6 +90,8 @@ export interface RadarStore {
   /** Última corrida de cada paso programado (ponerse al día). `lastDate` es la fecha que cubrió, no la hora en que corrió. */
   markJobRun(step: string, lastDate: string, detail?: string | null): Promise<void>;
   jobRuns(): Promise<Record<string, JobRun>>;
+  /** Velas diarias guardadas (las escriben Cartera, Radar y la ficha). */
+  candles(symbol: string, since: string): Promise<Candle[]>;
   /** Lista de seguimiento: tickers elegidos a mano que reciben veredicto diario aunque el ranking no los elija. */
   watchlist(): Promise<WatchItem[]>;
   addWatch(symbol: string, note?: string | null): Promise<void>;
