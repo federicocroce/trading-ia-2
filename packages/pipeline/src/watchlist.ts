@@ -66,7 +66,8 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       } else {
         rows.push({ ...row, verdict: d.verdict, flags: d.flags, entryLow: d.entryLow, entryHigh: round2(d.entryHigh), stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore });
       }
-      if (!(await store.tags(sym))) await tagSymbol(deps, sym, { industry: f.industry, country: null }).catch(() => null);
+      // Reglas de taxonomía cada día (barato): un tema nuevo en config llega solo. Lo manual no se pisa.
+      await tagSymbol(deps, sym, { industry: f.industry, country: null }).catch(() => null);
     } catch (e) {
       errors.push({ symbol: sym, error: errText(e) });
     }
