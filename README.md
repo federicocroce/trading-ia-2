@@ -40,8 +40,9 @@ Razonador: se elige solo según qué credenciales haya en `.env`. Con `ANTHROPIC
 ## Uso diario
 
 ```bash
-pnpm dev:api                # API en :3001 + cron
-pnpm dev:web                # UI en http://localhost:5173
+pnpm dev                    # todo junto: Postgres (docker) + migraciones + API en :3001 + UI en http://localhost:5173
+pnpm dev:api                # solo la API (:3001 + cron)
+pnpm dev:web                # solo la UI (http://localhost:5173)
 pnpm run:daily              # una corrida a mano (ingesta → filtro → razonamiento)
 ```
 

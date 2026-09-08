@@ -1,6 +1,6 @@
 import type { ArgentinaConfig, Candle, CandidateRow, MacroAr, PriceHistory, RadarPolicy, Tags } from "@thesis/core";
 import { cedearCheck, decideArStock, macroAr } from "@thesis/core";
-import type { RadarStore } from "./store.js";
+import type { CarteraStore, RadarStore } from "./store.js";
 
 /**
  * Argentina (etapa 3): refresco diario. Macro (dólares, brecha, riesgo país, Merval en USD),
@@ -8,7 +8,8 @@ import type { RadarStore } from "./store.js";
  * velas, macro del día, filas de candidato (kind "ar" / "cedear") y etiquetas.
  */
 export interface ArgentinaDeps {
-  store: RadarStore;
+  /** Velas (CarteraStore) + candidatos, etiquetas y macro (RadarStore). */
+  store: CarteraStore & RadarStore;
   /** Yahoo: símbolos `.BA` en pesos y el índice Merval. */
   history: PriceHistory;
   macro: { dolares(): Promise<Partial<Record<"oficial" | "mep" | "ccl" | "blue" | "mayorista", number>>>; riesgoPais(): Promise<{ value: number; date: string } | null> };
