@@ -32,6 +32,7 @@ import {
   type Tags,
   type TaxonomyConfig,
   topPicks,
+  returnPct,
 } from "@thesis/core";
 import type { CarteraStore, RadarStore } from "./store.js";
 
@@ -506,6 +507,13 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     policy.contribution,
     opts.amountUsd ? { amountUsd: opts.amountUsd } : {},
   );
+  // Núcleo: rendimiento de los últimos 12 meses como contexto de "cuánto suele dar" (velas ya guardadas por el ranking).
+  const since = new Date(Date.now() - 420 * 86_400_000).toISOString().slice(0, 10);
+  for (const l of plan.lines) {
+    if (l.kind !== "nucleo") continue;
+    const candles = await store.candles(l.symbol, since).catch(() => [] as Candle[]);
+    l.ret12mPct = candles.length >= 200 ? returnPct(candles, Math.min(252, candles.length - 1)) : null;
+  }
   await store.savePlan(plan);
   return plan;
 }

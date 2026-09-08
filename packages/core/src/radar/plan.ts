@@ -31,6 +31,8 @@ export interface PlanLine {
   entryHigh?: number | null;
   stop?: number | null;
   target?: number | null;
+  /** Solo núcleo: cuánto rindió el ETF en los últimos 12 meses. Contexto, no objetivo ni promesa. */
+  ret12mPct?: number | null;
 }
 export interface PlanOptions {
   /** Monto a repartir en vez del aporte mensual (plata líquida de una vez). */
