@@ -23,6 +23,11 @@ export const EtfConfigSchema = z.object({
   themes: z.array(z.string()),
   coreWeight: z.number().optional(),
 });
+export const ArgentinaConfigSchema = z.object({
+  benchmark: z.string(),
+  acciones: z.array(z.object({ symbol: z.string(), name: z.string(), adr: z.string().nullable(), sector: z.string(), themes: z.array(z.string()).optional() })),
+  cedears: z.array(z.object({ symbol: z.string(), us: z.string(), ratio: z.number().positive() })),
+});
 export const RadarPolicySchema = z.object({
   weights: z.object({ valuation: z.number(), quality: z.number(), growth: z.number(), balance: z.number() }),
   quality: z.object({ minMcapUsd: z.number(), minDollarVolumeUsd: z.number(), minPrice: z.number() }),

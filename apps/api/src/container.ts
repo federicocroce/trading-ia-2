@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp } from "@thesis/adapters";
+import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro } from "@thesis/adapters";
 import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
-import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore } from "@thesis/pipeline";
+import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
 import { AnthropicCardWriter, AnthropicNarrator, AnthropicReasoner, GeminiCardWriter, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
 import type { Config, ReasonerConfig } from "./config.js";
 
@@ -27,6 +27,8 @@ export interface Container {
   carteraDeps: CarteraDeps;
   /** Radar de candidatos (spec etapa 2). */
   radarDeps: RadarDeps;
+  /** Argentina (etapa 3): macro, acciones de BYMA y CEDEARs. */
+  argentinaDeps: ArgentinaDeps;
   /** Página por ticker (etapa 2b): agregador + gráfico intradiario en vivo. */
   tickerDeps: TickerDeps & { chart: { bars(symbol: string, range: string, interval: string): Promise<import("@thesis/core").ChartBar[]> } };
   marketData: MarketData;
@@ -131,6 +133,17 @@ export function buildContainer(cfg: Config): Container {
     shouldStop: () => state.scan.stopRequested,
   };
 
+  // Argentina: Yahoo para `.BA` y el Merval (en pesos), dolarapi + argentinadatos para el macro, Alpaca para el precio US de los CEDEARs.
+  const argentinaDeps: ArgentinaDeps = {
+    store,
+    history,
+    macro: new ArgentinaMacro(),
+    usPrices: async (symbols) => Object.fromEntries((await new AlpacaAssets(http, cfg.alpaca).snapshots(symbols)).map((x) => [x.symbol, x.price])),
+    config: cfg.radar.argentina,
+    policy: cfg.radar.policy,
+    log: (msg) => console.log(msg),
+  };
+
   // Página por ticker: descripción de Yahoo (crumb), noticias de Finnhub, precio vivo de Alpaca, gráfico de Yahoo.
   const finnhub = cfg.finnhubToken ? new FinnhubFundamentals(http, cfg.finnhubToken, new RateLimiter(55)) : null;
   const alpacaAssets = new AlpacaAssets(http, cfg.alpaca);
@@ -140,7 +153,8 @@ export function buildContainer(cfg: Config): Container {
     history,
     descriptions: new YahooDescriptions(),
     news: { companyNews: (s, from, to) => (finnhub ? finnhub.companyNews(s, from, to) : Promise.resolve([])) },
-    quote: (s) => alpacaAssets.quote(s),
+    // Los `.BA` (pesos) no están en Alpaca: precio de la meta del chart de Yahoo.
+    quote: (symbol) => (symbol.toUpperCase().endsWith(".BA") ? yahooChart.quote(symbol) : ((s) => alpacaAssets.quote(s))(symbol)),
     newsFetchedAt: new Map(),
       log: (m: string) => console.warn(m),
     chart: { bars: (s, range, interval) => yahooChart.bars(s, range as never, interval as never) },
@@ -156,5 +170,5 @@ export function buildContainer(cfg: Config): Container {
   }
   const snapshot = async () => buildSnapshot(store, await account(), state.killSwitch);
 
-  return { cfg, store, carteraDeps, radarDeps, tickerDeps, marketData, broker, risk, runDeps, snapshot, account };
+  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, marketData, broker, risk, runDeps, snapshot, account };
 }

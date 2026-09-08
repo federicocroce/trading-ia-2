@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
+import type { Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -410,6 +410,28 @@ export class Repo {
     return rows.map((r) => ({ symbol: r.symbol, date: r.date, headline: r.headline, source: r.source, url: r.url, summary: r.summary }));
   }
 
+  // ---------- Argentina (etapa 3) ----------
+  private macroToRow(m: MacroAr) {
+    const n = (v: number | null) => (v === null ? null : str(v));
+    return { date: m.date, oficial: n(m.oficial), mep: n(m.mep), ccl: n(m.ccl), blue: n(m.blue), mayorista: n(m.mayorista), brechaPct: n(m.brechaPct), riesgoPais: m.riesgoPais, merval: n(m.merval), mervalUsd: n(m.mervalUsd) };
+  }
+  private rowToMacro(r: typeof s.macroArDaily.$inferSelect): MacroAr {
+    const n = (v: string | null) => (v === null ? null : Number(v));
+    return { date: r.date, oficial: n(r.oficial), mep: n(r.mep), ccl: n(r.ccl), blue: n(r.blue), mayorista: n(r.mayorista), brechaPct: n(r.brechaPct), riesgoPais: r.riesgoPais, merval: n(r.merval), mervalUsd: n(r.mervalUsd) };
+  }
+  async saveMacroAr(m: MacroAr): Promise<void> {
+    const row = this.macroToRow(m);
+    const { date: _d, ...set } = row;
+    await this.db.insert(s.macroArDaily).values(row).onConflictDoUpdate({ target: s.macroArDaily.date, set });
+  }
+  async latestMacroAr(): Promise<MacroAr | null> {
+    const r = (await this.db.select().from(s.macroArDaily).orderBy(desc(s.macroArDaily.date)).limit(1))[0];
+    return r ? this.rowToMacro(r) : null;
+  }
+  async macroArSeries(days: number): Promise<MacroAr[]> {
+    const rows = await this.db.select().from(s.macroArDaily).orderBy(desc(s.macroArDaily.date)).limit(days);
+    return rows.map((r) => this.rowToMacro(r)).reverse();
+  }
 }
 
 function toRawEvent(r: typeof s.rawEvents.$inferSelect): RawEvent {

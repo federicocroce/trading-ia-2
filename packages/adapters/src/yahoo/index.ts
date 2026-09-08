@@ -1,4 +1,4 @@
-import type { Candle, ChartBar, PriceHistory, SymbolDescription } from "@thesis/core";
+import type { Candle, ChartBar, PriceHistory, SymbolDescription, LiveQuote } from "@thesis/core";
 import type { HttpClient } from "../http/index.js";
 
 interface YahooQuote {
@@ -50,7 +50,7 @@ export class YahooPriceHistory implements PriceHistory {
 interface YahooChartFull {
   chart: {
     result: Array<{
-      meta?: { firstTradeDate?: number; fullExchangeName?: string; regularMarketPrice?: number };
+      meta?: { firstTradeDate?: number; fullExchangeName?: string; regularMarketPrice?: number; chartPreviousClose?: number; previousClose?: number; regularMarketTime?: number; currency?: string };
       timestamp?: number[];
       indicators: { quote: YahooQuote[]; adjclose?: Array<{ adjclose: Array<number | null> }> };
     }> | null;
@@ -80,11 +80,26 @@ export function parseYahooBars(json: unknown): ChartBar[] {
 export type YahooRange = "1d" | "5d" | "1mo" | "3mo" | "6mo" | "1y" | "2y" | "5y";
 export type YahooInterval = "5m" | "15m" | "1h" | "1d" | "1wk";
 
+/** Precio vivo desde la meta del chart: sirve para símbolos que Alpaca no cubre (los .BA, en pesos). */
+export function parseYahooQuote(symbol: string, json: unknown): LiveQuote | null {
+  const d = json as YahooChartFull;
+  if (d.chart?.error) throw new Error(`yahoo: ${d.chart.error.description}`);
+  const meta = d.chart?.result?.[0]?.meta;
+  const price = meta?.regularMarketPrice;
+  if (price === undefined || !Number.isFinite(price)) return null;
+  const prev = meta?.chartPreviousClose ?? meta?.previousClose ?? null;
+  return { symbol: symbol.toUpperCase(), price, prevClose: prev, asOf: meta?.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : null, currency: meta?.currency ?? null };
+}
+
 export class YahooChart {
   constructor(private readonly http: HttpClient) {}
   async bars(symbol: string, range: YahooRange, interval: YahooInterval): Promise<ChartBar[]> {
     const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol.toUpperCase())}?range=${range}&interval=${interval}`;
     return parseYahooBars(await this.http.getJson(url));
+  }
+  async quote(symbol: string): Promise<LiveQuote | null> {
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol.toUpperCase())}?range=5d&interval=1d`;
+    return parseYahooQuote(symbol, await this.http.getJson(url));
   }
 }
 

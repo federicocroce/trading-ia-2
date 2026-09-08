@@ -320,3 +320,18 @@ export const portfolioRisk = pgTable("portfolio_risk", {
   report: jsonb("report").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Etapa 3: contexto macro argentino por día (dólares, brecha, riesgo país, Merval). */
+export const macroArDaily = pgTable("macro_ar_daily", {
+  date: date("date").primaryKey(),
+  oficial: numeric("oficial", { precision: 14, scale: 4 }),
+  mep: numeric("mep", { precision: 14, scale: 4 }),
+  ccl: numeric("ccl", { precision: 14, scale: 4 }),
+  blue: numeric("blue", { precision: 14, scale: 4 }),
+  mayorista: numeric("mayorista", { precision: 14, scale: 4 }),
+  brechaPct: numeric("brecha_pct", { precision: 10, scale: 4 }),
+  riesgoPais: integer("riesgo_pais"),
+  merval: numeric("merval", { precision: 18, scale: 4 }),
+  mervalUsd: numeric("merval_usd", { precision: 14, scale: 4 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

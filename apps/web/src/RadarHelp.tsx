@@ -18,6 +18,13 @@ export const HELP: Record<string, { label: string; short: string }> = {
   fr6m: { label: "FR 6m", short: "Fuerza relativa contra SPY a 6 meses." },
   fr12m: { label: "FR 12m", short: "Fuerza relativa contra SPY a 12 meses." },
   sma200: { label: "vs SMA200", short: "Distancia al promedio móvil de 200 ruedas. Negativo = tendencia de fondo bajista, queda afuera." },
+  adr: { label: "ADR", short: "El mismo papel cotizando en Nueva York, en dólares. Ahí están los fundamentals y el ranking contra pares." },
+  frMerval: { label: "FR 6m vs Merval", short: "Fuerza relativa contra el índice Merval a 6 meses, en pesos: cuánto le ganó (o perdió) al mercado local. COMPRAR exige > 0 y estar sobre la SMA200." },
+  precioArs: { label: "precio ARS", short: "Último cierre en pesos en BYMA." },
+  precioUsd: { label: "precio USD", short: "El mismo cierre pasado a dólares al CCL del día." },
+  ratio: { label: "ratio", short: "Cuántos CEDEARs equivalen a una acción en EE.UU. Cambia con los splits: si el dólar implícito se va más de 10% del CCL, el ratio cargado está mal." },
+  dolarImplicito: { label: "dólar implícito", short: "Precio del CEDEAR × ratio / precio en EE.UU.: el dólar que pagás comprando la acción vía CEDEAR." },
+  vsCcl: { label: "vs CCL", short: "Dólar implícito contra el CCL. Más de +2% el CEDEAR está caro; menos de −2% está barato. Más de 10% en cualquier sentido: ratio dudoso, no oportunidad." },
   conviccion: { label: "convicción", short: "score × fiabilidad del grupo (pares/10, tope 1) + 0.2 por consenso de compra, insiders que compran o sorpresa positiva − banderas negativas − 0.1 por punto de riesgo sobre 5 − 0.3 si el objetivo queda a menos de 5% − 0.3 si comparte un tema donde ya tenés más del 40% de la cartera." },
 };
 
@@ -83,6 +90,9 @@ export function RadarHelpModal({ onClose }: { onClose: () => void }) {
 
         <h3>ETFs</h3>
         <p><b>FR 3m / 6m / 12m</b>: fuerza relativa contra SPY, cuánto le ganó o perdió al S&amp;P 500 en ese plazo. <b>vs SMA200</b>: distancia al promedio de 200 ruedas. Los de núcleo (NUCLEO) se compran por calendario según el plan; satélites y coberturas salen COMPRAR u OBSERVAR por fuerza relativa.</p>
+
+        <h3>Argentina</h3>
+        <p>Las acciones de BYMA cotizan en pesos, así que se comparan contra el <b>Merval</b> y no contra SPY: COMPRAR si le ganan al índice a 6 meses y están sobre la media de 200 ruedas. No tienen score ni rank porque Finnhub no cubre el mercado local; cuando el papel tiene <b>ADR</b>, los fundamentals están en la ficha del ADR. El <b>precio USD</b> es el cierre en pesos al CCL del día. Los <b>CEDEARs</b> no son una recomendación: son un chequeo de a qué dólar estás comprando la acción de EE.UU. si la comprás en pesos. El <b>macro</b> (CCL, MEP, oficial, brecha, riesgo país, Merval en dólares) se guarda todos los días para tener la serie.</p>
 
         <p className="muted"><b>Advertencia honesta:</b> el score todavía no está validado. La medición a 7, 30 y 90 días contra SPY, con OBSERVAR como grupo de control, es la que va a decir si estos números anticipan algo. Hasta entonces es un buen filtro para saber dónde mirar, no una promesa.</p>
       </div>

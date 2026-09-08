@@ -72,7 +72,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {q ? (
             <div className="row" style={{ alignItems: "baseline" }}>
               <span style={{ fontSize: 30, fontWeight: 700, fontFamily: "ui-monospace, Menlo, monospace" }} className={priceStale ? "muted" : ""}>${q.price.toFixed(2)}</span>
-              <span className="muted">USD</span>
+              <span className="muted">{q.currency ?? "USD"}</span>
               {q.change !== null && <span className={priceStale ? "muted" : q.change >= 0 ? "ok" : "bad"}>{q.change >= 0 ? "+" : ""}{q.change.toFixed(2)} ({pct(q.changePct)}){priceStale && " — de su última rueda, no de hoy"}</span>}
               {period && <span className={period.changePercent >= 0 ? "ok" : "bad"}>· {period.label}: {pct(period.changePercent)}</span>}
               {priceStale && <span className="verb REVISAR">⚠ precio viejo: última operación {q.asOf?.slice(0, 10)}</span>}
@@ -130,7 +130,21 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
         </div>
       </div>
 
-      {t.candidate && (
+      {t.candidate && t.candidate.kind === "ar" && (
+        <div className="card">
+          <b>Radar Argentina</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">contra el Merval, en pesos · {t.candidate.candidateDate}</span>
+          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}>{t.candidate.flags.map((f) => <span key={f} className="flag">⚑ {f}</span>)}</div>}
+          <div className="muted mono" style={{ marginTop: 6 }}>FR 3m {pct(t.candidate.axes["rs3m"])} · FR 6m {pct(t.candidate.axes["rs6m"])} · FR 12m {pct(t.candidate.axes["rs12m"])} · vs SMA200 {pct(t.candidate.axes["distSma200Pct"])} · precio al CCL US$ {f2(t.candidate.axes["closeUsd"])}</div>
+          {t.candidate.peerGroup[0] && <div style={{ marginTop: 6 }}>Fundamentals y ranking contra pares: en el ADR <SymbolLink symbol={t.candidate.peerGroup[0]} />.</div>}
+        </div>
+      )}
+      {t.candidate && t.candidate.kind === "cedear" && (
+        <div className="card">
+          <b>CEDEAR</b> <span className="muted">de {t.candidate.peerGroup[0] && <SymbolLink symbol={t.candidate.peerGroup[0]} />} · ratio {t.candidate.axes["ratio"]} · {t.candidate.candidateDate}</span>
+          <div style={{ marginTop: 6 }}>Dólar implícito <b className="mono">{f2(t.candidate.axes["impliedCcl"])}</b> · contra el CCL <b className={`mono ${(t.candidate.axes["gapPct"] ?? 0) > 2 ? "bad" : (t.candidate.axes["gapPct"] ?? 0) < -2 ? "ok" : ""}`}>{pct(t.candidate.axes["gapPct"])}</b> · {t.candidate.flags.join(", ")}</div>
+        </div>
+      )}
+      {t.candidate && (t.candidate.kind === "stock" || t.candidate.kind === "etf") && (
         <div className="card">
           <b>Radar</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">score {f2(t.candidate.score)} · rank {t.candidate.rankInGroup}/{t.candidate.groupSize} entre pares · riesgo {t.candidate.riskScore}/10 · {t.candidate.candidateDate}</span>
           {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}>{t.candidate.flags.map((f) => <span key={f} className="flag">⚑ {f}</span>)}</div>}

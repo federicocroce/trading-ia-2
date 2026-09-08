@@ -23,7 +23,8 @@
     "radar:scan": "pnpm --filter @thesis/api radar:scan",
     "radar:rank": "pnpm --filter @thesis/api radar:rank",
     "radar:refresh": "pnpm --filter @thesis/api radar:refresh",
-    "radar:plan": "pnpm --filter @thesis/api radar:plan"
+    "radar:plan": "pnpm --filter @thesis/api radar:plan",
+    "radar:argentina": "pnpm --filter @thesis/api radar:argentina"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

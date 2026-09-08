@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FinnhubFundamentals, RateLimiter, YahooChart, YahooDescriptions, fixtureHttpClient, parseYahooBars, parseYahooProfile } from "../src/index.js";
+import { FinnhubFundamentals, RateLimiter, YahooChart, YahooDescriptions, fixtureHttpClient, parseYahooBars, parseYahooProfile, parseYahooQuote } from "../src/index.js";
 
 const chart = { chart: { result: [{ meta: { firstTradeDate: 946684800, fullExchangeName: "NasdaqGS", regularMarketPrice: 44.36 }, timestamp: [1756684800, 1756685100], indicators: { quote: [{ open: [10, 11], high: [12, 12], low: [9, 10], close: [11, 11.5], volume: [100, 50] }], adjclose: [{ adjclose: [5.5, 5.75] }] } }], error: null } };
 
@@ -19,6 +19,15 @@ describe("YahooChart", () => {
   it("pide range/interval y devuelve barras", async () => {
     const http = fixtureHttpClient({ "https://query2.finance.yahoo.com/v8/finance/chart/GGAL?range=1d&interval=5m": chart });
     expect((await new YahooChart(http).bars("ggal", "1d", "5m")).length).toBe(2);
+  });
+});
+
+describe("parseYahooQuote", () => {
+  it("precio, cierre anterior, moneda y hora desde la meta del chart (sirve para los .BA en pesos)", () => {
+    const meta = { chart: { result: [{ meta: { currency: "ARS", regularMarketPrice: 6935, chartPreviousClose: 6800, regularMarketTime: 1788552000 }, indicators: { quote: [] } }], error: null } };
+    expect(parseYahooQuote("ggal.ba", meta)).toEqual({ symbol: "GGAL.BA", price: 6935, prevClose: 6800, asOf: "2026-09-04T20:00:00.000Z", currency: "ARS" });
+    expect(parseYahooQuote("X", { chart: { result: [{ meta: {}, indicators: { quote: [] } }], error: null } })).toBeNull();
+    expect(() => parseYahooQuote("X", { chart: { result: null, error: { code: "Not Found", description: "no" } } })).toThrow(/no/);
   });
 });
 

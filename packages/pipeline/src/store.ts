@@ -1,4 +1,4 @@
-import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow } from "@thesis/core";
+import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, MacroAr } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -83,6 +83,10 @@ export interface RadarStore {
   latestPlan(): Promise<ContributionPlan | null>;
   plansToMeasure(before: string): Promise<ContributionPlan[]>;
   updatePlanLines(month: string, lines: PlanLine[]): Promise<void>;
+  /** Etapa 3: contexto macro argentino, una fila por día. */
+  saveMacroAr(m: MacroAr): Promise<void>;
+  latestMacroAr(): Promise<MacroAr | null>;
+  macroArSeries(days: number): Promise<MacroAr[]>;
 }
 
 export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore {
@@ -99,6 +103,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   profiles = new Map<string, { profile: SymbolProfile; updatedAt: string }>();
   verdicts = new Map<string, VerdictRow>();
   risks = new Map<string, RiskReport>();
+  macroAr = new Map<string, MacroAr>();
   events = new Map<string, RawEvent & { filterPassed: boolean | null; filterReason: string | null }>();
   theses = new Map<string, Thesis>();
   orders = new Map<string, Order>();
@@ -320,6 +325,16 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async latestScanDate() {
     return [...this.scan.values()].map((r) => r.scanDate).sort().at(-1) ?? null;
+  }
+  async saveMacroAr(m: MacroAr) {
+    this.macroAr.set(m.date, m);
+  }
+  async latestMacroAr() {
+    const date = [...this.macroAr.keys()].sort().at(-1);
+    return date ? this.macroAr.get(date)! : null;
+  }
+  async macroArSeries(days: number) {
+    return [...this.macroAr.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, days).reverse();
   }
   async upsertCandidates(rows: CandidateRow[]) {
     for (const c of rows) {

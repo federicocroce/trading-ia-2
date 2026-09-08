@@ -40,11 +40,13 @@ export interface CarteraRun { date: string; verdicts: Verdict[]; risk: RiskRepor
 
 export interface Tags { assetClass: string; sector: string; industry: string | null; themes: string[]; themesSource: "regla" | "modelo" | "manual" }
 export interface Candidate {
-  candidateDate: string; symbol: string; kind: "stock" | "etf"; verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO"; score: number | null; axes: Record<string, number | null>; peerGroup: string[]; rankInGroup: number | null; groupSize: number | null;
+  candidateDate: string; symbol: string; kind: "stock" | "etf" | "ar" | "cedear"; verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO"; score: number | null; axes: Record<string, number | null>; peerGroup: string[]; rankInGroup: number | null; groupSize: number | null;
   close: number; entryLow: number | null; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; flags: string[]; nthAppearance: number;
   summary: string | null; whyRanks: string | null; mainRisk: string | null; moat: string | null; degradedBy: string | null; spyClose: number | null; alpha7dPct: number | null; alpha30dPct: number | null; alpha90dPct: number | null; tags: Tags | null;
 }
 export interface CandidateDetail { candidate: Candidate; fundamentals: { metrics: Record<string, number | null>; peers: string[]; mcapUsd: number; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null; tags: Tags | null; profile: { name: string | null; country: string | null; industry: string | null } | null; peers: Array<{ symbol: string; metrics: Record<string, number | null> }> }
+export interface MacroAr { date: string; oficial: number | null; mep: number | null; ccl: number | null; blue: number | null; mayorista: number | null; brechaPct: number | null; riesgoPais: number | null; merval: number | null; mervalUsd: number | null }
+export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; acciones: Candidate[]; cedears: Candidate[] }
 export interface TopPick { symbol: string; conviction: number; gainPct: number; lossPct: number; reasons: string[]; cautions: string[]; allAligned: boolean; close: number; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; score: number | null; rankInGroup: number | null; groupSize: number | null; summary: string | null; mainRisk: string | null; tags: Tags | null }
 export interface RadarTop { date: string | null; overweight: Record<string, number>; picks: TopPick[] }
 export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar"; amountUsd: number; rationale: string; alpha30dPct: number | null; alpha90dPct: number | null }
@@ -62,7 +64,7 @@ export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" 
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
-  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null } | null;
+  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null } | null;
   position: (Position & { valueUsd: number; pnlUsd: number; pnlPct: number; weightPct: number | null }) | null;
   verdict: Verdict | null;
   tags: Tags | null;
@@ -119,6 +121,8 @@ export const api = {
     rank: () => j<{ candidates: Candidate[]; skipped: unknown[]; errors: Array<{ symbol: string; error: string }> }>("/radar/rank", { method: "POST" }),
     refresh: () => j<{ refreshed: number; errors: unknown[] }>("/radar/refresh", { method: "POST" }),
     top: (n = 5) => j<RadarTop>(`/radar/top?n=${n}`),
+    argentina: () => j<ArgentinaData>("/radar/argentina"),
+    refreshArgentina: () => j<{ acciones: number; cedears: number; errors: Array<{ symbol: string; error: string }> }>("/radar/argentina", { method: "POST" }),
     plan: () => j<ContributionPlan | null>("/radar/plan"),
     buildPlan: () => j<ContributionPlan>("/radar/plan", { method: "POST" }),
     measurement: () => j<RadarMeasurement>("/radar/measurement"),

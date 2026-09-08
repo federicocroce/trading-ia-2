@@ -14,7 +14,8 @@
     "radar:scan": "tsx src/radar-cli.ts scan",
     "radar:rank": "tsx src/radar-cli.ts rank",
     "radar:refresh": "tsx src/radar-cli.ts refresh",
-    "radar:plan": "tsx src/radar-cli.ts plan"
+    "radar:plan": "tsx src/radar-cli.ts plan",
+    "radar:argentina": "tsx src/radar-cli.ts argentina"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { EtfConfigSchema, RadarPolicySchema, TaxonomyConfigSchema, type EtfConfig, type RadarPolicy, type TaxonomyConfig } from "@thesis/core";
+import { ArgentinaConfigSchema, EtfConfigSchema, RadarPolicySchema, TaxonomyConfigSchema, type ArgentinaConfig, type EtfConfig, type RadarPolicy, type TaxonomyConfig } from "@thesis/core";
 
 /** Configuración desde env + universe.json. Sin valores secretos hardcodeados. */
 export interface Config {
@@ -79,6 +79,7 @@ export interface RadarConfig {
   taxonomy: TaxonomyConfig;
   etfs: EtfConfig[];
   policy: RadarPolicy;
+  argentina: ArgentinaConfig;
 }
 
 /** Lee y valida config/taxonomia.json, config/etfs.json y config/radar-policy.json. */
@@ -88,6 +89,7 @@ export async function loadRadarConfig(root: string): Promise<RadarConfig> {
     taxonomy: TaxonomyConfigSchema.parse(await read("taxonomia.json")),
     etfs: z.array(EtfConfigSchema).parse(await read("etfs.json")),
     policy: RadarPolicySchema.parse(await read("radar-policy.json")),
+    argentina: ArgentinaConfigSchema.parse(await read("argentina.json")),
   };
 }
 

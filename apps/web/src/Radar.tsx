@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Candidate, type CandidateDetail, type ContributionPlan, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
+import { api, type ArgentinaData, type Candidate, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { HELP, RadarHelpModal, Th } from "./RadarHelp";
@@ -16,6 +16,7 @@ export function Radar() {
   const [cands, setCands] = useState<Candidate[]>([]);
   const [plan, setPlan] = useState<ContributionPlan | null>(null);
   const [top, setTop] = useState<RadarTop | null>(null);
+  const [ar, setAr] = useState<ArgentinaData | null>(null);
   const [meas, setMeas] = useState<RadarMeasurement | null>(null);
   const [scan, setScan] = useState<ScanStatus | null>(null);
   const [opts, setOpts] = useState<TaxonomyOptions | null>(null);
@@ -29,10 +30,11 @@ export function Radar() {
   const load = useCallback(async () => {
     const q: Record<string, string> = {};
     for (const [k, v] of Object.entries(filter)) if (v) q[k] = v;
-    const [c, p, m, s, o, t] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options(), api.radar.top(5)]);
+    const [c, p, m, s, o, t, a] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options(), api.radar.top(5), api.radar.argentina()]);
     setCands(c);
     setPlan(p);
     setTop(t);
+    setAr(a);
     setMeas(m);
     setScan(s);
     setOpts(o);
@@ -71,6 +73,7 @@ export function Radar() {
         <button className="ghost" disabled={!!busy || !!scan?.running} onClick={() => act("scan", async () => { await api.radar.scan(); setScan(await api.radar.scanStatus()); return "Barrido iniciado en segundo plano (≈1 h). Podés seguir usando la app."; })}>Barrer universo</button>
         <button className="ghost" disabled={!!busy} onClick={() => act("rank", async () => { const r = await api.radar.rank(); return `Ranking: ${r.candidates.length} candidatos, ${r.errors.length} errores.`; })}>{busy === "rank" ? "Rankeando…" : "Rankear"}</button>
         <button className="ghost" disabled={!!busy} onClick={() => act("refresh", async () => `Refrescados ${(await api.radar.refresh()).refreshed} candidatos.`)}>Refrescar</button>
+        <button className="ghost" disabled={!!busy} onClick={() => act("argentina", async () => { const r = await api.radar.refreshArgentina(); return `Argentina: ${r.acciones} acciones, ${r.cedears} CEDEARs, ${r.errors.length} errores.`; })}>{busy === "argentina" ? "Argentina…" : "Refrescar Argentina"}</button>
         <button className="primary" disabled={!!busy} onClick={() => act("plan", async () => `Plan ${(await api.radar.buildPlan()).month} regenerado.`)}>Regenerar plan</button>
       </div>
       {msg && <div className="card">{msg}</div>}
@@ -127,6 +130,7 @@ export function Radar() {
           </tbody>
         </table>
       </div>
+      {ar && <ArgentinaCard d={ar} editing={editing} setEditing={setEditing} reload={load} />}
       {meas && <MeasCard m={meas} />}
     </>
   );
@@ -225,6 +229,79 @@ function TopPicks({ t, plan }: { t: RadarTop; plan: ContributionPlan | null }) {
         </div>
       )}
       <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>El objetivo no es un pronóstico: es el precio donde la operación paga 2 veces lo que arriesga hasta el stop. Si el score anticipa algo lo va a decir la medición contra SPY a 7/30/90 días.</div>
+    </div>
+  );
+}
+
+const ars = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `$${n.toLocaleString("es-AR", { maximumFractionDigits: n >= 100 ? 0 : 2 })}`);
+const delta = (cur: number | null, prev: number | null | undefined) => (cur !== null && prev !== null && prev !== undefined && prev !== 0 ? (cur / prev - 1) * 100 : null);
+const CEDEAR_FLAG: Record<string, string> = { en_linea: "en línea", caro_vs_ccl: "caro vs CCL", barato_vs_ccl: "barato vs CCL", ratio_dudoso: "ratio dudoso" };
+
+/** Argentina (etapa 3): macro del día, acciones de BYMA contra el Merval y CEDEARs contra el CCL. */
+function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
+  const m = d.macro;
+  const prev: MacroAr | undefined = d.series.length >= 2 ? d.series[d.series.length - 2] : undefined;
+  const acciones = [...d.acciones].sort((a, b) => (a.verdict === b.verdict ? (b.axes["rs6m"] ?? -Infinity) - (a.axes["rs6m"] ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
+  const dCcl = delta(m?.ccl ?? null, prev?.ccl);
+  const dRp = delta(m?.riesgoPais ?? null, prev?.riesgoPais);
+  return (
+    <div className="card" style={{ overflowX: "auto" }}>
+      <b>Argentina</b> <span className="muted">{m ? `macro del ${m.date}` : "sin datos: apretá Refrescar Argentina"}</span>
+      {m && (
+        <div className="kpis" style={{ marginTop: 8 }}>
+          <div className="kpi"><b>{ars(m.ccl)}</b><span>dólar CCL{dCcl !== null && <> · <span className={dCcl > 0 ? "bad" : "ok"}>{pct(dCcl)}</span></>}</span></div>
+          <div className="kpi"><b>{ars(m.mep)}</b><span>MEP</span></div>
+          <div className="kpi"><b>{ars(m.oficial)}</b><span>oficial</span></div>
+          <div className="kpi"><b>{pct(m.brechaPct)}</b><span>brecha CCL / oficial</span></div>
+          <div className="kpi"><b>{ars(m.blue)}</b><span>blue</span></div>
+          <div className="kpi"><b>{m.riesgoPais ?? "—"}</b><span>riesgo país{dRp !== null && <> · <span className={dRp > 0 ? "bad" : "ok"}>{pct(dRp)}</span></>}</span></div>
+          <div className="kpi"><b>{m.mervalUsd !== null ? `US$ ${m.mervalUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—"}</b><span>Merval en dólares</span></div>
+        </div>
+      )}
+      <div style={{ marginTop: 12 }}><b>Acciones de BYMA</b> <span className="muted">({acciones.length}) contra el Merval, en pesos</span></div>
+      <table style={{ marginTop: 6 }}>
+        <thead><tr><Th k="simbolo" /><Th k="adr" /><Th k="veredicto" /><Th k="fr3m">FR 3m</Th><Th k="frMerval">FR 6m</Th><Th k="fr12m">FR 12m</Th><Th k="sma200" /><Th k="precioArs" /><Th k="precioUsd" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
+        <tbody>
+          {acciones.map((c) => (
+            <tr key={c.symbol}>
+              <td><SymbolLink symbol={c.symbol} /></td>
+              <td>{c.peerGroup[0] ? <SymbolLink symbol={c.peerGroup[0]} /> : <span className="muted">—</span>}</td>
+              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <span className="flag">{c.flags.join(" · ")}</span>}</td>
+              <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
+              <td className="mono">{ars(c.close)}</td><td className="mono">{c.axes["closeUsd"] !== null && c.axes["closeUsd"] !== undefined ? `US$ ${c.axes["closeUsd"].toFixed(2)}` : "—"}</td>
+              <td className="mono">{ars(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
+              <td className="mono">{ars(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
+              <td><TagChips tags={c.tags} /></td>
+              <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void reload(); }} onCancel={() => setEditing(null)} />}</td>
+            </tr>
+          ))}
+          {!acciones.length && <tr><td colSpan={13} className="muted">Sin acciones argentinas todavía.</td></tr>}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 12 }}><b>CEDEARs</b> <span className="muted">({d.cedears.length}) a qué dólar comprás la acción de EE.UU. si la comprás en pesos</span></div>
+      <table style={{ marginTop: 6 }}>
+        <thead><tr><Th k="simbolo" /><th>acción US</th><Th k="ratio" /><Th k="precioArs" /><Th k="dolarImplicito" /><Th k="vsCcl" /><th>señal</th><th>equivale en US$</th><th>precio US real</th></tr></thead>
+        <tbody>
+          {d.cedears.map((c) => {
+            const gap = c.axes["gapPct"];
+            const flag = c.flags[0] ?? "";
+            return (
+              <tr key={c.symbol}>
+                <td><SymbolLink symbol={c.symbol} /></td>
+                <td>{c.peerGroup[0] ? <SymbolLink symbol={c.peerGroup[0]} /> : "—"}</td>
+                <td className="mono">{c.axes["ratio"] ?? "—"}</td>
+                <td className="mono">{ars(c.close)}</td>
+                <td className="mono">{ars(c.axes["impliedCcl"])}</td>
+                <td className={`mono ${gap !== null && gap !== undefined ? (Math.abs(gap) > 10 ? "warn" : gap > 2 ? "bad" : gap < -2 ? "ok" : "muted") : ""}`}>{pct(gap)}</td>
+                <td><span className={`chip ${flag === "ratio_dudoso" ? "warn" : ""}`}>{CEDEAR_FLAG[flag] ?? flag}</span></td>
+                <td className="mono">{c.axes["priceUsd"] !== null && c.axes["priceUsd"] !== undefined ? `US$ ${c.axes["priceUsd"].toFixed(2)}` : "—"}</td>
+                <td className="mono">{c.axes["usClose"] !== null && c.axes["usClose"] !== undefined ? `US$ ${c.axes["usClose"].toFixed(2)}` : "—"}</td>
+              </tr>
+            );
+          })}
+          {!d.cedears.length && <tr><td colSpan={9} className="muted">Sin CEDEARs todavía.</td></tr>}
+        </tbody>
+      </table>
     </div>
   );
 }

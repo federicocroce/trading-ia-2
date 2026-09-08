@@ -102,6 +102,21 @@ GET /ticker/:symbol                      # la página completa (JSON)
 GET /ticker/:symbol/chart?range=1y&interval=1d
 ```
 
+## Argentina (etapa 3)
+
+Card **Argentina** en la pestaña Radar. Corre todos los días con el refresco del Radar (lun–vie 07:50), con el botón *Refrescar Argentina* o con `pnpm radar:argentina`. Configuración en `config/argentina.json`.
+
+- **Macro del día** (`macro_ar_daily`): dólar oficial, MEP, CCL, blue, mayorista (dolarapi.com), brecha CCL/oficial, riesgo país (argentinadatos.com) y Merval en pesos y en dólares. Se guarda la serie; la card muestra la variación contra el día anterior.
+- **Acciones de BYMA** (Yahoo `.BA`, en pesos): misma regla que los ETFs satélite pero contra el **Merval**: COMPRAR si le ganan al índice a 6 meses y están sobre la SMA200, si no OBSERVAR con la razón. Sin score ni rank: Finnhub no cubre el mercado local; cuando el papel tiene ADR, la fila lo enlaza y los fundamentals están en la ficha del ADR. Precio también en dólares al CCL. Stop chandelier y objetivo 2:1 en pesos. Etiquetas por regla (`accion_ar`, sector de la config, tema `argentina`); lo manual no se pisa.
+- **CEDEARs**: no son una recomendación, son un chequeo. Dólar implícito = precio local × ratio / precio en EE.UU.; contra el CCL: más de +2% caro, menos de −2% barato, más de 10% en cualquier sentido = ratio mal cargado (`ratio_dudoso`). Los ratios cambian con splits: el chequeo los delata.
+- **Medición**: las acciones argentinas se miden contra el Merval (en pesos) a 7/30/90 días, no contra SPY. Los CEDEARs no se miden. Ninguna fila argentina entra en el top de convicción ni en el plan del aporte (que reparte dólares).
+- **Ficha por ticker**: `/?symbol=GGAL.BA` funciona; el precio vivo sale de Yahoo en pesos (Alpaca no cubre BYMA) y la sección Radar muestra la fuerza relativa contra el Merval y el enlace al ADR.
+
+```
+GET  /radar/argentina    # macro del día + serie de 60 días + acciones + cedears
+POST /radar/argentina    # refresco
+```
+
 ## Criterio de salida de paper (DESIGN.md §7)
 
 La pestaña Calibración muestra en vivo si se cumple: ≥ 30 tesis cerradas, Brier del sistema mejor que el del mercado, PnL medio positivo, drawdown < 15%. Hasta que diga **SÍ**, no se habla de dinero real. Es probable que la primera versión no lo cumpla; ese resultado también sirve.

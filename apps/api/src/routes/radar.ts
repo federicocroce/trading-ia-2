@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { AXES, AXIS_METRICS, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
-import { buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse } from "@thesis/pipeline";
+import { buildContributionPlan, measureRadar, rankRadar, refreshArgentina, refreshRadar, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
 
@@ -40,6 +40,15 @@ export function radarRoutes(c: Container) {
       return { ...p, close: r.close, entryHigh: r.entryHigh, stop: r.stop, target: r.target, sizeUsd: r.sizeUsd, sizeQty: r.sizeQty, riskScore: r.riskScore, score: r.score, rankInGroup: r.rankInGroup, groupSize: r.groupSize, summary: r.summary, mainRisk: r.mainRisk, tags: tags[p.symbol] ?? null };
     });
     return ctx.json({ date: rows[0]?.candidateDate ?? null, overweight, picks });
+  });
+  /** Argentina (etapa 3): macro del día y su serie, acciones de BYMA contra el Merval, CEDEARs contra el CCL. */
+  app.get("/radar/argentina", async (ctx) => {
+    const [macro, series, rows] = await Promise.all([store.latestMacroAr(), store.macroArSeries(60), withTags(await store.latestCandidates())]);
+    return ctx.json({ macro, series, acciones: rows.filter((r) => r.kind === "ar"), cedears: rows.filter((r) => r.kind === "cedear") });
+  });
+  app.post("/radar/argentina", async (ctx) => {
+    const r = await refreshArgentina(c.argentinaDeps, { today: today(ctx) });
+    return ctx.json({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors });
   });
   app.get("/radar/candidates/:symbol", async (ctx) => {
     const symbol = ctx.req.param("symbol").toUpperCase();

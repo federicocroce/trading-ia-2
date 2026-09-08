@@ -23,7 +23,15 @@ function app() {
     policy: { weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 }, quality: { minMcapUsd: 500e6, minDollarVolumeUsd: 5e6, minPrice: 5 }, prefilter: { minPrice: 5, minIexDollarVolume: 500_000 }, technical: { maxReturn21dPct: 15, earningsWithinDays: 10 }, sizing: { riskPerTradePct: 1, maxPositionPct: 10, fallbackPortfolioUsd: 150_000 }, candidates: { top: 40, preselect: 150, chronicWeeks: 4 }, contribution: { monthlyUsd: 6500, coreTargetPct: 40, maxPositionPct: 15, maxNewPositionsPerMonth: 2, maxLinePctOfContribution: 50 } },
     filings: async () => [],
   };
-  const c = { store, radarDeps, carteraDeps: { store } } as unknown as Container;
+  const argentinaDeps = {
+    store,
+    history: { candles: async (sym: string) => (sym === "^MERV" ? series(260, 1000, 1500) : sym === "GGAL.BA" ? series(260, 1000, 2000) : sym === "AAPL.BA" ? series(10, 25000, 25320) : []) },
+    macro: { dolares: async () => ({ oficial: 1530, mep: 1533.7, ccl: 1583.2, blue: 1545, mayorista: 1511.5 }), riesgoPais: async () => ({ value: 490, date: today }) },
+    usPrices: async () => ({ AAPL: 319.8 }),
+    config: { benchmark: "^MERV", acciones: [{ symbol: "GGAL.BA", name: "Galicia", adr: "GGAL", sector: "Financiero", themes: ["bancos"] }], cedears: [{ symbol: "AAPL.BA", us: "AAPL", ratio: 20 }] },
+    policy: radarDeps.policy,
+  };
+  const c = { store, radarDeps, argentinaDeps, carteraDeps: { store } } as unknown as Container;
   const a = new Hono();
   a.route("/", radarRoutes(c));
   a.route("/", taxonomyRoutes(c));
@@ -107,5 +115,27 @@ describe("/radar/top", () => {
     expect(top.picks[0].summary).toBe("hace cosas");
     expect(top.picks[0].tags).toBeNull();
     expect(top.picks[1].cautions).toEqual(["ya tenés 75.6% de la cartera en argentina"]);
+  });
+});
+
+describe("/radar/argentina", () => {
+  it("refresca y devuelve macro, acciones contra el Merval y CEDEARs contra el CCL", async () => {
+    const { a } = app();
+    const r = await (await post(a, `/radar/argentina?today=${today}`)).json();
+    expect(r.acciones).toBe(1);
+    expect(r.cedears).toBe(1);
+    expect(r.errors).toEqual([]);
+    const g = await (await a.request("/radar/argentina")).json();
+    expect(g.macro.ccl).toBe(1583.2);
+    expect(g.macro.riesgoPais).toBe(490);
+    expect(g.series).toHaveLength(1);
+    expect(g.acciones[0].symbol).toBe("GGAL.BA");
+    expect(g.acciones[0].verdict).toBe("COMPRAR");
+    expect(g.acciones[0].tags.assetClass).toBe("accion_ar");
+    expect(g.cedears[0].symbol).toBe("AAPL.BA");
+    expect(g.cedears[0].flags).toEqual(["en_linea"]);
+    // Las filas argentinas no se mezclan con las de acciones US en el top de convicción ni en el plan.
+    const top = await (await a.request("/radar/top")).json();
+    expect(top.picks.some((p: { symbol: string }) => p.symbol.endsWith(".BA"))).toBe(false);
   });
 });

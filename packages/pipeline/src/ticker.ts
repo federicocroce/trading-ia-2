@@ -20,7 +20,7 @@ export interface TickerDeps {
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
-  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null } | null;
+  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency: string | null } | null;
   position: (Position & { valueUsd: number; pnlUsd: number; pnlPct: number; weightPct: number | null }) | null;
   verdict: VerdictRow | null;
   tags: Tags | null;
@@ -148,7 +148,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
   const quoteP = guarded("precio", () => deps.quote(symbol)).then((q): TickerPage["quote"] => {
     if (!q) return null;
     const change = q.prevClose ? round2(q.price - q.prevClose) : null;
-    return { price: q.price, prevClose: q.prevClose, change, changePct: q.prevClose ? round2(((q.price - q.prevClose) / q.prevClose) * 100) : null, asOf: q.asOf };
+    return { price: q.price, prevClose: q.prevClose, change, changePct: q.prevClose ? round2(((q.price - q.prevClose) / q.prevClose) * 100) : null, asOf: q.asOf, currency: q.currency ?? null };
   });
 
   const dbStart = Date.now();

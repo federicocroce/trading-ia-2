@@ -1,3 +1,4 @@
+import { AR_BENCHMARK } from "./argentina.js";
 import {
   AXES,
   AXIS_METRICS,
@@ -430,8 +431,10 @@ export async function measureRadar(deps: Pick<RadarDeps, "store" | "history">, o
   const firstOnOrAfter = (c: Candle[], date: string) => c.find((x) => x.date >= date) ?? null;
   for (const h of [7, 30, 90] as const) {
     for (const r of await deps.store.candidatesToMeasure(addDays(opts.today, -h), h)) {
+      // Acciones argentinas contra el Merval (en pesos); los CEDEARs son un chequeo de precio, no una apuesta.
+      if (r.kind === "cedear") continue;
       const target = addDays(r.candidateDate, h);
-      const [own, spy] = await Promise.all([candlesOf(r.symbol), candlesOf("SPY")]);
+      const [own, spy] = await Promise.all([candlesOf(r.symbol), candlesOf(r.kind === "ar" ? AR_BENCHMARK : "SPY")]);
       const a = firstOnOrAfter(own, target);
       const b = firstOnOrAfter(spy, target);
       if (!a || !b || r.spyClose === null || r.close <= 0) continue;
@@ -485,7 +488,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       portfolioValueUsd,
       positions: positions.map((p) => ({ symbol: p.symbol, valueUsd: weights.get(p.symbol)?.value ?? (closes[p.symbol] ?? p.avgCost) * p.quantity, assetClass: tags[p.symbol]?.assetClass ?? (etfOf(p.symbol) ? "etf" : p.market === "adr" ? "adr" : p.market === "ar" ? "accion_ar" : "accion_us"), ...(etfOf(p.symbol) || p.layer === "nucleo" ? { role: (etfOf(p.symbol)?.role ?? "nucleo") as EtfConfig["role"] } : {}) })),
       sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct })),
-      buyCandidates: candidates.filter((c) => c.verdict === "COMPRAR").map((c) => ({ symbol: c.symbol, kind: c.kind, score: c.score, sizeUsd: c.sizeUsd, close: c.close })),
+      // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
+      buyCandidates: candidates.filter((c): c is CandidateRow & { kind: "stock" | "etf" } => c.verdict === "COMPRAR" && (c.kind === "stock" || c.kind === "etf")).map((c) => ({ symbol: c.symbol, kind: c.kind, score: c.score, sizeUsd: c.sizeUsd, close: c.close })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,
       closes,

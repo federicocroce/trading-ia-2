@@ -1,4 +1,4 @@
-import { buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse } from "@thesis/pipeline";
+import { buildContributionPlan, measureRadar, rankRadar, refreshArgentina, refreshRadar, scanUniverse } from "@thesis/pipeline";
 import { loadConfig } from "./config.js";
 import { buildContainer } from "./container.js";
 
@@ -17,5 +17,6 @@ else if (cmd === "rank") { const r = await rankRadar(deps, { today, portfolioUsd
 else if (cmd === "refresh") { console.log(await refreshRadar(deps, { today, portfolioUsd })); console.log(await measureRadar(deps, { today })); }
 else if (cmd === "plan") console.log(JSON.stringify(await buildContributionPlan(deps, { month: today.slice(0, 7), portfolioUsd }), null, 2));
 else if (cmd === "measure") console.log(await measureRadar(deps, { today }));
-else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | plan | measure"); process.exit(1); }
+else if (cmd === "argentina") { const r = await refreshArgentina(c.argentinaDeps, { today }); console.log(JSON.stringify({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors }, null, 2)); }
+else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | plan | measure | argentina"); process.exit(1); }
 process.exit(0);

@@ -49,7 +49,8 @@ export type ScanStage = "alpaca_ok" | "finnhub_ok" | "excluded" | "error";
 export interface CandidateRow {
   candidateDate: string;
   symbol: string;
-  kind: "stock" | "etf";
+  /** stock/etf del Radar US; ar = acción de BYMA (precio en pesos, contra el Merval); cedear = chequeo de dólar implícito. */
+  kind: "stock" | "etf" | "ar" | "cedear";
   verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO";
   score: number | null;
   axes: Record<string, number | null>;
@@ -165,4 +166,6 @@ export interface LiveQuote {
   prevClose: number | null;
   /** ISO de la última operación. */
   asOf: string | null;
+  /** Moneda del precio (ARS para los .BA). Sin valor = USD. */
+  currency?: string | null;
 }
