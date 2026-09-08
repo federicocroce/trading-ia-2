@@ -18,7 +18,10 @@ function readLocation(): { tab: Tab; symbol: string | null } {
 /** Arma la URL nueva a partir de la actual y la empuja al historial sin recargar. `symbol: null` saca la ficha; lo que no se pasa queda como está. */
 function pushLocation(patch: { tab?: Tab; symbol?: string | null }) {
   const url = new URL(window.location.href);
-  if (patch.tab !== undefined) url.searchParams.set("tab", patch.tab);
+  if (patch.tab !== undefined) {
+    url.searchParams.set("tab", patch.tab);
+    url.searchParams.delete("sub"); // la sub-pestaña es de cada pestaña
+  }
   if (patch.symbol !== undefined) {
     if (patch.symbol) url.searchParams.set("symbol", patch.symbol.toUpperCase());
     else url.searchParams.delete("symbol");

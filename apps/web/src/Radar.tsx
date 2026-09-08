@@ -11,8 +11,28 @@ const pct = (n: number | null | undefined) => (n === null || n === undefined ? "
 const money = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `$${Math.round(n).toLocaleString("en-US")}`);
 const AXIS_LABEL: Record<string, string> = { valuation: "valuación", quality: "calidad", growth: "crecimiento", balance: "balance", rs3m: "FR 3m", rs6m: "FR 6m", rs12m: "FR 12m", distSma200Pct: "vs SMA200", atrPct: "ATR%" };
 
+/** Sub-pestañas del Radar, cada una con su URL (`?tab=radar&sub=etfs`). */
+const SUBS = [["resumen", "Resumen"], ["acciones", "Acciones US"], ["seguimiento", "Seguimiento"], ["etfs", "ETFs"], ["argentina", "Argentina"], ["medicion", "Medición"]] as const;
+type Sub = (typeof SUBS)[number][0];
+const readSub = (): Sub => {
+  const v = new URLSearchParams(window.location.search).get("sub");
+  return SUBS.some(([k]) => k === v) ? (v as Sub) : "resumen";
+};
+
 /** Pestaña Radar (spec etapa 2 §12): plan del aporte, candidatos con ficha, ETFs, medición y barrido. */
 export function Radar() {
+  const [sub, setSub] = useState<Sub>(readSub);
+  useEffect(() => {
+    const onPop = () => setSub(readSub());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  const goSub = (k: Sub) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("sub", k);
+    if (url.href !== window.location.href) window.history.pushState({}, "", url);
+    setSub(k);
+  };
   const [cands, setCands] = useState<Candidate[]>([]);
   const [plan, setPlan] = useState<ContributionPlan | null>(null);
   const [top, setTop] = useState<RadarTop | null>(null);
@@ -79,7 +99,18 @@ export function Radar() {
         <button className="primary" disabled={!!busy} onClick={() => act("plan", async () => `Plan ${(await api.radar.buildPlan()).month} regenerado.`)}>Regenerar plan</button>
       </div>
       {msg && <div className="card">{msg}</div>}
-      {scan && (scan.running || scan.last) && (
+      <div className="card row" style={{ gap: 8 }}>
+        <div className="seg">
+          {SUBS.map(([k, label]) => {
+            const n = k === "acciones" ? stocks.length : k === "seguimiento" ? watch?.items.length : k === "etfs" ? etfs.length : k === "argentina" ? ar?.acciones.length : undefined;
+            return <button key={k} className={sub === k ? "active" : ""} onClick={() => goSub(k)}>{label}{n !== undefined ? ` (${n})` : ""}</button>;
+          })}
+        </div>
+        <div style={{ flex: 1 }} />
+        <button className="ghost" onClick={() => setHelp(true)}>¿Qué significa cada columna?</button>
+        {help && <RadarHelpModal onClose={() => setHelp(false)} />}
+      </div>
+      {scan && (scan.running || (scan.last && sub === "acciones")) && (
         <div className="card">
           <div className="row">
             <b>Barrido del universo</b>
@@ -90,9 +121,9 @@ export function Radar() {
           {scan.status && <div className="muted mono" style={{ marginTop: 6 }}>{Object.entries(scan.status).map(([k, v]) => `${k} ${v}`).join(" · ")}</div>}
         </div>
       )}
-      {top && <TopPicks t={top} plan={plan} />}
-      {plan && <PlanCard p={plan} busy={busy === "plan"} onBuild={async (amountUsd) => { await act("plan", async () => { const np = await api.radar.buildPlan(amountUsd); setPlan(np); return `Plan ${np.month} armado para ${money(np.totalUsd)}.`; }); }} />}
-      {opts && (
+      {sub === "resumen" && top && <TopPicks t={top} plan={plan} />}
+      {sub === "resumen" && plan && <PlanCard p={plan} busy={busy === "plan"} onBuild={async (amountUsd) => { await act("plan", async () => { const np = await api.radar.buildPlan(amountUsd); setPlan(np); return `Plan ${np.month} armado para ${money(np.totalUsd)}.`; }); }} />}
+      {sub === "acciones" && opts && (
         <div className="card form-row">
           <span className="muted">Filtrar:</span>
           <select value={filter.verdict} onChange={(e) => setFilter({ ...filter, verdict: e.target.value })}><option value="">verdict</option>{["COMPRAR", "OBSERVAR", "NUCLEO"].map((v) => <option key={v}>{v}</option>)}</select>
@@ -101,9 +132,8 @@ export function Radar() {
           <select value={filter.theme} onChange={(e) => setFilter({ ...filter, theme: e.target.value })}><option value="">tema</option>{opts.themes.map((v) => <option key={v}>{v}</option>)}</select>
         </div>
       )}
-      <div className="card" style={{ overflowX: "auto" }}>
-        <b>Acciones candidatas</b> <span className="muted">({stocks.length})</span> <button className="ghost" style={{ marginLeft: 8 }} onClick={() => setHelp(true)}>¿Qué significa cada columna?</button>
-        {help && <RadarHelpModal onClose={() => setHelp(false)} />}
+      {sub === "acciones" && <div className="card" style={{ overflowX: "auto" }}>
+        <b>Acciones candidatas</b> <span className="muted">({stocks.length})</span>
         <table style={{ marginTop: 8 }}>
           <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="score" /><Th k="rank" /><Th k="precio" /><Th k="entrada" /><Th k="stop" /><Th k="objetivo" /><Th k="tamano" /><Th k="riesgo" /><Th k="etiquetas" /><th></th></tr></thead>
           <tbody>
@@ -113,8 +143,8 @@ export function Radar() {
             {!stocks.length && <tr><td colSpan={12} className="muted">Sin acciones candidatas para este filtro.</td></tr>}
           </tbody>
         </table>
-      </div>
-      <div className="card" style={{ overflowX: "auto" }}>
+      </div>}
+      {sub === "etfs" && <div className="card" style={{ overflowX: "auto" }}>
         <b>ETFs</b> <span className="muted">({etfs.length})</span>
         <table style={{ marginTop: 8 }}>
           <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3m" /><Th k="fr6m" /><Th k="fr12m" /><Th k="sma200" /><Th k="precio" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
@@ -131,10 +161,10 @@ export function Radar() {
             ))}
           </tbody>
         </table>
-      </div>
-      {watch && <WatchCard w={watch} setWatch={setWatch} editing={editing} setEditing={setEditing} reload={load} />}
-      {ar && <ArgentinaCard d={ar} editing={editing} setEditing={setEditing} reload={load} />}
-      {meas && <MeasCard m={meas} />}
+      </div>}
+      {sub === "seguimiento" && watch && <WatchCard w={watch} setWatch={setWatch} editing={editing} setEditing={setEditing} reload={load} />}
+      {sub === "argentina" && ar && <ArgentinaCard d={ar} editing={editing} setEditing={setEditing} reload={load} />}
+      {sub === "medicion" && meas && <MeasCard m={meas} />}
     </>
   );
 }
