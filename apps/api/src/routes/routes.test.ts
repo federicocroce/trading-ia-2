@@ -31,6 +31,7 @@ function container(): Container {
     carteraDeps: { store, history: { candles: async () => [] }, profiles: { profile: async () => null }, narrator: null, spot: async () => null },
     radarDeps: { store, taxonomy: { sectors: [], themes: [], industryToSector: {}, industryToThemes: {}, symbolToThemes: {}, symbolToAssetClass: {} } } as never,
     tickerDeps: { store } as never,
+    argentinaDeps: { store } as never,
     marketData,
     broker,
     risk: new DefaultRiskEngine(),

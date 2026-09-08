@@ -138,7 +138,7 @@ export function buildContainer(cfg: Config): Container {
     store,
     history,
     macro: new ArgentinaMacro(),
-    usPrices: async (symbols) => Object.fromEntries((await new AlpacaAssets(http, cfg.alpaca).snapshots(symbols)).map((x) => [x.symbol, x.price])),
+    usPrices: async (symbols) => Object.fromEntries((await new AlpacaAssets(http, cfg.alpaca).snapshots(symbols)).flatMap((x) => (x.price === null ? [] : [[x.symbol, x.price] as const]))),
     config: cfg.radar.argentina,
     policy: cfg.radar.policy,
     log: (msg) => console.log(msg),
