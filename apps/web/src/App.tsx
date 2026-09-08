@@ -4,23 +4,41 @@ import { Cartera } from "./Cartera";
 import { Radar } from "./Radar";
 import { Ticker } from "./Ticker";
 
-type Tab = "cartera" | "radar" | "proposed" | "open" | "history" | "calibration";
+const TABS = ["cartera", "radar", "proposed", "open", "history", "calibration"] as const;
+type Tab = (typeof TABS)[number];
+const isTab = (x: string | null): x is Tab => x !== null && (TABS as readonly string[]).includes(x);
+
+/** La navegación vive en la URL: `?tab=radar` es la pestaña y `?symbol=NBN` la ficha por ticker (pueden convivir). Sin `tab` o con uno inválido cae en Cartera. */
+function readLocation(): { tab: Tab; symbol: string | null } {
+  const q = new URLSearchParams(window.location.search);
+  const t = q.get("tab");
+  return { tab: isTab(t) ? t : "cartera", symbol: q.get("symbol")?.toUpperCase() ?? null };
+}
+
+/** Arma la URL nueva a partir de la actual y la empuja al historial sin recargar. `symbol: null` saca la ficha; lo que no se pasa queda como está. */
+function pushLocation(patch: { tab?: Tab; symbol?: string | null }) {
+  const url = new URL(window.location.href);
+  if (patch.tab !== undefined) url.searchParams.set("tab", patch.tab);
+  if (patch.symbol !== undefined) {
+    if (patch.symbol) url.searchParams.set("symbol", patch.symbol.toUpperCase());
+    else url.searchParams.delete("symbol");
+  }
+  if (url.href !== window.location.href) window.history.pushState({}, "", url);
+}
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("cartera");
-  const readSymbol = () => new URLSearchParams(window.location.search).get("symbol")?.toUpperCase() ?? null;
-  const [symbol, setSymbol] = useState<string | null>(readSymbol);
+  const [{ tab, symbol }, setLocation] = useState(readLocation);
   useEffect(() => {
-    const onPop = () => setSymbol(readSymbol());
+    // Único listener: atrás/adelante del navegador y goToSymbol (que dispara popstate) releen la URL entera.
+    const onPop = () => setLocation(readLocation());
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-  const closeSymbol = () => {
-    const url = new URL(window.location.href);
-    url.searchParams.delete("symbol");
-    window.history.pushState({}, "", url);
-    setSymbol(null);
+  const navigate = (patch: Parameters<typeof pushLocation>[0]) => {
+    pushLocation(patch);
+    setLocation(readLocation());
   };
+  const closeSymbol = () => navigate({ symbol: null });
   const [health, setHealth] = useState<Awaited<ReturnType<typeof api.health>> | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -72,8 +90,8 @@ export function App() {
       <header>
         <h1>thesis-engine</h1>
         <nav>
-          {(["cartera", "radar", "proposed", "open", "history", "calibration"] as Tab[]).map((t) => (
-            <button key={t} className={tab === t && !symbol ? "active" : ""} onClick={() => { if (symbol) closeSymbol(); setTab(t); }}>
+          {TABS.map((t) => (
+            <button key={t} className={tab === t && !symbol ? "active" : ""} onClick={() => navigate({ tab: t, symbol: null })}>
               {{ cartera: "Cartera", radar: "Radar", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
             </button>
           ))}
