@@ -28,6 +28,9 @@ export function App() {
   const refreshHealth = useCallback(() => api.health().then(setHealth).catch(() => setHealth(null)), []);
   useEffect(() => {
     void refreshHealth();
+    // La API se reinicia sola al editar código (tsx watch): reintentar para que el aviso se vaya solo.
+    const id = window.setInterval(() => void refreshHealth(), 30_000);
+    return () => window.clearInterval(id);
   }, [refreshHealth]);
 
   async function run() {
@@ -56,7 +59,7 @@ export function App() {
         <h1>thesis-engine</h1>
         <nav>
           {(["cartera", "radar", "proposed", "open", "history", "calibration"] as Tab[]).map((t) => (
-            <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
+            <button key={t} className={tab === t && !symbol ? "active" : ""} onClick={() => { if (symbol) closeSymbol(); setTab(t); }}>
               {{ cartera: "Cartera", radar: "Radar", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
             </button>
           ))}

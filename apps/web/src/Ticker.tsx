@@ -33,6 +33,17 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const years = d?.firstTradeDate ? Math.floor((Date.now() - Date.parse(d.firstTradeDate)) / (365.25 * 86_400_000)) : null;
   const priceStale = stale(q?.asOf ?? null);
   const m = t.fundamentals?.metrics ?? {};
+  // Niveles vigentes: el veredicto de Cartera manda; si no hay posición, los del Radar.
+  const levelsFrom = t.verdict ? "Cartera" : t.candidate ? "Radar" : null;
+  const stop = t.verdict?.stop ?? t.candidate?.stop ?? null;
+  const target = t.verdict?.target ?? t.candidate?.target ?? null;
+  const px = q?.price ?? null;
+  const move = (level: number | null) => (px && level ? ((level - px) / px) * 100 : null);
+  const toStop = move(stop);
+  const toTarget = move(target);
+  const rr = toStop !== null && toTarget !== null && toStop < 0 && toTarget > 0 ? toTarget / -toStop : null;
+  const qty = t.position?.quantity ?? null;
+  const usdAt = (level: number | null) => (px && level && qty ? money(qty * (level - px)) : null);
 
   return (
     <>
@@ -63,6 +74,15 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               {priceStale && <span className="verb REVISAR">⚠ precio viejo: última operación {q.asOf?.slice(0, 10)}</span>}
             </div>
           ) : <span className="muted">Sin precio vivo.</span>}
+          {px && (stop || target) && (
+            <div className="row" style={{ marginTop: 8, gap: 16 }}>
+              {stop && <span>Stop <b className="mono">{f2(stop)}</b> <span className={toStop !== null && toStop < 0 ? "bad" : "warn"}>{pct(toStop)}{usdAt(stop) && ` · ${usdAt(stop)}`}</span></span>}
+              {target && <span>Objetivo <b className="mono">{f2(target)}</b> <span className={toTarget !== null && toTarget > 0 ? "ok" : "warn"}>{pct(toTarget)}{usdAt(target) && ` · ${usdAt(target)}`}</span></span>}
+              {rr !== null && <span className="muted">relación {rr.toFixed(1)} : 1</span>}
+              {toStop !== null && toStop >= 0 && <span className="verb VENDER">precio por debajo del stop</span>}
+              <span className="muted">({levelsFrom}{qty ? `, sobre tu tenencia de ${f2(qty)}` : ", sin posición"})</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -78,7 +98,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               <div className="kpi"><b>${f2(t.position.avgCost)}</b><span>costo promedio</span></div>
               <div className="kpi"><b className={t.position.pnlUsd >= 0 ? "ok" : "bad"}>{money(t.position.pnlUsd)}</b><span>ganancia no realizada ({pct(t.position.pnlPct)})</span></div>
               <div className="kpi"><b>{money(t.position.valueUsd)}</b><span>valor</span></div>
-              {t.verdict && <div className="kpi"><b>{f2(t.verdict.stop)} / {f2(t.verdict.target)}</b><span>stop / objetivo</span></div>}
+              {t.verdict && <div className="kpi"><b><span className="bad">{f2(t.verdict.stop)}</span> / <span className="ok">{f2(t.verdict.target)}</span></b><span>stop ({pct(move(t.verdict.stop))}) / objetivo ({pct(move(t.verdict.target))})</span></div>}
             </div>
             {t.verdict && <div style={{ marginTop: 8 }}><b>Por qué:</b> {t.verdict.reason}{t.verdict.narrative && <div className="muted" style={{ marginTop: 4 }}><b>Modelo:</b> {t.verdict.narrative}</div>}{t.verdict.warning && <div className="warn" style={{ marginTop: 4 }}>⚠ {t.verdict.warning}</div>}</div>}
           </div>

@@ -92,15 +92,17 @@ export function PriceChart({ symbol, currentPrice, levels, onPeriodChange }: { s
     }
     // Niveles: costo promedio, stop y objetivo.
     const line = (price: number | null | undefined, color: string, title: string) => { if (price) main.createPriceLine({ price, color, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title }); };
+    // % de movimiento desde el precio actual hasta el nivel: lo que se pierde en el stop, lo que se gana en el objetivo.
+    const rel = (p: number | null | undefined) => (p && currentPrice ? ` ${p >= currentPrice ? "+" : ""}${(((p - currentPrice) / currentPrice) * 100).toFixed(1)}%` : "");
     line(levels?.avgCost, dark ? "#7aa2f7" : "#2f4f9f", "costo");
-    line(levels?.stop, COLORS.red, "stop");
-    line(levels?.target, COLORS.green, "objetivo");
+    line(levels?.stop, COLORS.red, `stop${rel(levels?.stop)}`);
+    line(levels?.target, COLORS.green, `objetivo${rel(levels?.target)}`);
     chart.timeScale().fitContent();
     chartRef.current = chart;
     const onResize = () => { if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth }); };
     window.addEventListener("resize", onResize);
     return () => { window.removeEventListener("resize", onResize); chart.remove(); chartRef.current = null; };
-  }, [window_.length, tf.range, tf.interval, chartType, levels?.avgCost, levels?.stop, levels?.target, isIntraday, symbol]);
+  }, [window_.length, tf.range, tf.interval, chartType, levels?.avgCost, levels?.stop, levels?.target, currentPrice, isIntraday, symbol]);
 
   return (
     <div>
