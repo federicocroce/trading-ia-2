@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Candidate, type CandidateDetail, type ContributionPlan, type RadarMeasurement, type ScanStatus, type TaxonomyOptions } from "./api";
+import { api, type Candidate, type CandidateDetail, type ContributionPlan, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 
@@ -12,6 +12,7 @@ const AXIS_LABEL: Record<string, string> = { valuation: "valuación", quality: "
 export function Radar() {
   const [cands, setCands] = useState<Candidate[]>([]);
   const [plan, setPlan] = useState<ContributionPlan | null>(null);
+  const [top, setTop] = useState<RadarTop | null>(null);
   const [meas, setMeas] = useState<RadarMeasurement | null>(null);
   const [scan, setScan] = useState<ScanStatus | null>(null);
   const [opts, setOpts] = useState<TaxonomyOptions | null>(null);
@@ -24,9 +25,10 @@ export function Radar() {
   const load = useCallback(async () => {
     const q: Record<string, string> = {};
     for (const [k, v] of Object.entries(filter)) if (v) q[k] = v;
-    const [c, p, m, s, o] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options()]);
+    const [c, p, m, s, o, t] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options(), api.radar.top(5)]);
     setCands(c);
     setPlan(p);
+    setTop(t);
     setMeas(m);
     setScan(s);
     setOpts(o);
@@ -79,6 +81,7 @@ export function Radar() {
           {scan.status && <div className="muted mono" style={{ marginTop: 6 }}>{Object.entries(scan.status).map(([k, v]) => `${k} ${v}`).join(" · ")}</div>}
         </div>
       )}
+      {top && <TopPicks t={top} plan={plan} />}
       {plan && <PlanCard p={plan} />}
       {opts && (
         <div className="card form-row">
@@ -138,8 +141,8 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
         <td className="mono">{c.rankInGroup ?? "—"}/{c.groupSize ?? "—"}</td>
         <td className="mono">{f2(c.close)}</td>
         <td className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</td>
-        <td className="mono">{f2(c.stop)}</td>
-        <td className="mono">{f2(c.target)}</td>
+        <td className="mono">{f2(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
+        <td className="mono">{f2(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
         <td className="mono">{c.sizeQty ?? "—"} · {money(c.sizeUsd)}</td>
         <td className="mono">{c.riskScore ?? "—"}/10</td>
         <td><TagChips tags={c.tags} /></td>
@@ -180,6 +183,44 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
         </tr>
       )}
     </>
+  );
+}
+
+/** Los COMPRAR con más convicción: cada factor que el Radar ya calculó, en palabras, con lo que acompaña y lo que no. */
+function TopPicks({ t, plan }: { t: RadarTop; plan: ContributionPlan | null }) {
+  const nucleo = plan?.lines.filter((l) => l.kind === "nucleo") ?? [];
+  const nucleoUsd = nucleo.reduce((s, l) => s + l.amountUsd, 0);
+  return (
+    <div className="card">
+      <b>Lo que más recomienda hoy</b> <span className="muted">{t.date ? `candidatos del ${t.date}` : ""} · convicción = fundamentals contra pares × tamaño del grupo, más banderas, menos riesgo y concentración</span>
+      {plan && nucleo.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <span className="verb NUCLEO">NUCLEO</span> Antes que cualquier acción, el plan de {plan.month} manda {money(nucleoUsd)} de {money(plan.totalUsd)} al núcleo ({nucleo.map((l) => l.symbol).join(", ")}): {nucleo[0]?.rationale}.
+        </div>
+      )}
+      {Object.keys(t.overweight).length > 0 && <div className="muted" style={{ marginTop: 4 }}>Ya estás cargado en: {Object.entries(t.overweight).map(([k, v]) => `${k} ${v.toFixed(1)}%`).join(", ")}. Los candidatos de esos temas suman menos.</div>}
+      {t.picks.length === 0 ? <div className="muted" style={{ marginTop: 8 }}>Ningún COMPRAR califica todavía.</div> : (
+        <div className="picks">
+          {t.picks.map((p, i) => (
+            <div key={p.symbol} className={`pick ${p.allAligned ? "aligned" : ""}`}>
+              <div className="row" style={{ alignItems: "baseline" }}>
+                <span className="muted mono">{i + 1}.</span>
+                <SymbolLink symbol={p.symbol}><b style={{ fontSize: 18, fontFamily: "ui-monospace, Menlo, monospace" }}>{p.symbol}</b></SymbolLink>
+                <span className="mono muted">convicción {p.conviction.toFixed(2)}</span>
+                {p.allAligned ? <span className="verb COMPRAR">todo acompaña</span> : <span className="verb OBSERVAR">con salvedades</span>}
+                <div style={{ flex: 1 }} />
+                <span className="mono"><span className="ok">{pct(p.gainPct)}</span> / <span className="bad">{pct(p.lossPct)}</span></span>
+              </div>
+              {p.summary && <div className="muted" style={{ marginTop: 4 }}>{p.summary}</div>}
+              <ul className="why">{p.reasons.map((r) => <li key={r} className="ok">✓ {r}</li>)}{p.cautions.map((r) => <li key={r} className="warn">⚠ {r}</li>)}</ul>
+              <div className="muted mono" style={{ marginTop: 4 }}>entrar hasta {f2(p.entryHigh)} · stop {f2(p.stop)} · objetivo {f2(p.target)} · tamaño {p.sizeQty ?? "—"} ({money(p.sizeUsd)})</div>
+              {p.mainRisk && <div className="muted" style={{ marginTop: 2 }}><b>Riesgo principal:</b> {p.mainRisk}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>El objetivo no es un pronóstico: es el precio donde la operación paga 2 veces lo que arriesga hasta el stop. Si el score anticipa algo lo va a decir la medición contra SPY a 7/30/90 días.</div>
+    </div>
   );
 }
 

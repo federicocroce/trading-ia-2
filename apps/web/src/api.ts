@@ -45,6 +45,8 @@ export interface Candidate {
   summary: string | null; whyRanks: string | null; mainRisk: string | null; moat: string | null; degradedBy: string | null; spyClose: number | null; alpha7dPct: number | null; alpha30dPct: number | null; alpha90dPct: number | null; tags: Tags | null;
 }
 export interface CandidateDetail { candidate: Candidate; fundamentals: { metrics: Record<string, number | null>; peers: string[]; mcapUsd: number; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null; tags: Tags | null; profile: { name: string | null; country: string | null; industry: string | null } | null; peers: Array<{ symbol: string; metrics: Record<string, number | null> }> }
+export interface TopPick { symbol: string; conviction: number; gainPct: number; lossPct: number; reasons: string[]; cautions: string[]; allAligned: boolean; close: number; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; score: number | null; rankInGroup: number | null; groupSize: number | null; summary: string | null; mainRisk: string | null; tags: Tags | null }
+export interface RadarTop { date: string | null; overweight: Record<string, number>; picks: TopPick[] }
 export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar"; amountUsd: number; rationale: string; alpha30dPct: number | null; alpha90dPct: number | null }
 export interface ContributionPlan { month: string; totalUsd: number; lines: PlanLine[]; notes: string[] }
 export interface ScanStatus { running: boolean; stopRequested: boolean; startedAt: string | null; progress: { done: number; total: number; stage: string } | null; last: { listed: number; prefiltered: number; fundamentalsOk: number; excluded: number; errors: number; stopped: boolean } | null; scanDate: string | null; status: Record<string, number> | null }
@@ -114,6 +116,7 @@ export const api = {
     scanStatus: () => j<ScanStatus>("/radar/scan-status"),
     rank: () => j<{ candidates: Candidate[]; skipped: unknown[]; errors: Array<{ symbol: string; error: string }> }>("/radar/rank", { method: "POST" }),
     refresh: () => j<{ refreshed: number; errors: unknown[] }>("/radar/refresh", { method: "POST" }),
+    top: (n = 5) => j<RadarTop>(`/radar/top?n=${n}`),
     plan: () => j<ContributionPlan | null>("/radar/plan"),
     buildPlan: () => j<ContributionPlan>("/radar/plan", { method: "POST" }),
     measurement: () => j<RadarMeasurement>("/radar/measurement"),

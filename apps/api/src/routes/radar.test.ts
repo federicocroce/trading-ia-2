@@ -88,3 +88,24 @@ describe("/radar", () => {
     expect((await a.request("/radar/candidates/ZZZ")).status).toBe(404);
   });
 });
+
+describe("/radar/top", () => {
+  it("devuelve los COMPRAR con más convicción, con razones, salvedades y los temas donde la cartera ya está cargada", async () => {
+    const { a, store } = app();
+    const base = { candidateDate: today, kind: "stock" as const, verdict: "COMPRAR" as const, axes: {}, peerGroup: [], rankInGroup: 1, groupSize: 20, close: 100, entryLow: 100, entryHigh: 102, stop: 92, target: 116, sizeUsd: 10_000, sizeQty: 100, riskScore: 4, nthAppearance: 1, summary: "hace cosas", whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null };
+    await store.upsertCandidates([
+      { ...base, symbol: "TOP", score: 1.3, flags: ["consenso_compra"] },
+      { ...base, symbol: "ARG", score: 1.6, flags: [] },
+      { ...base, symbol: "OBS", score: 2, verdict: "OBSERVAR", flags: [] },
+    ]);
+    await store.saveTags("ARG", { assetClass: "adr", sector: "Financiero", industry: "Banking", themes: ["argentina"], themesSource: "regla" });
+    await store.saveRisk(today, { totalValue: 100, weights: [], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: { argentina: 75.6, IA: 7 }, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, liquidity: [], notes: [] });
+    const top = await (await a.request("/radar/top?n=5")).json();
+    expect(top.overweight).toEqual({ argentina: 75.6 });
+    expect(top.picks.map((p: { symbol: string }) => p.symbol)).toEqual(["TOP", "ARG"]);
+    expect(top.picks[0].allAligned).toBe(true);
+    expect(top.picks[0].summary).toBe("hace cosas");
+    expect(top.picks[0].tags).toBeNull();
+    expect(top.picks[1].cautions).toEqual(["ya tenés 75.6% de la cartera en argentina"]);
+  });
+});

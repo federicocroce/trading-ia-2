@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { AXES, AXIS_METRICS, summarizeRadar, type CandidateRow, type Tags } from "@thesis/core";
+import { AXES, AXIS_METRICS, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
 import { buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
@@ -25,6 +25,21 @@ export function radarRoutes(c: Container) {
     if (q["theme"]) rows = rows.filter((r) => r.tags?.themes.includes(q["theme"]!));
     if (q["assetClass"]) rows = rows.filter((r) => r.tags?.assetClass === q["assetClass"]);
     return ctx.json(rows);
+  });
+  /** Los COMPRAR con más convicción: todos los factores en un número y en palabras. */
+  app.get("/radar/top", async (ctx) => {
+    const n = Math.max(1, Math.min(20, Number(ctx.req.query("n") ?? 5) || 5));
+    const rows = await store.latestCandidates();
+    const tags = await store.allTags();
+    // Temas donde la cartera ya supera el umbral del panel de riesgo (40%): un candidato ahí suma menos.
+    const byTheme = (await store.latestRisk())?.report.concentration.byTheme ?? {};
+    const overweight = Object.fromEntries(Object.entries(byTheme).filter(([, pct]) => pct > 40));
+    const bySymbol = new Map(rows.map((r) => [r.symbol, r]));
+    const picks = topPicks(rows, tags, overweight, n).map((p) => {
+      const r = bySymbol.get(p.symbol)!;
+      return { ...p, close: r.close, entryHigh: r.entryHigh, stop: r.stop, target: r.target, sizeUsd: r.sizeUsd, sizeQty: r.sizeQty, riskScore: r.riskScore, score: r.score, rankInGroup: r.rankInGroup, groupSize: r.groupSize, summary: r.summary, mainRisk: r.mainRisk, tags: tags[p.symbol] ?? null };
+    });
+    return ctx.json({ date: rows[0]?.candidateDate ?? null, overweight, picks });
   });
   app.get("/radar/candidates/:symbol", async (ctx) => {
     const symbol = ctx.req.param("symbol").toUpperCase();
