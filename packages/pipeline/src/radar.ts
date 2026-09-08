@@ -490,7 +490,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       month: opts.month,
       portfolioValueUsd,
       positions: positions.map((p) => ({ symbol: p.symbol, valueUsd: weights.get(p.symbol)?.value ?? (closes[p.symbol] ?? p.avgCost) * p.quantity, assetClass: tags[p.symbol]?.assetClass ?? (etfOf(p.symbol) ? "etf" : p.market === "adr" ? "adr" : p.market === "ar" ? "accion_ar" : "accion_us"), ...(etfOf(p.symbol) || p.layer === "nucleo" ? { role: (etfOf(p.symbol)?.role ?? "nucleo") as EtfConfig["role"] } : {}) })),
-      sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct })),
+      sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: v.stop, target: v.target })),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
       // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
       buyCandidates: candidates

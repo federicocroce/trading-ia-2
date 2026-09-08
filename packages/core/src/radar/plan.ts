@@ -12,7 +12,7 @@ export interface PlanInput {
   month: string;
   portfolioValueUsd: number;
   positions: Array<{ symbol: string; valueUsd: number; assetClass: AssetClass; role?: EtfRole }>;
-  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number }>;
+  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null }>;
   buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null }>;
   coreEtfs: EtfConfig[];
   spyClose: number | null;
@@ -95,7 +95,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     if (remaining < MIN_LINE_USD || sumarPool < MIN_LINE_USD) break;
     const amt = Math.floor(Math.min(remaining, sumarPool, maxLine, Math.max(0, equalTarget - s.valueUsd), capFor(s.symbol)));
     if (amt < MIN_LINE_USD) continue;
-    lines.push(line(s.symbol, "sumar", amt, `subponderada (${s.weightPct}% vs ${Math.round((equalTarget / total) * 100)}% igualitario)`));
+    lines.push({ ...line(s.symbol, "sumar", amt, `subponderada (${s.weightPct}% vs ${Math.round((equalTarget / total) * 100)}% igualitario)`), stop: s.stop ?? null, target: s.target ?? null });
     remaining -= amt;
     sumarPool -= amt;
   }

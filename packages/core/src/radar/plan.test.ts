@@ -40,7 +40,7 @@ describe("planContribution", () => {
       ...base,
       portfolioValueUsd: 158_000,
       positions: [{ symbol: "GGAL", valueUsd: 40_000, assetClass: "adr" }, { symbol: "PAM", valueUsd: 31_000, assetClass: "adr" }, { symbol: "YPF", valueUsd: 29_000, assetClass: "adr" }, { symbol: "VIST", valueUsd: 17_000, assetClass: "adr" }, { symbol: "HUT", valueUsd: 14_400, assetClass: "accion_us" }, { symbol: "TSM", valueUsd: 11_600, assetClass: "accion_us" }, { symbol: "MARA", valueUsd: 7_500, assetClass: "accion_us" }, { symbol: "NEM", valueUsd: 5_800, assetClass: "accion_us" }],
-      sumarCandidates: [{ symbol: "TSM", valueUsd: 11_600, weightPct: 7.4 }, { symbol: "NEM", valueUsd: 5_800, weightPct: 3.7 }],
+      sumarCandidates: [{ symbol: "TSM", valueUsd: 11_600, weightPct: 7.4 }, { symbol: "NEM", valueUsd: 5_800, weightPct: 3.7, stop: 118.5, target: 152.4 }],
       buyCandidates: [
         { symbol: "NVDA", kind: "stock", priority: 1.49, score: 1.29, sizeUsd: 15_661, close: 225.79, entryHigh: 230.31, stop: 214.15, target: 249.07 },
         { symbol: "ZVRA", kind: "stock", priority: 1.73, score: 1.33, sizeUsd: 15_336, close: 12.67, entryHigh: 12.92, stop: 11.59, target: 14.83 },
@@ -58,6 +58,8 @@ describe("planContribution", () => {
       ["ZVRA", "comprar", 3_733], ["NVDA", "comprar", 3_733], ["CEG", "seguimiento", 3_734],
     ]);
     expect(p.lines.reduce((s, l) => s + l.amountUsd, 0)).toBe(40_000);
+    const nem = p.lines.find((l) => l.symbol === "NEM")!;
+    expect([nem.stop, nem.target]).toEqual([118.5, 152.4]); // el stop y objetivo del veredicto de Cartera viajan a la línea SUMAR
     const zvra = p.lines.find((l) => l.symbol === "ZVRA")!;
     expect([zvra.entryHigh, zvra.stop, zvra.target]).toEqual([12.92, 11.59, 14.83]);
     expect(p.notes.join(" ")).toMatch(/COPX/);

@@ -400,10 +400,11 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
               <td className="mono">{qty(l) ?? "—"}</td>
               <td className="mono">{f2(l.close)}</td>
               <td className="mono">{l.entryHigh ? f2(l.entryHigh) : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted">mercado</span> : "—"}</td>
-              <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : "—"}</td>
-              <td className="mono">{l.target ? <>{f2(l.target)}{l.close && <span className="ok"> {pct(((l.target - l.close) / l.close) * 100)}</span>}</> : "—"}</td>
+              <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="El núcleo no se vende por stop: se compra y se mantiene. Es la base de la cartera, no una apuesta.">sin stop</span> : "—"}</td>
+              <td className="mono">{l.target ? <>{f2(l.target)}{l.close && <span className="ok"> {pct(((l.target - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="Sin objetivo: el núcleo se mantiene años, no se vende al llegar a un precio.">se mantiene</span> : "—"}</td>
               <td>{l.rationale}</td>
-              <td className="mono">{pct(l.alpha30dPct)}</td><td className="mono">{pct(l.alpha90dPct)}</td>
+              <td className="mono">{l.alpha30dPct !== null ? pct(l.alpha30dPct) : <span className="muted" title="Se completa 30 días después del plan: cuánto le ganó (o perdió) esta línea a SPY.">en 30 días</span>}</td>
+              <td className="mono">{l.alpha90dPct !== null ? pct(l.alpha90dPct) : <span className="muted" title="Se completa 90 días después del plan.">en 90 días</span>}</td>
             </tr>
           ))}
         </tbody>
