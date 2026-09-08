@@ -47,3 +47,7 @@ input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var
 .pick { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
 .pick.aligned { border-color: rgba(34,197,94,0.5); }
 .why { margin: 6px 0 0; padding-left: 0; list-style: none; } .why li { margin: 2px 0; }
+th.help, .help { cursor: help; text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 50; }
+.modal { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 22px; max-width: 860px; width: 100%; line-height: 1.5; }
+.modal h3 { margin: 18px 0 6px; } .modal p { margin: 6px 0; } .modal table { margin: 6px 0 10px; } .modal ol { padding-left: 20px; } .modal li { margin: 4px 0; }

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type Candidate, type CandidateDetail, type ContributionPlan, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
+import { HELP, RadarHelpModal, Th } from "./RadarHelp";
+
+const HELP_CONVICCION = HELP["conviccion"]!.short;
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(1)}%`);
@@ -21,6 +24,7 @@ export function Radar() {
   const [msg, setMsg] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [help, setHelp] = useState(false);
 
   const load = useCallback(async () => {
     const q: Record<string, string> = {};
@@ -93,9 +97,10 @@ export function Radar() {
         </div>
       )}
       <div className="card" style={{ overflowX: "auto" }}>
-        <b>Acciones candidatas</b> <span className="muted">({stocks.length})</span>
+        <b>Acciones candidatas</b> <span className="muted">({stocks.length})</span> <button className="ghost" style={{ marginLeft: 8 }} onClick={() => setHelp(true)}>¿Qué significa cada columna?</button>
+        {help && <RadarHelpModal onClose={() => setHelp(false)} />}
         <table style={{ marginTop: 8 }}>
-          <thead><tr><th>símbolo</th><th>veredicto</th><th>score</th><th>rank</th><th>precio</th><th>entrada</th><th>stop</th><th>objetivo</th><th>tamaño</th><th>riesgo</th><th>etiquetas</th><th></th></tr></thead>
+          <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="score" /><Th k="rank" /><Th k="precio" /><Th k="entrada" /><Th k="stop" /><Th k="objetivo" /><Th k="tamano" /><Th k="riesgo" /><Th k="etiquetas" /><th></th></tr></thead>
           <tbody>
             {stocks.map((c) => (
               <CandRow key={c.symbol} c={c} open={open === c.symbol} onToggle={() => setOpen(open === c.symbol ? null : c.symbol)} editing={editing === c.symbol} onEdit={() => setEditing(editing === c.symbol ? null : c.symbol)} onSaved={load} />
@@ -107,7 +112,7 @@ export function Radar() {
       <div className="card" style={{ overflowX: "auto" }}>
         <b>ETFs</b> <span className="muted">({etfs.length})</span>
         <table style={{ marginTop: 8 }}>
-          <thead><tr><th>símbolo</th><th>veredicto</th><th>FR 3m</th><th>FR 6m</th><th>FR 12m</th><th>vs SMA200</th><th>precio</th><th>stop</th><th>objetivo</th><th>etiquetas</th><th></th></tr></thead>
+          <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3m" /><Th k="fr6m" /><Th k="fr12m" /><Th k="sma200" /><Th k="precio" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
           <tbody>
             {etfs.map((c) => (
               <tr key={c.symbol}>
@@ -206,7 +211,7 @@ function TopPicks({ t, plan }: { t: RadarTop; plan: ContributionPlan | null }) {
               <div className="row" style={{ alignItems: "baseline" }}>
                 <span className="muted mono">{i + 1}.</span>
                 <SymbolLink symbol={p.symbol}><b style={{ fontSize: 18, fontFamily: "ui-monospace, Menlo, monospace" }}>{p.symbol}</b></SymbolLink>
-                <span className="mono muted">convicción {p.conviction.toFixed(2)}</span>
+                <span className="mono muted help" title={HELP_CONVICCION}>convicción {p.conviction.toFixed(2)}</span>
                 {p.allAligned ? <span className="verb COMPRAR">todo acompaña</span> : <span className="verb OBSERVAR">con salvedades</span>}
                 <div style={{ flex: 1 }} />
                 <span className="mono"><span className="ok">{pct(p.gainPct)}</span> / <span className="bad">{pct(p.lossPct)}</span></span>
