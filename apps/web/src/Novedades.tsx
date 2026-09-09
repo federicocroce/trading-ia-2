@@ -5,7 +5,7 @@ import { SymbolLink, goToTab } from "./SymbolLink";
 const STATUS_LABEL: Record<string, string> = { triggered: "🎯 gatillada: tocó el objetivo", invalidated: "❌ invalidada: tocó el stop", expired: "⏳ expirada: venció el plazo" };
 const pct = (n: number | null) => (n === null ? "" : ` ${n >= 0 ? "+" : ""}${n.toFixed(1)}%`);
 
-/** Novedades del día: qué cambió contra la corrida anterior. Es lo primero que se lee a la mañana. */
+/** Pestaña Hoy: qué cambió contra la corrida anterior. Es lo primero que se lee a la mañana; Cartera queda solo con la cartera. */
 export function Novedades() {
   const [n, setN] = useState<NovedadesData | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export function Novedades() {
   const Sec = ({ title, items }: { title: string; items: React.ReactNode[] }) => (items.length ? <div style={{ marginTop: 8 }}><b>{title}</b><ul className="why">{items}</ul></div> : null);
   return (
     <div className="card">
-      <b>Novedades</b> <span className="muted">{n.date ? `corrida del ${n.date}${n.previousDate ? ` contra la del ${n.previousDate}` : ""}` : "sin corridas todavía"}</span>
+      <b>Hoy</b> <span className="muted">{n.date ? `corrida del ${n.date}${n.previousDate ? ` contra la del ${n.previousDate}` : ""}` : "sin corridas todavía"}</span>
       {n.empty && <div className="muted" style={{ marginTop: 6 }}>Nada cambió contra la corrida anterior: mismos veredictos, mismos candidatos, nada resuelto en el seguimiento, sin tesis nuevas ni noticias de lo tuyo.</div>}
       <Sec title="Piden acción hoy" items={n.alerts.map((a) => <li key={a.symbol} className="bad">⚠ <SymbolLink symbol={a.symbol} /> {a.verb}: {a.reason}</li>)} />
       <Sec title="Veredictos que cambiaron" items={n.verdictChanges.map((v) => <li key={v.symbol}><SymbolLink symbol={v.symbol} /> {v.from} → <span className={`verb ${v.to}`}>{v.to}</span> <span className="muted">{v.reason}</span></li>)} />

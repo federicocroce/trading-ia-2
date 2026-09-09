@@ -3,7 +3,6 @@ import { api, type CurveMetrics, type CurveResponse, type Measurement, type Posi
 import { CurveChart } from "./CurveChart";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
-import { Novedades } from "./Novedades";
 import { usePrices } from "./prices";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -125,7 +124,6 @@ export function Cartera() {
 
   return (
     <>
-      <Novedades />
       <div className="card row">
         <b>Cartera real</b>
         <span className="muted">{date ? `veredictos del ${date}` : "sin veredictos todavía"}</span>

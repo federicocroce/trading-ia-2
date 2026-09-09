@@ -3,10 +3,11 @@ import { api, type CatchUpStatus, type Thesis } from "./api";
 import { Cartera } from "./Cartera";
 import { Radar } from "./Radar";
 import { Ticker } from "./Ticker";
+import { Novedades } from "./Novedades";
 import { Sidebar } from "./Sidebar";
 import { Tape } from "./Tape";
 
-const TABS = ["cartera", "radar", "proposed", "open", "history", "calibration"] as const;
+const TABS = ["hoy", "cartera", "radar", "proposed", "open", "history", "calibration"] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (x: string | null): x is Tab => x !== null && (TABS as readonly string[]).includes(x);
 
@@ -14,7 +15,7 @@ const isTab = (x: string | null): x is Tab => x !== null && (TABS as readonly st
 function readLocation(): { tab: Tab; symbol: string | null } {
   const q = new URLSearchParams(window.location.search);
   const t = q.get("tab");
-  return { tab: isTab(t) ? t : "cartera", symbol: q.get("symbol")?.toUpperCase() ?? null };
+  return { tab: isTab(t) ? t : "hoy", symbol: q.get("symbol")?.toUpperCase() ?? null };
 }
 
 /** Arma la URL nueva a partir de la actual y la empuja al historial sin recargar. `symbol: null` saca la ficha; lo que no se pasa queda como está. */
@@ -99,7 +100,7 @@ export function App() {
         <nav>
           {TABS.map((t) => (
             <button key={t} className={tab === t && !symbol ? "active" : ""} onClick={() => navigate({ tab: t, symbol: null })}>
-              {{ cartera: "Cartera", radar: "Radar", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
+              {{ hoy: "Hoy", cartera: "Cartera", radar: "Radar", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
             </button>
           ))}
         </nav>
@@ -123,6 +124,7 @@ export function App() {
         {!health && <div className="err">No se puede hablar con la API (¿está corriendo `pnpm dev:api`?)</div>}
         {msg && <div className="card">{msg}</div>}
         {symbol && <Ticker symbol={symbol} onBack={closeSymbol} />}
+        {!symbol && tab === "hoy" && <Novedades />}
         {!symbol && tab === "cartera" && <Cartera />}
         {!symbol && tab === "radar" && <Radar />}
         {!symbol && tab === "proposed" && <ThesisList status="proposed" actions="review" />}
