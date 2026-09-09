@@ -75,3 +75,4 @@ th.help, .help { cursor: help; text-decoration: underline dotted var(--muted); t
 .symsearch-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 40; background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin-top: 4px; max-height: 320px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
 .symsearch-row { display: flex; gap: 8px; align-items: center; padding: 8px 10px; cursor: pointer; }
 .symsearch-row.sel, .symsearch-row:hover { background: var(--bg); }
+.tape-dot { font-size: 9px; margin-right: 2px; }

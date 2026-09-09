@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { api, type Measurement, type Position, type Quote, type RiskReport, type Tags, type Verdict } from "./api";
+import { useCallback, useEffect, useState, useMemo } from "react";
+import { api, type CurveMetrics, type CurveResponse, type Measurement, type Position, type Quote, type RiskReport, type Tags, type Verdict } from "./api";
+import { CurveChart } from "./CurveChart";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { Novedades } from "./Novedades";
+import { usePrices } from "./prices";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -50,14 +52,16 @@ export function Cartera() {
   const [verdicts, setVerdicts] = useState<Verdict[]>([]);
   const [risk, setRisk] = useState<{ date: string; report: RiskReport } | null>(null);
   const [measurement, setMeasurement] = useState<Measurement | null>(null);
+  const [curve, setCurve] = useState<CurveResponse | null>(null);
   const [form, setForm] = useState<Position | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [tags, setTags] = useState<Record<string, Tags | null>>({});
-  const [quotes, setQuotes] = useState<Record<string, Quote | null>>({});
-  const [quotesAt, setQuotesAt] = useState<string | null>(null);
-  const [quotesErr, setQuotesErr] = useState<string | null>(null);
+  const { prices: livePrices, live: liveStream, at: quotesAt } = usePrices();
+  const quotesErr: string | null = null;
+  // Precios vivos del hub (los mismos de la watchlist y la cinta), en la forma que ya usa la tabla.
+  const quotes = useMemo<Record<string, Quote | null>>(() => Object.fromEntries(positions.map((p) => { const r = livePrices.get(p.symbol.toUpperCase()); return [p.symbol, r ? { price: r.price, prevClose: r.prevClose, change: r.change, changePct: r.changePct, asOf: r.asOf, currency: r.currency } : null]; })), [positions, livePrices, livePrices.size, quotesAt]);
   const [editingTags, setEditingTags] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -69,8 +73,8 @@ export function Cartera() {
     const t: Record<string, Tags | null> = {};
     await Promise.all(p.map(async (x) => { t[x.symbol] = await api.taxonomy.get(x.symbol).catch(() => null); }));
     setTags(t);
-    // Precios vivos aparte: la tabla se pinta con lo guardado y los precios llegan cuando llegan.
-    void api.cartera.quotes().then((r) => { setQuotes(r.quotes); setQuotesAt(r.asOf); setQuotesErr(null); }).catch((e) => setQuotesErr(String(e)));
+    // La curva se calcula desde lo guardado; si falla, la card lo dice y el resto de la pestaña no espera.
+    void api.cartera.curve().then(setCurve).catch((e) => setCurve({ curve: null, error: String(e), computedAt: new Date().toISOString() }));
   }, []);
   useEffect(() => {
     load().catch((e) => setMsg(String(e)));
@@ -115,7 +119,7 @@ export function Cartera() {
   const quotesNote = quotesErr
     ? `precios vivos no disponibles (${quotesErr}); se usa el cierre del veredicto`
     : quotesAt
-      ? `precios de las ${hhmm(quotesAt)}${priced < positions.length ? ` · ${positions.length - priced} sin precio vivo (usa el cierre del veredicto)` : ""}`
+      ? `precios ${liveStream ? "en vivo" : "cada 30 s"}, últimos de las ${hhmm(quotesAt)}${priced < positions.length ? ` · ${positions.length - priced} sin precio vivo (usa el cierre del veredicto)` : ""}`
       : "cargando precios…";
   const totNote = [tot.otherCurrency ? `${tot.otherCurrency} en otra moneda` : "", tot.noPrice ? `${tot.noPrice} sin precio` : ""].filter(Boolean).join(", ");
 
@@ -172,6 +176,7 @@ export function Cartera() {
         </table>
       </div>
       {risk && <Risk r={risk.report} date={risk.date} />}
+      {curve && <CurveCard r={curve} />}
       {measurement && <MeasurementCard m={measurement} />}
     </>
   );
@@ -239,6 +244,39 @@ function Risk({ r, date }: { r: RiskReport; date: string }) {
       {r.correlatedPairs.length > 0 && <div><b>Correlacionados:</b> {r.correlatedPairs.map((p) => `${p.a}–${p.b} ${p.corr.toFixed(2)}`).join(" · ")}</div>}
       <div className="muted" style={{ marginTop: 6 }}>Liquidez (días para salir al 10% del volumen): {r.liquidity.map((l) => `${l.symbol} ${f2(l.daysToLiquidate, 1)}`).join(" · ")}</div>
       {r.notes.map((n) => <div key={n} className="muted">{n}</div>)}
+    </div>
+  );
+}
+
+/** Curva de la cartera real desde las operaciones: TWR, XIRR, volatilidad y drawdown contra SPY, con la lectura por regla. */
+function CurveCard({ r }: { r: CurveResponse }) {
+  if (r.error) return <div className="card"><b>Curva de la cartera</b> <span className="warn">no se pudo calcular: {r.error}</span></div>;
+  const c = r.curve;
+  if (!c) return null;
+  const p1 = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)}%`);
+  const row = (label: string, m: CurveMetrics) => (
+    <tr>
+      <td>{label}</td>
+      <td className={`mono ${cls(m.totalPct)}`}>{pct(m.totalPct)}</td>
+      <td className={`mono ${cls(m.annualPct)}`}>{pct(m.annualPct)}</td>
+      <td className={`mono ${cls(m.xirrPct)}`}>{pct(m.xirrPct)}</td>
+      <td className="mono">{p1(m.volPct)}</td>
+      <td className="mono bad">{m.maxDrawdownPct ? `-${m.maxDrawdownPct.toFixed(1)}%` : "0.0%"}</td>
+    </tr>
+  );
+  return (
+    <div className="card">
+      <b>Curva de la cartera</b>{" "}
+      <span className="muted">desde {c.from} · {c.sessions} ruedas · vale {usd(c.valueUsd)} sobre {usd(c.investedUsd)} aportados{c.dividendsUsd ? ` · dividendos ${usd(c.dividendsUsd)}` : ""}{c.complete ? "" : " · incompleta"}</span>
+      <div style={{ marginTop: 8 }}>{c.reading}</div>
+      <table style={{ marginTop: 8 }}>
+        <thead><tr><th></th><th>total</th><th>anual (TWR)</th><th>XIRR</th><th>volatilidad</th><th>caída máx.</th></tr></thead>
+        <tbody>{row("Tu cartera", c.portfolio)}{row("SPY", c.spy)}</tbody>
+      </table>
+      {c.sameMoneyInSpy && <div style={{ marginTop: 6 }}>La misma plata puesta en SPY en las mismas fechas valdría hoy <b>{usd(c.sameMoneyInSpy.valueUsd)}</b>; tenés <b>{usd(c.valueUsd)}</b>.</div>}
+      <CurveChart points={c.points} />
+      {c.warnings.map((w) => <div key={w} className="warn" style={{ marginTop: 6 }}>⚠ {w}</div>)}
+      <div className="muted" style={{ marginTop: 6 }}>TWR: retorno ponderado por tiempo, un aporte no cuenta como ganancia; anualizado solo con 60 ruedas o más. XIRR: retorno de tu plata con las fechas reales; el de SPY es la misma plata en las mismas fechas. Caída máxima sobre el índice, no sobre el valor: vender no es caer. SPY sin dividendos.</div>
     </div>
   );
 }

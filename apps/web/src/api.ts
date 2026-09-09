@@ -36,6 +36,10 @@ export interface RiskReport {
 }
 interface Bucket { n: number; hitRate: number | null; avgAlpha: number | null }
 export interface Measurement { total: number; pending: number; byVerb: Record<Verb, { h7: Bucket; h30: Bucket }> }
+export interface CurveMetrics { totalPct: number; annualPct: number | null; xirrPct: number | null; volPct: number | null; maxDrawdownPct: number }
+export interface CurvePoint { date: string; value: number; index: number; spyIndex: number }
+export interface CurveReport { from: string; to: string; sessions: number; points: CurvePoint[]; portfolio: CurveMetrics; spy: CurveMetrics; valueUsd: number; investedUsd: number; dividendsUsd: number; sameMoneyInSpy: { valueUsd: number; xirrPct: number | null } | null; reading: string; complete: boolean; warnings: string[] }
+export interface CurveResponse { curve: CurveReport | null; error: string | null; computedAt: string }
 export interface CarteraRun { date: string; verdicts: Verdict[]; risk: RiskReport; errors: Array<{ symbol: string; error: string }>; measured: { measured7: number; measured30: number } }
 
 export interface Tags { assetClass: string; sector: string; industry: string | null; themes: string[]; themesSource: "regla" | "modelo" | "manual" }
@@ -122,6 +126,7 @@ export const api = {
     verdicts: () => j<Verdict[]>("/cartera/verdicts"),
     risk: () => j<{ date: string; report: RiskReport } | null>("/cartera/risk"),
     measurement: () => j<Measurement>("/cartera/measurement"),
+    curve: () => j<CurveResponse>("/cartera/curve"),
   },
   radar: {
     candidates: (q: Record<string, string> = {}) => j<Candidate[]>(`/radar/candidates?${new URLSearchParams(q)}`),
@@ -151,6 +156,7 @@ export const api = {
   symbols: { search: (q: string) => j<SymbolHit[]>(`/symbols/search?q=${encodeURIComponent(q)}`) },
   prices: {
     get: (symbols: string[]) => (symbols.length ? j<PriceRow[]>(`/prices?symbols=${symbols.join(",")}`) : Promise.resolve([] as PriceRow[])),
+    all: () => j<{ at: string | null; error: string | null; rows: PriceRow[] }>("/prices/all"),
     tape: () => j<Tape>("/prices/tape"),
   },
   novedades: () => j<Novedades>("/novedades"),

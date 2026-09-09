@@ -1,3 +1,4 @@
+import type { Overlap } from "./overlap.js";
 import type { CandidateRow, Tags } from "./types.js";
 
 /**
@@ -12,6 +13,7 @@ import type { CandidateRow, Tags } from "./types.js";
  * - riesgo: −0.1 por cada punto por encima de 5.
  * - objetivo: −0.3 si queda a menos de 5% (el objetivo es 2× la distancia al stop, no un pronóstico).
  * - tema cargado: −0.3 si comparte un tema donde la cartera ya supera el umbral de concentración.
+ * - se mueve como lo tuyo: −0.3 si sus retornos correlacionan > 0.7 con una posición (mismo riesgo con otro nombre).
  */
 export interface TopPick {
   symbol: string;
@@ -40,11 +42,17 @@ const MIN_GAIN_PCT = 5;
 const CALM_RISK = 5;
 
 const r1 = (n: number) => n.toFixed(1);
+
+/** Texto único de la salvedad por solapamiento: lo usan convicción y la línea del plan. */
+export const overlapCaution = (o: Overlap) => `se mueve como ${o.with} que ya tenés (correlación ${o.corr.toFixed(2)})`;
 const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${r1(n)}%`;
 
-/** `overweight`: tema → % de la cartera, solo los que ya superan el umbral de concentración. */
-export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: Record<string, number>): TopPick | null {
+/**
+ * `overweight`: tema → % de la cartera, solo los que ya superan el umbral de concentración.
+ * `overlap`: símbolo → posición con la que más correlaciona por encima del umbral (ver `holdingsOverlap`).
+ */
+export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: Record<string, number>, overlap: Record<string, Overlap> = {}): TopPick | null {
   if (row.kind !== "stock" || row.verdict !== "COMPRAR" || row.score === null) return null;
   if (row.stop === null || row.target === null || row.stop >= row.close || row.target <= row.close) return null;
   const gainPct = ((row.target - row.close) / row.close) * 100;
@@ -85,12 +93,17 @@ export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: 
       cautions.push(`ya tenés ${r1(pct)}% de la cartera en ${theme}`);
     }
   }
+  const twin = overlap[row.symbol];
+  if (twin) {
+    conviction -= 0.3;
+    cautions.push(overlapCaution(twin));
+  }
   return { symbol: row.symbol, conviction: r4(conviction), gainPct: r4(gainPct), lossPct: r4(lossPct), reasons, cautions, allAligned: cautions.length === 0 };
 }
 
-export function topPicks(rows: CandidateRow[], tags: Record<string, Tags>, overweight: Record<string, number>, n = 5): TopPick[] {
+export function topPicks(rows: CandidateRow[], tags: Record<string, Tags>, overweight: Record<string, number>, n = 5, overlap: Record<string, Overlap> = {}): TopPick[] {
   return rows
-    .map((r) => convictionFor(r, tags[r.symbol] ?? null, overweight))
+    .map((r) => convictionFor(r, tags[r.symbol] ?? null, overweight, overlap))
     .filter((p): p is TopPick => p !== null)
     .sort((a, b) => b.conviction - a.conviction)
     .slice(0, n);

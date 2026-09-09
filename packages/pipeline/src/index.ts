@@ -12,3 +12,4 @@ export * from "./argentina.js";
 export * from "./catchup.js";
 export * from "./watchlist.js";
 export * from "./novedades.js";
+export * from "./curve.js";

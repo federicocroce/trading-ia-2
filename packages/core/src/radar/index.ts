@@ -9,3 +9,4 @@ export * from "./measure.js";
 export * from "./conviction.js";
 export * from "./argentina.js";
 export * from "./watch-lifecycle.js";
+export * from "./overlap.js";

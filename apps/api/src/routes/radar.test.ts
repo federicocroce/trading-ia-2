@@ -179,6 +179,29 @@ describe("/prices", () => {
     expect(tape.losers.map((r: { symbol: string }) => r.symbol)).toEqual(["DN"]); // OLD queda afuera: precio viejo
     void a;
   });
+  it("con hub: /prices/all devuelve la foto, /prices/stream la manda al conectar y /prices sirve lo seguido sin cotizar de nuevo", async () => {
+    const { PriceHub } = await import("../prices-hub.js");
+    const store = new MemoryStore();
+    await store.addWatch("VST");
+    let asked = 0;
+    const cc = { store, pricesDeps: { quotes: async (symbols: string[]) => { asked++; return symbols.map((x) => ({ symbol: x, price: 150, prevClose: 100, asOf: new Date().toISOString() })); } } } as unknown as Container;
+    cc.priceHub = new PriceHub(cc);
+    await cc.priceHub.tick();
+    const app3 = new Hono();
+    app3.route("/", pricesRoutes(cc));
+    const all = await (await app3.request("/prices/all")).json();
+    expect(all.rows.map((r: { symbol: string; changePct: number }) => [r.symbol, r.changePct])).toEqual([["VST", 50]]);
+    const res = await app3.request("/prices/stream");
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+    const reader = res.body!.getReader();
+    const first = new TextDecoder().decode((await reader.read()).value);
+    expect(first).toContain("event: snapshot");
+    expect(first).toContain("\"VST\"");
+    await reader.cancel();
+    const before = asked;
+    expect((await (await app3.request("/prices?symbols=vst")).json())[0].symbol).toBe("VST");
+    expect(asked).toBe(before); // servido de la foto del hub
+  });
   it("buscador de símbolos: pasa la consulta y cachea", async () => {
     const calls: string[] = [];
     const app2 = new Hono();

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, type PriceRow, type Tags, type Watchlist } from "./api";
+import { api, type Tags, type Watchlist } from "./api";
+import { usePrices } from "./prices";
 import { goToSymbol } from "./SymbolLink";
 import { WatchStatusBadge, isResolved } from "./WatchlistButton";
-import { marketRefreshMs } from "./useMarketInterval";
 import { SymbolSearch } from "./SymbolSearch";
 
 /** Watchlist en barra lateral (portada de trading v1): precios vivos, búsqueda, filtro por tipo, orden, ciclo de vida, alta y baja. */
@@ -15,7 +15,7 @@ const readSort = (): SortMode => { try { const v = localStorage.getItem("watchli
 
 export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const [w, setW] = useState<Watchlist | null>(null);
-  const [prices, setPrices] = useState<Map<string, PriceRow>>(new Map());
+  const { prices, live } = usePrices();
   const [q, setQ] = useState("");
   const [type, setType] = useState<TypeFilter>("all");
   const [sort, setSort] = useState<SortMode>(readSort);
@@ -24,17 +24,6 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
   const load = async () => { try { setW(await api.radar.watchlist()); } catch (e) { setErr(String(e)); } };
   useEffect(() => { void load(); const onPop = () => void load(); window.addEventListener("watchlist:changed", onPop); return () => window.removeEventListener("watchlist:changed", onPop); }, []);
   const symbols = useMemo(() => (w?.items ?? []).map((i) => i.symbol), [w]);
-  useEffect(() => {
-    if (!symbols.length) return;
-    let alive = true;
-    let timer = 0;
-    const tick = async () => {
-      try { const rows = await api.prices.get(symbols); if (alive) setPrices(new Map(rows.map((r) => [r.symbol, r]))); } catch { /* reintenta */ }
-      if (alive) timer = window.setTimeout(tick, marketRefreshMs());
-    };
-    void tick();
-    return () => { alive = false; window.clearTimeout(timer); };
-  }, [symbols.join(",")]);
   useEffect(() => { try { localStorage.setItem("watchlist:sort", sort); } catch { /* sin almacenamiento */ } }, [sort]);
 
   const rowFor = useMemo(() => new Map((w?.rows ?? []).map((r) => [r.symbol, r])), [w]);
@@ -68,7 +57,7 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
   return (
     <aside className="sidebar">
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <b className="muted" style={{ fontSize: 11, letterSpacing: 1 }}>WATCHLIST {w ? `(${w.items.length})` : ""}</b>
+        <b className="muted" style={{ fontSize: 11, letterSpacing: 1 }}>WATCHLIST {w ? `(${w.items.length})` : ""} <span className={live ? "ok" : "muted"} title={live ? "precios en vivo" : "sin stream: cada 30 s"}>●</span></b>
         <button className="ghost" style={{ padding: "0 6px" }} onClick={onToggle} title="Ocultar">×</button>
       </div>
       <div style={{ marginTop: 6 }}>

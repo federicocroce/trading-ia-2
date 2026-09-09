@@ -77,6 +77,15 @@ describe("planContribution", () => {
     expect([zvra.entryHigh, zvra.stop, zvra.target]).toEqual([12.92, 11.59, 14.83]);
     expect(p.notes.join(" ")).toMatch(/COPX/);
   });
+  it("una salvedad del candidato (se mueve como algo tuyo) queda escrita en la razón de la línea", () => {
+    const i: PlanInput = {
+      ...base,
+      positions: [{ symbol: "VTI", valueUsd: 45_000, assetClass: "etf", role: "nucleo" }, { symbol: "TSM", valueUsd: 7_000, assetClass: "adr" }, { symbol: "YPF", valueUsd: 20_000, assetClass: "adr" }, { symbol: "GGAL", valueUsd: 28_000, assetClass: "adr" }],
+      buyCandidates: [{ symbol: "NVDA", kind: "stock", priority: 1.8, score: 2.1, sizeUsd: 14_994, close: 180, cautions: ["se mueve como TSM que ya tenés (correlación 0.81)"] }],
+    };
+    const p = planContribution(i, { ...c, maxNewPositionsPerMonth: 1 });
+    expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).toMatch(/^1° por convicción de 1 COMPRAR del Radar, convicción 1\.8, score 2\.1 · ⚠ se mueve como TSM que ya tenés \(correlación 0\.81\)$/);
+  });
   it("sin candidatos y núcleo lleno → todo al núcleo con nota", () => {
     const p = planContribution({ ...base, positions: [{ symbol: "VTI", valueUsd: 50_000, assetClass: "etf", role: "nucleo" }, { symbol: "YPF", valueUsd: 50_000, assetClass: "adr" }] }, c);
     expect(p.lines.every((l) => l.kind === "nucleo")).toBe(true);

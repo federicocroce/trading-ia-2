@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { summarizeMeasurement } from "@thesis/core";
-import { liveQuotes, measureVerdicts, runCartera } from "@thesis/pipeline";
+import { carteraCurve, liveQuotes, measureVerdicts, runCartera, type CurveResponse } from "@thesis/pipeline";
 import { randomUUID } from "node:crypto";
 import type { Container } from "../container.js";
 
@@ -28,19 +28,26 @@ const TxBody = z.object({
   notes: z.string().nullable().default(null),
 });
 
+/** La curva se calcula desde lo guardado; se cachea 5 min y se invalida al tocar posiciones u operaciones o al correr. */
+const CURVE_TTL_MS = 5 * 60_000;
+
 export function carteraRoutes(c: Container) {
   const app = new Hono();
   const store = c.carteraDeps.store;
+  let curveCache: { at: number; value: CurveResponse } | null = null;
+  const bustCurve = () => { curveCache = null; };
 
   app.get("/cartera/positions", async (ctx) => ctx.json(await store.positions()));
   app.post("/cartera/positions", async (ctx) => {
     const p = PositionBody.safeParse(await ctx.req.json().catch(() => ({})));
     if (!p.success) return ctx.json({ error: p.error.flatten() }, 400);
     await store.upsertPosition(p.data);
+    bustCurve();
     return ctx.json({ ok: true });
   });
   app.delete("/cartera/positions/:symbol", async (ctx) => {
     await store.deletePosition(ctx.req.param("symbol"));
+    bustCurve();
     return ctx.json({ ok: true });
   });
 
@@ -55,14 +62,24 @@ export function carteraRoutes(c: Container) {
   app.post("/cartera/transactions", async (ctx) => {
     const p = TxBody.safeParse(await ctx.req.json().catch(() => ({})));
     if (!p.success) return ctx.json({ error: p.error.flatten() }, 400);
-    return ctx.json({ inserted: await store.insertTransactions([{ id: randomUUID(), ...p.data }]) });
+    const inserted = await store.insertTransactions([{ id: randomUUID(), ...p.data }]);
+    bustCurve();
+    return ctx.json({ inserted });
   });
 
   app.post("/cartera/run", async (ctx) => {
     const today = ctx.req.query("today") ?? new Date().toISOString().slice(0, 10);
     const s = await runCartera(c.carteraDeps, { today });
     const measured = await measureVerdicts(c.carteraDeps, { today });
+    bustCurve();
     return ctx.json({ ...s, measured });
+  });
+  /** Curva de la cartera real desde las operaciones: TWR, XIRR, volatilidad y drawdown contra SPY. `?fresh=1` saltea la caché. */
+  app.get("/cartera/curve", async (ctx) => {
+    if (curveCache && !ctx.req.query("fresh") && Date.now() - curveCache.at < CURVE_TTL_MS) return ctx.json(curveCache.value);
+    const value = await carteraCurve(c.store);
+    curveCache = { at: Date.now(), value };
+    return ctx.json(value);
   });
   app.get("/cartera/verdicts", async (ctx) => ctx.json(await store.latestVerdicts()));
   app.get("/cartera/risk", async (ctx) => ctx.json(await store.latestRisk()));

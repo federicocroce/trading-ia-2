@@ -4,6 +4,7 @@ import { PriceChart, type PeriodChange } from "./PriceChart";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { WatchlistButton } from "./WatchlistButton";
+import { usePrices } from "./prices";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)}%`);
@@ -33,11 +34,14 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
     return () => { alive = false; };
   }, [symbol]);
   const onPeriod = useCallback((p: PeriodChange | null) => setPeriod(p), []);
+  const { prices: livePrices } = usePrices();
 
   if (err) return <div className="card"><button className="ghost" onClick={onBack}>← Volver</button><div className="err">{err}</div></div>;
   if (!t) return <div className="card muted">Cargando {symbol}…</div>;
   const d = t.description;
-  const q = t.quote;
+  const hubRow = livePrices.get(t.symbol.toUpperCase());
+  // Precio en vivo del hub si el símbolo está seguido; si no, el de la página.
+  const q = hubRow ? { price: hubRow.price, prevClose: hubRow.prevClose, change: hubRow.change, changePct: hubRow.changePct, asOf: hubRow.asOf, currency: hubRow.currency } : t.quote;
   const years = d?.firstTradeDate ? Math.floor((Date.now() - Date.parse(d.firstTradeDate)) / (365.25 * 86_400_000)) : null;
   const priceStale = stale(q?.asOf ?? null);
   const m = t.fundamentals?.metrics ?? {};

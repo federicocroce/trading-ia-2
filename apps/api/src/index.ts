@@ -5,9 +5,13 @@ import { loadConfig } from "./config.js";
 import { buildContainer, state } from "./container.js";
 import { buildApp } from "./routes/index.js";
 import { runCatchUp } from "./catchup.js";
+import { PriceHub } from "./prices-hub.js";
 
 const cfg = await loadConfig();
 const c = buildContainer(cfg);
+// Precios en vivo para toda la app: un lote cada 15 s con el mercado abierto, 60 s fuera; se empujan por SSE.
+c.priceHub = new PriceHub(c, { log: (m) => console.warn(m) });
+c.priceHub.start();
 const app = buildApp(c);
 
 // Corrida diaria (lun-vie) + sync de órdenes cada 15 min en horario de mercado.

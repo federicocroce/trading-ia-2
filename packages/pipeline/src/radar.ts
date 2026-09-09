@@ -6,8 +6,10 @@ import {
   assetClassFor,
   decideCandidate,
   decideEtf,
+  holdingsOverlap,
   isEligibleAsset,
   mergeThemes,
+  overlapCaution,
   passesPreFilter,
   planContribution,
   qualityBar,
@@ -23,6 +25,7 @@ import {
   type EtfConfig,
   type FinnhubMetrics,
   type Fundamentals,
+  type Overlap,
   type PriceHistory,
   type RadarPolicy,
   type RankedStock,
@@ -471,6 +474,29 @@ export async function measureRadar(deps: Pick<RadarDeps, "store" | "history">, o
   return out;
 }
 
+// ---------- solapamiento con la cartera ----------
+
+const OVERLAP_SINCE_DAYS = 200;
+
+/**
+ * Para cada COMPRAR del Radar, la posición tuya con la que más se mueve (correlación > 0.7, misma ventana que el
+ * panel de riesgo). Velas guardadas de ambos lados; no pide nada a la red. Sin posiciones, nada que solapar.
+ */
+export async function candidateOverlap(store: Pick<CarteraStore, "positions"> & Pick<RadarStore, "candles">, candidates: CandidateRow[]): Promise<Record<string, Overlap>> {
+  const buys = candidates.filter((c) => c.kind === "stock" && c.verdict === "COMPRAR").map((c) => c.symbol);
+  if (!buys.length) return {};
+  const positions = await store.positions();
+  if (!positions.length) return {};
+  const since = new Date(Date.now() - OVERLAP_SINCE_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const load = async (symbols: string[]) => {
+    const out: Record<string, Candle[]> = {};
+    await Promise.all(symbols.map(async (s) => { out[s] = await store.candles(s, since).catch(() => [] as Candle[]); }));
+    return out;
+  };
+  const [cand, held] = await Promise.all([load(buys), load(positions.map((p) => p.symbol))]);
+  return holdingsOverlap(cand, held);
+}
+
 // ---------- plan del aporte ----------
 
 export async function buildContributionPlan(deps: RadarDeps, opts: { month: string; portfolioUsd: number | null; amountUsd?: number }): Promise<ContributionPlan> {
@@ -487,7 +513,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   const portfolioValueUsd = opts.portfolioUsd ?? risk?.report.totalValue ?? policy.sizing.fallbackPortfolioUsd;
   const etfOf = (s: string) => deps.etfs.find((e) => e.symbol === s);
   const overweight = Object.fromEntries(Object.entries(risk?.report.concentration.byTheme ?? {}).filter(([, pct]) => pct > 40));
-  const conviction = new Map(topPicks(candidates, tags, overweight, 1000).map((p) => [p.symbol, p.conviction]));
+  const overlap = await candidateOverlap(store, candidates);
+  const conviction = new Map(topPicks(candidates, tags, overweight, 1000, overlap).map((p) => [p.symbol, p.conviction]));
   const plan = planContribution(
     {
       month: opts.month,
@@ -501,6 +528,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
         .map((c) => ({
           symbol: c.symbol, kind: c.kind, score: c.score, sizeUsd: c.sizeUsd, close: c.close, entryHigh: c.entryHigh, stop: c.stop, target: c.target,
           priority: c.kind === "stock" ? (conviction.get(c.symbol) ?? null) : c.kind === "watch" ? -(c.riskScore ?? 10) : (c.axes["rs6m"] ?? null),
+          // La salvedad que más pesa al comprar: si se mueve como algo tuyo, la línea del plan lo dice.
+          cautions: overlap[c.symbol] ? [overlapCaution(overlap[c.symbol]!)] : [],
         })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { AXES, AXIS_METRICS, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
-import { buildContributionPlan, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse } from "@thesis/pipeline";
+import { buildContributionPlan, candidateOverlap, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
 
@@ -34,8 +34,10 @@ export function radarRoutes(c: Container) {
     // Temas donde la cartera ya supera el umbral del panel de riesgo (40%): un candidato ahí suma menos.
     const byTheme = (await store.latestRisk())?.report.concentration.byTheme ?? {};
     const overweight = Object.fromEntries(Object.entries(byTheme).filter(([, pct]) => pct > 40));
+    // Candidatos que se mueven como algo que ya tenés: mismo riesgo con otro nombre, suma menos.
+    const overlap = await candidateOverlap(store, rows);
     const bySymbol = new Map(rows.map((r) => [r.symbol, r]));
-    const picks = topPicks(rows, tags, overweight, n).map((p) => {
+    const picks = topPicks(rows, tags, overweight, n, overlap).map((p) => {
       const r = bySymbol.get(p.symbol)!;
       return { ...p, close: r.close, entryHigh: r.entryHigh, stop: r.stop, target: r.target, sizeUsd: r.sizeUsd, sizeQty: r.sizeQty, riskScore: r.riskScore, score: r.score, rankInGroup: r.rankInGroup, groupSize: r.groupSize, summary: r.summary, mainRisk: r.mainRisk, tags: tags[p.symbol] ?? null };
     });

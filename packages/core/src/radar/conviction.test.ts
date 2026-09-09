@@ -54,6 +54,13 @@ describe("convictionFor", () => {
     // 1.5 × 0.5 − 0.15 − 0.3 − 0.4 (riesgo 9) − 0.3 (objetivo) − 0.3 (tema) = −0.7
     expect(p.conviction).toBeCloseTo(-0.7, 4);
   });
+
+  it("descuenta 0.3 y lo dice cuando el candidato se mueve como un papel que ya tenés", () => {
+    const p = convictionFor(row({}), null, {}, { AAA: { with: "YPF", corr: 0.82 } })!;
+    expect(p.allAligned).toBe(false);
+    expect(p.cautions).toEqual(["se mueve como YPF que ya tenés (correlación 0.82)"]);
+    expect(p.conviction).toBeCloseTo(0.9, 4);
+  });
 });
 
 describe("topPicks", () => {

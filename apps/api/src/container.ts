@@ -31,6 +31,8 @@ export interface Container {
   radarDeps: RadarDeps;
   /** Argentina (etapa 3): macro, acciones de BYMA y CEDEARs. */
   argentinaDeps: ArgentinaDeps;
+  /** Hub de precios en vivo (lo arranca index.ts; los tests pueden no tenerlo). */
+  priceHub?: import("./prices-hub.js").PriceHub;
   /** Buscador de símbolos para el alta a la watchlist. */
   symbolSearch: { search(query: string): Promise<import("@thesis/adapters").SymbolHit[]> };
   /** Precios vivos por lote para la watchlist y la cinta del header. */

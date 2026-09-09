@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import type { LiveQuote } from "@thesis/core";
 import type { Container } from "../container.js";
 
@@ -57,9 +58,31 @@ export function pricesRoutes(c: Container) {
   };
 
   app.get("/prices", async (ctx) => {
-    const symbols = (ctx.req.query("symbols") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
-    return ctx.json(await quotesFor(symbols));
+    const symbols = (ctx.req.query("symbols") ?? "").split(",").map((x) => x.trim().toUpperCase()).filter(Boolean);
+    // Lo que el hub ya sigue sale de su foto (sin llamada); el resto se pide.
+    const hub = c.priceHub;
+    const known = hub ? symbols.map((x) => hub.get(x)).filter((r): r is PriceRow => !!r) : [];
+    const missing = symbols.filter((x) => !known.some((r) => r.symbol === x));
+    return ctx.json([...known, ...(missing.length ? await quotesFor(missing) : [])]);
   });
+  /** Foto completa del hub: todo lo que la app sigue, con su último precio. */
+  app.get("/prices/all", (ctx) => ctx.json({ at: c.priceHub?.lastTickAt ?? null, error: c.priceHub?.lastError ?? null, rows: c.priceHub?.snapshot() ?? [] }));
+  /** Precios en vivo (SSE): al conectar, la foto completa; después, solo lo que cambia. Latido cada 25 s. */
+  app.get("/prices/stream", (ctx) =>
+    streamSSE(ctx, async (stream) => {
+      const hub = c.priceHub;
+      if (!hub) { await stream.writeSSE({ event: "snapshot", data: "[]" }); return; }
+      await stream.writeSSE({ event: "snapshot", data: JSON.stringify(hub.snapshot()) });
+      let alive = true;
+      const unsub = hub.subscribe((rows) => { if (alive) void stream.writeSSE({ event: "prices", data: JSON.stringify(rows) }); });
+      stream.onAbort(() => { alive = false; unsub(); });
+      while (alive) {
+        await stream.sleep(25_000);
+        if (alive) await stream.writeSSE({ event: "ping", data: String(Date.now()) }).catch(() => { alive = false; });
+      }
+      unsub();
+    }),
+  );
   /** Buscador para el alta a la watchlist (Yahoo). Caché corta por consulta. */
   const searchCache = new Map<string, { at: number; hits: unknown }>();
   app.get("/symbols/search", async (ctx) => {
@@ -73,6 +96,11 @@ export function pricesRoutes(c: Container) {
   });
   let tape: { at: number; body: unknown } | null = null;
   app.get("/prices/tape", async (ctx) => {
+    // Con hub, la cinta sale de su foto (siempre fresca); sin hub, se cotiza con caché.
+    if (c.priceHub && c.priceHub.snapshot().length) {
+      const rows = c.priceHub.snapshot();
+      return ctx.json({ at: c.priceHub.lastTickAt ?? new Date().toISOString(), tracked: rows.length, ...pickMovers(rows) });
+    }
     if (tape && Date.now() - tape.at < TAPE_TTL_MS) return ctx.json(tape.body);
     const rows = await quotesFor(await tracked());
     const body = { at: new Date().toISOString(), tracked: rows.length, ...pickMovers(rows) };
