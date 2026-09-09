@@ -1,6 +1,7 @@
 import type { Ingestor, RawEvent } from "@thesis/core";
 import type { HttpClient } from "../http/index.js";
 import { newEvent } from "../util.js";
+import { CikResolver } from "./statements.js";
 
 /**
  * SEC EDGAR. Dos usos:
@@ -9,12 +10,8 @@ import { newEvent } from "../util.js";
  * Requiere User-Agent con contacto (política SEC) y ≤10 req/s.
  */
 
-const TICKERS_URL = "https://www.sec.gov/files/company_tickers.json";
 const submissionsUrl = (cik: string) => `https://data.sec.gov/submissions/CIK${cik.padStart(10, "0")}.json`;
 
-interface CompanyTickers {
-  [k: string]: { cik_str: number; ticker: string; title: string };
-}
 interface Submissions {
   cik: string;
   name: string;
@@ -81,16 +78,14 @@ export const form4XmlDoc = (primaryDoc: string) => primaryDoc.replace(/^xsl[^/]+
 
 export class EdgarIngestor implements Ingestor {
   readonly source = "edgar" as const;
-  private cikCache: Map<string, string> | null = null;
+  private readonly resolver: CikResolver;
 
-  constructor(private readonly opts: EdgarOptions) {}
+  constructor(private readonly opts: EdgarOptions) {
+    this.resolver = new CikResolver(opts.http);
+  }
 
   async resolveCik(ticker: string): Promise<string | null> {
-    if (!this.cikCache) {
-      const data = await this.opts.http.getJson<CompanyTickers>(TICKERS_URL);
-      this.cikCache = new Map(Object.values(data).map((c) => [c.ticker.toUpperCase(), String(c.cik_str)]));
-    }
-    return this.cikCache.get(ticker.toUpperCase()) ?? null;
+    return this.resolver.resolve(ticker);
   }
 
   async fetch(since: string): Promise<RawEvent[]> {

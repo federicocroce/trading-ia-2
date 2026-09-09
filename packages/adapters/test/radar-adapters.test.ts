@@ -93,4 +93,12 @@ describe("SecStatements", () => {
   it("símbolo sin CIK → null (IFRS, extranjero)", async () => {
     expect(await new SecStatements(http).quarters("VIST", "2026-09-09")).toBeNull();
   });
+  it("CIK resuelto pero companyfacts sin trimestres → null", async () => {
+    const empty = { cik: 1, facts: {} };
+    const http2 = fixtureHttpClient({
+      "https://www.sec.gov/files/company_tickers.json": { "0": { cik_str: 1, ticker: "EMPTY", title: "Empty Corp" } },
+      "https://data.sec.gov/api/xbrl/companyfacts/CIK0000000001.json": empty,
+    });
+    expect(await new SecStatements(http2).quarters("EMPTY", "2026-09-09")).toBeNull();
+  });
 });

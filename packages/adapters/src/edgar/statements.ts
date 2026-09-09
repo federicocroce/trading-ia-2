@@ -4,7 +4,7 @@ import type { HttpClient } from "../http/index.js";
 /**
  * Estados trimestrales desde la API XBRL de la SEC (spec verificación §4). Gratis; exige User-Agent con contacto
  * (el `http` del container ya lo lleva) y ≤ 10 req/s. Un JSON por empresa (0,5–3 MB): el pipeline lo pide solo
- * para la pre-selección y sus pares, con caché de 7 días.
+ * para la pre-selección y sus pares; la frescura de 7 días la maneja el pipeline en la tabla statements.
  */
 const TICKERS_URL = "https://www.sec.gov/files/company_tickers.json";
 export const companyFactsUrl = (cik: string) => `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik.padStart(10, "0")}.json`;
