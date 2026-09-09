@@ -1,4 +1,4 @@
-import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -68,6 +68,9 @@ export interface RadarStore {
   saveFundamentals(f: Fundamentals): Promise<void>;
   fundamentals(symbol: string): Promise<Fundamentals | null>;
   freshFundamentals(maxAgeDays: number, today: string): Promise<Fundamentals[]>;
+  /** Estados trimestrales de la SEC con la ganancia núcleo (spec verificación §4). `quarters: []` = se intentó y no hay. */
+  statements(symbol: string): Promise<Statements | null>;
+  saveStatements(s: Statements): Promise<void>;
   scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>): Promise<void>;
   scanPending(scanDate: string): Promise<string[]>;
   scanStatus(scanDate: string): Promise<Record<ScanStage, number>>;
@@ -115,6 +118,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   newsMap = new Map<string, NewsItem>();
   tagsMap = new Map<string, Tags>();
   fundamentalsMap = new Map<string, Fundamentals>();
+  statementsMap = new Map<string, Statements>();
   scan = new Map<string, { scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>();
   candidates = new Map<string, CandidateRow>();
   plans = new Map<string, ContributionPlan>();
@@ -330,6 +334,12 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   async freshFundamentals(maxAgeDays: number, today: string) {
     const since = new Date(Date.parse(today) - maxAgeDays * 86_400_000).toISOString().slice(0, 10);
     return [...this.fundamentalsMap.values()].filter((f) => f.asOf >= since);
+  }
+  async statements(symbol: string) {
+    return this.statementsMap.get(symbol.toUpperCase()) ?? null;
+  }
+  async saveStatements(s: Statements) {
+    this.statementsMap.set(s.symbol.toUpperCase(), { ...s, symbol: s.symbol.toUpperCase() });
   }
   async scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>) {
     for (const r of rows) this.scan.set(`${r.scanDate}|${r.symbol.toUpperCase()}`, { ...r, symbol: r.symbol.toUpperCase() });

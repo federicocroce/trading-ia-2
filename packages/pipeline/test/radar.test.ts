@@ -211,3 +211,16 @@ describe("applyTaxonomy", () => {
     expect((await store.tags("SA"))?.themes).toEqual(["IA"]);
   });
 });
+
+describe("MemoryStore: estados", () => {
+  it("guarda y devuelve estados por símbolo; fundamentals conserva metricsRaw y statementsAsOf", async () => {
+    const store = new MemoryStore();
+    expect(await store.statements("ZVRA")).toBeNull();
+    await store.saveStatements({ symbol: "zvra", cik: "1434647", asOf: "2026-09-09", quarters: [], core: null });
+    expect((await store.statements("ZVRA"))?.cik).toBe("1434647");
+    await store.saveFundamentals({ symbol: "ZVRA", asOf: "2026-09-09", metrics: { peTTM: 23.4 }, metricsRaw: { peTTM: 12.8 }, statementsAsOf: "2026-06-30", peers: [], industry: null, mcapUsd: null, dollarVolumeUsd: 1, priceUsd: 12.57, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null });
+    const f = await store.fundamentals("ZVRA");
+    expect(f?.metricsRaw?.["peTTM"]).toBe(12.8);
+    expect(f?.statementsAsOf).toBe("2026-06-30");
+  });
+});

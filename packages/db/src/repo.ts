@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -284,10 +284,14 @@ export class Repo {
     return out;
   }
   private rowToFundamentals(r: typeof s.fundamentals.$inferSelect): Fundamentals {
-    return { symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers as string[]) ?? [], industry: r.industry, mcapUsd: r.mcapUsd === null ? null : num(r.mcapUsd), dollarVolumeUsd: num(r.dollarVolumeUsd), priceUsd: num(r.priceUsd), nextEarnings: r.nextEarnings, insiderBuys90d: r.insiderBuys90d, insiderSells90d: r.insiderSells90d, analyst: r.analyst as Fundamentals["analyst"], earningsSurprises: r.earningsSurprises as Fundamentals["earningsSurprises"] };
+    // statementsAsOf: la columna guarda null tanto si nunca se intentó como si se intentó y no hay estados;
+    // acá se omite la clave (undefined) en vez de escribir null, así "sin_estados" solo lo decide quien sí llamó a los estados.
+    const f: Fundamentals = { symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers as string[]) ?? [], industry: r.industry, mcapUsd: r.mcapUsd === null ? null : num(r.mcapUsd), dollarVolumeUsd: num(r.dollarVolumeUsd), priceUsd: num(r.priceUsd), nextEarnings: r.nextEarnings, insiderBuys90d: r.insiderBuys90d, insiderSells90d: r.insiderSells90d, analyst: r.analyst as Fundamentals["analyst"], earningsSurprises: r.earningsSurprises as Fundamentals["earningsSurprises"], metricsRaw: (r.metricsRaw as Fundamentals["metricsRaw"]) ?? null };
+    if (r.statementsAsOf !== null) f.statementsAsOf = r.statementsAsOf;
+    return f;
   }
   async saveFundamentals(f: Fundamentals): Promise<void> {
-    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: f.mcapUsd === null ? null : str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, updatedAt: new Date() };
+    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: f.mcapUsd === null ? null : str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, metricsRaw: f.metricsRaw ?? null, statementsAsOf: f.statementsAsOf ?? null, updatedAt: new Date() };
     await this.db.insert(s.fundamentals).values(v).onConflictDoUpdate({ target: s.fundamentals.symbol, set: v });
   }
   async fundamentals(symbol: string): Promise<Fundamentals | null> {
@@ -297,6 +301,14 @@ export class Repo {
   async freshFundamentals(maxAgeDays: number, today: string): Promise<Fundamentals[]> {
     const since = new Date(Date.parse(today) - maxAgeDays * 86_400_000).toISOString().slice(0, 10);
     return (await this.db.select().from(s.fundamentals).where(sql`${s.fundamentals.asOf} >= ${since}`)).map((r) => this.rowToFundamentals(r));
+  }
+  async statements(symbol: string): Promise<Statements | null> {
+    const r = (await this.db.select().from(s.statements).where(eq(s.statements.symbol, symbol.toUpperCase())))[0];
+    return r ? { symbol: r.symbol, cik: r.cik ?? "", asOf: r.asOf, quarters: (r.quarters as Statements["quarters"]) ?? [], core: (r.core as Statements["core"]) ?? null } : null;
+  }
+  async saveStatements(st: Statements): Promise<void> {
+    const v = { symbol: st.symbol.toUpperCase(), cik: st.cik || null, asOf: st.asOf, quarters: st.quarters, core: st.core, updatedAt: new Date() };
+    await this.db.insert(s.statements).values(v).onConflictDoUpdate({ target: s.statements.symbol, set: v });
   }
   async scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>): Promise<void> {
     for (let i = 0; i < rows.length; i += 500) {

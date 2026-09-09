@@ -23,6 +23,7 @@ d("Repo (Postgres real)", () => {
     await db.delete(schema.radarCandidates).where(eq(schema.radarCandidates.symbol, rsym));
     await db.delete(schema.universeScan).where(eq(schema.universeScan.symbol, rsym));
     await db.delete(schema.fundamentals).where(eq(schema.fundamentals.symbol, rsym));
+    await db.delete(schema.statements).where(eq(schema.statements.symbol, rsym));
     await db.delete(schema.symbolMeta).where(eq(schema.symbolMeta.symbol, rsym));
     await db.delete(schema.contributionPlans).where(eq(schema.contributionPlans.planMonth, "2099-01"));
     const csym = `C${ticker}`;
@@ -149,6 +150,13 @@ d("Repo (Postgres real)", () => {
     expect((await repo.plansToMeasure("2099-03-01")).some((p) => p.month === "2099-01")).toBe(true);
     await repo.updatePlanLines("2099-01", [{ ...plan.lines[0]!, alpha30dPct: 2, alpha90dPct: 3 }]);
     expect((await repo.plansToMeasure("2099-05-01")).some((p) => p.month === "2099-01")).toBe(false);
+  });
+
+  it("statements: upsert y lectura", async () => {
+    const rsym = `R${ticker}`;
+    await repo.saveStatements({ symbol: rsym, cik: "1", asOf: "2026-09-09", quarters: [], core: null });
+    await repo.saveStatements({ symbol: rsym, cik: "2", asOf: "2026-09-10", quarters: [], core: null });
+    expect((await repo.statements(rsym))?.cik).toBe("2");
   });
 
   it("ticker: descripción, velas diarias y noticias", async () => {

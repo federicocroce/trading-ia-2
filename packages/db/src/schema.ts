@@ -221,6 +221,17 @@ export const fundamentals = pgTable("fundamentals", {
   insiderSells90d: integer("insider_sells_90d"),
   analyst: jsonb("analyst"),
   earningsSurprises: jsonb("earnings_surprises"),
+  metricsRaw: jsonb("metrics_raw"),
+  statementsAsOf: date("statements_as_of"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+/** Estados trimestrales de la SEC y ganancia núcleo (spec verificación §4). */
+export const statements = pgTable("statements", {
+  symbol: text("symbol").primaryKey(),
+  cik: text("cik"),
+  asOf: date("as_of").notNull(),
+  quarters: jsonb("quarters").notNull().default([]),
+  core: jsonb("core"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 export const universeScan = pgTable(
