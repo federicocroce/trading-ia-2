@@ -159,6 +159,27 @@ d("Repo (Postgres real)", () => {
     expect((await repo.statements(rsym))?.cik).toBe("2");
   });
 
+  it("fundamentals: metricsRaw y statementsAsOf van y vienen; la clave se omite (no null) cuando nunca se guardó o se guardó null", async () => {
+    const sym = `R${ticker}`;
+    const base = { symbol: sym, asOf: "2026-09-09", metrics: { peTTM: 20 }, peers: [] as string[], industry: "Semiconductors", mcapUsd: 1e9, dollarVolumeUsd: 2e7, priceUsd: 10, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null };
+
+    await repo.saveFundamentals(base);
+    let f = await repo.fundamentals(sym);
+    expect(f && "statementsAsOf" in f).toBe(false);
+    expect(f?.metricsRaw ?? null).toBeNull();
+
+    await repo.saveFundamentals({ ...base, metricsRaw: { peTTM: 12.8 }, statementsAsOf: "2026-06-30" });
+    f = await repo.fundamentals(sym);
+    expect(f?.metricsRaw?.["peTTM"]).toBe(12.8);
+    expect(f?.statementsAsOf).toBe("2026-06-30");
+
+    // La columna no distingue "nunca se intentó" de "se intentó y no hay": guardar statementsAsOf null también
+    // vuelve a omitir la clave al leer. La señal autorizada de "se intentó" es la fila de `statements` (quarters: [], core: null), no este campo.
+    await repo.saveFundamentals({ ...base, metricsRaw: { peTTM: 12.8 }, statementsAsOf: null });
+    f = await repo.fundamentals(sym);
+    expect(f && "statementsAsOf" in f).toBe(false);
+  });
+
   it("ticker: descripción, velas diarias y noticias", async () => {
     const sym = `T${ticker}`;
     await repo.saveDescription({ symbol: sym, longName: "Test Inc", summary: "hace cosas", employees: 10, website: "test.com", exchangeName: "NYSE", firstTradeDate: "2000-01-01", sector: "Tech", industry: "Soft", country: "US", updatedAt: "2099-01-01T00:00:00.000Z" });
