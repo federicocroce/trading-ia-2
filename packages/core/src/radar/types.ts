@@ -93,6 +93,8 @@ export interface CandidateRow {
   spy90d: number | null;
   alpha90dPct: number | null;
   measuredAt: string | null;
+  events?: CandidateEvent[];
+  analystTargets?: AnalystTargets | null;
 }
 
 /** Ficha de candidato escrita por el modelo (spec §9). El verbo ya está decidido; solo puede degradar. */
@@ -163,6 +165,65 @@ export interface NewsItem {
   url: string;
   summary: string | null;
 }
+
+export type EventKind = "regulatorio" | "continuidad" | "contable" | "listado" | "guidance" | "dilucion" | "litigio" | "gestion" | "analista" | "otro";
+export type EventSeverity = "grave" | "moderado" | "ruido";
+/** Evento material guardado (spec verificación §5). */
+export interface RadarEvent {
+  symbol: string;
+  date: string;
+  kind: EventKind;
+  severity: EventSeverity;
+  headline: string;
+  url: string;
+  source: string | null;
+  why: string | null;
+  detectedAt: string;
+  promptVersion: string | null;
+}
+/** Lo que lleva la fila del candidato: solo lo necesario para salvedades y ficha. */
+export interface CandidateEvent {
+  date: string;
+  kind: EventKind;
+  severity: EventSeverity;
+  headline: string;
+}
+export interface AnalystAction {
+  symbol: string;
+  date: string;
+  firm: string;
+  action: "mantiene" | "sube" | "baja" | "inicia";
+  rating: string | null;
+  target: number | null;
+  url: string;
+}
+export interface AnalystTargets {
+  n: number;
+  median: number | null;
+  min: number | null;
+  max: number | null;
+  latestDate: string | null;
+}
+/** Clasificador de titulares (modelo). Solo clasifica lo que el prefiltro marcó; nunca decide el veredicto. */
+export interface EventClassifierInput {
+  symbol: string;
+  name: string | null;
+  items: Array<{ date: string; source: string | null; headline: string; summary: string | null; url: string; kind: EventKind }>;
+}
+export interface ClassifiedEvent {
+  date: string;
+  kind: EventKind;
+  severity: EventSeverity;
+  headline: string;
+  url: string;
+  source: string | null;
+  why: string;
+}
+export interface EventClassifier {
+  readonly promptVersion: string;
+  classify(input: EventClassifierInput): Promise<ClassifiedEvent[]>;
+}
+
 /** Barra para el gráfico: `time` en epoch segundos (intradiario) o medianoche UTC (diario). */
 export interface ChartBar {
   time: number;
