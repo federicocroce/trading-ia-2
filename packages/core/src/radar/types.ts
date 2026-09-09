@@ -228,6 +228,8 @@ export interface QuarterStatement {
   netIncome: number | null;
   pretaxIncome: number | null;
   taxExpense: number | null;
+  /** Resultado no operativo del trimestre (NonoperatingIncomeExpense). */
+  nonoperatingIncome: number | null;
   operatingCashFlow: number | null;
   capex: number | null;
   dilutedShares: number | null;

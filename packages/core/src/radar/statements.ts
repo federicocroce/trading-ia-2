@@ -1,4 +1,6 @@
-import type { CompanyFactsJson, QuarterStatement } from "./types.js";
+import type { CompanyFactsJson, CoreEarnings, QuarterStatement } from "./types.js";
+import type { FinnhubMetrics } from "./universe.js";
+import type { Fundamentals } from "./ranking.js";
 
 /**
  * Estados trimestrales desde XBRL (SEC companyfacts) y ganancia núcleo (spec verificación §4). Puro.
@@ -9,6 +11,7 @@ const OPERATING_TAGS = ["OperatingIncomeLoss"];
 const NET_TAGS = ["NetIncomeLoss", "ProfitLoss"];
 const PRETAX_TAGS = ["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest", "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments"];
 const TAX_TAGS = ["IncomeTaxExpenseBenefit"];
+const NONOPERATING_TAGS = ["NonoperatingIncomeExpense", "OtherNonoperatingIncomeExpense"];
 const OCF_TAGS = ["NetCashProvidedByUsedInOperatingActivities"];
 const CAPEX_TAGS = ["PaymentsToAcquirePropertyPlantAndEquipment"];
 const SHARES_TAGS = ["WeightedAverageNumberOfDilutedSharesOutstanding"];
@@ -88,6 +91,9 @@ export function buildQuarters(json: CompanyFactsJson): QuarterStatement[] {
       const v = quarterValue(factsOf(json, tag), end);
       if (v && v.val !== 0) extraordinary.push({ tag, value: -Math.abs(v.val) });
     }
+    // El mismo hecho puede llegar re-tageado bajo dos tags XBRL con el mismo valor exacto: se conserva el primero.
+    const seen = new Set<number>();
+    const unique = extraordinary.filter((e) => (seen.has(e.value) ? false : (seen.add(e.value), true)));
     out.push({
       start,
       end,
@@ -97,12 +103,75 @@ export function buildQuarters(json: CompanyFactsJson): QuarterStatement[] {
       netIncome: net?.val ?? null,
       pretaxIncome: firstQuarterValue(json, PRETAX_TAGS, end)?.val ?? null,
       taxExpense: firstQuarterValue(json, TAX_TAGS, end)?.val ?? null,
+      nonoperatingIncome: firstQuarterValue(json, NONOPERATING_TAGS, end)?.val ?? null,
       operatingCashFlow: firstQuarterValue(json, OCF_TAGS, end)?.val ?? null,
       capex: firstQuarterValue(json, CAPEX_TAGS, end)?.val ?? null,
       dilutedShares: firstQuarterValue(json, SHARES_TAGS, end)?.val ?? null,
       equity: instantValue(json, EQUITY_TAGS, end),
-      extraordinary,
+      extraordinary: unique,
     });
   }
   return out.slice(-8);
+}
+
+const DEVIATION_FLAG = 0.25;
+const DEFAULT_TAX = 0.21;
+const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
+const sumOrNull = (xs: Array<number | null>): number | null => (xs.some((x) => x === null) ? null : xs.reduce<number>((a, b) => a + (b as number), 0));
+
+/** Ganancia núcleo sobre los últimos 4 trimestres (spec verificación §4): operativo núcleo = operativo − ganancias extraordinarias operativas. null si no hay 4 con operativo y neto. */
+export function coreEarnings(quarters: QuarterStatement[]): CoreEarnings | null {
+  const last4 = quarters.filter((q) => q.operatingIncome !== null && q.netIncome !== null).slice(-4);
+  if (last4.length < 4) return null;
+  const operatingIncomeTTM = sumOrNull(last4.map((q) => q.operatingIncome))!;
+  const netIncomeTTM = sumOrNull(last4.map((q) => q.netIncome))!;
+  const extraordinaryItems = last4.flatMap((q) => q.extraordinary.map((e) => ({ tag: e.tag, quarterEnd: q.end, value: e.value })));
+  /** Una ganancia extraordinaria se resta del operativo solo si es positiva y no está explicada por el resultado no operativo del trimestre
+   *  (si NonoperatingIncomeExpense ≥ 80% de la ganancia, la ganancia vive fuera del operativo: caso del voucher de ZVRA en Q2 2025).
+   *  Cargos e impairments NO se suman de vuelta: en XBRL muchos viven en notas, no en el estado de resultados (caso ZVRA Q1 2026). */
+  const NONOPERATING_SHARE = 0.8;
+  const operatingGain = (q: QuarterStatement, e: { value: number }) => e.value > 0 && !(q.nonoperatingIncome !== null && q.nonoperatingIncome >= NONOPERATING_SHARE * e.value);
+  const extraordinaryTTM = last4.reduce((s, q) => s + q.extraordinary.filter((e) => operatingGain(q, e)).reduce((a, e) => a + e.value, 0), 0);
+  const coreOperatingIncomeTTM = operatingIncomeTTM - extraordinaryTTM;
+  const pretax = sumOrNull(last4.map((q) => q.pretaxIncome));
+  const tax = sumOrNull(last4.map((q) => q.taxExpense));
+  const taxRate = pretax !== null && tax !== null && pretax > 0 ? r4(Math.min(0.35, Math.max(0, tax / pretax))) : DEFAULT_TAX;
+  // Con pérdida operativa no hay escudo fiscal: el núcleo es el operativo.
+  const coreNetIncomeTTM = coreOperatingIncomeTTM > 0 ? coreOperatingIncomeTTM * (1 - taxRate) : coreOperatingIncomeTTM;
+  const shares = last4[last4.length - 1]!.dilutedShares;
+  const coreEpsTTM = shares && shares > 0 ? r4(coreNetIncomeTTM / shares) : null;
+  const ocf = sumOrNull(last4.map((q) => q.operatingCashFlow));
+  const capex = sumOrNull(last4.map((q) => q.capex));
+  const deviationPct = r4((netIncomeTTM - coreNetIncomeTTM) / Math.max(Math.abs(netIncomeTTM), Math.abs(coreNetIncomeTTM), 1));
+  return {
+    asOf: last4[last4.length - 1]!.end,
+    revenueTTM: sumOrNull(last4.map((q) => q.revenue)),
+    operatingIncomeTTM,
+    coreOperatingIncomeTTM,
+    netIncomeTTM,
+    coreNetIncomeTTM,
+    coreEpsTTM,
+    operatingCashFlowTTM: ocf,
+    freeCashFlowTTM: ocf === null ? null : ocf - (capex ?? 0),
+    equity: last4[last4.length - 1]!.equity,
+    taxRate,
+    extraordinaryTTM,
+    extraordinaryItems,
+    deviationPct,
+  };
+}
+
+/** Bandera `resultado_extraordinario` cuando el neto reportado se aparta del núcleo más del 25%. */
+export const hasExtraordinary = (core: CoreEarnings | null | undefined): boolean => !!core && core.deviationPct !== null && Math.abs(core.deviationPct) > DEVIATION_FLAG;
+
+/** Reemplaza P/E, ROE y márgenes por las cifras núcleo; Finnhub queda en `metricsRaw`. Sin núcleo o sin ingresos: nada cambia, `statementsAsOf` null. */
+export function applyCoreMetrics(f: Fundamentals, core: CoreEarnings | null, priceUsd: number): Fundamentals {
+  const raw = f.metricsRaw ?? f.metrics;
+  if (!core || core.revenueTTM === null || core.revenueTTM <= 0 || core.coreOperatingIncomeTTM === null) return { ...f, metrics: raw, metricsRaw: raw, statementsAsOf: null };
+  const metrics: FinnhubMetrics = { ...raw };
+  metrics["peTTM"] = core.coreEpsTTM !== null && core.coreEpsTTM > 0 ? r4(priceUsd / core.coreEpsTTM) : null;
+  metrics["operatingMarginTTM"] = r4((core.coreOperatingIncomeTTM / core.revenueTTM) * 100);
+  metrics["netProfitMarginTTM"] = core.coreNetIncomeTTM === null ? raw["netProfitMarginTTM"] : r4((core.coreNetIncomeTTM / core.revenueTTM) * 100);
+  metrics["roeTTM"] = core.equity && core.equity > 0 && core.coreNetIncomeTTM !== null ? r4((core.coreNetIncomeTTM / core.equity) * 100) : raw["roeTTM"];
+  return { ...f, metrics, metricsRaw: raw, statementsAsOf: core.asOf };
 }
