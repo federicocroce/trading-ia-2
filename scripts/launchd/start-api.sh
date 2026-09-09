@@ -7,4 +7,6 @@ cd "$(dirname "$0")/../.." || exit 1
 for i in $(seq 1 120); do docker info >/dev/null 2>&1 && break; sleep 5; done
 docker compose up -d db >/dev/null 2>&1
 for i in $(seq 1 60); do docker ps --format '{{.Names}} {{.Status}}' | grep -q "thesis-db.*healthy" && break; sleep 3; done
+# Si el proceso anterior todavía tiene el puerto (relanzamiento), esperar a que lo suelte en vez de morir con EADDRINUSE en loop.
+for i in $(seq 1 30); do lsof -nP -iTCP:3002 -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 1; done
 exec pnpm --filter @thesis/api start
