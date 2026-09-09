@@ -20,11 +20,24 @@ describe("relativeStrength", () => {
 });
 
 describe("decideEtf", () => {
-  it("núcleo → NUCLEO siempre", () => {
+  it("núcleo → NUCLEO siempre, sin stop ni objetivo: se compra por calendario y se mantiene", () => {
     const d = decideEtf(cfg("nucleo"), weak, spy, tech);
     if ("excluded" in d) throw new Error("no");
     expect(d.verdict).toBe("NUCLEO");
     expect(d.rs6m).toBeLessThan(0);
+    expect(d.stop).toBeNull();
+    expect(d.target).toBeNull();
+  });
+  it("satélite que cierra bajo su stop dinámico → OBSERVAR con bajo_stop y sin objetivo (nunca un objetivo por debajo del precio)", () => {
+    // Sube fuerte y en las últimas ruedas cae: el stop chandelier queda por encima del cierre.
+    const falling = series([...ramp(100, 140, 240), ...ramp(140, 118, 20)]);
+    const d = decideEtf(cfg("satelite"), falling, spy, tech);
+    if ("excluded" in d) throw new Error("no");
+    expect(d.stop).not.toBeNull();
+    expect(d.stop!).toBeGreaterThan(d.close);
+    expect(d.verdict).toBe("OBSERVAR");
+    expect(d.reasons).toContain("bajo_stop");
+    expect(d.target).toBeNull();
   });
   it("satélite fuerte, sobre SMA200 y sin perseguir → COMPRAR", () => {
     const d = decideEtf(cfg("satelite"), strong, spy, tech);

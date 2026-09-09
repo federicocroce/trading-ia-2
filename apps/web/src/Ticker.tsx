@@ -41,10 +41,11 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const years = d?.firstTradeDate ? Math.floor((Date.now() - Date.parse(d.firstTradeDate)) / (365.25 * 86_400_000)) : null;
   const priceStale = stale(q?.asOf ?? null);
   const m = t.fundamentals?.metrics ?? {};
-  // Niveles vigentes: el veredicto de Cartera manda; si no hay posición, los del Radar.
-  const levelsFrom = t.verdict ? "Cartera" : t.candidate ? "Radar" : null;
-  const stop = t.verdict?.stop ?? t.candidate?.stop ?? null;
-  const target = t.verdict?.target ?? t.candidate?.target ?? null;
+  // Niveles vigentes: el veredicto de Cartera manda; si no hay posición, los del Radar. El núcleo no tiene niveles: se mantiene.
+  const isNucleo = t.candidate?.verdict === "NUCLEO";
+  const levelsFrom = t.verdict ? "Cartera" : t.candidate && !isNucleo ? "Radar" : null;
+  const stop = t.verdict?.stop ?? (isNucleo ? null : t.candidate?.stop ?? null);
+  const target = t.verdict?.target ?? (isNucleo ? null : t.candidate?.target ?? null);
   const px = q?.price ?? null;
   const move = (level: number | null) => (px && level ? ((level - px) / px) * 100 : null);
   const toStop = move(stop);
@@ -83,6 +84,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               {priceStale && <span className="verb REVISAR">⚠ precio viejo: última operación {q.asOf?.slice(0, 10)}</span>}
             </div>
           ) : <span className="muted">Sin precio vivo.</span>}
+          {isNucleo && !t.verdict && <div className="row" style={{ marginTop: 8 }}><span className="verb NUCLEO">NUCLEO</span><span className="muted">ETF de base de la cartera: se compra por calendario con el aporte y se mantiene años. Sin stop ni objetivo: no se vende por precio.</span></div>}
           {px && (stop || target) && (
             <div className="row" style={{ marginTop: 8, gap: 16 }}>
               {stop && <span>Stop <b className="mono">{f2(stop)}</b> <span className={toStop !== null && toStop < 0 ? "bad" : "warn"}>{pct(toStop)}{usdAt(stop) && ` · ${usdAt(stop)}`}</span></span>}
@@ -95,7 +97,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
         </div>
       </div>
 
-      <div className="card"><PriceChart symbol={t.symbol} currentPrice={q?.price ?? null} levels={{ avgCost: t.position?.avgCost ?? null, stop: t.verdict?.stop ?? t.candidate?.stop ?? null, target: t.verdict?.target ?? t.candidate?.target ?? null }} onPeriodChange={onPeriod} /></div>
+      <div className="card"><PriceChart symbol={t.symbol} currentPrice={q?.price ?? null} levels={{ avgCost: t.position?.avgCost ?? null, stop, target }} onPeriodChange={onPeriod} /></div>
 
       <div className="grid2">
         {t.position && (
