@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { CloseReason } from "@thesis/core";
-import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders } from "@thesis/pipeline";
+import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders, buildNovedades } from "@thesis/pipeline";
 import { z } from "zod";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
@@ -19,6 +19,8 @@ export function buildApp(c: Container) {
   app.get("/health", async (ctx) => ctx.json({ ok: true, paper: true, killSwitch: state.killSwitch, lastRun: state.lastRun }));
   /** Ponerse al día: qué pasos quedaron sin correr y correrlos (solo esos). */
   app.get("/catchup", async (ctx) => ctx.json(await catchUpStatus(c)));
+  /** Novedades del día: qué cambió contra la corrida anterior (lo que se lee a la mañana). */
+  app.get("/novedades", async (ctx) => ctx.json(await buildNovedades(c.store, { today: ctx.req.query("today") ?? new Date().toISOString().slice(0, 10) })));
   app.post("/catchup", async (ctx) => ctx.json(await runCatchUp(c)));
 
   // ---- tesis ----

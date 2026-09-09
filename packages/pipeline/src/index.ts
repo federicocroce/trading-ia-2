@@ -11,3 +11,4 @@ export * from "./ticker.js";
 export * from "./argentina.js";
 export * from "./catchup.js";
 export * from "./watchlist.js";
+export * from "./novedades.js";

@@ -52,6 +52,7 @@ export interface Watchlist { items: WatchItem[]; rows: Candidate[] }
 export interface PriceRow { symbol: string; price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; stale: boolean; currency: string | null }
 export interface Tape { at: string; tracked: number; gainers: PriceRow[]; losers: PriceRow[] }
 export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; acciones: Candidate[]; cedears: Candidate[] }
+export interface Novedades { date: string | null; previousDate: string | null; verdictChanges: Array<{ symbol: string; from: string; to: string; reason: string }>; alerts: Array<{ symbol: string; verb: string; reason: string }>; enteredBuy: Array<{ symbol: string; kind: string; score: number | null }>; leftBuy: Array<{ symbol: string; kind: string; now: string }>; watchResolved: Array<{ symbol: string; status: string; returnPct: number | null }>; proposedTheses: Array<{ id: string; ticker: string; eventType: string; direction: string; edge: number; summary: string }>; news: NewsItem[]; empty: boolean }
 export interface CatchUpResult { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }
 export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; running: boolean; lastResult: CatchUpResult | null }
 export interface TopPick { symbol: string; conviction: number; gainPct: number; lossPct: number; reasons: string[]; cautions: string[]; allAligned: boolean; close: number; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; score: number | null; rankInGroup: number | null; groupSize: number | null; summary: string | null; mainRisk: string | null; tags: Tags | null }
@@ -150,6 +151,7 @@ export const api = {
     get: (symbols: string[]) => (symbols.length ? j<PriceRow[]>(`/prices?symbols=${symbols.join(",")}`) : Promise.resolve([] as PriceRow[])),
     tape: () => j<Tape>("/prices/tape"),
   },
+  novedades: () => j<Novedades>("/novedades"),
   catchup: {
     status: () => j<CatchUpStatus>("/catchup"),
     run: () => j<CatchUpResult>("/catchup", { method: "POST" }),

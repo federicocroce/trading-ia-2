@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type Measurement, type Position, type Quote, type RiskReport, type Tags, type Verdict } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
+import { Novedades } from "./Novedades";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -120,6 +121,7 @@ export function Cartera() {
 
   return (
     <>
+      <Novedades />
       <div className="card row">
         <b>Cartera real</b>
         <span className="muted">{date ? `veredictos del ${date}` : "sin veredictos todavía"}</span>
