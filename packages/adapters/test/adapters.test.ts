@@ -26,6 +26,26 @@ describe("EdgarIngestor", () => {
     expect(evs[0]?.eventType).toBe("operational");
     expect(evs[0]?.payload["url"]).toBe("https://www.sec.gov/Archives/edgar/data/1234567/000123456726000010/xxxx-8k.htm");
   });
+  it("el universo puede ser una función (posiciones + seguimiento + plan que cambian solos)", async () => {
+    const ing = new EdgarIngestor({ http, universe: async () => ["XXXX"] });
+    expect((await ing.fetch("2026-08-01T00:00:00Z")).length).toBe(2);
+  });
+  it("Form 4: lee el XML y se queda con compras y ventas de insiders; el vesting rutinario no genera evento", async () => {
+    const h = fixtureHttpClient({
+      "https://www.sec.gov/files/company_tickers.json": E.companyTickers,
+      "https://data.sec.gov/submissions/CIK0001234567.json": E.submissionsForm4,
+      "https://www.sec.gov/Archives/edgar/data/1234567/000123456726000101/wk-form4_1.xml": E.form4Purchase,
+      "https://www.sec.gov/Archives/edgar/data/1234567/000123456726000102/wk-form4_2.xml": E.form4Vesting,
+      "https://www.sec.gov/Archives/edgar/data/1234567/000123456726000103/wk-form4_3.xml": E.form4Sale,
+    });
+    const evs = await new EdgarIngestor({ http: h, universe: ["XXXX"] }).fetch("2026-09-01T00:00:00Z");
+    expect(evs.map((e) => [e.payload["insider"], e.title])).toEqual([
+      ["compra", "4 compra de insider: Marin Horacio Daniel, 352,433 acciones — Xxxx Therapeutics Inc"],
+      ["venta", "4 venta de insider: Toth Peter, 3,000 acciones — Xxxx Therapeutics Inc"],
+    ]);
+    expect(evs[0]?.payload["insiderBuyShares"]).toBe(352433);
+    expect(evs[1]?.payload["insiderSellShares"]).toBe(3000);
+  });
   it("filingUrl quita guiones y ceros del cik", () => {
     expect(filingUrl("0001234567", "0001234567-26-000010", "a.htm")).toContain("/1234567/000123456726000010/a.htm");
   });
@@ -45,6 +65,10 @@ describe("NasdaqEarningsIngestor", () => {
     const evs = await ing.fetch("2026-09-10");
     expect(evs).toHaveLength(1);
     expect(evs[0]).toMatchObject({ ticker: "XXXX", eventType: "earnings", eventDate: "2026-09-10" });
+  });
+  it("universo como función", async () => {
+    const http = fixtureHttpClient({ "https://api.nasdaq.com/api/calendar/earnings?date=2026-09-10": N.nasdaq_2026_09_10 });
+    expect((await new NasdaqEarningsIngestor({ http, universe: async () => ["XXXX"], horizonDays: 0 }).fetch("2026-09-10")).length).toBe(1);
   });
   it("tolera días sin respuesta", async () => {
     const ing = new NasdaqEarningsIngestor({ http: fixtureHttpClient({}), horizonDays: 2 });

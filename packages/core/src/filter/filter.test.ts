@@ -35,6 +35,11 @@ describe("DefaultFilter", () => {
     const r = await new DefaultFilter(quotes).apply([ev({ ticker: "ILLIQ" }), ev({ ticker: "NOQ" })], ctx);
     expect(r.passed).toHaveLength(0);
   });
+  it("allowlist como función (ADRs de posiciones y seguimiento que cambian solos)", async () => {
+    const f = new DefaultFilter(quotes, { ...(await import("./index.js")).DEFAULT_FILTER_CONFIG, allowlist: async () => ["ILLIQ"] });
+    const r = await f.apply([ev({ ticker: "ILLIQ" })], ctx);
+    expect(r.passed.map((e) => e.ticker)).toEqual(["ILLIQ"]);
+  });
   it("allowlist saltea liquidez", async () => {
     const f = new DefaultFilter(quotes, { ...(await import("./index.js")).DEFAULT_FILTER_CONFIG, allowlist: ["ILLIQ"] });
     const r = await f.apply([ev({ ticker: "ILLIQ" })], ctx);

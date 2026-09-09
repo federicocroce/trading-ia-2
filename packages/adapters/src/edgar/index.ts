@@ -34,10 +34,50 @@ const INTERESTING_FORMS = new Set(["8-K", "10-Q", "10-K", "4", "SC 13D", "SC 13G
 /** Items de 8-K que suelen mover precio. */
 const FDA_KEYWORDS = /pdufa|fda (approval|approves|accept|complete response|advisory committee)|adcom/i;
 
+export type Universe = string[] | (() => Promise<string[]>);
+export const resolveUniverse = async (u: Universe | undefined): Promise<string[]> => (typeof u === "function" ? await u() : (u ?? []));
+
 export interface EdgarOptions {
   http: HttpClient;
-  universe: string[];
+  /** Lista fija o función: así el universo sigue solo a posiciones, seguimiento y plan. */
+  universe: Universe;
 }
+
+/**
+ * Form 4 (insiders): el título del índice no dice nada ("4 — EMPRESA"), y la mayoría son vesting, ejercicios
+ * o retenciones de impuestos (códigos A, M, F…) que no mueven precio y gastaban cuota del modelo.
+ * Se lee el XML y solo generan evento las compras en mercado (P) y las ventas (S).
+ */
+export interface Form4Summary {
+  insider: "compra" | "venta" | "rutina";
+  owner: string | null;
+  buyShares: number;
+  sellShares: number;
+  codes: string[];
+}
+const fmtShares = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+
+export function parseForm4(xml: string): Form4Summary {
+  const owner = /<rptOwnerName>\s*([^<]+?)\s*<\/rptOwnerName>/.exec(xml)?.[1] ?? null;
+  const codes: string[] = [];
+  let buyShares = 0;
+  let sellShares = 0;
+  const txRe = /<(?:nonDerivative|derivative)Transaction>([\s\S]*?)<\/(?:nonDerivative|derivative)Transaction>/g;
+  for (const m of xml.matchAll(txRe)) {
+    const body = m[1]!;
+    const code = /<transactionCode>\s*([A-Z])\s*<\/transactionCode>/.exec(body)?.[1];
+    if (!code) continue;
+    codes.push(code);
+    const shares = Number(/<transactionShares>\s*<value>\s*([\d.]+)/.exec(body)?.[1] ?? 0);
+    if (code === "P") buyShares += shares;
+    if (code === "S") sellShares += shares;
+  }
+  const insider: Form4Summary["insider"] = buyShares > 0 ? "compra" : sellShares > 0 ? "venta" : "rutina";
+  return { insider, owner, buyShares, sellShares, codes };
+}
+
+/** El índice apunta al XML renderizado (xslF345X06/…); el XML crudo es el mismo path sin ese prefijo. */
+export const form4XmlDoc = (primaryDoc: string) => primaryDoc.replace(/^xsl[^/]+\//, "");
 
 export class EdgarIngestor implements Ingestor {
   readonly source = "edgar" as const;
@@ -56,7 +96,7 @@ export class EdgarIngestor implements Ingestor {
   async fetch(since: string): Promise<RawEvent[]> {
     const out: RawEvent[] = [];
     const sinceDate = since.slice(0, 10);
-    for (const ticker of this.opts.universe) {
+    for (const ticker of await resolveUniverse(this.opts.universe)) {
       const cik = await this.resolveCik(ticker);
       if (!cik) continue;
       const sub = await this.opts.http.getJson<Submissions>(submissionsUrl(cik));
@@ -69,7 +109,25 @@ export class EdgarIngestor implements Ingestor {
         const acc = r.accessionNumber[i]!;
         const primaryDoc = r.primaryDocument[i]!;
         const items = r.items?.[i] ?? "";
-        const title = `${form}${items ? ` (items ${items})` : ""} — ${sub.name}`;
+        let title = `${form}${items ? ` (items ${items})` : ""} — ${sub.name}`;
+        let extra: Record<string, unknown> = {};
+        if (form === "4") {
+          // Sin el XML no se sabe si es compra o rutina: se deja pasar como antes, marcado como desconocido.
+          let f4: Form4Summary | null = null;
+          try {
+            f4 = parseForm4(await this.opts.http.getText(filingUrl(cik, acc, form4XmlDoc(primaryDoc))));
+          } catch {
+            f4 = null;
+          }
+          if (f4?.insider === "rutina") continue;
+          if (f4) {
+            const shares = f4.insider === "compra" ? f4.buyShares : f4.sellShares;
+            title = `4 ${f4.insider} de insider: ${f4.owner ?? "insider"}, ${fmtShares(shares)} acciones — ${sub.name}`;
+            extra = { insider: f4.insider, insiderOwner: f4.owner, insiderBuyShares: f4.buyShares, insiderSellShares: f4.sellShares, insiderCodes: f4.codes };
+          } else {
+            extra = { insider: "desconocido" };
+          }
+        }
         const isFda = form === "8-K" && FDA_KEYWORDS.test(title);
         out.push(
           newEvent({
@@ -79,7 +137,7 @@ export class EdgarIngestor implements Ingestor {
             eventDate: null,
             sourceRef: acc,
             title,
-            payload: { cik, form, filingDate, items, primaryDoc, url: filingUrl(cik, acc, primaryDoc) },
+            payload: { cik, form, filingDate, items, primaryDoc, url: filingUrl(cik, acc, primaryDoc), ...extra },
           }),
         );
       }

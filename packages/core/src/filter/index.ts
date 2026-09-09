@@ -14,8 +14,8 @@ export interface FilterConfig {
   minAvgVolume: number;
   /** Precio mínimo (evita penny stocks sin opciones). */
   minPrice: number;
-  /** Tickers que se aceptan aunque no pasen liquidez (ADRs del portfolio, etc.). */
-  allowlist: string[];
+  /** Tickers que se aceptan aunque no pasen liquidez (ADRs del portfolio, etc.). Lista fija o función que sigue a la cartera. */
+  allowlist: string[] | (() => Promise<string[]>);
   /** Prioridad por tipo cuando hay que recortar al presupuesto. */
   priority: Record<RawEvent["eventType"], number>;
 }
@@ -41,7 +41,8 @@ export class DefaultFilter implements Filter {
     const dropped: FilterResult["dropped"] = [];
     const seen = new Set<string>();
     const candidates: RawEvent[] = [];
-    const allow = new Set(this.cfg.allowlist.map((t) => t.toUpperCase()));
+    const allowlist = typeof this.cfg.allowlist === "function" ? await this.cfg.allowlist() : this.cfg.allowlist;
+    const allow = new Set(allowlist.map((t) => t.toUpperCase()));
     const quoteCache = new Map<string, Quote | null>();
 
     for (const event of events) {

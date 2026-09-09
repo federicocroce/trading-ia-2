@@ -16,3 +16,22 @@ export const submissionsXXXX = {
   },
 };
 export const filingHtml = `<html><head><style>p{}</style></head><body><p>Item 8.01 Other Events.</p><p>The Company announced that the FDA has set a PDUFA target action date of <b>November 20, 2026</b>.</p></body></html>`;
+
+/** Form 4: una compra en mercado (P), un vesting rutinario (A + F) y una venta (S). */
+export const submissionsForm4 = {
+  cik: "1234567",
+  name: "Xxxx Therapeutics Inc",
+  filings: {
+    recent: {
+      accessionNumber: ["0001234567-26-000101", "0001234567-26-000102", "0001234567-26-000103"],
+      filingDate: ["2026-09-02", "2026-09-02", "2026-09-03"],
+      form: ["4", "4", "4"],
+      primaryDocument: ["xslF345X06/wk-form4_1.xml", "xslF345X06/wk-form4_2.xml", "xslF345X06/wk-form4_3.xml"],
+      items: ["", "", ""],
+    },
+  },
+};
+const tx = (code: string, ad: "A" | "D", shares: number) => `<nonDerivativeTransaction><transactionCoding><transactionCode>${code}</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>${shares}</value></transactionShares><transactionAcquiredDisposedCode><value>${ad}</value></transactionAcquiredDisposedCode></transactionAmounts></nonDerivativeTransaction>`;
+export const form4Purchase = `<?xml version="1.0"?><ownershipDocument><reportingOwner><reportingOwnerId><rptOwnerName>Marin Horacio Daniel</rptOwnerName></reportingOwnerId></reportingOwner><nonDerivativeTable>${tx("P", "A", 352433)}</nonDerivativeTable></ownershipDocument>`;
+export const form4Vesting = `<?xml version="1.0"?><ownershipDocument><reportingOwner><reportingOwnerId><rptOwnerName>Lu Lee-Chung</rptOwnerName></reportingOwnerId></reportingOwner><nonDerivativeTable>${tx("A", "A", 21645)}${tx("F", "D", 8000)}</nonDerivativeTable></ownershipDocument>`;
+export const form4Sale = `<?xml version="1.0"?><ownershipDocument><reportingOwner><reportingOwnerId><rptOwnerName>Toth Peter</rptOwnerName></reportingOwnerId></reportingOwner><nonDerivativeTable>${tx("S", "D", 3000)}</nonDerivativeTable></ownershipDocument>`;

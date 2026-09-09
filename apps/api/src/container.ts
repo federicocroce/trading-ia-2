@@ -87,7 +87,18 @@ export function buildContainer(cfg: Config): Container {
   const marketData = new AlpacaMarketData(http, cfg.alpaca);
   const broker = new AlpacaBroker(createTradingHttp(http, cfg.userAgent), cfg.alpaca);
   const risk = new DefaultRiskEngine(DEFAULT_RISK_LIMITS);
-  const allTickers = [...new Set([...cfg.universe.us, ...cfg.universe.adr])];
+  // Universo de eventos: lo de config más lo que la cartera va sumando sola (posiciones, seguimiento, plan). Sin .BA: EDGAR no los cubre.
+  const eventUniverse = async (): Promise<string[]> => {
+    const [positions, watch, plan] = await Promise.all([store.positions(), store.watchlist(), store.latestPlan()]);
+    const all = [...cfg.universe.us, ...cfg.universe.adr, ...positions.map((p) => p.symbol), ...watch.map((w) => w.symbol), ...(plan?.lines.map((l) => l.symbol) ?? [])];
+    return [...new Set(all.map((x) => x.toUpperCase()))].filter((x) => !x.endsWith(".BA"));
+  };
+  const adrAllowlist = async (): Promise<string[]> => {
+    const [positions, tags] = await Promise.all([store.positions(), store.allTags()]);
+    const adrs = [...cfg.universe.adr, ...positions.filter((p) => p.market === "adr").map((p) => p.symbol), ...Object.entries(tags).filter(([, t]) => t.assetClass === "adr").map(([sym]) => sym)];
+    return [...new Set(adrs.map((x) => x.toUpperCase()))];
+  };
+  const allTickers = eventUniverse;
 
   const ingestors: Ingestor[] = [
     new EdgarIngestor({ http, universe: allTickers }),
@@ -102,7 +113,7 @@ export function buildContainer(cfg: Config): Container {
   const runDeps: RunDeps = {
     store,
     ingestors,
-    filter: new DefaultFilter((t) => marketData.getQuote(t), { ...DEFAULT_FILTER_CONFIG, allowlist: cfg.universe.adr }),
+    filter: new DefaultFilter((t) => marketData.getQuote(t), { ...DEFAULT_FILTER_CONFIG, allowlist: adrAllowlist }),
     reasoner: buildReasoner(cfg.reasoner),
     documents: new EdgarDocumentProvider(http),
     marketData,

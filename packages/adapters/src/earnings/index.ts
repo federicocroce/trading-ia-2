@@ -1,5 +1,6 @@
 import type { Ingestor, RawEvent } from "@thesis/core";
 import type { HttpClient } from "../http/index.js";
+import { resolveUniverse } from "../edgar/index.js";
 import { addDays, newEvent } from "../util.js";
 
 /**
@@ -15,7 +16,7 @@ interface NasdaqEarnings {
 export interface EarningsOptions {
   http: HttpClient;
   /** Vacío = todo el calendario. */
-  universe?: string[];
+  universe?: string[] | (() => Promise<string[]>);
   /** Días hacia adelante a consultar. */
   horizonDays?: number;
 }
@@ -27,7 +28,7 @@ export class NasdaqEarningsIngestor implements Ingestor {
   async fetch(since: string): Promise<RawEvent[]> {
     const start = since.slice(0, 10);
     const horizon = this.opts.horizonDays ?? 45;
-    const universe = new Set((this.opts.universe ?? []).map((t) => t.toUpperCase()));
+    const universe = new Set((await resolveUniverse(this.opts.universe)).map((t) => t.toUpperCase()));
     const out: RawEvent[] = [];
     for (let i = 0; i <= horizon; i++) {
       const date = addDays(start, i);
