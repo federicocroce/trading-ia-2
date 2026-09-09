@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AlpacaPriceHistory, FallbackPriceHistory, FinnhubProfiles, YahooPriceHistory, fixtureHttpClient, parseYahooChart } from "../src/index.js";
+import { AlpacaPriceHistory, CompletedSessionsHistory, FallbackPriceHistory, FinnhubProfiles, YahooPriceHistory, fixtureHttpClient, parseYahooChart } from "../src/index.js";
 
 const yahoo = { chart: { result: [{ timestamp: [1756684800, 1756771200, 1756857600], indicators: { quote: [{ open: [1, 2, null], high: [2, 3, null], low: [0.5, 1.5, null], close: [1.5, 2.5, null], volume: [100, 200, null] }] } }], error: null } };
 
@@ -53,5 +53,16 @@ describe("FinnhubProfiles", () => {
     const p = new FinnhubProfiles(http, "tok");
     expect(await p.profile("TSM")).toEqual({ symbol: "TSM", name: "Taiwan Semiconductor", country: "TW", industry: "Semiconductors", marketCap: 1_000_000_000, currency: null, shareOutstanding: null });
     expect(await p.profile("ZZZZ")).toBeNull();
+  });
+});
+
+describe("CompletedSessionsHistory", () => {
+  const inner = { candles: async (symbol: string) => [{ date: "2026-09-08", open: 1, high: 1, low: 1, close: 12.675, volume: 854_000 }, { date: "2026-09-09", open: 12.79, high: 12.79, low: 12.57, close: 12.57, volume: 95_582 }].map((c) => ({ ...c, close: symbol === "GGAL.BA" ? c.close * 100 : c.close })) };
+  it("durante la rueda US descarta la vela parcial; después del cierre la deja", async () => {
+    expect((await new CompletedSessionsHistory(inner, () => new Date("2026-09-09T13:44:00Z")).candles("ZVRA", 260)).map((c) => c.date)).toEqual(["2026-09-08"]);
+    expect((await new CompletedSessionsHistory(inner, () => new Date("2026-09-09T21:00:00Z")).candles("ZVRA", 260)).map((c) => c.date)).toEqual(["2026-09-08", "2026-09-09"]);
+  });
+  it("los .BA usan el cierre de Buenos Aires", async () => {
+    expect((await new CompletedSessionsHistory(inner, () => new Date("2026-09-09T19:30:00Z")).candles("GGAL.BA", 260)).map((c) => c.date)).toEqual(["2026-09-08"]);
   });
 });
