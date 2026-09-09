@@ -60,6 +60,17 @@ export function pricesRoutes(c: Container) {
     const symbols = (ctx.req.query("symbols") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
     return ctx.json(await quotesFor(symbols));
   });
+  /** Buscador para el alta a la watchlist (Yahoo). Caché corta por consulta. */
+  const searchCache = new Map<string, { at: number; hits: unknown }>();
+  app.get("/symbols/search", async (ctx) => {
+    const q = (ctx.req.query("q") ?? "").trim().slice(0, 40);
+    if (!q) return ctx.json([]);
+    const hit = searchCache.get(q.toLowerCase());
+    if (hit && Date.now() - hit.at < 10 * 60_000) return ctx.json(hit.hits);
+    const hits = await c.symbolSearch.search(q).catch(() => []);
+    searchCache.set(q.toLowerCase(), { at: Date.now(), hits });
+    return ctx.json(hits);
+  });
   let tape: { at: number; body: unknown } | null = null;
   app.get("/prices/tape", async (ctx) => {
     if (tape && Date.now() - tape.at < TAPE_TTL_MS) return ctx.json(tape.body);

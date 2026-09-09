@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FinnhubFundamentals, RateLimiter, YahooChart, YahooDescriptions, fixtureHttpClient, parseYahooBars, parseYahooProfile, parseYahooQuote } from "../src/index.js";
+import { FinnhubFundamentals, RateLimiter, YahooChart, YahooDescriptions, fixtureHttpClient, parseYahooBars, parseYahooProfile, parseYahooQuote, parseYahooSearch, YahooSearch } from "../src/index.js";
 
 const chart = { chart: { result: [{ meta: { firstTradeDate: 946684800, fullExchangeName: "NasdaqGS", regularMarketPrice: 44.36 }, timestamp: [1756684800, 1756685100], indicators: { quote: [{ open: [10, 11], high: [12, 12], low: [9, 10], close: [11, 11.5], volume: [100, 50] }], adjclose: [{ adjclose: [5.5, 5.75] }] } }], error: null } };
 
@@ -28,6 +28,32 @@ describe("parseYahooQuote", () => {
     expect(parseYahooQuote("ggal.ba", meta)).toEqual({ symbol: "GGAL.BA", price: 6935, prevClose: 6800, asOf: "2026-09-04T20:00:00.000Z", currency: "ARS" });
     expect(parseYahooQuote("X", { chart: { result: [{ meta: {}, indicators: { quote: [] } }], error: null } })).toBeNull();
     expect(() => parseYahooQuote("X", { chart: { result: null, error: { code: "Not Found", description: "no" } } })).toThrow(/no/);
+  });
+});
+
+describe("parseYahooSearch (buscador del alta, portado de v1)", () => {
+  const sample = { quotes: [
+    { symbol: "MELI", shortname: "MercadoLibre, Inc.", longname: "MercadoLibre, Inc.", exchange: "NMS", exchDisp: "NASDAQ", quoteType: "EQUITY", isYahooFinance: true },
+    { symbol: "MELI.BA", shortname: "MERCADOLIBRE INC CEDEAR EACH 12", longname: "MercadoLibre, Inc.", exchange: "BUE", exchDisp: "Buenos Aires", quoteType: "EQUITY", isYahooFinance: true },
+    { symbol: "GGAL.BA", shortname: "GRUPO FINANCIERO GALICIA", longname: "Grupo Financiero Galicia S.A.", exchange: "BUE", exchDisp: "Buenos Aires", quoteType: "EQUITY", isYahooFinance: true },
+    { symbol: "VTI", shortname: "Vanguard Total Stock Market ETF", exchange: "PCX", exchDisp: "NYSEArca", quoteType: "ETF", isYahooFinance: true },
+    { symbol: "BTC-USD", shortname: "Bitcoin USD", exchange: "CCC", exchDisp: "CCC", quoteType: "CRYPTOCURRENCY", isYahooFinance: true },
+    { symbol: "CASH3.SA", shortname: "MELIUZ", longname: "Méliuz S.A.", exchange: "SAO", exchDisp: "São Paulo", quoteType: "EQUITY", isYahooFinance: true },
+    { symbol: "MELI34.SA", exchange: "SAO", quoteType: "EQUITY", isYahooFinance: false },
+  ] };
+  it("mapea a símbolo, nombre, tipo y bandera; solo mercados que la app puede cotizar (US y Buenos Aires); cripto queda aparte", () => {
+    expect(parseYahooSearch(sample)).toEqual([
+      { symbol: "MELI", name: "MercadoLibre, Inc.", exchange: "NASDAQ", type: "accion_us", flag: "🇺🇸" },
+      { symbol: "MELI.BA", name: "MercadoLibre, Inc.", exchange: "Buenos Aires", type: "cedear", flag: "🇦🇷" },
+      { symbol: "GGAL.BA", name: "Grupo Financiero Galicia S.A.", exchange: "Buenos Aires", type: "accion_ar", flag: "🇦🇷" },
+      { symbol: "VTI", name: "Vanguard Total Stock Market ETF", exchange: "NYSEArca", type: "etf", flag: "📦" },
+      { symbol: "BTC-USD", name: "Bitcoin USD", exchange: "CCC", type: "cripto", flag: "₿" },
+    ]);
+    expect(parseYahooSearch({})).toEqual([]);
+  });
+  it("YahooSearch.search pide a Yahoo con la consulta codificada", async () => {
+    const http = fixtureHttpClient({ "https://query2.finance.yahoo.com/v1/finance/search?q=meli%20arg&quotesCount=10&newsCount=0&listsCount=0": sample });
+    expect((await new YahooSearch(http).search("meli arg")).map((h) => h.symbol)).toEqual(["MELI", "MELI.BA", "GGAL.BA", "VTI", "BTC-USD"]);
   });
 });
 

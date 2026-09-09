@@ -179,4 +179,13 @@ describe("/prices", () => {
     expect(tape.losers.map((r: { symbol: string }) => r.symbol)).toEqual(["DN"]); // OLD queda afuera: precio viejo
     void a;
   });
+  it("buscador de símbolos: pasa la consulta y cachea", async () => {
+    const calls: string[] = [];
+    const app2 = new Hono();
+    app2.route("/", pricesRoutes({ store: new MemoryStore(), pricesDeps: { quotes: async () => [] }, symbolSearch: { search: async (q: string) => { calls.push(q); return [{ symbol: "MELI", name: "MercadoLibre", exchange: "NASDAQ", type: "accion_us", flag: "🇺🇸" }]; } } } as unknown as Container));
+    expect((await (await app2.request("/symbols/search?q=meli")).json())[0].symbol).toBe("MELI");
+    await app2.request("/symbols/search?q=MELI");
+    expect(calls).toEqual(["meli"]);
+    expect(await (await app2.request("/symbols/search?q=")).json()).toEqual([]);
+  });
 });

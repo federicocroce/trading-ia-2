@@ -3,6 +3,7 @@ import { api, type ArgentinaData, type Candidate, type PlanLine, type Watchlist,
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { HELP, RadarHelpModal, Th } from "./RadarHelp";
+import { SymbolSearch } from "./SymbolSearch";
 
 const HELP_CONVICCION = HELP["conviccion"]!.short;
 
@@ -272,26 +273,10 @@ const CEDEAR_FLAG: Record<string, string> = { en_linea: "en línea", caro_vs_ccl
 
 /** Lista de seguimiento: tickers elegidos a mano con las mismas reglas que un candidato. */
 function WatchCard({ w, setWatch, editing, setEditing, reload }: { w: Watchlist; setWatch: (w: Watchlist) => void; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
-  const [sym, setSym] = useState("");
-  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const rows = [...w.rows].sort((a, b) => (a.verdict === b.verdict ? (b.score ?? -Infinity) - (a.score ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
   const rowFor = new Map(rows.map((r) => [r.symbol, r]));
   const withoutRow = w.items.filter((i) => !rowFor.has(i.symbol)).map((i) => i.symbol);
-  async function add() {
-    const s = sym.trim().toUpperCase();
-    if (!s) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      setWatch(await api.radar.addWatch(s));
-      setSym("");
-    } catch (e) {
-      setErr(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
   async function remove(s: string) {
     setWatch(await api.radar.removeWatch(s));
   }
@@ -300,8 +285,7 @@ function WatchCard({ w, setWatch, editing, setEditing, reload }: { w: Watchlist;
       <div className="row">
         <b>Seguimiento</b> <span className="muted help" title={HELP["seguimiento"]!.short}>({w.items.length}) tus tickers, con las reglas del Radar aunque el ranking no los elija</span>
         <div style={{ flex: 1 }} />
-        <input value={sym} onChange={(e) => setSym(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void add(); }} placeholder="ticker (VST, MP, GGAL.BA…)" style={{ width: 180 }} />
-        <button className="primary" disabled={busy || !sym.trim()} onClick={() => void add()}>{busy ? "Agregando…" : "Agregar"}</button>
+        <div style={{ width: 340 }}><SymbolSearch existing={new Set(w.items.map((i) => i.symbol))} onAdd={async (s) => { setErr(null); try { setWatch(await api.radar.addWatch(s)); window.dispatchEvent(new Event("watchlist:changed")); } catch (e) { setErr(String(e)); } }} /></div>
       </div>
       {err && <div className="err">{err}</div>}
       {withoutRow.length > 0 && <div className="muted" style={{ marginTop: 6 }}>Sin datos todavía: {withoutRow.join(", ")} (se completan en el próximo refresco).</div>}

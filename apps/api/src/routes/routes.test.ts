@@ -33,6 +33,7 @@ function container(): Container {
     tickerDeps: { store } as never,
     argentinaDeps: { store } as never,
     pricesDeps: { quotes: async () => [] },
+    symbolSearch: { search: async () => [] },
     catchupRunners: Object.fromEntries(["scan", "cartera", "radar", "argentina", "plan", "tesis"].map((id) => [id, async () => `${id} corrido`])) as never,
     marketData,
     broker,

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro } from "@thesis/adapters";
+import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
 import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
@@ -31,6 +31,8 @@ export interface Container {
   radarDeps: RadarDeps;
   /** Argentina (etapa 3): macro, acciones de BYMA y CEDEARs. */
   argentinaDeps: ArgentinaDeps;
+  /** Buscador de símbolos para el alta a la watchlist. */
+  symbolSearch: { search(query: string): Promise<import("@thesis/adapters").SymbolHit[]> };
   /** Precios vivos por lote para la watchlist y la cinta del header. */
   pricesDeps: { quotes(symbols: string[]): Promise<import("@thesis/core").LiveQuote[]> };
   /** Solo para tests: reemplaza los pasos reales de "ponerme al día". */
@@ -199,5 +201,6 @@ export function buildContainer(cfg: Config): Container {
       return [...a, ...b.filter((q): q is NonNullable<typeof q> => q !== null)];
     },
   };
-  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, pricesDeps, marketData, broker, risk, runDeps, snapshot, account };
+  const symbolSearch = new YahooSearch(yahooHttp);
+  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, pricesDeps, symbolSearch, marketData, broker, risk, runDeps, snapshot, account };
 }

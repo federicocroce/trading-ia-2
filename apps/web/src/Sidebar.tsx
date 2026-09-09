@@ -3,6 +3,7 @@ import { api, type PriceRow, type Tags, type Watchlist } from "./api";
 import { goToSymbol } from "./SymbolLink";
 import { WatchStatusBadge, isResolved } from "./WatchlistButton";
 import { marketRefreshMs } from "./useMarketInterval";
+import { SymbolSearch } from "./SymbolSearch";
 
 /** Watchlist en barra lateral (portada de trading v1): precios vivos, búsqueda, filtro por tipo, orden, ciclo de vida, alta y baja. */
 type SortMode = "default" | "changeDesc" | "changeAsc" | "category";
@@ -18,8 +19,6 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
   const [q, setQ] = useState("");
   const [type, setType] = useState<TypeFilter>("all");
   const [sort, setSort] = useState<SortMode>(readSort);
-  const [adding, setAdding] = useState("");
-  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const load = async () => { try { setW(await api.radar.watchlist()); } catch (e) { setErr(String(e)); } };
@@ -54,12 +53,10 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
     return items;
   }, [w, rowFor, q, type, sort, prices]);
 
-  async function add() {
-    const s = adding.trim().toUpperCase();
+  async function add(s: string) {
     if (!s) return;
-    setBusy(true);
     setErr(null);
-    try { setW(await api.radar.addWatch(s)); setAdding(""); window.dispatchEvent(new Event("watchlist:changed")); } catch (e) { setErr(String(e)); } finally { setBusy(false); }
+    try { setW(await api.radar.addWatch(s)); window.dispatchEvent(new Event("watchlist:changed")); } catch (e) { setErr(String(e)); }
   }
   async function remove(s: string) {
     setW(await api.radar.removeWatch(s));
@@ -74,9 +71,8 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
         <b className="muted" style={{ fontSize: 11, letterSpacing: 1 }}>WATCHLIST {w ? `(${w.items.length})` : ""}</b>
         <button className="ghost" style={{ padding: "0 6px" }} onClick={onToggle} title="Ocultar">×</button>
       </div>
-      <div className="row" style={{ marginTop: 6 }}>
-        <input value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void add(); }} placeholder="Agregar (VST, GGAL.BA…)" style={{ flex: 1, minWidth: 0 }} />
-        <button className="primary" disabled={busy || !adding.trim()} onClick={() => void add()}>+</button>
+      <div style={{ marginTop: 6 }}>
+        <SymbolSearch existing={new Set(symbols)} onAdd={add} />
       </div>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por símbolo, nota o tesis" style={{ marginTop: 6, width: "100%" }} />
       <div className="row" style={{ marginTop: 6 }}>

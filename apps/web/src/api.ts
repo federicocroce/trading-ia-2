@@ -50,6 +50,7 @@ export type WatchStatus = "live" | "triggered" | "invalidated" | "expired";
 export interface WatchItem { symbol: string; note: string | null; addedAt: string; entryPrice: number | null; entryAction: string | null; targetPrice: number | null; stopLoss: number | null; thesis: string | null; horizonDays: number; status: WatchStatus; lastPrice: number | null; lastReturn: number | null; lastEvaluatedAt: string | null; resolvedAt: string | null; resolutionPrice: number | null; resolutionReturn: number | null }
 export interface Watchlist { items: WatchItem[]; rows: Candidate[] }
 export interface PriceRow { symbol: string; price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; stale: boolean; currency: string | null }
+export interface SymbolHit { symbol: string; name: string; exchange: string; type: "accion_us" | "accion_ar" | "cedear" | "etf" | "cripto"; flag: string }
 export interface Tape { at: string; tracked: number; gainers: PriceRow[]; losers: PriceRow[] }
 export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; acciones: Candidate[]; cedears: Candidate[] }
 export interface Novedades { date: string | null; previousDate: string | null; verdictChanges: Array<{ symbol: string; from: string; to: string; reason: string }>; alerts: Array<{ symbol: string; verb: string; reason: string }>; enteredBuy: Array<{ symbol: string; kind: string; score: number | null }>; leftBuy: Array<{ symbol: string; kind: string; now: string }>; watchResolved: Array<{ symbol: string; status: string; returnPct: number | null }>; proposedTheses: Array<{ id: string; ticker: string; eventType: string; direction: string; edge: number; summary: string }>; news: NewsItem[]; empty: boolean }
@@ -147,6 +148,7 @@ export const api = {
     get: (symbol: string) => j<Tags>(`/taxonomy/${symbol}`),
     put: (symbol: string, body: { assetClass?: string; sector?: string; themes?: string[] }) => j<Tags>(`/taxonomy/${symbol}`, { method: "PUT", body: JSON.stringify(body) }),
   },
+  symbols: { search: (q: string) => j<SymbolHit[]>(`/symbols/search?q=${encodeURIComponent(q)}`) },
   prices: {
     get: (symbols: string[]) => (symbols.length ? j<PriceRow[]>(`/prices?symbols=${symbols.join(",")}`) : Promise.resolve([] as PriceRow[])),
     tape: () => j<Tape>("/prices/tape"),

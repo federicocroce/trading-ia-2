@@ -192,3 +192,46 @@ export class YahooDescriptions {
     return parseYahooProfile(sym, qs, meta ?? {}, new Date(this.now()).toISOString());
   }
 }
+
+/**
+ * Buscador de símbolos para el alta a la watchlist (portado de trading v1): Yahoo search, sin key ni crumb.
+ * Solo mercados que la app puede cotizar: bolsas de EE.UU. (Alpaca) y Buenos Aires (Yahoo .BA). Cripto queda marcado aparte.
+ */
+export interface SymbolHit {
+  symbol: string;
+  name: string;
+  exchange: string;
+  type: "accion_us" | "accion_ar" | "cedear" | "etf" | "cripto";
+  flag: string;
+}
+interface YahooSearchResp {
+  quotes?: Array<{ symbol?: string; shortname?: string; longname?: string; exchange?: string; exchDisp?: string; quoteType?: string; isYahooFinance?: boolean }>;
+}
+const US_EXCHANGES = new Set(["NMS", "NYQ", "NGM", "NCM", "ASE", "PCX", "BTS", "NAS", "NYS"]);
+
+export function parseYahooSearch(json: unknown): SymbolHit[] {
+  const quotes = (json as YahooSearchResp)?.quotes ?? [];
+  const out: SymbolHit[] = [];
+  for (const q of quotes) {
+    if (!q.symbol || q.isYahooFinance === false) continue;
+    const name = q.longname ?? q.shortname ?? q.symbol;
+    const exchange = q.exchDisp ?? q.exchange ?? "";
+    const short = (q.shortname ?? "").toUpperCase();
+    let hit: SymbolHit | null = null;
+    if (q.quoteType === "CRYPTOCURRENCY") hit = { symbol: q.symbol, name, exchange, type: "cripto", flag: "₿" };
+    else if (q.exchange === "BUE" || q.symbol.endsWith(".BA")) hit = { symbol: q.symbol, name, exchange, type: short.includes("CEDEAR") ? "cedear" : "accion_ar", flag: "🇦🇷" };
+    else if (q.quoteType === "ETF" && US_EXCHANGES.has(q.exchange ?? "")) hit = { symbol: q.symbol, name, exchange, type: "etf", flag: "📦" };
+    else if (q.quoteType === "EQUITY" && US_EXCHANGES.has(q.exchange ?? "")) hit = { symbol: q.symbol, name, exchange, type: "accion_us", flag: "🇺🇸" };
+    if (hit) out.push(hit);
+  }
+  return out;
+}
+
+export class YahooSearch {
+  constructor(private readonly http: HttpClient) {}
+  async search(query: string): Promise<SymbolHit[]> {
+    const q = query.trim();
+    if (!q) return [];
+    return parseYahooSearch(await this.http.getJson(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=10&newsCount=0&listsCount=0`));
+  }
+}
