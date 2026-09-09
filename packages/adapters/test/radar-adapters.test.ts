@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { AlpacaAssets, FinnhubFundamentals, RateLimiter, fixtureHttpClient } from "../src/index.js";
+import { readFileSync } from "node:fs";
+import { AlpacaAssets, FinnhubFundamentals, RateLimiter, SecStatements, fixtureHttpClient } from "../src/index.js";
 
 const cfg = { keyId: "k", secretKey: "s", paper: true as const };
 
@@ -72,5 +73,24 @@ describe("FinnhubFundamentals", () => {
   it("próximos resultados: primera fecha ≥ hoy; null si no hay", async () => {
     expect(await f.nextEarnings("TSM", today)).toBe("2026-10-16");
     expect(await f.nextEarnings("NONE", today)).toBeNull();
+  });
+});
+
+describe("SecStatements", () => {
+  const facts = JSON.parse(readFileSync("test/fixtures/zvra-companyfacts.json", "utf8"));
+  const http = fixtureHttpClient({
+    "https://www.sec.gov/files/company_tickers.json": { "0": { cik_str: 1434647, ticker: "ZVRA", title: "Zevra Therapeutics, Inc." } },
+    "https://data.sec.gov/api/xbrl/companyfacts/CIK0001434647.json": facts,
+  });
+  it("resuelve el CIK, baja companyfacts y devuelve trimestres con núcleo", async () => {
+    const s = await new SecStatements(http).quarters("zvra", "2026-09-09");
+    expect(s?.symbol).toBe("ZVRA");
+    expect(s?.cik).toBe("1434647");
+    expect(s?.asOf).toBe("2026-09-09");
+    expect(s?.quarters.length).toBeGreaterThanOrEqual(6);
+    expect(s?.core?.asOf).toBe("2026-06-30");
+  });
+  it("símbolo sin CIK → null (IFRS, extranjero)", async () => {
+    expect(await new SecStatements(http).quarters("VIST", "2026-09-09")).toBeNull();
   });
 });
