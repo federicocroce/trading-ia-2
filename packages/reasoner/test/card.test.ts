@@ -42,4 +42,13 @@ describe("ficha de candidato", () => {
     expect(calls[0].toolConfig.functionCallingConfig.allowedFunctionNames).toEqual(["candidate_card"]);
   });
   it("versión estable con hash", () => expect(CARD_VERSION).toMatch(/^c1-[0-9a-f]{12}$/));
+  it("con estados: el mensaje lleva los trimestres, el TTM núcleo y el ítem extraordinario; sin estados lo dice", () => {
+    const q = { start: "2026-04-01", end: "2026-06-30", fp: "Q2", revenue: 39.7e6, operatingIncome: 16.8e6, netIncome: 8.8e6, pretaxIncome: 12.8e6, taxExpense: 4e6, nonoperatingIncome: null, operatingCashFlow: 17.1e6, capex: 0, dilutedShares: 61.3e6, equity: 217.7e6, extraordinary: [] };
+    const core = { asOf: "2026-06-30", revenueTTM: 136.1e6, operatingIncomeTTM: 82.4e6, coreOperatingIncomeTTM: 39.1e6, netIncomeTTM: 58.3e6, coreNetIncomeTTM: 32.9e6, coreEpsTTM: 0.54, operatingCashFlowTTM: 32.6e6, freeCashFlowTTM: 32.6e6, equity: 217.7e6, taxRate: 0.16, extraordinaryTTM: 43.3e6, extraordinaryItems: [{ tag: "GainLossOnDispositionOfAssets1", quarterEnd: "2026-03-31", value: 43.3e6 }], deviationPct: 0.43 };
+    const m = buildCardMessage({ ...input, quarters: [q], core });
+    for (const s of ["Estados (SEC", "2026-06-30: ingresos 39.7M", "neto núcleo 32.9M", "desvío 43%", "GainLossOnDispositionOfAssets1 43.3M (2026-03-31)"]) expect(m).toContain(s);
+    expect(buildCardMessage({ ...input, quarters: [], core: null })).toContain("sin estados");
+    expect(buildCardMessage(input)).not.toContain("Estados (SEC");
+    expect(CARD_SYSTEM).toContain("ganancia núcleo");
+  });
 });

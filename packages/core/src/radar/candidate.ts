@@ -1,7 +1,8 @@
 import { atr, computeTarget, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import type { Fundamentals } from "./ranking.js";
-import type { RadarPolicy } from "./types.js";
+import { hasExtraordinary } from "./statements.js";
+import type { CoreEarnings, RadarPolicy } from "./types.js";
 
 /** Reglas de candidato (spec etapa 2 §6): lo técnico filtra, no rankea. Puro. */
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -73,7 +74,7 @@ export function riskScore(i: { beta: number | null; atrPct: number | null; debtT
   return Math.min(10, r);
 }
 
-export function buildFlags(f: Fundamentals, gate: TechnicalGate, nthAppearance: number, chronicWeeks: number): string[] {
+export function buildFlags(f: Fundamentals, gate: TechnicalGate, nthAppearance: number, chronicWeeks: number, extra: { core?: CoreEarnings | null } = {}): string[] {
   const flags: string[] = [];
   if ((f.insiderBuys90d ?? 0) >= 1) flags.push("insiders_compran");
   if ((f.insiderSells90d ?? 0) >= 3) flags.push("insiders_venden");
@@ -91,6 +92,8 @@ export function buildFlags(f: Fundamentals, gate: TechnicalGate, nthAppearance: 
   if (dy !== null && dy !== undefined && dy > 2) flags.push("dividendo");
   flags.push(...gate.reasons);
   if (nthAppearance >= chronicWeeks) flags.push("residente_cronico");
+  if (extra.core === null) flags.push("sin_estados");
+  if (hasExtraordinary(extra.core)) flags.push("resultado_extraordinario");
   return flags;
 }
 
@@ -108,12 +111,12 @@ export interface CandidateDecision {
 }
 
 export function decideCandidate(
-  i: { f: Fundamentals; candles: Candle[]; nthAppearance: number; portfolioUsd: number | null; today: string },
+  i: { f: Fundamentals; candles: Candle[]; nthAppearance: number; portfolioUsd: number | null; today: string; core?: CoreEarnings | null },
   p: Pick<RadarPolicy, "technical" | "sizing" | "candidates">,
 ): CandidateDecision | { excluded: true; reasons: string[] } {
   const gate = technicalGate(i.candles, p.technical, i.f.nextEarnings, i.today);
   if (gate.status === "excluido") return { excluded: true, reasons: gate.reasons };
-  const flags = buildFlags(i.f, gate, i.nthAppearance, p.candidates.chronicWeeks);
+  const flags = buildFlags(i.f, gate, i.nthAppearance, p.candidates.chronicWeeks, i.core !== undefined ? { core: i.core } : {});
   const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : [])];
   const close = gate.close;
   const entryHigh = round2(close * 1.02);

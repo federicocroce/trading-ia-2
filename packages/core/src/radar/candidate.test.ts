@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildFlags, decideCandidate, positionSize, riskScore, technicalGate, type Candle, type Fundamentals } from "../index.js";
+import { buildFlags, buildQuarters, coreEarnings, decideCandidate, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01", volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume }));
@@ -105,5 +106,30 @@ describe("decideCandidate", () => {
   it("bajo SMA200 → excluido", () => {
     const down = series(Array.from({ length: 260 }, (_, i) => 100 - (20 * i) / 259));
     expect(decideCandidate({ f: f(), candles: down, nthAppearance: 1, portfolioUsd: null, today }, policy)).toEqual({ excluded: true, reasons: ["bajo_sma200"] });
+  });
+});
+
+describe("decideCandidate con estados", () => {
+  const zvra = JSON.parse(readFileSync("test/fixtures/zvra-companyfacts.json", "utf8")) as CompanyFactsJson;
+  const core = coreEarnings(buildQuarters(zvra));
+  const base = { candles: up, nthAppearance: 1, portfolioUsd: 150_000, today };
+  const policy = { technical: tech, sizing, candidates: { top: 40, preselect: 150, chronicWeeks: 4 } };
+  it("desvío > 25% → resultado_extraordinario; sigue COMPRAR", () => {
+    const d = decideCandidate({ f: f(), ...base, core }, policy);
+    expect("excluded" in d).toBe(false);
+    if (!("excluded" in d)) {
+      expect(d.verdict).toBe("COMPRAR");
+      expect(d.flags).toContain("resultado_extraordinario");
+    }
+  });
+  it("core null → sin_estados; undefined → ninguna de las dos", () => {
+    const a = decideCandidate({ f: f(), ...base, core: null }, policy);
+    const b = decideCandidate({ f: f(), ...base }, policy);
+    if (!("excluded" in a)) expect(a.flags).toContain("sin_estados");
+    if (!("excluded" in b)) expect(b.flags).not.toEqual(expect.arrayContaining(["sin_estados", "resultado_extraordinario"]));
+  });
+  it("desvío chico → sin bandera", () => {
+    const d = decideCandidate({ f: f(), ...base, core: { ...core!, deviationPct: 0.1 } }, policy);
+    if (!("excluded" in d)) expect(d.flags).not.toContain("resultado_extraordinario");
   });
 });

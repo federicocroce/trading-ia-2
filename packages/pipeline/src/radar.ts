@@ -3,6 +3,7 @@ import {
   AXES,
   AXIS_METRICS,
   alphaPct,
+  applyCoreMetrics,
   assetClassFor,
   decideCandidate,
   decideEtf,
@@ -22,15 +23,18 @@ import {
   type CardInput,
   type CardWriter,
   type ContributionPlan,
+  type CoreEarnings,
   type EtfConfig,
   type FinnhubMetrics,
   type Fundamentals,
   type Overlap,
   type PriceHistory,
+  type QuarterStatement,
   type RadarPolicy,
   type RankedStock,
   type ScanStage,
   type SnapshotLite,
+  type Statements,
   type SymbolProfile,
   type Tags,
   type TaxonomyConfig,
@@ -63,6 +67,8 @@ export interface RadarDeps {
   policy: RadarPolicy;
   /** Títulos de filings recientes del símbolo (contexto de la ficha). */
   filings: (symbol: string) => Promise<string[]>;
+  /** Estados de la SEC (spec verificación §4). Sin él, el ranking usa solo Finnhub. */
+  statements?: { quarters(symbol: string, today: string): Promise<Statements | null> } | null;
   log?: (msg: string, extra?: unknown) => void;
   onProgress?: (s: { done: number; total: number; stage: string }) => void;
   shouldStop?: () => boolean;
@@ -73,6 +79,7 @@ const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * DAY).
 const ageDays = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / DAY;
 const FRESH_DAYS = 7;
 const HISTORY_DAYS = 260;
+const STATEMENTS_CONCURRENCY = 4;
 
 // ---------- taxonomía ----------
 
@@ -264,23 +271,55 @@ async function rankableFundamentals(deps: RadarDeps, today: string): Promise<Map
 }
 
 /** Escribe la ficha de un candidato y aplica sus efectos (degradar, temas). Devuelve null si el modelo falló. */
-async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: { flags: string[]; entryLow: number; stop: number | null; target: number | null; riskScore: number }, ins: { buys: number; sells: number } | null): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
+async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: { flags: string[]; entryLow: number; stop: number | null; target: number | null; riskScore: number }, ins: { buys: number; sells: number } | null, extra: { core?: CoreEarnings | null; quarters?: QuarterStatement[] | undefined } = {}): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
   if (!deps.cardWriter) return null;
   const sym = f.symbol;
   const tags = (await deps.store.tags(sym)) ?? (await tagSymbol(deps, sym, { industry: f.industry, country: null }));
   const profile = await deps.store.profile(sym);
-  const input: CardInput = { symbol: sym, name: profile?.profile.name ?? null, industry: f.industry, sector: tags.sector, themes: tags.themes, themeOptions: deps.taxonomy.themes, verdict, score: r.score, axes: r.axes, rankInGroup: r.rankInGroup, groupSize: r.groupSize, basis: r.basis, own: ownMetrics(f), medians: r.medians, peers: r.group, flags: d.flags, insiders: ins, analyst: f.analyst, surprises: f.earningsSurprises, filings: await deps.filings(sym).catch(() => []), close: d.entryLow, stop: d.stop, target: d.target, riskScore: d.riskScore };
+  const input: CardInput = { symbol: sym, name: profile?.profile.name ?? null, industry: f.industry, sector: tags.sector, themes: tags.themes, themeOptions: deps.taxonomy.themes, verdict, score: r.score, axes: r.axes, rankInGroup: r.rankInGroup, groupSize: r.groupSize, basis: r.basis, own: ownMetrics(f), medians: r.medians, peers: r.group, flags: d.flags, insiders: ins, analyst: f.analyst, surprises: f.earningsSurprises, filings: await deps.filings(sym).catch(() => []), close: d.entryLow, stop: d.stop, target: d.target, riskScore: d.riskScore, ...(extra.quarters !== undefined ? { quarters: extra.quarters } : {}), ...(extra.core !== undefined ? { core: extra.core } : {}) };
   const c = await deps.cardWriter.write(input);
   if (c.themes.length) await tagSymbol(deps, sym, { industry: f.industry, country: null }, c.themes, "modelo");
   return { card: { summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat }, degrade: c.degrade, degradeReason: c.degradeReason ?? null };
+}
+
+/** Pide (o lee de caché, 7 días) los estados de `symbols`, recalcula sus métricas en `all` y las persiste. Devuelve el núcleo por símbolo (null = no hay). */
+export async function withStatements(deps: RadarDeps, all: Map<string, Fundamentals>, symbols: string[], today: string): Promise<Map<string, CoreEarnings | null>> {
+  const cores = new Map<string, CoreEarnings | null>();
+  const src = deps.statements;
+  if (!src) return cores;
+  const { store } = deps;
+  const pending = [...new Set(symbols)].filter((s) => all.has(s));
+  for (let i = 0; i < pending.length; i += STATEMENTS_CONCURRENCY) {
+    await Promise.all(pending.slice(i, i + STATEMENTS_CONCURRENCY).map(async (sym) => {
+      let st = await store.statements(sym);
+      if (!st || ageDays(st.asOf, today) >= FRESH_DAYS) {
+        const fetched = await src.quarters(sym, today).catch((e) => { deps.log?.(`[radar] estados de ${sym} fallaron`, { error: String(e).slice(0, 120) }); return undefined; });
+        if (fetched !== undefined) {
+          st = fetched ?? { symbol: sym, cik: "", asOf: today, quarters: [], core: null };
+          await store.saveStatements(st);
+        }
+      }
+      const core = st?.core ?? null;
+      cores.set(sym, core);
+      const f = all.get(sym)!;
+      const updated = applyCoreMetrics(f, core, f.priceUsd);
+      all.set(sym, updated);
+      await store.saveFundamentals(updated);
+    }));
+  }
+  return cores;
 }
 
 export async function rankRadar(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null }): Promise<RankSummary> {
   const log = deps.log ?? (() => {});
   const { store, policy } = deps;
   const all = await rankableFundamentals(deps, opts.today);
+  // Dos pasadas (spec verificación §4): la primera con Finnhub elige a quién pedirle estados; la segunda rankea con la ganancia núcleo.
+  const first = rankStocks(all, policy.weights).ranked.slice(0, policy.candidates.preselect);
+  const cores = await withStatements(deps, all, first.flatMap((r) => [r.symbol, ...r.group]), opts.today);
   const { ranked, skipped } = rankStocks(all, policy.weights);
   const pre = ranked.slice(0, policy.candidates.preselect);
+  const coreOf = (sym: string): CoreEarnings | null | undefined => (deps.statements ? (cores.get(sym) ?? null) : undefined);
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
   if (spy.length) await store.upsertCandles("SPY", spy).catch(() => {});
   const spyClose = spy[spy.length - 1]?.close ?? null;
@@ -292,7 +331,8 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
     const c = candles[r.symbol];
     if (!c) continue;
     const f = all.get(r.symbol)!;
-    const d = decideCandidate({ f, candles: c, nthAppearance: 1, portfolioUsd: opts.portfolioUsd, today: opts.today }, policy);
+    const rCore = coreOf(r.symbol);
+    const d = decideCandidate({ f, candles: c, nthAppearance: 1, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(rCore !== undefined ? { core: rCore } : {}) }, policy);
     if ("excluded" in d) {
       skipped.push({ symbol: r.symbol, reason: d.reasons.join(",") });
       continue;
@@ -316,7 +356,8 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       f = { ...f, nextEarnings, insiderBuys90d: ins?.buys ?? null, insiderSells90d: ins?.sells ?? null, analyst, earningsSurprises: surprises };
       await store.saveFundamentals(f);
       const nth = await nthAppearanceFor(deps, sym, opts.today);
-      const d = decideCandidate({ f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today }, policy);
+      const symCore = coreOf(sym);
+      const d = decideCandidate({ f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(symCore !== undefined ? { core: symCore } : {}) }, policy);
       if ("excluded" in d) {
         skipped.push({ symbol: sym, reason: d.reasons.join(",") });
         continue;
@@ -326,7 +367,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       let card: { summary: string; whyRanks: string; mainRisk: string; moat: string } | null = null;
       if (deps.cardWriter) {
         try {
-          const w = await writeCardFor(deps, f, r, verdict, d, ins);
+          const w = await writeCardFor(deps, f, r, verdict, d, ins, { ...(symCore !== undefined ? { core: symCore } : {}), quarters: deps.statements ? ((await store.statements(sym))?.quarters.slice(-4) ?? []) : undefined });
           if (w) {
             card = w.card;
             if (w.degrade && verdict === "COMPRAR") {
@@ -394,7 +435,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       errors.push({ symbol: prev.symbol, error: "sin fundamentals" });
       continue;
     }
-    const d = decideCandidate({ f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today }, policy);
+    const core: CoreEarnings | null | undefined = deps.statements ? ((await store.statements(prev.symbol))?.core ?? null) : undefined;
+    const d = decideCandidate({ f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}) }, policy);
     if ("excluded" in d) {
       rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
       continue;
@@ -407,7 +449,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       const r = ranked.get(prev.symbol);
       if (r) {
         try {
-          const w = await writeCardFor(deps, f, r, d.verdict, d, f.insiderBuys90d === null ? null : { buys: f.insiderBuys90d, sells: f.insiderSells90d ?? 0 });
+          const w = await writeCardFor(deps, f, r, d.verdict, d, f.insiderBuys90d === null ? null : { buys: f.insiderBuys90d, sells: f.insiderSells90d ?? 0 }, { ...(core !== undefined ? { core } : {}), quarters: deps.statements ? ((await store.statements(prev.symbol))?.quarters.slice(-4) ?? []) : undefined });
           if (w) {
             card = w.card;
             if (w.degrade && d.verdict === "COMPRAR") {

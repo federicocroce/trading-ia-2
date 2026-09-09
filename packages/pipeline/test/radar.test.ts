@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AssetInfo, Candle, Card, CardInput, CardWriter, EtfConfig, FinnhubMetrics, RadarPolicy, SnapshotLite, SymbolProfile, TaxonomyConfig } from "@thesis/core";
-import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse, type RadarDeps } from "../src/index.js";
+import { coreEarnings, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type EtfConfig, type FinnhubMetrics, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
+import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
   weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 },
@@ -222,5 +222,38 @@ describe("MemoryStore: estados", () => {
     const f = await store.fundamentals("ZVRA");
     expect(f?.metricsRaw?.["peTTM"]).toBe(12.8);
     expect(f?.statementsAsOf).toBe("2026-06-30");
+  });
+});
+
+/** 4 trimestres sintéticos: operativo 60M con una ganancia por venta de 35M adentro → núcleo 25M; 1M de acciones → EPS núcleo alto → P/E ≈ 5. */
+const syntheticQuarters = (): QuarterStatement[] => ["2025-09-30", "2025-12-31", "2026-03-31", "2026-06-30"].map((end, i) => ({ start: end, end, fp: `Q${i + 1}`, revenue: 100e6, operatingIncome: 60e6, netIncome: 60e6, pretaxIncome: 60e6, taxExpense: 12e6, nonoperatingIncome: null, operatingCashFlow: 20e6, capex: 1e6, dilutedShares: 1e6, equity: 200e6, extraordinary: [{ tag: "GainLossOnDispositionOfAssets1", value: 35e6 }] }));
+
+describe("rankRadar con estados de la SEC", () => {
+  it("segunda pasada con ganancia núcleo: bandera, metricsRaw, caché de 7 días y estados en la ficha", async () => {
+    const calls: string[] = [];
+    const inputs: CardInput[] = [];
+    const qs = syntheticQuarters();
+    const statements = { quarters: async (s: string, today: string): Promise<Statements | null> => { calls.push(s); return s === "SC" ? { symbol: s, cik: "1", asOf: today, quarters: qs, core: coreEarnings(qs) } : null; } };
+    const cardWriter: CardWriter = { promptVersion: "card-test", write: async (i) => { inputs.push(i); return { summary: "x", whyRanks: "y", mainRisk: "z", moat: "moderado", themes: [], degrade: false }; } };
+    const { store, d } = deps({ statements, cardWriter });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    expect(new Set(calls)).toEqual(new Set(symbols)); // pre-selección (20 > 12) más pares: todos
+    const sc = r.candidates.find((c) => c.symbol === "SC")!;
+    expect(sc.flags).toContain("resultado_extraordinario");
+    expect(sc.flags).not.toContain("sin_estados");
+    const sa = r.candidates.find((c) => c.symbol === "SA")!;
+    expect(sa.flags).toContain("sin_estados");
+    const f = (await store.fundamentals("SC"))!;
+    expect(f.metricsRaw?.["peTTM"]).toBe(20);
+    expect(f.metrics["peTTM"]!).toBeLessThan(10);
+    expect(f.statementsAsOf).toBe("2026-06-30");
+    expect((await store.fundamentals("SA"))!.statementsAsOf).toBeNull();
+    const scInput = inputs.find((i) => i.symbol === "SC")!;
+    expect(scInput.core?.deviationPct).toBeGreaterThan(0.25);
+    expect(scInput.quarters).toHaveLength(4);
+    calls.length = 0;
+    await rankRadar(d, { today: "2026-05-20", portfolioUsd: 150_000 });
+    expect(calls).toEqual([]); // frescos: no vuelve a pedir
   });
 });

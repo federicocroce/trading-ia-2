@@ -16,6 +16,7 @@ Escribí en español, breve y concreto:
 - mainRisk: el riesgo principal, una oración, basado en datos recibidos (deuda, márgenes, sorpresas negativas, insiders vendiendo, resultados cerca).
 - moat: debil, moderado, fuerte o desconocido. Solo fuerte con evidencia en los números (márgenes y ROE muy por encima del grupo de forma sostenida).
 - themes: subconjunto de la lista de temas permitidos que apliquen. No inventes temas.
+Si recibís "Estados (SEC)": las métricas propias ya están recalculadas con la ganancia núcleo (operativo sin extraordinarios, neto de impuestos). Citá el P/E y los márgenes recalculados, nunca los de Finnhub, y si el desvío supera 25% decilo en mainRisk con el ítem que lo causa.
 No propongas otro verbo. Solo podés pedir degradar (degrade = true) COMPRAR a OBSERVAR si ves deterioro concreto en un filing o dato recibido (recorte de guidance, pérdida material, litigio, dilución, default): degradeReason debe citarlo. Respondé únicamente llamando a la herramienta candidate_card.`;
 
 export const CARD_TOOL: ToolSpec = {
@@ -61,6 +62,15 @@ export function parseCard(args: unknown, themeOptions: string[]): Card {
 }
 
 const fmt = (v: number | null | undefined) => (v === null || v === undefined ? "—" : String(v));
+const M = (v: number | null) => (v === null ? "—" : `${(v / 1e6).toFixed(1)}M`);
+function statementsSection(i: CardInput): string {
+  if (!i.quarters?.length) return "# Estados (SEC)\nsin estados: las métricas son de Finnhub y pueden incluir extraordinarios";
+  const rows = i.quarters.map((q) => `${q.end}: ingresos ${M(q.revenue)} · operativo ${M(q.operatingIncome)} · neto ${M(q.netIncome)} · flujo operativo ${M(q.operatingCashFlow)}`);
+  const c = i.core;
+  const items = c?.extraordinaryItems.length ? ` por extraordinarios: ${c.extraordinaryItems.map((e) => `${e.tag} ${M(e.value)} (${e.quarterEnd})`).join(", ")}` : "";
+  const ttm = c ? `TTM: ingresos ${M(c.revenueTTM)} · operativo núcleo ${M(c.coreOperatingIncomeTTM)} · neto reportado ${M(c.netIncomeTTM)} · neto núcleo ${M(c.coreNetIncomeTTM)} · EPS núcleo ${c.coreEpsTTM ?? "—"} · desvío ${c.deviationPct === null ? "—" : `${Math.round(c.deviationPct * 100)}%`}${items}` : "TTM: sin núcleo (menos de 4 trimestres completos)";
+  return `# Estados (SEC, últimos 4 trimestres)\n${rows.join("\n")}\n${ttm}`;
+}
 
 export function buildCardMessage(i: CardInput): string {
   const axes = Object.entries(i.axes).map(([k, v]) => `${k} ${fmt(v)}`).join(" · ");
@@ -69,6 +79,7 @@ export function buildCardMessage(i: CardInput): string {
     `# Empresa\n${i.symbol}${i.name ? ` — ${i.name}` : ""}\nindustria: ${i.industry ?? "desconocida"} · sector: ${i.sector} · temas actuales: ${i.themes.join(", ") || "(ninguno)"}`,
     `# Veredicto por reglas\n${i.verdict} · score ${i.score} · rank ${i.rankInGroup}/${i.groupSize} entre ${i.basis} (${i.peers.join(", ")})\nejes (z contra el grupo): ${axes}\ncierre ${i.close} · stop ${fmt(i.stop)} · objetivo ${fmt(i.target)} · riesgo ${i.riskScore}/10`,
     `# Métricas (propia / mediana del grupo)\n${metrics}`,
+    ...(i.quarters !== undefined ? [statementsSection(i)] : []),
     `# Banderas\n${i.flags.join(", ") || "(ninguna)"}`,
     `# Insiders 90 días\n${i.insiders ? `compras ${i.insiders.buys}, ventas ${i.insiders.sells}` : "sin dato"}`,
     `# Consenso de analistas\n${i.analyst ? `strongBuy ${i.analyst.strongBuy}, buy ${i.analyst.buy}, hold ${i.analyst.hold}, sell ${i.analyst.sell}, strongSell ${i.analyst.strongSell} (${i.analyst.period})` : "sin dato"}`,

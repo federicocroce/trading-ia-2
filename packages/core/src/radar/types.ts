@@ -121,6 +121,9 @@ export interface CardInput {
   stop: number | null;
   target: number | null;
   riskScore: number;
+  /** Estados de la SEC (spec verificación §4): últimos 4 trimestres y ganancia núcleo. undefined = no se pidieron; [] = no hay. */
+  quarters?: QuarterStatement[];
+  core?: CoreEarnings | null;
 }
 export interface Card {
   summary: string;
