@@ -1,5 +1,5 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import type { AnalystAction, Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -310,6 +310,37 @@ export class Repo {
     const v = { symbol: st.symbol.toUpperCase(), cik: st.cik || null, asOf: st.asOf, quarters: st.quarters, core: st.core, updatedAt: new Date() };
     await this.db.insert(s.statements).values(v).onConflictDoUpdate({ target: s.statements.symbol, set: v });
   }
+  async upsertEvents(events: RadarEvent[]): Promise<number> {
+    let n = 0;
+    for (const e of events) {
+      const rows = await this.db.insert(s.radarEvents).values({ symbol: e.symbol.toUpperCase(), date: e.date, kind: e.kind, severity: e.severity, headline: e.headline, url: e.url, source: e.source, why: e.why, detectedAt: new Date(e.detectedAt), promptVersion: e.promptVersion }).onConflictDoNothing().returning({ id: s.radarEvents.id });
+      n += rows.length;
+    }
+    return n;
+  }
+  async eventsFor(symbol: string, since: string): Promise<RadarEvent[]> {
+    const rows = await this.db.select().from(s.radarEvents).where(and(eq(s.radarEvents.symbol, symbol.toUpperCase()), gte(s.radarEvents.date, since))).orderBy(desc(s.radarEvents.date));
+    return rows.map((r) => ({ symbol: r.symbol, date: r.date, kind: r.kind as RadarEvent["kind"], severity: r.severity as RadarEvent["severity"], headline: r.headline, url: r.url, source: r.source, why: r.why, detectedAt: r.detectedAt.toISOString(), promptVersion: r.promptVersion }));
+  }
+  async upsertAnalystActions(actions: AnalystAction[]): Promise<number> {
+    let n = 0;
+    for (const a of actions) {
+      const rows = await this.db.insert(s.analystActions).values({ symbol: a.symbol.toUpperCase(), date: a.date, firm: a.firm, action: a.action, rating: a.rating, target: a.target === null ? null : str(a.target), url: a.url }).onConflictDoNothing().returning({ id: s.analystActions.id });
+      n += rows.length;
+    }
+    return n;
+  }
+  async analystActions(symbol: string, since: string): Promise<AnalystAction[]> {
+    const rows = await this.db.select().from(s.analystActions).where(and(eq(s.analystActions.symbol, symbol.toUpperCase()), gte(s.analystActions.date, since))).orderBy(desc(s.analystActions.date));
+    return rows.map((r) => ({ symbol: r.symbol, date: r.date, firm: r.firm, action: r.action as AnalystAction["action"], rating: r.rating, target: r.target === null ? null : num(r.target), url: r.url }));
+  }
+  async newsScannedTo(symbol: string): Promise<string | null> {
+    return (await this.db.select().from(s.radarNewsScans).where(eq(s.radarNewsScans.symbol, symbol.toUpperCase())))[0]?.scannedTo ?? null;
+  }
+  async setNewsScannedTo(symbol: string, date: string): Promise<void> {
+    const v = { symbol: symbol.toUpperCase(), scannedTo: date, updatedAt: new Date() };
+    await this.db.insert(s.radarNewsScans).values(v).onConflictDoUpdate({ target: s.radarNewsScans.symbol, set: v });
+  }
   async scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>): Promise<void> {
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500).map((r) => ({ scanDate: r.scanDate, symbol: r.symbol.toUpperCase(), stage: r.stage, reason: r.reason, updatedAt: new Date() }));
@@ -333,11 +364,11 @@ export class Repo {
   }
   private candidateToRow(c: CandidateRow) {
     const n = (x: number | null) => (x === null ? null : str(x));
-    return { candidateDate: c.candidateDate, symbol: c.symbol, kind: c.kind, verdict: c.verdict, score: n(c.score), axes: c.axes, peerGroup: c.peerGroup, rankInGroup: c.rankInGroup, groupSize: c.groupSize, close: str(c.close), entryLow: n(c.entryLow), entryHigh: n(c.entryHigh), stop: n(c.stop), target: n(c.target), sizeUsd: n(c.sizeUsd), sizeQty: c.sizeQty, riskScore: c.riskScore, flags: c.flags, nthAppearance: c.nthAppearance, summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat, degradedBy: c.degradedBy, promptVersion: c.promptVersion, spyClose: n(c.spyClose), close7d: n(c.close7d), spy7d: n(c.spy7d), alpha7dPct: n(c.alpha7dPct), close30d: n(c.close30d), spy30d: n(c.spy30d), alpha30dPct: n(c.alpha30dPct), close90d: n(c.close90d), spy90d: n(c.spy90d), alpha90dPct: n(c.alpha90dPct), measuredAt: c.measuredAt ? new Date(c.measuredAt) : null };
+    return { candidateDate: c.candidateDate, symbol: c.symbol, kind: c.kind, verdict: c.verdict, score: n(c.score), axes: c.axes, peerGroup: c.peerGroup, rankInGroup: c.rankInGroup, groupSize: c.groupSize, close: str(c.close), entryLow: n(c.entryLow), entryHigh: n(c.entryHigh), stop: n(c.stop), target: n(c.target), sizeUsd: n(c.sizeUsd), sizeQty: c.sizeQty, riskScore: c.riskScore, flags: c.flags, nthAppearance: c.nthAppearance, summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat, degradedBy: c.degradedBy, promptVersion: c.promptVersion, spyClose: n(c.spyClose), events: c.events ?? [], analystTargets: c.analystTargets ?? null, close7d: n(c.close7d), spy7d: n(c.spy7d), alpha7dPct: n(c.alpha7dPct), close30d: n(c.close30d), spy30d: n(c.spy30d), alpha30dPct: n(c.alpha30dPct), close90d: n(c.close90d), spy90d: n(c.spy90d), alpha90dPct: n(c.alpha90dPct), measuredAt: c.measuredAt ? new Date(c.measuredAt) : null };
   }
   private rowToCandidate(r: typeof s.radarCandidates.$inferSelect): CandidateRow {
     const n = (x: string | null) => (x === null ? null : num(x));
-    return { candidateDate: r.candidateDate, symbol: r.symbol, kind: r.kind as CandidateRow["kind"], verdict: r.verdict as CandidateRow["verdict"], score: n(r.score), axes: (r.axes as CandidateRow["axes"]) ?? {}, peerGroup: (r.peerGroup as string[]) ?? [], rankInGroup: r.rankInGroup, groupSize: r.groupSize, close: num(r.close), entryLow: n(r.entryLow), entryHigh: n(r.entryHigh), stop: n(r.stop), target: n(r.target), sizeUsd: n(r.sizeUsd), sizeQty: r.sizeQty, riskScore: r.riskScore, flags: (r.flags as string[]) ?? [], nthAppearance: r.nthAppearance, summary: r.summary, whyRanks: r.whyRanks, mainRisk: r.mainRisk, moat: r.moat, degradedBy: r.degradedBy, promptVersion: r.promptVersion, spyClose: n(r.spyClose), close7d: n(r.close7d), spy7d: n(r.spy7d), alpha7dPct: n(r.alpha7dPct), close30d: n(r.close30d), spy30d: n(r.spy30d), alpha30dPct: n(r.alpha30dPct), close90d: n(r.close90d), spy90d: n(r.spy90d), alpha90dPct: n(r.alpha90dPct), measuredAt: r.measuredAt?.toISOString() ?? null };
+    return { candidateDate: r.candidateDate, symbol: r.symbol, kind: r.kind as CandidateRow["kind"], verdict: r.verdict as CandidateRow["verdict"], score: n(r.score), axes: (r.axes as CandidateRow["axes"]) ?? {}, peerGroup: (r.peerGroup as string[]) ?? [], rankInGroup: r.rankInGroup, groupSize: r.groupSize, close: num(r.close), entryLow: n(r.entryLow), entryHigh: n(r.entryHigh), stop: n(r.stop), target: n(r.target), sizeUsd: n(r.sizeUsd), sizeQty: r.sizeQty, riskScore: r.riskScore, flags: (r.flags as string[]) ?? [], nthAppearance: r.nthAppearance, summary: r.summary, whyRanks: r.whyRanks, mainRisk: r.mainRisk, moat: r.moat, degradedBy: r.degradedBy, promptVersion: r.promptVersion, spyClose: n(r.spyClose), events: (r.events as CandidateRow["events"]) ?? [], analystTargets: (r.analystTargets as CandidateRow["analystTargets"]) ?? null, close7d: n(r.close7d), spy7d: n(r.spy7d), alpha7dPct: n(r.alpha7dPct), close30d: n(r.close30d), spy30d: n(r.spy30d), alpha30dPct: n(r.alpha30dPct), close90d: n(r.close90d), spy90d: n(r.spy90d), alpha90dPct: n(r.alpha90dPct), measuredAt: r.measuredAt?.toISOString() ?? null };
   }
   /** Upsert por (fecha, símbolo). No pisa la medición ya hecha. */
   async upsertCandidates(rows: CandidateRow[]): Promise<void> {

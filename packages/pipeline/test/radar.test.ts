@@ -257,3 +257,24 @@ describe("rankRadar con estados de la SEC", () => {
     expect(calls).toEqual([]); // frescos: no vuelve a pedir
   });
 });
+
+describe("MemoryStore: eventos, analistas y barridos", () => {
+  it("dedupe por url, filtro por fecha, fecha del último barrido, y la fila del candidato conserva events/analystTargets", async () => {
+    const store = new MemoryStore();
+    const ev = { symbol: "zvra", date: "2026-07-24", kind: "regulatorio" as const, severity: "grave" as const, headline: "EMA", url: "https://n/1", source: "Benzinga", why: "x", detectedAt: "2026-09-09T00:00:00Z", promptVersion: "e1" };
+    expect(await store.upsertEvents([ev, { ...ev, headline: "otra vez" }])).toBe(1);
+    expect((await store.eventsFor("ZVRA", "2026-06-11")).map((e) => e.headline)).toEqual(["EMA"]);
+    expect(await store.eventsFor("ZVRA", "2026-08-01")).toEqual([]);
+    const act = { symbol: "ZVRA", date: "2026-07-27", firm: "BTIG", action: "mantiene" as const, rating: "Buy", target: 24, url: "https://n/2" };
+    expect(await store.upsertAnalystActions([act, act])).toBe(1);
+    expect(await store.analystActions("zvra", "2026-06-11")).toEqual([act]);
+    expect(await store.newsScannedTo("ZVRA")).toBeNull();
+    await store.setNewsScannedTo("zvra", "2026-09-09");
+    expect(await store.newsScannedTo("ZVRA")).toBe("2026-09-09");
+    const row = { candidateDate: "2026-09-09", symbol: "ZVRA", kind: "stock" as const, verdict: "OBSERVAR" as const, score: 1, axes: {}, peerGroup: [], rankInGroup: 1, groupSize: 5, close: 12.57, entryLow: null, entryHigh: null, stop: null, target: null, sizeUsd: null, sizeQty: null, riskScore: null, flags: ["evento_grave"], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: [{ date: "2026-07-24", kind: "regulatorio" as const, severity: "grave" as const, headline: "EMA" }], analystTargets: { n: 3, median: 24, min: 20, max: 24, latestDate: "2026-07-27" } };
+    await store.upsertCandidates([row]);
+    const back = (await store.latestCandidates())[0]!;
+    expect(back.events).toEqual(row.events);
+    expect(back.analystTargets?.median).toBe(24);
+  });
+});

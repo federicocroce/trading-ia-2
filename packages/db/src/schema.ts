@@ -274,6 +274,8 @@ export const radarCandidates = pgTable(
     degradedBy: text("degraded_by"),
     promptVersion: text("prompt_version"),
     spyClose: numeric("spy_close", { precision: 14, scale: 4 }),
+    events: jsonb("events").notNull().default([]),
+    analystTargets: jsonb("analyst_targets"),
     close7d: numeric("close_7d", { precision: 14, scale: 4 }),
     spy7d: numeric("spy_7d", { precision: 14, scale: 4 }),
     alpha7dPct: numeric("alpha_7d_pct", { precision: 10, scale: 4 }),
@@ -294,6 +296,46 @@ export const contributionPlans = pgTable("contribution_plans", {
   lines: jsonb("lines").notNull().default([]),
   notes: jsonb("notes").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+/** Eventos materiales detectados en noticias (spec verificación §5). Único por símbolo + URL; los `ruido` también se guardan. */
+export const radarEvents = pgTable(
+  "radar_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    symbol: text("symbol").notNull(),
+    date: date("date").notNull(),
+    kind: text("kind").notNull(),
+    severity: text("severity").notNull(),
+    headline: text("headline").notNull(),
+    url: text("url").notNull(),
+    source: text("source"),
+    why: text("why"),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+    promptVersion: text("prompt_version"),
+  },
+  (t) => [uniqueIndex("radar_events_symbol_url").on(t.symbol, t.url), index("radar_events_symbol_date").on(t.symbol, t.date)],
+);
+/** Acciones de analistas extraídas de titulares (spec verificación §6). */
+export const analystActions = pgTable(
+  "analyst_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    symbol: text("symbol").notNull(),
+    date: date("date").notNull(),
+    firm: text("firm").notNull(),
+    action: text("action").notNull(),
+    rating: text("rating"),
+    target: numeric("target", { precision: 14, scale: 2 }),
+    url: text("url").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("analyst_actions_symbol_url").on(t.symbol, t.url), index("analyst_actions_symbol_date").on(t.symbol, t.date)],
+);
+/** Hasta qué fecha se leyeron las noticias de cada símbolo. */
+export const radarNewsScans = pgTable("radar_news_scans", {
+  symbol: text("symbol").primaryKey(),
+  scannedTo: date("scanned_to").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const portfolioVerdicts = pgTable(

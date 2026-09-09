@@ -1,4 +1,4 @@
-import type { Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -71,6 +71,13 @@ export interface RadarStore {
   /** Estados trimestrales de la SEC con la ganancia núcleo (spec verificación §4). `quarters: []` = se intentó y no hay. */
   statements(symbol: string): Promise<Statements | null>;
   saveStatements(s: Statements): Promise<void>;
+  /** Eventos materiales y analistas desde noticias (spec verificación §5 y §6); `radar_news_scans` guarda hasta qué fecha se leyó cada símbolo. */
+  upsertEvents(events: RadarEvent[]): Promise<number>;
+  eventsFor(symbol: string, since: string): Promise<RadarEvent[]>;
+  upsertAnalystActions(actions: AnalystAction[]): Promise<number>;
+  analystActions(symbol: string, since: string): Promise<AnalystAction[]>;
+  newsScannedTo(symbol: string): Promise<string | null>;
+  setNewsScannedTo(symbol: string, date: string): Promise<void>;
   scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>): Promise<void>;
   scanPending(scanDate: string): Promise<string[]>;
   scanStatus(scanDate: string): Promise<Record<ScanStage, number>>;
@@ -119,6 +126,9 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   tagsMap = new Map<string, Tags>();
   fundamentalsMap = new Map<string, Fundamentals>();
   statementsMap = new Map<string, Statements>();
+  radarEvents = new Map<string, RadarEvent>();
+  analystActs = new Map<string, AnalystAction>();
+  newsScans = new Map<string, string>();
   scan = new Map<string, { scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>();
   candidates = new Map<string, CandidateRow>();
   plans = new Map<string, ContributionPlan>();
@@ -340,6 +350,38 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async saveStatements(s: Statements) {
     this.statementsMap.set(s.symbol.toUpperCase(), { ...s, symbol: s.symbol.toUpperCase() });
+  }
+  async upsertEvents(events: RadarEvent[]) {
+    let n = 0;
+    for (const e of events) {
+      const k = `${e.symbol.toUpperCase()}|${e.url}`;
+      if (this.radarEvents.has(k)) continue;
+      this.radarEvents.set(k, { ...e, symbol: e.symbol.toUpperCase() });
+      n++;
+    }
+    return n;
+  }
+  async eventsFor(symbol: string, since: string) {
+    return [...this.radarEvents.values()].filter((e) => e.symbol === symbol.toUpperCase() && e.date >= since).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async upsertAnalystActions(actions: AnalystAction[]) {
+    let n = 0;
+    for (const a of actions) {
+      const k = `${a.symbol.toUpperCase()}|${a.url}`;
+      if (this.analystActs.has(k)) continue;
+      this.analystActs.set(k, { ...a, symbol: a.symbol.toUpperCase() });
+      n++;
+    }
+    return n;
+  }
+  async analystActions(symbol: string, since: string) {
+    return [...this.analystActs.values()].filter((a) => a.symbol === symbol.toUpperCase() && a.date >= since).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async newsScannedTo(symbol: string) {
+    return this.newsScans.get(symbol.toUpperCase()) ?? null;
+  }
+  async setNewsScannedTo(symbol: string, date: string) {
+    this.newsScans.set(symbol.toUpperCase(), date);
   }
   async scanUpsert(rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }>) {
     for (const r of rows) this.scan.set(`${r.scanDate}|${r.symbol.toUpperCase()}`, { ...r, symbol: r.symbol.toUpperCase() });

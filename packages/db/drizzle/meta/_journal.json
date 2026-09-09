@@ -71,6 +71,13 @@
       "when": 1788994169490,
       "tag": "0009_useful_micromax",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788997168026,
+      "tag": "0010_living_firelord",
+      "breakpoints": true
     }
   ]
 }

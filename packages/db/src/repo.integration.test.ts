@@ -24,6 +24,9 @@ d("Repo (Postgres real)", () => {
     await db.delete(schema.universeScan).where(eq(schema.universeScan.symbol, rsym));
     await db.delete(schema.fundamentals).where(eq(schema.fundamentals.symbol, rsym));
     await db.delete(schema.statements).where(eq(schema.statements.symbol, rsym));
+    await db.delete(schema.radarEvents).where(eq(schema.radarEvents.symbol, rsym));
+    await db.delete(schema.analystActions).where(eq(schema.analystActions.symbol, rsym));
+    await db.delete(schema.radarNewsScans).where(eq(schema.radarNewsScans.symbol, rsym));
     await db.delete(schema.symbolMeta).where(eq(schema.symbolMeta.symbol, rsym));
     await db.delete(schema.contributionPlans).where(eq(schema.contributionPlans.planMonth, "2099-01"));
     const csym = `C${ticker}`;
@@ -157,6 +160,18 @@ d("Repo (Postgres real)", () => {
     await repo.saveStatements({ symbol: rsym, cik: "1", asOf: "2026-09-09", quarters: [], core: null });
     await repo.saveStatements({ symbol: rsym, cik: "2", asOf: "2026-09-10", quarters: [], core: null });
     expect((await repo.statements(rsym))?.cik).toBe("2");
+  });
+
+  it("eventos y analistas: dedupe por url y filtro por fecha; barrido de noticias", async () => {
+    const rsym = `R${ticker}`;
+    const ev = { symbol: rsym, date: "2026-07-24", kind: "regulatorio" as const, severity: "grave" as const, headline: "EMA", url: `https://t/${rsym}/1`, source: null, why: null, detectedAt: new Date().toISOString(), promptVersion: null };
+    expect(await repo.upsertEvents([ev, ev])).toBe(1);
+    expect(await repo.eventsFor(rsym, "2026-07-01")).toHaveLength(1);
+    expect(await repo.eventsFor(rsym, "2026-08-01")).toHaveLength(0);
+    expect(await repo.upsertAnalystActions([{ symbol: rsym, date: "2026-07-27", firm: "BTIG", action: "mantiene", rating: "Buy", target: 24, url: `https://t/${rsym}/2` }])).toBe(1);
+    expect((await repo.analystActions(rsym, "2026-07-01"))[0]?.target).toBe(24);
+    await repo.setNewsScannedTo(rsym, "2026-09-09");
+    expect(await repo.newsScannedTo(rsym)).toBe("2026-09-09");
   });
 
   it("fundamentals: metricsRaw y statementsAsOf van y vienen; la clave se omite (no null) cuando nunca se guardó o se guardó null", async () => {
