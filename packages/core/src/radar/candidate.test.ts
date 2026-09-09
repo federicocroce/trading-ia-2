@@ -133,3 +133,32 @@ describe("decideCandidate con estados", () => {
     if (!("excluded" in d)) expect(d.flags).not.toContain("resultado_extraordinario");
   });
 });
+
+describe("decideCandidate con eventos", () => {
+  const base = { f: f(), candles: up, nthAppearance: 1, portfolioUsd: 150_000, today };
+  const policy = { technical: tech, sizing, candidates: { top: 40, preselect: 150, chronicWeeks: 4 } };
+  const ev = (date: string, severity: "grave" | "moderado" | "ruido") => ({ date, kind: "regulatorio" as const, severity, headline: `evento ${severity}` });
+  it("grave en 90 días → OBSERVAR con motivo evento_grave", () => {
+    const d = decideCandidate({ ...base, events: [ev("2026-04-01", "grave")] }, policy);
+    expect(d).toMatchObject({ verdict: "OBSERVAR", reasons: ["evento_grave"] });
+    if (!("excluded" in d)) expect(d.flags).toContain("evento_grave");
+  });
+  it("grave de hace 91 días ya no cuenta", () => {
+    const d = decideCandidate({ ...base, events: [ev("2026-02-17", "grave")] }, policy); // today 2026-05-19
+    expect(d).toMatchObject({ verdict: "COMPRAR" });
+    if (!("excluded" in d)) expect(d.flags).not.toContain("evento_grave");
+  });
+  it("moderado → sigue COMPRAR con bandera; ruido no deja bandera", () => {
+    const d = decideCandidate({ ...base, events: [ev("2026-05-01", "moderado"), ev("2026-05-02", "ruido")] }, policy);
+    expect(d).toMatchObject({ verdict: "COMPRAR" });
+    if (!("excluded" in d)) {
+      expect(d.flags).toContain("evento_moderado");
+      expect(d.flags).not.toContain("evento_grave");
+    }
+  });
+  it("sin clasificar → bandera eventos_sin_clasificar, sigue COMPRAR", () => {
+    const d = decideCandidate({ ...base, eventsUnclassified: true }, policy);
+    expect(d).toMatchObject({ verdict: "COMPRAR" });
+    if (!("excluded" in d)) expect(d.flags).toContain("eventos_sin_clasificar");
+  });
+});

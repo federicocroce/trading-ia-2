@@ -9,11 +9,14 @@ import type { CandidateRow, Tags } from "./types.js";
  *
  * - fiabilidad: min(1, pares / 10). Ser 1° de 5 vale la mitad que ser 1° de 10 o más.
  * - banderas: +0.2 consenso de compra / insiders compran / sorpresa positiva;
- *             −0.15 insiders venden (suele ser rutina); −0.3 sorpresa negativa / consenso de venta.
+ *             −0.15 insiders venden (suele ser rutina); −0.3 sorpresa negativa / consenso de venta;
+ *             −0.3 evento moderado reciente (se cita fecha y titular); −0.3 hay titulares sin clasificar.
  * - riesgo: −0.1 por cada punto por encima de 5.
  * - objetivo: −0.3 si queda a menos de 5% (el objetivo es 2× la distancia al stop, no un pronóstico).
  * - tema cargado: −0.3 si comparte un tema donde la cartera ya supera el umbral de concentración.
  * - se mueve como lo tuyo: −0.3 si sus retornos correlacionan > 0.7 con una posición (mismo riesgo con otro nombre).
+ * - salvedades sin penalización: resultado_extraordinario (la ganancia núcleo ya lo corrige) y
+ *   sin_estados (métricas de Finnhub, sin estados de la SEC) solo avisan.
  */
 export interface TopPick {
   symbol: string;
@@ -36,6 +39,12 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   insiders_venden: { text: "insiders vendieron en los últimos 90 días", penalty: 0.15 },
   sorpresa_negativa: { text: "último resultado decepcionó", penalty: 0.3 },
   consenso_venta: { text: "analistas: consenso de venta", penalty: 0.3 },
+  evento_moderado: { text: "evento moderado reciente", penalty: 0.3 },
+  eventos_sin_clasificar: { text: "hay titulares materiales sin clasificar (cuota del modelo): revisá la ficha", penalty: 0.3 },
+};
+const INFO: Record<string, string> = {
+  resultado_extraordinario: "la ganancia reportada está inflada por extraordinarios: el ranking usa la ganancia núcleo",
+  sin_estados: "sin estados de la SEC: las métricas son de Finnhub y pueden incluir extraordinarios",
 };
 const SMALL_GROUP = 10;
 const MIN_GAIN_PCT = 5;
@@ -77,7 +86,10 @@ export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: 
       reasons.push(POSITIVE[f]);
     } else if (NEGATIVE[f]) {
       conviction -= NEGATIVE[f].penalty;
-      cautions.push(NEGATIVE[f].text);
+      const ev = f === "evento_moderado" ? [...(row.events ?? [])].filter((e) => e.severity === "moderado").sort((a, b) => b.date.localeCompare(a.date))[0] : undefined;
+      cautions.push(ev ? `evento moderado ${ev.date}: ${ev.headline}` : NEGATIVE[f].text);
+    } else if (INFO[f]) {
+      cautions.push(INFO[f]);
     }
   }
   reasons.push(`objetivo ${signed(gainPct)} contra stop ${signed(lossPct)} (2 a 1)`);

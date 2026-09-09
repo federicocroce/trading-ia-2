@@ -63,6 +63,23 @@ describe("convictionFor", () => {
   });
 });
 
+describe("convicción: eventos y estados", () => {
+  it("evento moderado penaliza 0.3 y cita fecha y titular", () => {
+    const base = convictionFor(row({ flags: [] }), null, {})!;
+    const p = convictionFor(row({ flags: ["evento_moderado"], events: [{ date: "2026-07-27", kind: "analista", severity: "moderado", headline: "BTIG baja objetivo a 24" }] }), null, {})!;
+    expect(p.conviction).toBeCloseTo(base.conviction - 0.3, 4);
+    expect(p.cautions).toContain("evento moderado 2026-07-27: BTIG baja objetivo a 24");
+  });
+  it("titulares sin clasificar penalizan 0.3; extraordinarios y sin estados solo avisan", () => {
+    const base = convictionFor(row({ flags: [] }), null, {})!;
+    expect(convictionFor(row({ flags: ["eventos_sin_clasificar"] }), null, {})!.conviction).toBeCloseTo(base.conviction - 0.3, 4);
+    const x = convictionFor(row({ flags: ["resultado_extraordinario", "sin_estados"] }), null, {})!;
+    expect(x.conviction).toBeCloseTo(base.conviction, 4);
+    expect(x.cautions.some((c) => c.includes("extraordinarios"))).toBe(true);
+    expect(x.allAligned).toBe(false);
+  });
+});
+
 describe("topPicks", () => {
   it("ordena por convicción, deja afuera lo que no califica y corta en n", () => {
     const rows = [
