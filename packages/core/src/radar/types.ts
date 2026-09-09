@@ -216,3 +216,53 @@ export interface WatchItem {
   resolutionPrice: number | null;
   resolutionReturn: number | null;
 }
+
+/** Un trimestre de estados (SEC XBRL), en USD. null = tag ausente. */
+export interface QuarterStatement {
+  start: string;
+  end: string;
+  /** Q1..Q4 del reporte; Q4 cuando se deriva del anual. */
+  fp: string;
+  revenue: number | null;
+  operatingIncome: number | null;
+  netIncome: number | null;
+  pretaxIncome: number | null;
+  taxExpense: number | null;
+  operatingCashFlow: number | null;
+  capex: number | null;
+  dilutedShares: number | null;
+  equity: number | null;
+  /** Ítems extraordinarios del trimestre con signo: ganancia > 0 infla, cargo < 0 deprime. */
+  extraordinary: Array<{ tag: string; value: number }>;
+}
+export interface CoreEarnings {
+  /** Fin del último trimestre usado. */
+  asOf: string;
+  revenueTTM: number | null;
+  operatingIncomeTTM: number | null;
+  coreOperatingIncomeTTM: number | null;
+  netIncomeTTM: number | null;
+  coreNetIncomeTTM: number | null;
+  coreEpsTTM: number | null;
+  operatingCashFlowTTM: number | null;
+  freeCashFlowTTM: number | null;
+  equity: number | null;
+  taxRate: number;
+  extraordinaryTTM: number;
+  extraordinaryItems: Array<{ tag: string; quarterEnd: string; value: number }>;
+  /** (neto − núcleo) / max(|neto|, |núcleo|, 1). > 0 ganancia inflada; < 0 deprimida. */
+  deviationPct: number | null;
+}
+export interface Statements {
+  symbol: string;
+  cik: string;
+  asOf: string;
+  quarters: QuarterStatement[];
+  core: CoreEarnings | null;
+}
+/** Forma mínima del JSON `companyfacts` de la SEC. */
+export interface CompanyFactsJson {
+  cik: number | string;
+  entityName?: string;
+  facts: { "us-gaap"?: Record<string, { units: Record<string, Array<{ start?: string; end: string; val: number; fp?: string; form?: string; filed?: string; frame?: string }>> }> };
+}

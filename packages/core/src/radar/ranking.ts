@@ -20,6 +20,10 @@ export interface Fundamentals {
   insiderSells90d: number | null;
   analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null;
   earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null;
+  /** Métricas de Finnhub originales cuando `metrics` fue recalculado con la ganancia núcleo (spec verificación §4). */
+  metricsRaw?: FinnhubMetrics | null;
+  /** Fin del último trimestre usado; null = se intentó y no hay estados (IFRS, sin CIK, sin resultado operativo). */
+  statementsAsOf?: string | null;
 }
 
 export type Axis = "valuation" | "quality" | "growth" | "balance";

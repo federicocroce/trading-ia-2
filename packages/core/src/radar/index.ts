@@ -10,3 +10,4 @@ export * from "./conviction.js";
 export * from "./argentina.js";
 export * from "./watch-lifecycle.js";
 export * from "./overlap.js";
+export * from "./statements.js";
