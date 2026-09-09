@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle } from "@thesis/core";
-import { MemoryStore, measureRadar, refreshArgentina, type ArgentinaDeps } from "../src/index.js";
+import { MemoryStore, measureRadar, refreshArgentina, refreshRadar, type ArgentinaDeps } from "../src/index.js";
 
 const series = (n: number, from: number, to: number, start = "2025-06-01"): Candle[] =>
   Array.from({ length: n }, (_, i) => {
@@ -84,6 +84,16 @@ describe("refreshArgentina", () => {
     expect(rows.filter((r) => r.kind === "ar" || r.kind === "cedear").length).toBe(3);
   });
 
+  it("el refresco del Radar US deja en paz las filas argentinas y de seguimiento (otras familias, otro refresco)", async () => {
+    const { store, deps } = setup();
+    await refreshArgentina(deps, { today });
+    const before = (await store.latestCandidates()).filter((r) => r.kind === "ar" || r.kind === "cedear");
+    const radarDeps = { store, history: deps.history, taxonomy: { sectors: [], themes: [], industryToSector: {}, industryToThemes: {}, symbolToThemes: {}, symbolToAssetClass: {} }, etfs: [], policy, fundamentals: { nextEarnings: async () => null, insiders: async () => null, recommendation: async () => null, earningsSurprises: async () => null } as never, assets: {} as never, cardWriter: null, filings: async () => [] } as unknown as Parameters<typeof refreshRadar>[0];
+    const r = await refreshRadar(radarDeps, { today, portfolioUsd: null });
+    expect(r.errors).toEqual([]);
+    expect(r.refreshed).toBe(0);
+    expect((await store.latestCandidates()).filter((x) => x.kind === "ar" || x.kind === "cedear")).toEqual(before);
+  });
   it("si el dólar o el riesgo país fallan, las acciones salen igual (sin precio en dólares) y los CEDEARs se saltean con error", async () => {
     const { store, deps } = setup();
     const roto: ArgentinaDeps = { ...deps, macro: { dolares: async () => { throw new Error("dolarapi caído"); }, riesgoPais: async () => null } };

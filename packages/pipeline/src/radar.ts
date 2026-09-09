@@ -374,6 +374,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   const ranked = needCards ? new Map(rankStocks(await rankableFundamentals(deps, opts.today), policy.weights).ranked.map((r) => [r.symbol, r])) : null;
   const rows: CandidateRow[] = [];
   for (const prev of latest) {
+    // Solo la familia US: Argentina y seguimiento tienen su propio refresco.
+    if (prev.kind !== "stock" && prev.kind !== "etf") continue;
     const c = candles[prev.symbol];
     if (!c) continue;
     if (prev.kind === "etf") {
