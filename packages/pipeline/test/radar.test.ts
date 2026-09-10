@@ -329,9 +329,12 @@ describe("rankRadar y refreshRadar con noticias", () => {
     }) as typeof store;
     const rf = await refreshRadar({ ...d, store: failingStore }, { today: "2026-09-10", portfolioUsd: 150_000 });
     expect(rf.errors).toEqual([{ symbol: "SB", error: expect.stringContaining("db") }]);
-    expect(rf.refreshed).toBe(ranked.candidates.length - 1);
+    expect(rf.refreshed).toBe(ranked.candidates.length); // el error no baja la fila: se cuentan todos los stock+etf
     const after = await store.latestCandidates();
-    expect(after.some((c) => c.symbol === "SB")).toBe(false); // SB no se refrescó esta corrida
+    const sb = after.find((c) => c.symbol === "SB");
+    expect(sb).toBeDefined(); // SB sigue en pie pese a la falla: la corrida no lo pierde
+    expect(sb!.candidateDate).toBe("2026-09-10");
+    expect(sb!.flags).toContain("eventos_sin_clasificar");
     const sa = after.find((c) => c.symbol === "SA")!;
     expect(sa.verdict).toBe("OBSERVAR");
     expect(sa.events).toHaveLength(1);

@@ -451,41 +451,48 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       errors.push({ symbol: prev.symbol, error: "sin fundamentals" });
       continue;
     }
-    const core: CoreEarnings | null | undefined = deps.statements ? ((await store.statements(prev.symbol))?.core ?? null) : undefined;
+    // Solo se aísla lo que puede fallar por I/O externo (lectura de estados, barrido de noticias): un error acá
+    // no debe perder la fila del símbolo, así que no se propaga; el candidato sigue con lo que ya tenía
+    // (`eventsUnclassified` true, `events` de la corrida anterior) hasta el próximo intento.
+    let core: CoreEarnings | null | undefined;
+    let ev: EventScan | null;
     try {
-      const ev = await scanCandidateEvents(deps, prev.symbol, opts.today, false);
-      const evEvents = ev?.events ?? prev.events;
-      const d = decideCandidate({ f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), ...(evEvents !== undefined ? { events: evEvents } : {}), ...(ev?.unclassified !== undefined ? { eventsUnclassified: ev.unclassified } : {}) }, policy);
-      if ("excluded" in d) {
-        rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: ev?.events ?? prev.events ?? [], analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
-        continue;
-      }
-      let degraded = prev.degradedBy === "narrator";
-      let card = { summary: prev.summary, whyRanks: prev.whyRanks, mainRisk: prev.mainRisk, moat: prev.moat };
-      let degradeFlag: string | null = null;
-      // Ficha pendiente (cuota agotada en el ranking): se completa acá, con las mismas reglas.
-      if (prev.summary === null && deps.cardWriter && ranked) {
-        const r = ranked.get(prev.symbol);
-        if (r) {
-          try {
-            const w = await writeCardFor(deps, f, r, d.verdict, d, f.insiderBuys90d === null ? null : { buys: f.insiderBuys90d, sells: f.insiderSells90d ?? 0 }, { ...(core !== undefined ? { core } : {}), quarters: deps.statements ? ((await store.statements(prev.symbol))?.quarters.slice(-4) ?? []) : undefined, events: ev?.events ?? prev.events });
-            if (w) {
-              card = w.card;
-              if (w.degrade && d.verdict === "COMPRAR") {
-                degraded = true;
-                degradeFlag = `degradado: ${w.degradeReason ?? "sin motivo"}`;
-              }
-            }
-          } catch (e) {
-            errors.push({ symbol: prev.symbol, error: String(e) });
-          }
-        }
-      }
-      rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: ev?.events ?? prev.events ?? [], analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
+      core = deps.statements ? ((await store.statements(prev.symbol))?.core ?? null) : undefined;
+      ev = await scanCandidateEvents(deps, prev.symbol, opts.today, false);
     } catch (e) {
       errors.push({ symbol: prev.symbol, error: String(e) });
+      core = deps.statements ? null : undefined;
+      ev = null;
+    }
+    const evEvents = ev?.events ?? prev.events ?? [];
+    const eventsUnclassified = ev ? ev.unclassified : true;
+    const d = decideCandidate({ f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified }, policy);
+    if ("excluded" in d) {
+      rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
       continue;
     }
+    let degraded = prev.degradedBy === "narrator";
+    let card = { summary: prev.summary, whyRanks: prev.whyRanks, mainRisk: prev.mainRisk, moat: prev.moat };
+    let degradeFlag: string | null = null;
+    // Ficha pendiente (cuota agotada en el ranking): se completa acá, con las mismas reglas.
+    if (prev.summary === null && deps.cardWriter && ranked) {
+      const r = ranked.get(prev.symbol);
+      if (r) {
+        try {
+          const w = await writeCardFor(deps, f, r, d.verdict, d, f.insiderBuys90d === null ? null : { buys: f.insiderBuys90d, sells: f.insiderSells90d ?? 0 }, { ...(core !== undefined ? { core } : {}), quarters: deps.statements ? ((await store.statements(prev.symbol))?.quarters.slice(-4) ?? []) : undefined, events: evEvents });
+          if (w) {
+            card = w.card;
+            if (w.degrade && d.verdict === "COMPRAR") {
+              degraded = true;
+              degradeFlag = `degradado: ${w.degradeReason ?? "sin motivo"}`;
+            }
+          }
+        } catch (e) {
+          errors.push({ symbol: prev.symbol, error: String(e) });
+        }
+      }
+    }
+    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
   }
   await store.upsertCandidates(rows);
   return { refreshed: rows.length, errors };
