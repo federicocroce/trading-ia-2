@@ -22,6 +22,7 @@ const reasoner: Reasoner = {
   propose: async (b) => ({ ticker: b.event.ticker, eventType: "earnings", eventDate: b.event.eventDate, direction: "long", pEstimate: 0.7, pMarket: 0.5, instrument: "stock", entryMax: 10.5, target: 11, invalidation: "Preanuncio negativo de guidance antes del reporte.", confidence: "med", reasoning: "Razonamiento de prueba suficientemente largo para pasar la validación mínima.", sources: ["s"] }),
 };
 
+let failRadar = false;
 function container(): Container {
   const store = new MemoryStore();
   const account = async () => ({ equity: 100_000, lastEquity: 100_000 });
@@ -34,7 +35,7 @@ function container(): Container {
     argentinaDeps: { store } as never,
     pricesDeps: { quotes: async () => [] },
     symbolSearch: { search: async () => [] },
-    catchupRunners: Object.fromEntries(["scan", "cartera", "radar", "argentina", "plan", "tesis"].map((id) => [id, async () => `${id} corrido`])) as never,
+    catchupRunners: Object.fromEntries(["scan", "cartera", "radar", "argentina", "plan", "tesis"].map((id) => [id, async () => { if (id === "radar" && failRadar) throw new Error("finnhub 429"); return `${id} corrido`; }])) as never,
     marketData,
     broker,
     risk: new DefaultRiskEngine(),
@@ -89,6 +90,31 @@ describe("API routes", () => {
   });
 });
 
+describe("/catchup: estado por paso y corrida individual", () => {
+  it("un paso que falla queda registrado con su error y sigue pendiente; se puede correr solo desde su botón", async () => {
+    const c = container();
+    const app = buildApp(c);
+    state.lastRun = null;
+    state.catchup = { running: false, last: null, current: null };
+    failRadar = true;
+    const run = await (await app.request("/catchup", { method: "POST" })).json();
+    expect(run.ran.find((r: { id: string }) => r.id === "radar")).toMatchObject({ ok: false, detail: "finnhub 429" });
+    const st = await (await app.request("/catchup")).json();
+    const radar = st.steps.find((s: { id: string }) => s.id === "radar");
+    expect(radar).toMatchObject({ label: expect.any(String), due: true, lastError: "finnhub 429" });
+    expect(radar.lastErrorAt).toBeTruthy();
+    expect(st.steps.find((s: { id: string }) => s.id === "cartera")).toMatchObject({ due: false, lastError: null });
+    expect(st.lastRunAt).toBeTruthy();
+    // Corrida individual: solo ese paso, aunque no esté pendiente; el error se limpia al salir bien.
+    failRadar = false;
+    const one = await (await app.request("/catchup/run/radar", { method: "POST" })).json();
+    expect(one.ran.map((r: { id: string; ok: boolean }) => [r.id, r.ok])).toEqual([["radar", true]]);
+    const after = await (await app.request("/catchup")).json();
+    expect(after.steps.find((s: { id: string }) => s.id === "radar")).toMatchObject({ due: false, lastError: null });
+    expect((await app.request("/catchup/run/nada", { method: "POST" })).status).toBe(400);
+  });
+});
+
 describe("/catchup", () => {
   it("lista lo pendiente, corre solo eso, lo registra y no lo repite", async () => {
     const c = container();
@@ -96,7 +122,7 @@ describe("/catchup", () => {
     const store = c.store;
     // Estado compartido del proceso: que no dependa de lo que hicieron otros tests.
     state.lastRun = null;
-    state.catchup = { running: false, last: null };
+    state.catchup = { running: false, last: null, current: null };
     const before = await (await app.request("/catchup")).json();
     expect(before.due.map((d: { id: string }) => d.id)).toEqual(["scan", "cartera", "radar", "argentina", "plan", "tesis"]);
     const run = await (await app.request("/catchup", { method: "POST" })).json();

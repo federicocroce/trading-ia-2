@@ -510,11 +510,16 @@ export class Repo {
   // ---------- pasos programados ----------
   async markJobRun(step: string, lastDate: string, detail: string | null = null): Promise<void> {
     const ranAt = new Date();
-    await this.db.insert(s.jobRuns).values({ step, lastDate, ranAt, detail }).onConflictDoUpdate({ target: s.jobRuns.step, set: { lastDate, ranAt, detail } });
+    await this.db.insert(s.jobRuns).values({ step, lastDate, ranAt, detail, lastError: null, lastErrorAt: null }).onConflictDoUpdate({ target: s.jobRuns.step, set: { lastDate, ranAt, detail, lastError: null, lastErrorAt: null } });
   }
-  async jobRuns(): Promise<Record<string, { lastDate: string; ranAt: string; detail: string | null }>> {
+  async markJobError(step: string, error: string): Promise<void> {
+    const at = new Date();
+    // Sin corrida buena previa, la fila nace con lastDate vacío: el paso sigue pendiente.
+    await this.db.insert(s.jobRuns).values({ step, lastDate: "", ranAt: at, detail: null, lastError: error, lastErrorAt: at }).onConflictDoUpdate({ target: s.jobRuns.step, set: { lastError: error, lastErrorAt: at } });
+  }
+  async jobRuns(): Promise<Record<string, { lastDate: string; ranAt: string; detail: string | null; lastError: string | null; lastErrorAt: string | null }>> {
     const rows = await this.db.select().from(s.jobRuns);
-    return Object.fromEntries(rows.map((r) => [r.step, { lastDate: r.lastDate, ranAt: r.ranAt.toISOString(), detail: r.detail }]));
+    return Object.fromEntries(rows.map((r) => [r.step, { lastDate: r.lastDate, ranAt: r.ranAt.toISOString(), detail: r.detail, lastError: r.lastError, lastErrorAt: r.lastErrorAt?.toISOString() ?? null }]));
   }
 }
 

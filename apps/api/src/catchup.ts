@@ -1,4 +1,4 @@
-import { STEPS, buildContributionPlan, dailyRun, dueSteps, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, type DueStep, type StepId } from "@thesis/pipeline";
+import { STEPS, buildContributionPlan, dailyRun, dueSteps, expectedDate, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, stepById, type DueStep, type StepId } from "@thesis/pipeline";
 import { state, type Container } from "./container.js";
 
 /**
@@ -11,13 +11,34 @@ export interface CatchUpResult {
   at: string;
   ran: Array<{ id: string; label: string; ok: boolean; detail: string }>;
 }
+export interface StepStatus {
+  id: StepId;
+  label: string;
+  /** Cuándo corre solo, en palabras. */
+  schedule: string;
+  /** Última corrida buena: fecha que cubrió, hora en que corrió y resumen. */
+  lastDate: string | null;
+  ranAt: string | null;
+  detail: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+  expected: string;
+  due: boolean;
+  running: boolean;
+}
 export interface CatchUpStatus {
   now: string;
   due: DueStep[];
   last: Record<StepId, { lastDate: string; ranAt: string | null; detail: string | null } | null>;
+  /** Vista por paso para el panel del encabezado. */
+  steps: StepStatus[];
+  /** Hora de la última corrida buena de cualquier paso. */
+  lastRunAt: string | null;
   running: boolean;
+  current: string | null;
   lastResult: CatchUpResult | null;
 }
+const SCHEDULE: Record<StepId, string> = { scan: "domingo 20:00", cartera: "lun–vie 07:45", radar: "lun–vie 07:50", argentina: "lun–vie 07:50", plan: "día 1, 08:00", tesis: "lun–vie 07:30" };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 /** Fecha local (la de los crons de la máquina), no UTC: a la noche en Argentina UTC ya es mañana. */
@@ -100,7 +121,7 @@ async function lastDates(c: Container): Promise<CatchUpStatus["last"]> {
   };
   for (const s of STEPS) {
     const j = jobs[s.id];
-    if (j) out[s.id] = { lastDate: j.lastDate, ranAt: j.ranAt, detail: j.detail };
+    if (j && j.lastDate) out[s.id] = { lastDate: j.lastDate, ranAt: j.ranAt, detail: j.detail };
     else {
       const d = await fromData[s.id]().catch(() => null);
       out[s.id] = d ? { lastDate: d, ranAt: null, detail: "según lo que hay en la base" } : null;
@@ -112,34 +133,66 @@ async function lastDates(c: Container): Promise<CatchUpStatus["last"]> {
 export async function catchUpStatus(c: Container, now = new Date()): Promise<CatchUpStatus> {
   const last = await lastDates(c);
   const due = dueSteps(Object.fromEntries(STEPS.map((s) => [s.id, last[s.id]?.lastDate ?? null])) as Partial<Record<StepId, string | null>>, now);
-  return { now: now.toISOString(), due, last, running: state.catchup.running, lastResult: state.catchup.last };
+  const jobs = await c.store.jobRuns();
+  const steps: StepStatus[] = STEPS.map((s) => {
+    const l = last[s.id];
+    const j = jobs[s.id];
+    const d = due.find((x) => x.id === s.id);
+    return { id: s.id, label: s.label, schedule: SCHEDULE[s.id], lastDate: l?.lastDate ?? null, ranAt: l?.ranAt ?? null, detail: l?.detail ?? null, lastError: j?.lastError ?? null, lastErrorAt: j?.lastErrorAt ?? null, expected: d?.expected ?? expectedDate(s, now), due: !!d, running: state.catchup.current === s.id };
+  });
+  const lastRunAt = steps.map((x) => x.ranAt).filter((x): x is string => !!x).sort().at(-1) ?? null;
+  return { now: now.toISOString(), due, last, steps, lastRunAt, running: state.catchup.running, current: state.catchup.current, lastResult: state.catchup.last };
+}
+
+/** Corre pasos concretos (uno o varios) en orden, registrando éxito o error. Devuelve lo que corrió. */
+async function runSteps(c: Container, ids: StepId[], runners: Runners, now: Date): Promise<CatchUpResult> {
+  const today = localDate(now);
+  const result: CatchUpResult = { at: now.toISOString(), ran: [] };
+  for (const id of STEPS.map((s) => s.id).filter((x) => ids.includes(x))) {
+    const label = stepById(id).label;
+    state.catchup.current = id;
+    try {
+      const detail = await runners[id](c, today);
+      // El barrido se registra solo cuando termina (corre en segundo plano).
+      if (id !== "scan") await c.store.markJobRun(id, today, detail);
+      result.ran.push({ id, label, ok: true, detail });
+      console.log(`[catchup] ${label}: ${detail}`);
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      await c.store.markJobError(id, detail).catch(() => {});
+      result.ran.push({ id, label, ok: false, detail });
+      console.error(`[catchup] ${label} falló: ${detail}`);
+    } finally {
+      state.catchup.current = null;
+    }
+  }
+  return result;
+}
+
+/** Un paso a mano (botón "Correr" del panel), esté pendiente o no. */
+export async function runStep(c: Container, id: StepId, opts: { now?: Date; runners?: Runners } = {}): Promise<CatchUpResult> {
+  if (state.catchup.running) return state.catchup.last ?? { at: new Date().toISOString(), ran: [] };
+  state.catchup.running = true;
+  try {
+    const r = await runSteps(c, [id], opts.runners ?? c.catchupRunners ?? defaultRunners(), opts.now ?? new Date());
+    state.catchup.last = r;
+    return r;
+  } finally {
+    state.catchup.running = false;
+  }
 }
 
 export async function runCatchUp(c: Container, opts: { now?: Date; runners?: Runners } = {}): Promise<CatchUpResult> {
   if (state.catchup.running) return state.catchup.last ?? { at: new Date().toISOString(), ran: [] };
   const now = opts.now ?? new Date();
   const runners = opts.runners ?? c.catchupRunners ?? defaultRunners();
-  const today = localDate(now);
   state.catchup.running = true;
-  const result: CatchUpResult = { at: now.toISOString(), ran: [] };
   try {
     const { due } = await catchUpStatus(c, now);
-    for (const d of due) {
-      try {
-        const detail = await runners[d.id](c, today);
-        // El barrido se registra solo cuando termina (corre en segundo plano).
-        if (d.id !== "scan") await c.store.markJobRun(d.id, today, detail);
-        result.ran.push({ id: d.id, label: d.label, ok: true, detail });
-        console.log(`[catchup] ${d.label}: ${detail}`);
-      } catch (e) {
-        const detail = e instanceof Error ? e.message : String(e);
-        result.ran.push({ id: d.id, label: d.label, ok: false, detail });
-        console.error(`[catchup] ${d.label} falló: ${detail}`);
-      }
-    }
+    const result = await runSteps(c, due.map((d) => d.id), runners, now);
+    state.catchup.last = result;
+    return result;
   } finally {
     state.catchup.running = false;
-    state.catchup.last = result;
   }
-  return result;
 }

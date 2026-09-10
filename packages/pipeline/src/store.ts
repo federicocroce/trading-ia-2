@@ -99,6 +99,8 @@ export interface RadarStore {
   macroArSeries(days: number): Promise<MacroAr[]>;
   /** Última corrida de cada paso programado (ponerse al día). `lastDate` es la fecha que cubrió, no la hora en que corrió. */
   markJobRun(step: string, lastDate: string, detail?: string | null): Promise<void>;
+  /** Registra una falla sin tocar la última corrida buena (el paso sigue pendiente). */
+  markJobError(step: string, error: string): Promise<void>;
   jobRuns(): Promise<Record<string, JobRun>>;
   /** Velas diarias guardadas (las escriben Cartera, Radar y la ficha). */
   candles(symbol: string, since: string): Promise<Candle[]>;
@@ -117,6 +119,9 @@ export interface JobRun {
   lastDate: string;
   ranAt: string;
   detail: string | null;
+  /** Último error del paso (se limpia cuando vuelve a salir bien). */
+  lastError?: string | null;
+  lastErrorAt?: string | null;
 }
 
 export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore {
@@ -430,7 +435,11 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
     if (cur) this.watch.set(cur.symbol, { ...cur, entryPrice });
   }
   async markJobRun(step: string, lastDate: string, detail: string | null = null) {
-    this.jobs.set(step, { lastDate, ranAt: new Date().toISOString(), detail });
+    this.jobs.set(step, { lastDate, ranAt: new Date().toISOString(), detail, lastError: null, lastErrorAt: null });
+  }
+  async markJobError(step: string, error: string) {
+    const cur = this.jobs.get(step);
+    this.jobs.set(step, { lastDate: cur?.lastDate ?? "", ranAt: cur?.ranAt ?? "", detail: cur?.detail ?? null, lastError: error, lastErrorAt: new Date().toISOString() });
   }
   async jobRuns() {
     return Object.fromEntries(this.jobs);

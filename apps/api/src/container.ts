@@ -19,7 +19,7 @@ export const state = {
   lastRun: null as null | { at: string; summary: unknown },
   scan: { running: false, stopRequested: false, startedAt: null, progress: null, last: null } as ScanState,
   /** Ponerse al día: evita corridas superpuestas y guarda el último resultado para la UI. */
-  catchup: { running: false, last: null as null | { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> } },
+  catchup: { running: false, last: null as null | { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }, current: null as string | null },
 };
 
 export interface Container {

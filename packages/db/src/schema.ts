@@ -395,6 +395,8 @@ export const jobRuns = pgTable("job_runs", {
   lastDate: text("last_date").notNull(),
   ranAt: timestamp("ran_at", { withTimezone: true }).notNull().defaultNow(),
   detail: text("detail"),
+  lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
 });
 
 /** Lista de seguimiento: tickers elegidos a mano (veredicto diario aunque el ranking no los elija). */

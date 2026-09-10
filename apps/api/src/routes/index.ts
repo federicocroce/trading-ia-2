@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { CloseReason } from "@thesis/core";
-import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders, buildNovedades } from "@thesis/pipeline";
+import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders, buildNovedades, STEPS, type StepId } from "@thesis/pipeline";
 import { z } from "zod";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
-import { catchUpStatus, runCatchUp } from "../catchup.js";
+import { catchUpStatus, runCatchUp, runStep } from "../catchup.js";
 import { carteraRoutes } from "./cartera.js";
 import { radarRoutes } from "./radar.js";
 import { taxonomyRoutes } from "./taxonomy.js";
@@ -22,6 +22,11 @@ export function buildApp(c: Container) {
   /** Novedades del día: qué cambió contra la corrida anterior (lo que se lee a la mañana). */
   app.get("/novedades", async (ctx) => ctx.json(await buildNovedades(c.store, { today: ctx.req.query("today") ?? new Date().toISOString().slice(0, 10) })));
   app.post("/catchup", async (ctx) => ctx.json(await runCatchUp(c)));
+  app.post("/catchup/run/:step", async (ctx) => {
+    const id = ctx.req.param("step");
+    if (!STEPS.some((s) => s.id === id)) return ctx.json({ error: "paso desconocido" }, 400);
+    return ctx.json(await runStep(c, id as StepId));
+  });
 
   // ---- tesis ----
   app.get("/theses", async (ctx) => {
