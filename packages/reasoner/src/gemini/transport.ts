@@ -163,6 +163,12 @@ export class GeminiToolCaller {
     if (finish === "MAX_TOKENS") this.log(`[gemini] ${model} key#${keyIndex + 1}: respuesta con búsqueda cortada por maxOutputTokens (${text.length} caracteres)`);
     const gm = data.candidates?.[0]?.groundingMetadata ?? {};
     const sources = (gm.groundingChunks ?? []).flatMap((c) => (c.web?.uri ? [{ title: c.web.title ?? c.web.uri, url: c.web.uri }] : []));
+    // Sin fuentes ni búsquedas, el modelo respondió de memoria (pasa cuando la cuota de búsqueda está agotada o el
+    // modelo no la tiene): eso no es una verificación. Se descarta y la rotación prueba el siguiente modelo o clave.
+    if (sources.length === 0 && (gm.webSearchQueries ?? []).length === 0) {
+      this.recorder.record({ ...row, ...tokens, status: res.status, result: "validacion", ms: now() - t0 });
+      throw new Error("gemini: respuesta con búsqueda sin fuentes ni búsquedas (respondió de memoria)");
+    }
     const callId = this.recorder.record({ ...row, ...tokens, status: res.status, result: "ok", ms: now() - t0 });
     return { text, sources, queries: gm.webSearchQueries ?? [], usage: this.usageText(data), callId };
   }

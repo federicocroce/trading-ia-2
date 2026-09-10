@@ -86,6 +86,15 @@ describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estru
     await expect(v.verify({ symbol: "X", name: null, today: "2026-09-10" })).rejects.toThrow();
     expect(rec.rows.map((x) => x.result)).toEqual(["ok", "validacion"]);
   });
+  it("callGrounded sin fuentes ni búsquedas (respondió de memoria) registra validación y pasa al siguiente intento", async () => {
+    const fromMemory = new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "DICTAMEN: APTO — de memoria" }] }, finishReason: "STOP" }] }), { status: 200 });
+    const ff = fakeFetch([fromMemory, grounded("con fuentes")]);
+    const rec = memRecorder();
+    const caller = new GeminiToolCaller({ keys: ["k0", "k1"], models: ["A"], fetch: ff.fetch, recorder: rec });
+    const r = await caller.callGrounded("s", "u", { purpose: "verificacion" });
+    expect(r.text).toBe("con fuentes");
+    expect(rec.rows.map((x) => x.result)).toEqual(["validacion", "ok"]);
+  });
   it("callGrounded sin texto registra validación y pasa al siguiente intento", async () => {
     const empty = new Response(JSON.stringify({ candidates: [{ content: { parts: [] }, finishReason: "STOP" }] }), { status: 200 });
     const ff = fakeFetch([empty, grounded("ok al segundo intento")]);
