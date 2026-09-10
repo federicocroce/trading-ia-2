@@ -3,8 +3,13 @@ import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRss
 import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
-import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
+import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
+import { KeyedRateLimiter, recordingFetch } from "@thesis/core";
+import { StoreUsageRecorder } from "@thesis/pipeline";
 import type { Config, ReasonerConfig } from "./config.js";
+
+/** Lo que comparten todos los llamadores de Gemini del proceso: cuota aprendida, freno por minuto y registro. */
+export type GeminiShared = Pick<GeminiCallerOptions, "tracker" | "pace" | "recorder">;
 
 /** Estado mutable mínimo del proceso. */
 export interface ScanState {
@@ -33,6 +38,8 @@ export interface Container {
   argentinaDeps: ArgentinaDeps;
   /** Hub de precios en vivo (lo arranca index.ts; los tests pueden no tenerlo). */
   priceHub?: import("./prices-hub.js").PriceHub;
+  /** Registro de uso de fuentes externas (los tests pueden no tenerlo). */
+  usage?: StoreUsageRecorder;
   /** Buscador de símbolos para el alta a la watchlist. */
   symbolSearch: { search(query: string): Promise<import("@thesis/adapters").SymbolHit[]> };
   /** Precios vivos por lote para la watchlist y la cinta del header. */
@@ -50,33 +57,33 @@ export interface Container {
 }
 
 /** Un razonador por proveedor; el prompt, la validación y pMarket son los mismos. */
-export function buildReasoner(r: ReasonerConfig): Reasoner {
+export function buildReasoner(r: ReasonerConfig, shared: GeminiShared = {}): Reasoner {
   if (r.kind === "gemini") {
-    return new GeminiReasoner({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
+    return new GeminiReasoner({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
   }
   return new AnthropicReasoner({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
 }
 
 /** Narrador de posiciones: misma regla de proveedor que el razonador. Solo puede degradar. */
-export function buildNarrator(r: ReasonerConfig): PositionNarrator {
+export function buildNarrator(r: ReasonerConfig, shared: GeminiShared = {}): PositionNarrator {
   if (r.kind === "gemini") {
-    return new GeminiNarrator({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
+    return new GeminiNarrator({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
   }
   return new AnthropicNarrator({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
 }
 
 /** Ficha de candidato: misma regla de proveedor que el razonador. Solo puede degradar. */
-export function buildCardWriter(r: ReasonerConfig): CardWriter {
+export function buildCardWriter(r: ReasonerConfig, shared: GeminiShared = {}): CardWriter {
   if (r.kind === "gemini") {
-    return new GeminiCardWriter({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
+    return new GeminiCardWriter({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
   }
   return new AnthropicCardWriter({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
 }
 
 /** Clasificador de titulares del Radar: misma regla de proveedor. Solo clasifica; el veredicto lo deciden las reglas. */
-export function buildEventClassifier(r: ReasonerConfig): EventClassifier {
+export function buildEventClassifier(r: ReasonerConfig, shared: GeminiShared = {}): EventClassifier {
   if (r.kind === "gemini") {
-    return new GeminiEventClassifier({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
+    return new GeminiEventClassifier({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
   }
   return new AnthropicEventClassifier({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
 }
@@ -93,11 +100,16 @@ const NO_FUNDAMENTALS: FundamentalsSource = {
 };
 
 export function buildContainer(cfg: Config): Container {
-  const http = createHttpClient({ userAgent: cfg.userAgent });
   const db = createDb(cfg.databaseUrl);
   const store = new Repo(db);
+  // Registro de uso: todo pedido saliente pasa por `usageFetch`; Gemini registra por su cuenta (tokens, modelo, clave)
+  // y comparte entre sus cuatro llamadores la cuota aprendida y el freno por minuto por modelo+clave.
+  const usage = new StoreUsageRecorder(store, { log: (m) => console.warn(m) });
+  const usageFetch = recordingFetch(usage);
+  const gemini: GeminiShared = { tracker: new QuotaTracker(), pace: new KeyedRateLimiter(DEFAULT_RPM_PER_KEY), recorder: usage };
+  const http = createHttpClient({ userAgent: cfg.userAgent, fetch: usageFetch });
   const marketData = new AlpacaMarketData(http, cfg.alpaca);
-  const broker = new AlpacaBroker(createTradingHttp(http, cfg.userAgent), cfg.alpaca);
+  const broker = new AlpacaBroker(createTradingHttp(http, cfg.userAgent, usageFetch), cfg.alpaca);
   const risk = new DefaultRiskEngine(DEFAULT_RISK_LIMITS);
   // Universo de eventos: lo de config más lo que la cartera va sumando sola (posiciones, seguimiento, plan). Sin .BA: EDGAR no los cubre.
   const eventUniverse = async (): Promise<string[]> => {
@@ -126,7 +138,7 @@ export function buildContainer(cfg: Config): Container {
     store,
     ingestors,
     filter: new DefaultFilter((t) => marketData.getQuote(t), { ...DEFAULT_FILTER_CONFIG, allowlist: adrAllowlist }),
-    reasoner: buildReasoner(cfg.reasoner),
+    reasoner: buildReasoner(cfg.reasoner, gemini),
     documents: new EdgarDocumentProvider(http),
     marketData,
     minEdge: cfg.minEdge,
@@ -135,13 +147,13 @@ export function buildContainer(cfg: Config): Container {
   };
 
   // Cartera real: velas de Yahoo (respaldo Alpaca), perfil de Finnhub si hay key, spot de Alpaca.
-  const yahooHttp = createHttpClient({ userAgent: "Mozilla/5.0 (compatible; thesis-engine)" });
+  const yahooHttp = createHttpClient({ userAgent: "Mozilla/5.0 (compatible; thesis-engine)", fetch: usageFetch });
   const history = new CompletedSessionsHistory(new FallbackPriceHistory(new YahooPriceHistory(yahooHttp), new AlpacaPriceHistory(http, cfg.alpaca), (m) => console.log(m)));
   const carteraDeps: CarteraDeps = {
     store,
     history,
     profiles: cfg.finnhubToken ? new FinnhubProfiles(http, cfg.finnhubToken) : NO_PROFILES,
-    narrator: buildNarrator(cfg.reasoner),
+    narrator: buildNarrator(cfg.reasoner, gemini),
     spot: async (symbol) => (await marketData.getQuote(symbol))?.price ?? null,
     log: (msg, extra) => console.log(msg, extra ?? ""),
   };
@@ -153,7 +165,7 @@ export function buildContainer(cfg: Config): Container {
     assets: new AlpacaAssets(http, cfg.alpaca),
     fundamentals: finnhub ?? NO_FUNDAMENTALS,
     history,
-    cardWriter: buildCardWriter(cfg.reasoner),
+    cardWriter: buildCardWriter(cfg.reasoner, gemini),
     taxonomy: cfg.radar.taxonomy,
     etfs: cfg.radar.etfs,
     policy: cfg.radar.policy,
@@ -164,14 +176,14 @@ export function buildContainer(cfg: Config): Container {
     // Verificación: estados de la SEC (mismo `http` con SEC_USER_AGENT), noticias de Finnhub y clasificador de titulares.
     statements: new SecStatements(http),
     news: finnhub ? { companyNews: (s, from, to) => finnhub.companyNews(s, from, to) } : null,
-    eventClassifier: buildEventClassifier(cfg.reasoner),
+    eventClassifier: buildEventClassifier(cfg.reasoner, gemini),
   };
 
   // Argentina: Yahoo para `.BA` y el Merval (en pesos), dolarapi + argentinadatos para el macro, Alpaca para el precio US de los CEDEARs.
   const argentinaDeps: ArgentinaDeps = {
     store,
     history,
-    macro: new ArgentinaMacro(),
+    macro: new ArgentinaMacro(usageFetch),
     usPrices: async (symbols) => Object.fromEntries((await new AlpacaAssets(http, cfg.alpaca).snapshots(symbols)).flatMap((x) => (x.price === null ? [] : [[x.symbol, x.price] as const]))),
     config: cfg.radar.argentina,
     policy: cfg.radar.policy,
@@ -184,7 +196,7 @@ export function buildContainer(cfg: Config): Container {
   const tickerDeps: Container["tickerDeps"] = {
     store,
     history,
-    descriptions: new YahooDescriptions(),
+    descriptions: new YahooDescriptions(usageFetch),
     news: { companyNews: (s, from, to) => (finnhub ? finnhub.companyNews(s, from, to) : Promise.resolve([])) },
     // Los `.BA` (pesos) no están en Alpaca: precio de la meta del chart de Yahoo.
     quote: (symbol) => (symbol.toUpperCase().endsWith(".BA") ? yahooChart.quote(symbol) : ((s) => alpacaAssets.quote(s))(symbol)),
@@ -216,5 +228,5 @@ export function buildContainer(cfg: Config): Container {
     },
   };
   const symbolSearch = new YahooSearch(yahooHttp);
-  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, pricesDeps, symbolSearch, marketData, broker, risk, runDeps, snapshot, account };
+  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, pricesDeps, symbolSearch, marketData, broker, risk, runDeps, snapshot, account, usage };
 }

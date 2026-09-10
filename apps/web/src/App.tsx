@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, setViewDate, type CatchUpStatus, type Thesis } from "./api";
+import { api, setViewDate, type CatchUpStatus, type Thesis, type UsageSummary } from "./api";
 import { Cartera } from "./Cartera";
 import { Radar } from "./Radar";
 import { Ticker } from "./Ticker";
@@ -62,7 +62,8 @@ export function App() {
   const [catchup, setCatchup] = useState<CatchUpStatus | null>(null);
   const [sidebar, setSidebar] = useState<boolean>(() => { try { return localStorage.getItem("sidebar") !== "0"; } catch { return true; } });
   const toggleSidebar = () => { setSidebar((v) => { try { localStorage.setItem("sidebar", v ? "0" : "1"); } catch { /* nada */ } return !v; }); };
-  const refreshHealth = useCallback(() => Promise.all([api.health().then(setHealth).catch(() => setHealth(null)), api.catchup.status().then(setCatchup).catch(() => setCatchup(null))]), []);
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
+  const refreshHealth = useCallback(() => Promise.all([api.health().then(setHealth).catch(() => setHealth(null)), api.catchup.status().then(setCatchup).catch(() => setCatchup(null)), api.catchup.usage().then(setUsage).catch(() => setUsage(null))]), []);
   async function catchUpNow() {
     setBusy(true);
     setMsg(null);
@@ -120,7 +121,7 @@ export function App() {
           <option value="">corrida: la última</option>
           {runDates.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
-        <CorridasButton st={catchup} onChanged={() => void refreshHealth()} />
+        <CorridasButton st={catchup} usage={usage} onChanged={() => void refreshHealth()} />
         {catchup && catchup.due.length > 0 && !catchup.running && <button className="primary" onClick={catchUpNow} disabled={busy} title="Corre solo los pasos que quedaron sin correr. Lo ya hecho no se repite.">{busy ? "Poniéndome al día…" : "Ponerme al día"}</button>}
         <button className="ghost" onClick={run} disabled={busy} title="Fuerza el pipeline de tesis por eventos ahora, aunque ya haya corrido hoy.">
           {busy ? "Corriendo…" : "Correr pipeline"}

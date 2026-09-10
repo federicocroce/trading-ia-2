@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import cron from "node-cron";
-import { buildContributionPlan, dailyRun, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, syncOrders } from "@thesis/pipeline";
+import { buildContributionPlan, dailyRun, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, syncOrders, withUsageStep } from "@thesis/pipeline";
 import { loadConfig } from "./config.js";
 import { buildContainer, state } from "./container.js";
 import { buildApp } from "./routes/index.js";
@@ -15,7 +15,7 @@ c.priceHub.start();
 const app = buildApp(c);
 
 // Corrida diaria (lun-vie) + sync de órdenes cada 15 min en horario de mercado.
-cron.schedule(cfg.dailyCron, async () => {
+cron.schedule(cfg.dailyCron, () => withUsageStep({ step: "tesis" }, async () => {
   const today = new Date().toISOString().slice(0, 10);
   const since = new Date(Date.now() - 3 * 86_400_000).toISOString();
   try {
@@ -25,11 +25,11 @@ cron.schedule(cfg.dailyCron, async () => {
   } catch (e) {
     console.error("[cron] daily run failed", e);
   }
-});
-cron.schedule("*/15 9-17 * * 1-5", () => syncOrders(c.store, c.broker).catch((e) => console.error("[cron] sync failed", e)));
+}));
+cron.schedule("*/15 9-17 * * 1-5", () => withUsageStep({ step: "ordenes" }, () => syncOrders(c.store, c.broker).catch((e) => console.error("[cron] sync failed", e))));
 
 // Veredicto diario de la cartera real + medición de los veredictos viejos contra SPY.
-cron.schedule(cfg.carteraCron, async () => {
+cron.schedule(cfg.carteraCron, () => withUsageStep({ step: "cartera" }, async () => {
   const today = new Date().toISOString().slice(0, 10);
   try {
     const s = await runCartera(c.carteraDeps, { today });
@@ -38,11 +38,11 @@ cron.schedule(cfg.carteraCron, async () => {
   } catch (e) {
     console.error("[cron] cartera failed", e);
   }
-});
+}));
 
 // Radar: barrido + ranking semanal, refresco + medición diarios, plan mensual.
 const isoToday = () => new Date().toISOString().slice(0, 10);
-cron.schedule(cfg.radarScanCron, async () => {
+cron.schedule(cfg.radarScanCron, () => withUsageStep({ step: "scan" }, async () => {
   if (state.scan.running) return;
   state.scan = { running: true, stopRequested: false, startedAt: new Date().toISOString(), progress: null, last: null };
   try {
@@ -55,8 +55,8 @@ cron.schedule(cfg.radarScanCron, async () => {
   } finally {
     state.scan.running = false;
   }
-});
-cron.schedule(cfg.radarRefreshCron, async () => {
+}));
+cron.schedule(cfg.radarRefreshCron, () => withUsageStep({ step: "radar" }, async () => {
   const today = isoToday();
   try {
     const r = await refreshRadar(c.radarDeps, { today, portfolioUsd: (await c.store.latestRisk())?.report.totalValue ?? null });
@@ -69,15 +69,15 @@ cron.schedule(cfg.radarRefreshCron, async () => {
   } catch (e) {
     console.error("[cron] radar refresh failed", e);
   }
-});
-cron.schedule(cfg.radarPlanCron, async () => {
+}));
+cron.schedule(cfg.radarPlanCron, () => withUsageStep({ step: "plan" }, async () => {
   try {
     const p = await buildContributionPlan(c.radarDeps, { month: isoToday().slice(0, 7), portfolioUsd: null });
     console.log(`[cron] plan del aporte ${p.month}: ${p.lines.length} líneas`);
   } catch (e) {
     console.error("[cron] radar plan failed", e);
   }
-});
+}));
 
 // Ponerse al día solo: si la máquina estaba apagada o dormida a la hora de un cron, se corre lo que faltó
 // un minuto después de arrancar y se vuelve a chequear cada 30 minutos. Lo ya hecho no se repite (job_runs).

@@ -1,5 +1,8 @@
-import { STEPS, buildContributionPlan, dailyRun, dueSteps, expectedDate, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, stepById, type DueStep, type StepId } from "@thesis/pipeline";
+import { STEPS, buildContributionPlan, dailyRun, dueSteps, expectedDate, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, stepById, withUsageStep, type DueStep, type StepId } from "@thesis/pipeline";
 import { state, type Container } from "./container.js";
+
+/** El registro de uso de fuentes externas se guarda este tiempo; lo viejo se borra en cada chequeo de "ponerme al día". */
+export const USAGE_RETENTION_DAYS = 90;
 
 /**
  * Ponerse al día: corre solo los pasos programados que quedaron sin correr (máquina apagada o dormida),
@@ -152,7 +155,8 @@ async function runSteps(c: Container, ids: StepId[], runners: Runners, now: Date
     const label = stepById(id).label;
     state.catchup.current = id;
     try {
-      const detail = await runners[id](c, today);
+      // Cada pedido saliente del paso queda atribuido a él en el registro de uso.
+      const detail = await withUsageStep({ step: id }, () => runners[id](c, today));
       // El barrido se registra solo cuando termina (corre en segundo plano).
       if (id !== "scan") await c.store.markJobRun(id, today, detail);
       result.ran.push({ id, label, ok: true, detail });
@@ -188,6 +192,8 @@ export async function runCatchUp(c: Container, opts: { now?: Date; runners?: Run
   const runners = opts.runners ?? c.catchupRunners ?? defaultRunners();
   state.catchup.running = true;
   try {
+    // Retención del registro de uso: 90 días. Barato (índice por fecha) y corre con cada chequeo.
+    await c.store.deleteCallsBefore(new Date(now.getTime() - USAGE_RETENTION_DAYS * 86_400_000).toISOString()).catch(() => {});
     const { due } = await catchUpStatus(c, now);
     const result = await runSteps(c, due.map((d) => d.id), runners, now);
     state.catchup.last = result;

@@ -389,6 +389,32 @@ export const macroArDaily = pgTable("macro_ar_daily", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Registro de uso de fuentes externas: una fila por pedido saliente (Gemini, Finnhub, Alpaca, SEC, Yahoo…),
+ * con quién lo hizo (paso, propósito, símbolo) y cómo terminó (estado, resultado, tokens, ms). Retención 90 días.
+ */
+export const externalCalls = pgTable(
+  "external_calls",
+  {
+    id: text("id").primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    source: text("source").notNull(),
+    step: text("step").notNull(),
+    purpose: text("purpose"),
+    symbol: text("symbol"),
+    endpoint: text("endpoint").notNull(),
+    model: text("model"),
+    keyIndex: integer("key_index"),
+    status: integer("status"),
+    result: text("result").notNull(),
+    tokensIn: integer("tokens_in"),
+    tokensOut: integer("tokens_out"),
+    tokensThink: integer("tokens_think"),
+    ms: integer("ms").notNull(),
+  },
+  (t) => [index("external_calls_at_idx").on(t.at), index("external_calls_source_at_idx").on(t.source, t.at)],
+);
+
 /** Última corrida registrada de cada paso programado (para ponerse al día tras un apagado). */
 export const jobRuns = pgTable("job_runs", {
   step: text("step").primaryKey(),

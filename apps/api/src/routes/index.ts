@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { CloseReason } from "@thesis/core";
-import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders, buildNovedades, STEPS, type StepId } from "@thesis/pipeline";
+import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders, buildNovedades, withUsageStep, STEPS, type StepId } from "@thesis/pipeline";
+import { summarizeUsage } from "@thesis/core";
 import { z } from "zod";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
-import { catchUpStatus, runCatchUp, runStep } from "../catchup.js";
+import { catchUpStatus, localDate, runCatchUp, runStep } from "../catchup.js";
 import { carteraRoutes } from "./cartera.js";
 import { radarRoutes } from "./radar.js";
 import { taxonomyRoutes } from "./taxonomy.js";
@@ -15,8 +16,20 @@ import { pricesRoutes } from "./prices.js";
 export function buildApp(c: Container) {
   const app = new Hono();
   app.use("*", cors());
+  // Todo pedido saliente hecho desde una ruta queda atribuido a "api" en el registro de uso (los pasos anidan el suyo).
+  app.use("*", (_ctx, next) => withUsageStep({ step: "api" }, () => next()));
 
   app.get("/health", async (ctx) => ctx.json({ ok: true, paper: true, killSwitch: state.killSwitch, lastRun: state.lastRun }));
+  /** Uso de fuentes externas del día: por fuente contra su límite, Gemini por modelo y clave, y por paso. ?date=YYYY-MM-DD (local). */
+  app.get("/usage", async (ctx) => {
+    const date = ctx.req.query("date") ?? localDate(new Date());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return ctx.json({ error: "fecha inválida" }, 400);
+    const from = new Date(`${date}T00:00:00`);
+    const to = new Date(from.getTime() + 86_400_000);
+    await c.usage?.flush();
+    const calls = await c.store.callsBetween(from.toISOString(), to.toISOString());
+    return ctx.json(summarizeUsage(calls, { date }));
+  });
   /** Ponerse al día: qué pasos quedaron sin correr y correrlos (solo esos). */
   app.get("/catchup", async (ctx) => ctx.json(await catchUpStatus(c)));
   /** Novedades del día: qué cambió contra la corrida anterior (lo que se lee a la mañana). */

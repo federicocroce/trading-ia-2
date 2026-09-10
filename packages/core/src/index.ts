@@ -5,3 +5,4 @@ export * from "./pricing/index.js";
 export * from "./filter/index.js";
 export * from "./cartera/index.js";
 export * from "./radar/index.js";
+export * from "./usage/index.js";

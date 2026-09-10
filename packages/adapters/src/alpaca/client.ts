@@ -19,11 +19,11 @@ export interface TradingHttp extends HttpClient {
   delete(url: string, headers?: Record<string, string>): Promise<void>;
 }
 
-export function createTradingHttp(base: HttpClient, userAgent: string): TradingHttp {
+export function createTradingHttp(base: HttpClient, userAgent: string, fetchFn: typeof fetch = fetch): TradingHttp {
   return {
     ...base,
     async postJson<T>(url: string, body: unknown, headers?: Record<string, string>) {
-      const res = await fetch(url, {
+      const res = await fetchFn(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "User-Agent": userAgent, ...headers },
         body: JSON.stringify(body),
@@ -32,7 +32,7 @@ export function createTradingHttp(base: HttpClient, userAgent: string): TradingH
       return res.json() as Promise<T>;
     },
     async delete(url: string, headers?: Record<string, string>) {
-      const res = await fetch(url, { method: "DELETE", headers: { "User-Agent": userAgent, ...headers } });
+      const res = await fetchFn(url, { method: "DELETE", headers: { "User-Agent": userAgent, ...headers } });
       if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status} for DELETE ${url}`);
     },
   };

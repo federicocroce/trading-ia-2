@@ -26,11 +26,16 @@ export class GeminiReasoner implements Reasoner {
   }
 
   async propose(bundle: BundleWithMarket): Promise<ThesisProposal> {
-    const { args } = await this.caller.call(SYSTEM_PROMPT, buildUserMessage(bundle, this.maxDocChars), {
+    const r = await this.caller.call(SYSTEM_PROMPT, buildUserMessage(bundle, this.maxDocChars), {
       name: PROPOSE_TOOL.name,
       description: PROPOSE_TOOL.description ?? "",
       inputSchema: PROPOSE_TOOL.input_schema as Record<string, unknown>,
-    });
-    return parseProposal(args, bundle);
+    }, { purpose: "tesis", symbol: bundle.event.ticker });
+    try {
+      return parseProposal(r.args, bundle);
+    } catch (e) {
+      this.caller.markValidation(r.callId);
+      throw e;
+    }
   }
 }

@@ -54,9 +54,21 @@ const CardSchema = z
   .refine((c) => !c.degrade || !!c.degradeReason, { message: "degrade exige degradeReason" });
 
 /** Valida la salida del modelo; los temas fuera de la lista se descartan (el modelo no inventa categorías). */
+/** Recorta un texto largo del modelo al último fin de oración que entra en `max`; si no hay, corta seco. */
+export function trimToLimit(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const head = text.slice(0, max);
+  const cut = Math.max(head.lastIndexOf(". "), head.lastIndexOf(".\n"), head.endsWith(".") ? head.length - 1 : -1);
+  return cut >= max * 0.3 ? head.slice(0, cut + 1) : `${head.slice(0, max - 1).trimEnd()}…`;
+}
+
+const CARD_LIMITS: Record<string, number> = { summary: 400, whyRanks: 400, mainRisk: 300 };
+
 export function parseCard(args: unknown, themeOptions: string[]): Card {
   // El modelo suele mandar degradeReason: "" cuando no degrada; se trata como ausente.
-  const raw = args && typeof args === "object" && "degradeReason" in args && !String((args as { degradeReason: unknown }).degradeReason ?? "").trim() ? { ...(args as object), degradeReason: undefined } : args;
+  const base = args && typeof args === "object" && "degradeReason" in args && !String((args as { degradeReason: unknown }).degradeReason ?? "").trim() ? { ...(args as object), degradeReason: undefined } : args;
+  // Y se pasa del largo en los textos: recortar en vez de tirar la llamada (una de cada tres fichas se perdía así).
+  const raw = base && typeof base === "object" ? Object.fromEntries(Object.entries(base as Record<string, unknown>).map(([k, v]) => [k, typeof v === "string" && CARD_LIMITS[k] ? trimToLimit(v, CARD_LIMITS[k]!) : v])) : base;
   const c = CardSchema.parse(raw);
   const themes = [...new Set(c.themes)].filter((t) => themeOptions.includes(t));
   return { summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat, themes, degrade: c.degrade, ...(c.degradeReason ? { degradeReason: c.degradeReason } : {}) };
@@ -105,8 +117,13 @@ export class GeminiCardWriter implements CardWriter {
     this.caller = new GeminiToolCaller({ maxOutputTokens: 3000, ...opts });
   }
   async write(input: CardInput): Promise<Card> {
-    const { args } = await this.caller.call(CARD_SYSTEM, buildCardMessage(input), CARD_TOOL);
-    return parseCard(args, input.themeOptions);
+    const r = await this.caller.call(CARD_SYSTEM, buildCardMessage(input), CARD_TOOL, { purpose: "ficha", symbol: input.symbol });
+    try {
+      return parseCard(r.args, input.themeOptions);
+    } catch (e) {
+      this.caller.markValidation(r.callId);
+      throw e;
+    }
   }
 }
 

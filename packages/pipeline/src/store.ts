@@ -1,4 +1,4 @@
-import type { AnalystAction, Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -24,6 +24,13 @@ export interface Store {
   insertOutcome(o: Outcome): Promise<void>;
   allOutcomesWithTheses(): Promise<Array<{ thesis: Thesis; outcome: Outcome }>>;
   thesesForTicker(ticker: string, limit?: number): Promise<Thesis[]>;
+  /** Registro de uso de fuentes externas (una fila por pedido saliente). Lo escribe el registrador por lotes. */
+  insertCalls(rows: UsageCall[]): Promise<void>;
+  setCallResult(id: string, result: UsageResult): Promise<void>;
+  /** `from <= at < to`, ISO, en orden. */
+  callsBetween(fromIso: string, toIso: string): Promise<UsageCall[]>;
+  /** Retención: borra lo anterior a `iso`; devuelve cuántas filas se fueron. */
+  deleteCallsBefore(iso: string): Promise<number>;
 }
 
 /** Lo que la cartera real necesita de la persistencia (spec etapa 1 §3.1). Repo lo implementa junto con Store. */
@@ -447,6 +454,23 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   async setWatchEntry(symbol: string, entryPrice: number) {
     const cur = this.watch.get(symbol.toUpperCase());
     if (cur) this.watch.set(cur.symbol, { ...cur, entryPrice });
+  }
+  calls: UsageCall[] = [];
+  async insertCalls(rows: UsageCall[]) {
+    const seen = new Set(this.calls.map((c) => c.id));
+    for (const r of rows) if (!seen.has(r.id)) this.calls.push({ ...r });
+  }
+  async setCallResult(id: string, result: UsageResult) {
+    const c = this.calls.find((x) => x.id === id);
+    if (c) c.result = result;
+  }
+  async callsBetween(fromIso: string, toIso: string) {
+    return this.calls.filter((c) => c.at >= fromIso && c.at < toIso).sort((a, b) => a.at.localeCompare(b.at));
+  }
+  async deleteCallsBefore(iso: string) {
+    const before = this.calls.length;
+    this.calls = this.calls.filter((c) => c.at >= iso);
+    return before - this.calls.length;
   }
   async markJobRun(step: string, lastDate: string, detail: string | null = null) {
     this.jobs.set(step, { lastDate, ranAt: new Date().toISOString(), detail, lastError: null, lastErrorAt: null });

@@ -83,8 +83,13 @@ export class GeminiEventClassifier implements EventClassifier {
     this.caller = new GeminiToolCaller(opts);
   }
   async classify(input: EventClassifierInput): Promise<ClassifiedEvent[]> {
-    const { args } = await this.caller.call(EVENTS_SYSTEM, buildEventsMessage(input), EVENTS_TOOL);
-    return parseMaterialEvents(args, input);
+    const r = await this.caller.call(EVENTS_SYSTEM, buildEventsMessage(input), EVENTS_TOOL, { purpose: "eventos", symbol: input.symbol });
+    try {
+      return parseMaterialEvents(r.args, input);
+    } catch (e) {
+      this.caller.markValidation(r.callId);
+      throw e;
+    }
   }
 }
 

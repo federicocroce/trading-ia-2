@@ -137,3 +137,26 @@ describe("/catchup", () => {
     expect(again.ran.map((r: { id: string }) => r.id)).toEqual(["scan"]);
   });
 });
+
+describe("/usage: registro de uso de fuentes externas", () => {
+  it("resume el día pedido por fuente, Gemini por modelo y clave, y por paso; fecha inválida da 400", async () => {
+    const c = container();
+    const app = buildApp(c);
+    const row = (o: Record<string, unknown>) => ({ id: String(Math.random()), at: "2099-03-04T15:00:00.000Z", source: "finnhub", step: "radar", purpose: null, symbol: null, endpoint: "finnhub.io/api/v1/quote", model: null, keyIndex: null, status: 200, result: "ok", tokensIn: null, tokensOut: null, tokensThink: null, ms: 8, ...o });
+    await c.store.insertCalls([
+      row({}),
+      row({ result: "rpm", status: 429 }),
+      row({ source: "gemini", endpoint: "gemini-2.5-flash", model: "gemini-2.5-flash", keyIndex: 2, purpose: "ficha", symbol: "NVDA", tokensIn: 5000, tokensOut: 100, tokensThink: 400 }),
+      row({ at: "2099-03-05T15:00:00.000Z" }), // otro día: no entra
+    ] as never);
+    const s = await (await app.request("/usage?date=2099-03-04")).json();
+    expect(s.date).toBe("2099-03-04");
+    expect(s.total.calls).toBe(3);
+    expect(s.bySource.map((r: { source: string; calls: number }) => [r.source, r.calls])).toEqual([["finnhub", 2], ["gemini", 1]]);
+    expect(s.gemini.rows[0]).toMatchObject({ model: "gemini-2.5-flash", keyIndex: 2, calls: 1, ok: 1, tokensIn: 5000 });
+    expect(s.gemini.costUsd).toBeGreaterThan(0);
+    expect(s.byStep[0]).toMatchObject({ step: "radar", source: "finnhub", calls: 2, errors: 1 });
+    expect((await app.request("/usage?date=ayer")).status).toBe(400);
+    expect((await app.request("/usage")).status).toBe(200);
+  });
+});

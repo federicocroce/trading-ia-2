@@ -1,5 +1,5 @@
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import type { AnalystAction, Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import type { AnalystAction, Candle, CandidateRow, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -533,6 +533,28 @@ export class Repo {
   }
   async removeWatch(symbol: string): Promise<void> {
     await this.db.delete(s.watchlist).where(eq(s.watchlist.symbol, symbol.toUpperCase()));
+  }
+
+  // ---------- registro de uso de fuentes externas ----------
+  async insertCalls(rows: UsageCall[]): Promise<void> {
+    if (!rows.length) return;
+    await this.db
+      .insert(s.externalCalls)
+      .values(rows.map((r) => ({ id: r.id, at: new Date(r.at), source: r.source, step: r.step, purpose: r.purpose, symbol: r.symbol, endpoint: r.endpoint, model: r.model, keyIndex: r.keyIndex, status: r.status, result: r.result, tokensIn: r.tokensIn, tokensOut: r.tokensOut, tokensThink: r.tokensThink, ms: r.ms })))
+      .onConflictDoNothing();
+  }
+  async setCallResult(id: string, result: UsageResult): Promise<void> {
+    await this.db.update(s.externalCalls).set({ result }).where(eq(s.externalCalls.id, id));
+  }
+  /** Llamadas con `from <= at < to` (ISO), en orden. */
+  async callsBetween(fromIso: string, toIso: string): Promise<UsageCall[]> {
+    const rows = await this.db.select().from(s.externalCalls).where(and(gte(s.externalCalls.at, new Date(fromIso)), lt(s.externalCalls.at, new Date(toIso)))).orderBy(s.externalCalls.at);
+    return rows.map((r) => ({ id: r.id, at: r.at.toISOString(), source: r.source as UsageCall["source"], step: r.step, purpose: r.purpose, symbol: r.symbol, endpoint: r.endpoint, model: r.model, keyIndex: r.keyIndex, status: r.status, result: r.result as UsageResult, tokensIn: r.tokensIn, tokensOut: r.tokensOut, tokensThink: r.tokensThink, ms: r.ms }));
+  }
+  /** Retención: borra lo anterior a `iso`. Devuelve cuántas filas se fueron. */
+  async deleteCallsBefore(iso: string): Promise<number> {
+    const gone = await this.db.delete(s.externalCalls).where(lt(s.externalCalls.at, new Date(iso))).returning({ id: s.externalCalls.id });
+    return gone.length;
   }
 
   // ---------- pasos programados ----------

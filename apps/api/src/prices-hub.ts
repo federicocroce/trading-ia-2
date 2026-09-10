@@ -1,3 +1,4 @@
+import { withUsageStep } from "@thesis/pipeline";
 import type { Container } from "./container.js";
 import { toPriceRow, type PriceRow } from "./routes/prices.js";
 
@@ -49,7 +50,7 @@ export class PriceHub {
       const askBa = ba.length > 0 && now.getTime() - this.lastBa >= BA_EVERY_MS;
       const symbols = askBa ? [...us, ...ba] : us;
       if (askBa) this.lastBa = now.getTime();
-      const quotes = await this.c.pricesDeps.quotes(symbols);
+      const quotes = await withUsageStep({ step: "precios" }, () => this.c.pricesDeps.quotes(symbols));
       const changed: PriceRow[] = [];
       for (const q of quotes) {
         const row = toPriceRow(q, now.getTime());

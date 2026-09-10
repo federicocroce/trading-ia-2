@@ -64,8 +64,13 @@ export class GeminiNarrator implements PositionNarrator {
     this.caller = new GeminiToolCaller({ maxOutputTokens: 2000, ...opts });
   }
   async narrate(input: NarratorInput): Promise<Note> {
-    const { args } = await this.caller.call(NARRATOR_SYSTEM, buildNarratorMessage(input), NOTE_TOOL);
-    return parseNote(args);
+    const r = await this.caller.call(NARRATOR_SYSTEM, buildNarratorMessage(input), NOTE_TOOL, { purpose: "narrador", symbol: input.position.symbol });
+    try {
+      return parseNote(r.args);
+    } catch (e) {
+      this.caller.markValidation(r.callId);
+      throw e;
+    }
   }
 }
 

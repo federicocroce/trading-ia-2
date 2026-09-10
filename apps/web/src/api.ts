@@ -69,6 +69,10 @@ export interface Novedades { date: string | null; previousDate: string | null; v
 export interface CatchUpResult { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }
 export interface StepStatus { id: string; label: string; schedule: string; lastDate: string | null; ranAt: string | null; detail: string | null; lastError: string | null; lastErrorAt: string | null; expected: string; due: boolean; running: boolean }
 export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; steps: StepStatus[]; lastRunAt: string | null; running: boolean; current: string | null; lastResult: CatchUpResult | null }
+export interface UsageSourceRow { source: string; calls: number; ok: number; errors: number; peakPerMinute: number; limitPerMinute: number | null; limitPerDay: number | null; pctMinute: number | null; pctDay: number | null }
+export interface UsageGeminiRow { model: string; keyIndex: number; calls: number; ok: number; rpm: number; rpd: number; saturado: number; validacion: number; error: number; tokensIn: number; tokensOut: number; tokensThink: number; costUsd: number; limitPerDay: number | null; pctDay: number | null }
+export interface UsageStepRow { step: string; source: string; calls: number; errors: number; ms: number }
+export interface UsageSummary { date: string; total: { calls: number; errors: number; costUsd: number }; bySource: UsageSourceRow[]; gemini: { rows: UsageGeminiRow[]; tokensIn: number; tokensOut: number; tokensThink: number; costUsd: number; failedPct: number | null }; byStep: UsageStepRow[]; warnings: string[] }
 export interface TopPick { symbol: string; conviction: number; gainPct: number; lossPct: number; reasons: string[]; cautions: string[]; allAligned: boolean; close: number; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; score: number | null; rankInGroup: number | null; groupSize: number | null; summary: string | null; mainRisk: string | null; tags: Tags | null }
 export interface RadarTop { date: string | null; overweight: Record<string, number>; picks: TopPick[] }
 export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar" | "seguimiento"; amountUsd: number; rationale: string; close: number | null; alpha30dPct: number | null; alpha90dPct: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; ret12mPct?: number | null; priority?: number | null }
@@ -183,6 +187,8 @@ export const api = {
   runs: { dates: () => j<string[]>("/runs/dates") },
   catchup: {
     status: () => j<CatchUpStatus>("/catchup"),
+    /** Uso de fuentes externas del día (registro por llamada). */
+    usage: (date?: string) => j<UsageSummary>(date ? `/usage?date=${date}` : "/usage"),
     run: () => j<CatchUpResult>("/catchup", { method: "POST" }),
     runStep: (id: string) => j<CatchUpResult>(`/catchup/run/${id}`, { method: "POST" }),
   },

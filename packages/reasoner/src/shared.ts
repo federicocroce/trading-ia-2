@@ -69,8 +69,21 @@ export function buildUserMessage(bundle: BundleWithMarket, maxDocChars = 60_000)
 }
 
 /** Valida la salida del LLM y fuerza pMarket desde opciones cuando existe (auditable). */
+/**
+ * El modelo a veces manda la fecha con hora ("2026-09-25T00:00:00Z") o en palabras ("sin fecha"):
+ * se queda con YYYY-MM-DD si la trae, y si no, con la fecha del evento. Evita descartar la llamada entera.
+ */
+export function normalizeEventDate(v: unknown, fallback: string | null): string | null {
+  if (typeof v === "string") {
+    const m = /^(\d{4}-\d{2}-\d{2})/.exec(v.trim());
+    if (m && !Number.isNaN(Date.parse(m[1]!))) return m[1]!;
+  }
+  return fallback;
+}
+
 export function parseProposal(input: unknown, bundle: BundleWithMarket): ThesisProposal {
-  const p = ThesisProposal.parse(input);
+  const raw = input && typeof input === "object" ? { ...(input as Record<string, unknown>), eventDate: normalizeEventDate((input as Record<string, unknown>)["eventDate"], bundle.event.eventDate) } : input;
+  const p = ThesisProposal.parse(raw);
   if (p.ticker.toUpperCase() !== bundle.event.ticker.toUpperCase() && bundle.event.eventType !== "macro_ar") {
     throw new Error(`reasoner: ticker ${p.ticker} no coincide con el evento ${bundle.event.ticker}`);
   }

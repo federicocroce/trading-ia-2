@@ -12,12 +12,15 @@ export interface HttpOptions {
   /** ms entre requests al mismo host (EDGAR: máx 10 req/s). */
   minIntervalMs?: number;
   timeoutMs?: number;
+  /** fetch a usar (el container pasa uno que registra el uso). Default: el global. */
+  fetch?: typeof fetch;
 }
 
 export function createHttpClient(opts: HttpOptions): HttpClient {
   const lastByHost = new Map<string, number>();
   const minInterval = opts.minIntervalMs ?? 150;
   const timeout = opts.timeoutMs ?? 20_000;
+  const fetchFn = opts.fetch ?? fetch;
 
   async function throttle(url: string) {
     const host = new URL(url).host;
@@ -29,7 +32,7 @@ export function createHttpClient(opts: HttpOptions): HttpClient {
 
   async function doFetch(url: string, headers?: Record<string, string>): Promise<Response> {
     await throttle(url);
-    const res = await fetch(url, {
+    const res = await fetchFn(url, {
       headers: { "User-Agent": opts.userAgent, Accept: "application/json, text/plain, */*", ...headers },
       signal: AbortSignal.timeout(timeout),
     });
