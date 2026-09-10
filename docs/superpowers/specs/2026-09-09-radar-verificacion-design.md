@@ -69,6 +69,8 @@ La fórmula ignora el resultado no operativo a propósito: ahí caen las gananci
 - `buildQuarters` deduplica ítems extraordinarios con el mismo valor exacto dentro del trimestre (el mismo hecho etiquetado bajo dos tags, caso ZVRA Q1 2026: `GainLossOnDispositionOfAssets1` y `GainLossOnDispositionOfIntangibleAssets`).
 - `QuarterStatement.nonoperatingIncome` (tags `NonoperatingIncomeExpense`, `OtherNonoperatingIncomeExpense`): una ganancia extraordinaria se resta del operativo solo si es positiva y no está explicada por el resultado no operativo del trimestre (≥ 80% de la ganancia → vive fuera del operativo, caso del voucher de ZVRA Q2 2025).
 - Los cargos e impairments NO se suman de vuelta (quedan informativos en `extraordinaryItems`): en XBRL muchos viven en notas y no en el estado de resultados (ZVRA Q1 2026 "impairment" 43,3M ausente del P&L), así que sumarlos inflaría el núcleo; dirección conservadora.
+- La bandera y el recálculo solo aplican cuando hay ganancias extraordinarias operativas identificadas (`extraordinaryTTM ≠ 0`); sin ellas quedan los ratios de Finnhub, para no sesgar a favor de empresas apalancadas (el núcleo ignora intereses).
+- Con operativo núcleo ≤ 0 no hay escudo fiscal: neto núcleo = operativo núcleo.
 
 **Salida** `CoreEarnings`: `revenueTTM`, `operatingIncomeTTM`, `coreOperatingIncomeTTM`, `netIncomeTTM`, `coreNetIncomeTTM`, `coreEpsTTM`, `operatingCashFlowTTM`, `freeCashFlowTTM`, `equity`, `taxRate`, `extraordinaryItems[]` (`{tag, quarterEnd, value}`), `deviationPct`, `quarters[]` (los 8, para la ficha).
 
@@ -96,8 +98,8 @@ La fórmula ignora el resultado no operativo a propósito: ahí caen las gananci
 | `gestion` | CEO resigns/steps down/departure, auditor resigns |
 | `analista` | price target, maintains, reiterates, upgrades, downgrades, initiates (va a §6, no al modelo) |
 
-**Clasificación** (modelo, tool estricta `material_events`, `packages/reasoner/src/events.ts`): entrada = símbolo, nombre, hasta 30 titulares que pasaron el prefiltro (fecha, fuente, titular, resumen). Salida = `events[]` con `date`, `kind` (los tipos de arriba más `otro`), `severity ∈ grave | moderado | ruido`, `headline` (debe ser idéntico a uno recibido; si no, se descarta), `why` (≤ 200 caracteres). Reglas del prompt: **grave** = la propia empresa recibió un rechazo regulatorio, CRL o clinical hold sobre un producto principal; duda de continuidad; reexpresión, fraude o investigación de la SEC a la empresa; aviso de delisting. **Moderado** = recorte de guidance, oferta dilutiva, demanda colectiva presentada o investigaciones de estudios tras una caída, salida del CEO. **Ruido** = resúmenes de mercado, notas promocionales, menciones de terceros. Solo con lo recibido; nunca inferir. Sin titulares que pasen el prefiltro no hay llamada. Fallo del modelo (cuota, parseo): los titulares quedan pendientes y el candidato lleva la bandera `eventos_sin_clasificar` (salvedad, −0,3 de convicción) hasta el próximo intento diario.
-- Tope de 30 titulares por llamada: el excedente deja `eventos_sin_clasificar` y no avanza el barrido; el refresco siguiente clasifica el resto (los conocidos se excluyen por URL).
+**Clasificación** (modelo, tool estricta `material_events`, `packages/reasoner/src/events.ts`): entrada = símbolo, nombre, hasta 15 titulares que pasaron el prefiltro (fecha, fuente, titular, resumen). Salida = `events[]` con `date`, `kind` (los tipos de arriba más `otro`), `severity ∈ grave | moderado | ruido`, `headline` (debe ser idéntico a uno recibido; si no, se descarta), `why` (≤ 200 caracteres). Reglas del prompt: **grave** = la propia empresa recibió un rechazo regulatorio, CRL o clinical hold sobre un producto principal; duda de continuidad; reexpresión, fraude o investigación de la SEC a la empresa; aviso de delisting. **Moderado** = recorte de guidance, oferta dilutiva, demanda colectiva presentada o investigaciones de estudios tras una caída, salida del CEO. **Ruido** = resúmenes de mercado, notas promocionales, menciones de terceros. Solo con lo recibido; nunca inferir. Sin titulares que pasen el prefiltro no hay llamada. Fallo del modelo (cuota, parseo): los titulares quedan pendientes y el candidato lleva la bandera `eventos_sin_clasificar` (salvedad, −0,3 de convicción) hasta el próximo intento diario.
+- Tope de 15 titulares por llamada: el excedente deja `eventos_sin_clasificar` y no avanza el barrido; el refresco siguiente clasifica el resto (los conocidos se excluyen por URL).
 
 **Persistencia.** Tabla `radar_events`: `symbol`, `date`, `kind`, `severity`, `headline`, `url`, `source`, `why`, `detected_at`, `prompt_version`; único (`symbol`, `url`). Los `ruido` también se guardan (para no reclasificar).
 
@@ -107,7 +109,7 @@ La fórmula ignora el resultado no operativo a propósito: ahí caen las gananci
 - algún `moderado` (y ningún grave) → bandera `evento_moderado`; sigue COMPRAR.
 - `refreshRadar` reevalúa con los eventos nuevos: un COMPRAR puede pasar a OBSERVAR por evento en el refresco diario (igual que hoy por `bajo_stop`), y Novedades lo registra como cambio de veredicto.
 
-**Convicción**: `evento_moderado` −0,3 y `eventos_sin_clasificar` −0,3, con salvedad que cita tipo, fecha y titular ("evento moderado 27/7: BTIG mantiene Compra, baja objetivo a 24"). Para eso `CandidateRow` lleva `events` (jsonb: `date`, `kind`, `severity`, `headline`), acotado a los de 90 días.
+**Convicción**: `evento_moderado` −0,3 y `eventos_sin_clasificar` −0,3, con salvedad que cita tipo, fecha y titular ("evento moderado 27/7: Levi & Korsinsky notifica una investigación a inversores"). Para eso `CandidateRow` lleva `events` (jsonb: `date`, `kind`, `severity`, `headline`), acotado a los de 90 días.
 
 **Ficha del modelo**: `CardInput.events` (los mismos 90 días, grave y moderado) en una sección "# Eventos materiales (90 días)"; el prompt exige que `mainRisk` mencione el grave si lo hay.
 
@@ -165,7 +167,7 @@ Fixtures reales guardados en el repo: `companyfacts` de ZVRA recortado a los tag
 
 ## 12. Criterio de aceptación (ZVRA, con datos al 2026-09-09)
 
-- Estados: P/E núcleo 23–25x, margen operativo TTM 28–30%, `resultado_extraordinario` con "+45%" y el ítem `GainLossOnDispositionOfAssets1` 43,3M del Q1 2026.
+- Estados: P/E núcleo 23–25x, margen operativo TTM 28–30%, `resultado_extraordinario` con ≈ +43% y el ítem `GainLossOnDispositionOfAssets1` 43,3M del Q1 2026.
 - Eventos: `evento_grave` fechado 2026-07-24 citando el titular del rechazo de la EMA; veredicto OBSERVAR hasta el 2026-10-22; la ficha lo muestra y `mainRisk` lo menciona.
 - Analistas: tres acciones del 2026-07-27 (BTIG 24, Guggenheim 24, Canaccord Genuity 20), mediana 24.
 - Velas: un refresco antes de las 16:10 de Nueva York usa el cierre del 2026-09-08 (12,675), igual que el plan.
