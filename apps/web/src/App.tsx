@@ -4,11 +4,12 @@ import { Cartera } from "./Cartera";
 import { Radar } from "./Radar";
 import { Ticker } from "./Ticker";
 import { Novedades } from "./Novedades";
+import { Uso } from "./Uso";
 import { Sidebar } from "./Sidebar";
 import { Tape } from "./Tape";
 import { CorridasButton } from "./Corridas";
 
-const TABS = ["hoy", "cartera", "radar", "proposed", "open", "history", "calibration"] as const;
+const TABS = ["hoy", "cartera", "radar", "proposed", "open", "history", "calibration", "uso"] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (x: string | null): x is Tab => x !== null && (TABS as readonly string[]).includes(x);
 
@@ -111,7 +112,7 @@ export function App() {
         <nav>
           {TABS.map((t) => (
             <button key={t} className={tab === t && !symbol ? "active" : ""} onClick={() => navigate({ tab: t, symbol: null })}>
-              {{ hoy: "Hoy", cartera: "Cartera", radar: "Radar", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración" }[t]}
+              {{ hoy: "Hoy", cartera: "Cartera", radar: "Radar", proposed: "Propuestas", open: "Abiertas", history: "Historial", calibration: "Calibración", uso: "Uso" }[t]}
             </button>
           ))}
         </nav>
@@ -145,6 +146,7 @@ export function App() {
         {!symbol && tab === "open" && <ThesisList status="open,approved" actions="close" />}
         {!symbol && tab === "history" && <ThesisList status="closed,rejected" actions="none" />}
         {!symbol && tab === "calibration" && <Calibration />}
+        {!symbol && tab === "uso" && <Uso />}
       </main>
       </div>
     </>

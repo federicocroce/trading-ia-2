@@ -159,4 +159,22 @@ describe("/usage: registro de uso de fuentes externas", () => {
     expect((await app.request("/usage?date=ayer")).status).toBe(400);
     expect((await app.request("/usage")).status).toBe(200);
   });
+  it("serie diaria con ceros y lista de llamadas filtrable, las más recientes primero", async () => {
+    const c = container();
+    const app = buildApp(c);
+    const row = (o: Record<string, unknown>) => ({ id: String(Math.random()), at: "2099-03-04T15:00:00.000Z", source: "finnhub", step: "radar", purpose: null, symbol: null, endpoint: "e", model: null, keyIndex: null, status: 200, result: "ok", tokensIn: null, tokensOut: null, tokensThink: null, ms: 8, ...o });
+    await c.store.insertCalls([row({ at: "2099-03-02T15:00:00.000Z" }), row({ at: "2099-03-04T15:00:00.000Z", symbol: "NVDA" }), row({ at: "2099-03-04T16:00:00.000Z", source: "gemini", model: "gemini-2.5-flash", endpoint: "gemini-2.5-flash", result: "rpm", status: 429, step: "scan" })] as never);
+    const daily = await (await app.request("/usage/daily?days=3&date=2099-03-04")).json();
+    expect(daily.map((d: { date: string; calls: number }) => [d.date, d.calls])).toEqual([["2099-03-02", 1], ["2099-03-03", 0], ["2099-03-04", 2]]);
+    expect(daily[2].bySource).toEqual({ finnhub: 1, gemini: 1 });
+    expect(daily[2].errors).toBe(1);
+    const all = await (await app.request("/usage/calls?date=2099-03-04")).json();
+    expect(all.total).toBe(2);
+    expect(all.calls.map((x: { source: string }) => x.source)).toEqual(["gemini", "finnhub"]);
+    const f = await (await app.request("/usage/calls?date=2099-03-04&source=finnhub&symbol=nvda")).json();
+    expect(f.calls).toHaveLength(1);
+    expect((await (await app.request("/usage/calls?date=2099-03-04&result=rpm&step=scan")).json()).calls).toHaveLength(1);
+    expect((await (await app.request("/usage/calls?date=2099-03-04&step=cartera")).json()).calls).toHaveLength(0);
+    expect((await app.request("/usage/daily?date=x")).status).toBe(400);
+  });
 });

@@ -73,6 +73,9 @@ export interface UsageSourceRow { source: string; calls: number; ok: number; err
 export interface UsageGeminiRow { model: string; keyIndex: number; calls: number; ok: number; rpm: number; rpd: number; saturado: number; validacion: number; error: number; tokensIn: number; tokensOut: number; tokensThink: number; costUsd: number; limitPerDay: number | null; pctDay: number | null }
 export interface UsageStepRow { step: string; source: string; calls: number; errors: number; ms: number }
 export interface UsageSummary { date: string; total: { calls: number; errors: number; costUsd: number }; bySource: UsageSourceRow[]; gemini: { rows: UsageGeminiRow[]; tokensIn: number; tokensOut: number; tokensThink: number; costUsd: number; failedPct: number | null }; byStep: UsageStepRow[]; warnings: string[] }
+export interface UsageDay { date: string; calls: number; errors: number; costUsd: number; bySource: Record<string, number>; geminiCalls: number; geminiFailed: number }
+export interface UsageCallRow { id: string; at: string; source: string; step: string; purpose: string | null; symbol: string | null; endpoint: string; model: string | null; keyIndex: number | null; status: number | null; result: string; tokensIn: number | null; tokensOut: number | null; tokensThink: number | null; ms: number }
+export interface UsageCalls { date: string; total: number; calls: UsageCallRow[] }
 export interface TopPick { symbol: string; conviction: number; gainPct: number; lossPct: number; reasons: string[]; cautions: string[]; allAligned: boolean; close: number; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; score: number | null; rankInGroup: number | null; groupSize: number | null; summary: string | null; mainRisk: string | null; tags: Tags | null }
 export interface RadarTop { date: string | null; overweight: Record<string, number>; picks: TopPick[] }
 export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar" | "seguimiento"; amountUsd: number; rationale: string; close: number | null; alpha30dPct: number | null; alpha90dPct: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; ret12mPct?: number | null; priority?: number | null }
@@ -191,6 +194,15 @@ export const api = {
     usage: (date?: string) => j<UsageSummary>(date ? `/usage?date=${date}` : "/usage"),
     run: () => j<CatchUpResult>("/catchup", { method: "POST" }),
     runStep: (id: string) => j<CatchUpResult>(`/catchup/run/${id}`, { method: "POST" }),
+  },
+  /** Pestaña Uso: resumen del día, serie diaria y lista de llamadas con filtros. */
+  usage: {
+    summary: (date?: string) => j<UsageSummary>(date ? `/usage?date=${date}` : "/usage"),
+    daily: (days: number, date?: string) => j<UsageDay[]>(`/usage/daily?days=${days}${date ? `&date=${date}` : ""}`),
+    calls: (p: { date?: string; source?: string; step?: string; result?: string; symbol?: string; limit?: number }) => {
+      const qs = Object.entries(p).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&");
+      return j<UsageCalls>(`/usage/calls${qs ? `?${qs}` : ""}`);
+    },
   },
   ticker: {
     get: (symbol: string, o: { live?: boolean } = {}) => j<TickerPage>(`/ticker/${symbol}${o.live === false ? "?live=0" : ""}`),

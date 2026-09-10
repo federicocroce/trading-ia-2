@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, type CatchUpStatus, type UsageSummary } from "./api";
+import { goToTab } from "./SymbolLink";
 
 const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
 const n = (v: number) => v.toLocaleString("es-AR");
@@ -79,7 +80,7 @@ function UsagePanel({ u }: { u: UsageSummary | null }) {
   if (!u) return <p className="muted" style={{ marginTop: 14 }}>Uso de fuentes externas: sin datos (la API no respondió).</p>;
   return (
     <>
-      <h3 style={{ marginTop: 18 }}>Uso de fuentes externas · {u.date}</h3>
+      <h3 style={{ marginTop: 18 }}>Uso de fuentes externas · {u.date} <button className="ghost" style={{ marginLeft: 8, fontSize: 12, padding: "3px 8px" }} onClick={() => goToTab("uso")}>Ver pestaña Uso</button></h3>
       <p className="muted">Cada pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo queda registrado con su paso, resultado y tiempo. Gemini: la cuota es por modelo y por clave (cada clave es un proyecto), 10 por minuto y 250 por día como piso, y se reinicia a la medianoche de California (04:00 en Buenos Aires). El costo es lo que valdría en el plan pago.</p>
       {u.warnings.length > 0 && <div className="card bad" style={{ marginTop: 6 }}>{u.warnings.map((w) => <div key={w}>⚠ {w}</div>)}</div>}
       {u.total.calls === 0 ? (

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { CloseReason } from "@thesis/core";
 import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders, buildNovedades, withUsageStep, STEPS, type StepId } from "@thesis/pipeline";
-import { summarizeUsage } from "@thesis/core";
+import { dailyUsage, summarizeUsage } from "@thesis/core";
 import { z } from "zod";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
@@ -29,6 +29,38 @@ export function buildApp(c: Container) {
     await c.usage?.flush();
     const calls = await c.store.callsBetween(from.toISOString(), to.toISOString());
     return ctx.json(summarizeUsage(calls, { date }));
+  });
+  /** Serie diaria del uso (últimos N días, día local): para el gráfico de la pestaña Uso. */
+  app.get("/usage/daily", async (ctx) => {
+    const days = Math.min(90, Math.max(1, Math.floor(Number(ctx.req.query("days") ?? 14) || 14)));
+    const end = ctx.req.query("date") ?? localDate(new Date());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return ctx.json({ error: "fecha inválida" }, 400);
+    const to = new Date(`${end}T00:00:00`);
+    to.setDate(to.getDate() + 1);
+    const dates: string[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(`${end}T00:00:00`);
+      d.setDate(d.getDate() - i);
+      dates.push(localDate(d));
+    }
+    const from = new Date(`${dates[0]}T00:00:00`);
+    await c.usage?.flush();
+    const calls = await c.store.callsBetween(from.toISOString(), to.toISOString());
+    return ctx.json(dailyUsage(calls, dates, (iso) => localDate(new Date(iso))));
+  });
+  /** Llamadas de un día con filtros (fuente, paso, resultado, símbolo), las más recientes primero. */
+  app.get("/usage/calls", async (ctx) => {
+    const date = ctx.req.query("date") ?? localDate(new Date());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return ctx.json({ error: "fecha inválida" }, 400);
+    const from = new Date(`${date}T00:00:00`);
+    const to = new Date(from.getTime() + 86_400_000);
+    const limit = Math.min(1000, Math.max(1, Math.floor(Number(ctx.req.query("limit") ?? 200) || 200)));
+    const q = { source: ctx.req.query("source"), step: ctx.req.query("step"), result: ctx.req.query("result"), symbol: ctx.req.query("symbol")?.toUpperCase() };
+    await c.usage?.flush();
+    const calls = (await c.store.callsBetween(from.toISOString(), to.toISOString()))
+      .filter((x) => (!q.source || x.source === q.source) && (!q.step || x.step === q.step) && (!q.result || x.result === q.result) && (!q.symbol || x.symbol === q.symbol))
+      .reverse();
+    return ctx.json({ date, total: calls.length, calls: calls.slice(0, limit) });
   });
   /** Ponerse al día: qué pasos quedaron sin correr y correrlos (solo esos). */
   app.get("/catchup", async (ctx) => ctx.json(await catchUpStatus(c)));

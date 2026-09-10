@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KeyedRateLimiter, RateLimiter, estimateCostUsd, recordingFetch, resultForStatus, sourceForHost, summarizeUsage, type UsageCall, type UsageCallInput, type UsageRecorder, type UsageResult } from "./index.js";
+import { KeyedRateLimiter, RateLimiter, dailyUsage, estimateCostUsd, recordingFetch, resultForStatus, sourceForHost, summarizeUsage, type UsageCall, type UsageCallInput, type UsageRecorder, type UsageResult } from "./index.js";
 
 function memRecorder() {
   const rows: Array<UsageCallInput & { id: string }> = [];
@@ -150,5 +150,18 @@ describe("summarizeUsage", () => {
     expect(s.total.calls).toBe(0);
     expect(s.gemini.failedPct).toBeNull();
     expect(s.warnings).toEqual([]);
+  });
+  it("dailyUsage: un punto por día pedido (ceros incluidos), por fuente, con el día local que le pasan", () => {
+    const calls = [
+      call({ at: "2026-09-09T23:30:00.000Z" }), // en Buenos Aires es el 9 a las 20:30
+      call({ at: "2026-09-10T01:00:00.000Z", source: "gemini", model: "gemini-2.5-flash", tokensIn: 1_000_000, tokensOut: 0, tokensThink: 0 }), // 9 a las 22:00
+      call({ at: "2026-09-10T15:00:00.000Z", source: "gemini", model: "gemini-2.5-flash", result: "rpm", status: 429 }),
+    ];
+    const ba = (iso: string) => new Date(new Date(iso).getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
+    const s = dailyUsage(calls, ["2026-09-08", "2026-09-09", "2026-09-10"], ba);
+    expect(s.map((d) => [d.date, d.calls, d.errors])).toEqual([["2026-09-08", 0, 0], ["2026-09-09", 2, 0], ["2026-09-10", 1, 1]]);
+    expect(s[1]!.bySource).toEqual({ finnhub: 1, gemini: 1 });
+    expect(s[1]!.costUsd).toBeCloseTo(0.3, 3);
+    expect(s[2]!).toMatchObject({ geminiCalls: 1, geminiFailed: 1, bySource: { gemini: 1 } });
   });
 });
