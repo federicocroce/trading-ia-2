@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
-import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
+import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, SecStatements, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
+import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
-import { AnthropicCardWriter, AnthropicNarrator, AnthropicReasoner, GeminiCardWriter, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
+import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
 import type { Config, ReasonerConfig } from "./config.js";
 
 /** Estado mutable mínimo del proceso. */
@@ -73,6 +73,14 @@ export function buildCardWriter(r: ReasonerConfig): CardWriter {
   return new AnthropicCardWriter({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
 }
 
+/** Clasificador de titulares del Radar: misma regla de proveedor. Solo clasifica; el veredicto lo deciden las reglas. */
+export function buildEventClassifier(r: ReasonerConfig): EventClassifier {
+  if (r.kind === "gemini") {
+    return new GeminiEventClassifier({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m) });
+  }
+  return new AnthropicEventClassifier({ ...(r.anthropicApiKey ? { apiKey: r.anthropicApiKey } : {}), ...(r.anthropicModel ? { model: r.anthropicModel } : {}) });
+}
+
 /** Sin FINNHUB_API_KEY el Radar no puede barrer: cada llamada falla con un mensaje claro. */
 const NO_FUNDAMENTALS: FundamentalsSource = {
   profile: async () => { throw new Error("FINNHUB_API_KEY requerida para el Radar"); },
@@ -139,10 +147,11 @@ export function buildContainer(cfg: Config): Container {
   };
 
   // Radar: universo de Alpaca, fundamentals de Finnhub (55/min), ficha del modelo, config editable.
+  const finnhub = cfg.finnhubToken ? new FinnhubFundamentals(http, cfg.finnhubToken, new RateLimiter(55)) : null;
   const radarDeps: RadarDeps = {
     store,
     assets: new AlpacaAssets(http, cfg.alpaca),
-    fundamentals: cfg.finnhubToken ? new FinnhubFundamentals(http, cfg.finnhubToken, new RateLimiter(55)) : NO_FUNDAMENTALS,
+    fundamentals: finnhub ?? NO_FUNDAMENTALS,
     history,
     cardWriter: buildCardWriter(cfg.reasoner),
     taxonomy: cfg.radar.taxonomy,
@@ -152,6 +161,10 @@ export function buildContainer(cfg: Config): Container {
     log: (msg, extra) => console.log(msg, extra ?? ""),
     onProgress: (p) => { state.scan.progress = p; },
     shouldStop: () => state.scan.stopRequested,
+    // Verificación: estados de la SEC (mismo `http` con SEC_USER_AGENT), noticias de Finnhub y clasificador de titulares.
+    statements: new SecStatements(http),
+    news: finnhub ? { companyNews: (s, from, to) => finnhub.companyNews(s, from, to) } : null,
+    eventClassifier: buildEventClassifier(cfg.reasoner),
   };
 
   // Argentina: Yahoo para `.BA` y el Merval (en pesos), dolarapi + argentinadatos para el macro, Alpaca para el precio US de los CEDEARs.
@@ -166,7 +179,6 @@ export function buildContainer(cfg: Config): Container {
   };
 
   // Página por ticker: descripción de Yahoo (crumb), noticias de Finnhub, precio vivo de Alpaca, gráfico de Yahoo.
-  const finnhub = cfg.finnhubToken ? new FinnhubFundamentals(http, cfg.finnhubToken, new RateLimiter(55)) : null;
   const alpacaAssets = new AlpacaAssets(http, cfg.alpaca);
   const yahooChart = new YahooChart(yahooHttp);
   const tickerDeps: Container["tickerDeps"] = {

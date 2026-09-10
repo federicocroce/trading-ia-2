@@ -5,6 +5,8 @@ import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { WatchlistButton } from "./WatchlistButton";
 import { usePrices } from "./prices";
+import { flagLabel } from "./flags";
+import { VerificationSections } from "./Verification";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)}%`);
@@ -144,7 +146,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
       {t.candidate && t.candidate.kind === "ar" && (
         <div className="card">
           <b>Radar Argentina</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">contra el Merval, en pesos · {t.candidate.candidateDate}</span>
-          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}>{t.candidate.flags.map((f) => <span key={f} className="flag">⚑ {f}</span>)}</div>}
+          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}>{t.candidate.flags.map((f) => <span key={f} className="flag">⚑ {flagLabel(f)}</span>)}</div>}
           <div className="muted mono" style={{ marginTop: 6 }}>FR 3m {pct(t.candidate.axes["rs3m"])} · FR 6m {pct(t.candidate.axes["rs6m"])} · FR 12m {pct(t.candidate.axes["rs12m"])} · vs SMA200 {pct(t.candidate.axes["distSma200Pct"])} · precio al CCL US$ {f2(t.candidate.axes["closeUsd"])}</div>
           {t.candidate.peerGroup[0] && <div style={{ marginTop: 6 }}>Fundamentals y ranking contra pares: en el ADR <SymbolLink symbol={t.candidate.peerGroup[0]} />.</div>}
         </div>
@@ -158,12 +160,13 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
       {t.candidate && (t.candidate.kind === "stock" || t.candidate.kind === "etf") && (
         <div className="card">
           <b>Radar</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">score {f2(t.candidate.score)} · rank {t.candidate.rankInGroup}/{t.candidate.groupSize} entre pares · riesgo {t.candidate.riskScore}/10 · {t.candidate.candidateDate}</span>
-          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}>{t.candidate.flags.map((f) => <span key={f} className="flag">⚑ {f}</span>)}</div>}
+          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}>{t.candidate.flags.map((f) => <span key={f} className="flag">⚑ {flagLabel(f)}</span>)}</div>}
           {t.candidate.summary && <div style={{ marginTop: 6 }}><b>Qué hace:</b> {t.candidate.summary}</div>}
           {t.candidate.whyRanks && <div><b>Por qué rankea:</b> {t.candidate.whyRanks}</div>}
           {t.candidate.mainRisk && <div><b>Riesgo principal:</b> {t.candidate.mainRisk}</div>}
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
           <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)})</div>
+          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} close={t.quote?.price ?? t.candidate.close} metricsRaw={t.fundamentals?.metricsRaw} />
           {t.peers.length > 0 && (
             <table style={{ marginTop: 8 }}>
               <thead><tr><th>par</th><th>P/E</th><th>EV/EBITDA</th><th>P/S</th><th>ROE</th><th>margen op.</th><th>crec. ingresos</th><th>deuda/patr.</th></tr></thead>

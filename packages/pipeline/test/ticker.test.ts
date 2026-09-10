@@ -173,3 +173,20 @@ describe("liveQuotes", () => {
     expect(q["GGAL.BA"]).toEqual({ price: 10, prevClose: null, change: null, changePct: null, asOf: null, currency: "ARS" });
   });
 });
+
+describe("buildTicker: verificación", () => {
+  it("devuelve estados, eventos (sin ruido) y acciones de analistas guardados", async () => {
+    const store = new MemoryStore();
+    const d: TickerDeps = { store, history: { candles: async () => [] }, descriptions: { description: async () => null }, news: { companyNews: async () => [] }, quote: async () => null };
+    await store.saveStatements({ symbol: "ZVRA", cik: "1434647", asOf: "2026-09-09", quarters: [], core: null });
+    await store.upsertEvents([
+      { symbol: "ZVRA", date: "2026-07-24", kind: "regulatorio", severity: "grave", headline: "EMA", url: "https://n/1", source: null, why: "x", detectedAt: "2026-09-09T00:00:00Z", promptVersion: null },
+      { symbol: "ZVRA", date: "2026-07-24", kind: "otro", severity: "ruido", headline: "resumen", url: "https://n/2", source: null, why: null, detectedAt: "2026-09-09T00:00:00Z", promptVersion: null },
+    ]);
+    await store.upsertAnalystActions([{ symbol: "ZVRA", date: "2026-07-27", firm: "BTIG", action: "mantiene", rating: "Buy", target: 24, url: "https://n/3" }]);
+    const page = await buildTicker(d, "zvra", { today: "2026-09-09", timeoutMs: 1000 });
+    expect(page.statements?.cik).toBe("1434647");
+    expect(page.events.map((e) => e.headline)).toEqual(["EMA"]);
+    expect(page.analystActions[0]?.target).toBe(24);
+  });
+});

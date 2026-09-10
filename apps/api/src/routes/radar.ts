@@ -83,14 +83,15 @@ export function radarRoutes(c: Container) {
     const symbol = ctx.req.param("symbol").toUpperCase();
     const cand = (await store.latestCandidates()).find((r) => r.symbol === symbol);
     if (!cand) return ctx.json({ error: "no es candidato vigente" }, 404);
-    const [fundamentals, tags, profile] = await Promise.all([store.fundamentals(symbol), store.tags(symbol), store.profile(symbol)]);
+    const since = new Date(Date.parse(today(ctx)) - 90 * 86_400_000).toISOString().slice(0, 10);
+    const [fundamentals, tags, profile, statements, events, analystActions] = await Promise.all([store.fundamentals(symbol), store.tags(symbol), store.profile(symbol), store.statements(symbol), store.eventsFor(symbol, since), store.analystActions(symbol, since)]);
     const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
     const peers: Array<{ symbol: string; metrics: Record<string, number | null> }> = [];
     for (const p of cand.peerGroup) {
       const f = await store.fundamentals(p);
       if (f) peers.push({ symbol: p, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])) });
     }
-    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers });
+    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions });
   });
   app.get("/radar/etfs", async (ctx) => ctx.json(await withTags((await store.latestCandidates()).filter((r) => r.kind === "etf"))));
 

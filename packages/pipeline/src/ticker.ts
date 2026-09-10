@@ -1,4 +1,4 @@
-import type { Candle, CandidateRow, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from "@thesis/core";
 import { AXES, AXIS_METRICS } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
@@ -27,6 +27,10 @@ export interface TickerPage {
   fundamentals: Fundamentals | null;
   candidate: CandidateRow | null;
   peers: Array<{ symbol: string; metrics: Record<string, number | null> }>;
+  /** Verificación (spec verificación): estados de la SEC, eventos materiales de 90 días sin ruido, acciones de analistas de 90 días. */
+  statements: Statements | null;
+  events: RadarEvent[];
+  analystActions: AnalystAction[];
   theses: Thesis[];
   transactions: Transaction[];
   transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; invested: number };
@@ -204,6 +208,13 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     ? { ...pos, valueUsd: round2(pos.quantity * price), pnlUsd: round2((price - pos.avgCost) * pos.quantity), pnlPct: round2(((price - pos.avgCost) / pos.avgCost) * 100), weightPct: risk?.report.weights.find((w) => w.symbol === symbol)?.weightPct ?? null }
     : null;
   const candidate = candidates.find((c) => c.symbol === symbol) ?? null;
+  const since90 = addDays(opts.today, -90);
+  const [statements, allEvents, analystActions] = await Promise.all([
+    store.statements(symbol).catch(() => null),
+    store.eventsFor(symbol, since90).catch(() => []),
+    store.analystActions(symbol, since90).catch(() => []),
+  ]);
+  const events = allEvents.filter((e) => e.severity !== "ruido");
   const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
   const peers: TickerPage["peers"] = [];
   for (const p of candidate?.peerGroup ?? []) {
@@ -231,6 +242,9 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     fundamentals,
     candidate,
     peers,
+    statements,
+    events,
+    analystActions,
     theses,
     transactions: mine,
     transactionSummary: { buys, sells, dividends, invested: round2(buys.total - sells.total) },

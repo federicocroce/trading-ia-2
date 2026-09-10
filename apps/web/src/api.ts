@@ -43,12 +43,20 @@ export interface CurveResponse { curve: CurveReport | null; error: string | null
 export interface CarteraRun { date: string; verdicts: Verdict[]; risk: RiskReport; errors: Array<{ symbol: string; error: string }>; measured: { measured7: number; measured30: number } }
 
 export interface Tags { assetClass: string; sector: string; industry: string | null; themes: string[]; themesSource: "regla" | "modelo" | "manual" }
+export interface QuarterStatement { start: string; end: string; fp: string; revenue: number | null; operatingIncome: number | null; netIncome: number | null; pretaxIncome: number | null; taxExpense: number | null; operatingCashFlow: number | null; capex: number | null; dilutedShares: number | null; equity: number | null; extraordinary: Array<{ tag: string; value: number }> }
+export interface CoreEarnings { asOf: string; revenueTTM: number | null; operatingIncomeTTM: number | null; coreOperatingIncomeTTM: number | null; netIncomeTTM: number | null; coreNetIncomeTTM: number | null; coreEpsTTM: number | null; operatingCashFlowTTM: number | null; freeCashFlowTTM: number | null; equity: number | null; taxRate: number; extraordinaryTTM: number; extraordinaryItems: Array<{ tag: string; quarterEnd: string; value: number }>; deviationPct: number | null }
+export interface Statements { symbol: string; cik: string; asOf: string; quarters: QuarterStatement[]; core: CoreEarnings | null }
+export interface RadarEvent { symbol: string; date: string; kind: string; severity: "grave" | "moderado" | "ruido"; headline: string; url: string; source: string | null; why: string | null }
+export interface AnalystAction { symbol: string; date: string; firm: string; action: "mantiene" | "sube" | "baja" | "inicia"; rating: string | null; target: number | null; url: string }
+export interface CandidateEvent { date: string; kind: string; severity: "grave" | "moderado" | "ruido"; headline: string }
+export interface AnalystTargets { n: number; median: number | null; min: number | null; max: number | null; latestDate: string | null }
 export interface Candidate {
   candidateDate: string; symbol: string; kind: "stock" | "etf" | "ar" | "cedear" | "watch"; verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO"; score: number | null; axes: Record<string, number | null>; peerGroup: string[]; rankInGroup: number | null; groupSize: number | null;
   close: number; entryLow: number | null; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; flags: string[]; nthAppearance: number;
   summary: string | null; whyRanks: string | null; mainRisk: string | null; moat: string | null; degradedBy: string | null; spyClose: number | null; alpha7dPct: number | null; alpha30dPct: number | null; alpha90dPct: number | null; tags: Tags | null;
+  events?: CandidateEvent[]; analystTargets?: AnalystTargets | null;
 }
-export interface CandidateDetail { candidate: Candidate; fundamentals: { metrics: Record<string, number | null>; peers: string[]; mcapUsd: number; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null; tags: Tags | null; profile: { name: string | null; country: string | null; industry: string | null } | null; peers: Array<{ symbol: string; metrics: Record<string, number | null> }> }
+export interface CandidateDetail { candidate: Candidate; fundamentals: { metrics: Record<string, number | null>; metricsRaw?: Record<string, number | null> | null; statementsAsOf?: string | null; peers: string[]; mcapUsd: number; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null; tags: Tags | null; profile: { name: string | null; country: string | null; industry: string | null } | null; peers: Array<{ symbol: string; metrics: Record<string, number | null> }>; statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[] }
 export interface MacroAr { date: string; oficial: number | null; mep: number | null; ccl: number | null; blue: number | null; mayorista: number | null; brechaPct: number | null; riesgoPais: number | null; merval: number | null; mervalUsd: number | null }
 export type WatchStatus = "live" | "triggered" | "invalidated" | "expired";
 export interface WatchItem { symbol: string; note: string | null; addedAt: string; entryPrice: number | null; entryAction: string | null; targetPrice: number | null; stopLoss: number | null; thesis: string | null; horizonDays: number; status: WatchStatus; lastPrice: number | null; lastReturn: number | null; lastEvaluatedAt: string | null; resolvedAt: string | null; resolutionPrice: number | null; resolutionReturn: number | null }
@@ -83,9 +91,12 @@ export interface TickerPage {
   position: (Position & { valueUsd: number; pnlUsd: number; pnlPct: number; weightPct: number | null }) | null;
   verdict: Verdict | null;
   tags: Tags | null;
-  fundamentals: { asOf: string; metrics: Record<string, number | null>; peers: string[]; mcapUsd: number | null; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null;
+  fundamentals: { asOf: string; metrics: Record<string, number | null>; metricsRaw?: Record<string, number | null> | null; statementsAsOf?: string | null; peers: string[]; mcapUsd: number | null; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null;
   candidate: Candidate | null;
   peers: Array<{ symbol: string; metrics: Record<string, number | null> }>;
+  statements: Statements | null;
+  events: RadarEvent[];
+  analystActions: AnalystAction[];
   theses: Thesis[];
   transactions: Transaction[];
   transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; invested: number };
