@@ -130,7 +130,7 @@ export class GeminiToolCaller {
    * Llamada con la búsqueda de Google integrada (sin function call): el modelo busca, lee y responde en texto.
    * Misma rotación y registro; `models` permite otro orden (la cuota de búsqueda gratis es más amplia en 2.5 Flash).
    */
-  async callGrounded(system: string, user: string, meta: CallMeta = { purpose: "otro" }, opts: { models?: string[]; maxOutputTokens?: number } = {}): Promise<GroundedResult> {
+  async callGrounded(system: string, user: string, meta: CallMeta = { purpose: "otro" }, opts: { models?: string[]; maxOutputTokens?: number; thinkingBudget?: number } = {}): Promise<GroundedResult> {
     const { result, model, keyIndex } = await withRotation({
       models: opts.models ?? this.models,
       keys: this.keys,
@@ -138,26 +138,29 @@ export class GeminiToolCaller {
       log: this.log,
       ...(this.now ? { now: this.now } : {}),
       ...(this.sleep ? { sleep: this.sleep } : {}),
-      attempt: (m, key, k) => this.generateGrounded(m, key, k, system, user, meta, opts.maxOutputTokens ?? this.maxOutputTokens),
+      attempt: (m, key, k) => this.generateGrounded(m, key, k, system, user, meta, opts.maxOutputTokens ?? this.maxOutputTokens, opts.thinkingBudget),
     });
     this.log(`[gemini] ${model} key#${keyIndex + 1} ok con búsqueda (${result.usage}; ${result.queries.length} búsquedas, ${result.sources.length} fuentes)`);
     return { text: result.text, sources: result.sources, queries: result.queries, model, callId: result.callId };
   }
 
-  private async generateGrounded(model: string, key: string, keyIndex: number, system: string, user: string, meta: CallMeta, maxOutputTokens: number): Promise<{ text: string; sources: GroundedResult["sources"]; queries: string[]; usage: string; callId: string }> {
+  private async generateGrounded(model: string, key: string, keyIndex: number, system: string, user: string, meta: CallMeta, maxOutputTokens: number, thinkingBudget?: number): Promise<{ text: string; sources: GroundedResult["sources"]; queries: string[]; usage: string; callId: string }> {
     const body = {
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
       tools: [{ google_search: {} }],
-      generationConfig: { maxOutputTokens, temperature: 0.1 },
+      // El pensamiento cuenta dentro de maxOutputTokens: sin tope, 2.5 Flash gastaba el presupuesto pensando y el informe salía cortado.
+      generationConfig: { maxOutputTokens, temperature: 0.1, ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}) },
     };
     const { data, res, row, tokens, t0, now } = await this.post(model, key, keyIndex, body, meta);
     const parts = data.candidates?.[0]?.content?.parts ?? [];
     const text = parts.filter((p) => typeof p.text === "string" && !p.thought).map((p) => p.text as string).join("").trim();
+    const finish = data.candidates?.[0]?.finishReason ?? "?";
     if (!text) {
       this.recorder.record({ ...row, ...tokens, status: res.status, result: "validacion", ms: now() - t0 });
-      throw new Error(`gemini: respuesta con búsqueda sin texto (finish=${data.candidates?.[0]?.finishReason ?? "?"})`);
+      throw new Error(`gemini: respuesta con búsqueda sin texto (finish=${finish})`);
     }
+    if (finish === "MAX_TOKENS") this.log(`[gemini] ${model} key#${keyIndex + 1}: respuesta con búsqueda cortada por maxOutputTokens (${text.length} caracteres)`);
     const gm = data.candidates?.[0]?.groundingMetadata ?? {};
     const sources = (gm.groundingChunks ?? []).flatMap((c) => (c.web?.uri ? [{ title: c.web.title ?? c.web.uri, url: c.web.uri }] : []));
     const callId = this.recorder.record({ ...row, ...tokens, status: res.status, result: "ok", ms: now() - t0 });

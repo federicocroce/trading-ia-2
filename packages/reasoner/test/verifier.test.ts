@@ -67,6 +67,8 @@ describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estru
     const r = await v.verify({ symbol: "NVDA", name: "NVIDIA", today: "2026-09-10" });
     expect(ff.calls[0]!.model).toBe("gemini-2.5-flash");
     expect(ff.calls[0]!.body.tools).toEqual([{ google_search: {} }]);
+    expect((ff.calls[0]!.body as unknown as { generationConfig: unknown }).generationConfig).toEqual({ maxOutputTokens: 12_000, temperature: 0.1, thinkingConfig: { thinkingBudget: 2048 } });
+    expect(ff.calls[0]!.body.systemInstruction.parts[0]!.text).toContain("DICTAMEN:");
     expect(ff.calls[0]!.body.contents[0]!.parts[0]!.text).toContain("NVDA — NVIDIA");
     expect(ff.calls[1]!.model).toBe("gemini-3.8-flash");
     expect(ff.calls[1]!.body.contents[0]!.parts[0]!.text).toContain("Informe NVDA");

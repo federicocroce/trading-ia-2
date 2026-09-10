@@ -10,16 +10,23 @@ import { GeminiToolCaller, type GeminiCallerOptions, type ToolSpec } from "./gem
  */
 export const VERDICTS = ["apto", "con_reservas", "evitar"] as const;
 
-export const RESEARCH_SYSTEM = `Sos analista de renta variable con acceso a búsqueda web. Recibís UNA empresa listada en EE.UU. y la fecha de hoy. Investigá y respondé en español, con fechas concretas y sin inventar: si algo no se puede verificar, decilo. Cuestionario:
-1. Último trimestre reportado: fecha del reporte; ingresos y ganancia por acción contra el consenso; ítems no recurrentes (ganancias por venta, liberación de reservas, marcas a valor razonable, beneficios fiscales, reversiones de contratos, cargos únicos); guía dada o retirada.
-2. Acciones de analistas en los últimos 90 días: fecha, firma, acción (inicia, sube, baja, mantiene) y precio objetivo. Objetivo de consenso y precio actual.
-3. Eventos materiales en los últimos 90 días: regulatorios, litigios (incluidas demandas de accionistas y su estado), ofertas de acciones o convertibles, cambios de CEO o CFO, informes de vendedores en corto, incidentes de ciberseguridad, adquisiciones grandes.
-4. Valuación: P/E o EV/EBITDA adelantado y cómo se compara con la historia propia y con pares, en una línea. Subida de los últimos 12 meses.
-5. Próxima fecha de resultados.
-6. Dictamen para tenerla 6 a 12 meses: APTO, CON RESERVAS o EVITAR, con UNA oración de motivo. Criterio: EVITAR si la ganancia reportada depende de algo no recurrente, si los ingresos caen, si hay un evento binario en las próximas semanas o si el precio ya está en el objetivo del consenso tras una subida grande; CON RESERVAS si hay una salvedad seria pero no invalidante; APTO si resultados limpios, guía sostenida y precio con margen contra el consenso.
-Terminá con la lista de fuentes usadas (nombre y URL).`;
+export const RESEARCH_SYSTEM = `Sos analista de renta variable con acceso a búsqueda web. Recibís UNA empresa listada en EE.UU. y la fecha de hoy. Investigá y escribí un informe en español de como máximo 600 palabras, con fechas concretas y sin inventar: si algo no se puede verificar, decilo.
 
-export const STRUCTURE_SYSTEM = `Recibís el informe de verificación de una empresa escrito por un analista. Volcalo a la tool candidate_verification sin agregar nada que no esté en el informe: fechas en YYYY-MM-DD cuando estén; números como números; lo que el informe no dice queda null o vacío. El dictamen y el motivo se copian del informe (motivo: una oración, máximo 300 caracteres, en español).`;
+PRIMERA LÍNEA, obligatoria, antes de todo lo demás: "DICTAMEN: APTO" o "DICTAMEN: CON RESERVAS" o "DICTAMEN: EVITAR", seguido de " — " y UNA oración con el motivo. Después el cuestionario:
+1. Último trimestre reportado: fecha; ingresos y ganancia por acción contra el consenso; ítems no recurrentes (ganancias por venta o fusión, liberación de reservas, marcas a valor razonable, beneficios fiscales, reversiones de contratos, cargos únicos); guía dada, subida o retirada.
+2. Analistas en los últimos 90 días: fecha, firma, acción (inicia, sube, baja, mantiene) y objetivo. Objetivo de consenso y precio actual.
+3. Eventos materiales en los últimos 90 días: regulatorios, litigios (incluidas demandas de accionistas y su estado), ofertas de acciones o convertibles, cambios de CEO o CFO, informes de vendedores en corto, incidentes de ciberseguridad, adquisiciones grandes.
+4. Valuación: P/E o EV/EBITDA adelantado contra la historia propia y los pares, en una línea. Subida de los últimos 12 meses.
+5. Próxima fecha de resultados.
+6. Fuentes usadas (nombre y URL).
+
+Criterio del dictamen, para tenerla 6 a 12 meses:
+- EVITAR: la ganancia reportada se explica por un ítem único (ganancia contable de fusión, venta de activos, beneficio fiscal) y sin él el negocio pierde o apenas gana; ingresos cayendo y guía sin sostén; evento binario en menos de 6 semanas (decisión regulatoria, panel, juicio); precio en o por encima del objetivo del consenso tras una subida mayor al 50% en 12 meses; catalizadores ya consumidos con núcleo débil.
+- CON RESERVAS: una salvedad seria que no invalida: ganancia de pico de ciclo (fletes, reservas de seguros en temporada benigna), guía que no sube con precios presionados, insiders vendiendo fuerte, cobertura de un solo analista, adquisición apalancada pendiente, demanda de accionistas con moción pendiente.
+- APTO: superó y sostuvo o subió la guía, negocio limpio, y precio con margen contra el consenso o valuación por debajo de su historia. Una valuación premium NO es reserva si el crecimiento la sostiene (ejemplo: 28x adelantado con ventas +50% y pedidos +90% es APTO). Una pérdida esperada en una biotech en desarrollo tampoco es reserva por sí sola.
+Si te faltan datos para un punto, decilo en ese punto; el dictamen igual va en la primera línea.`;
+
+export const STRUCTURE_SYSTEM = `Recibís el informe de verificación de una empresa escrito por un analista. Volcalo a la tool candidate_verification sin agregar nada que no esté en el informe: fechas en YYYY-MM-DD cuando estén (si un ítem no tiene fecha, date null); números como números; lo que el informe no dice queda null o vacío. El dictamen y el motivo se copian de la primera línea del informe ("DICTAMEN: …"): apto, con_reservas o evitar; motivo: una oración, máximo 300 caracteres, en español. Si el informe está cortado, igual usá el dictamen de la primera línea.`;
 
 export const VERIFY_TOOL: ToolSpec = {
   name: "candidate_verification",
@@ -110,7 +117,8 @@ export class GeminiCandidateVerifier implements CandidateVerifier {
     this.researchModels = researchModels ?? ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-3.8-flash"];
   }
   async verify(input: VerifierInput): Promise<VerifierResult> {
-    const research = await this.caller.callGrounded(RESEARCH_SYSTEM, buildResearchMessage(input), { purpose: "verificacion", symbol: input.symbol }, { models: this.researchModels, maxOutputTokens: 4000 });
+    // Presupuesto amplio y pensamiento acotado: el informe de 600 palabras nunca tiene que salir cortado (10/9: 2.5 Flash gastaba 3.800 tokens pensando y dejaba 450 caracteres de informe).
+    const research = await this.caller.callGrounded(RESEARCH_SYSTEM, buildResearchMessage(input), { purpose: "verificacion", symbol: input.symbol }, { models: this.researchModels, maxOutputTokens: 12_000, thinkingBudget: 2048 });
     const r = await this.caller.call(STRUCTURE_SYSTEM, `# Informe (${input.symbol}, ${input.today})\n${research.text}`, VERIFY_TOOL, { purpose: "verificacion_estructura", symbol: input.symbol });
     try {
       const parsed = parseVerification(r.args);
