@@ -97,7 +97,7 @@ describe("decideCandidate: dos o más salvedades de calidad o litigio → OBSERV
     if (!("excluded" in d)) {
       expect(d.verdict).toBe("OBSERVAR");
       expect(d.reasons).toEqual(["salvedades_de_calidad"]);
-      expect(d.flags).toEqual(expect.arrayContaining(["interes_minoritario", "ganancia_sin_ventas", "evento_moderado"]));
+      expect(d.flags).toEqual(expect.arrayContaining(["interes_minoritario", "ganancia_sin_ventas", "evento_moderado", "salvedades_de_calidad"]));
     }
     const sinEvento = decideCandidate({ f, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, core }, policy);
     if (!("excluded" in sinEvento)) expect(sinEvento.verdict).toBe("OBSERVAR");

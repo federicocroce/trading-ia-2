@@ -151,7 +151,11 @@ export function decideCandidate(
   const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : [])];
   // Dos o más salvedades de calidad o litigio: cada una sola es una advertencia, juntas son un motivo para observar
   // (enmienda 2026-09-10: NUTX tenía demanda, ingresos cayendo con ganancia subiendo y socios minoritarios, y seguía COMPRAR).
-  if (flags.filter((x) => QUALITY_FLAGS.has(x)).length >= QUALITY_OBSERVE_AT) reasons.push("salvedades_de_calidad");
+  if (flags.filter((x) => QUALITY_FLAGS.has(x)).length >= QUALITY_OBSERVE_AT) {
+    reasons.push("salvedades_de_calidad");
+    // También como bandera: la fila guardada solo lleva banderas, y la ficha tiene que decir por qué observa.
+    flags.push("salvedades_de_calidad");
+  }
   const close = gate.close;
   const entryHigh = round2(close * 1.02);
   const stop = computeTrailingStop(i.candles);
