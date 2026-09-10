@@ -35,13 +35,16 @@ const f: Fundamentals = { symbol: "X", asOf: today, metrics: { beta: 1, "totalDe
 const policy = { technical: { maxReturn21dPct: 15, earningsWithinDays: 10 }, sizing: { riskPerTradePct: 1, maxPositionPct: 10, fallbackPortfolioUsd: 150_000 }, candidates: { top: 40, preselect: 150, chronicWeeks: 4 } };
 
 describe("salvedades de precio (pieza 3)", () => {
-  it("consenso en el precio: mediana de titulares (2+) a menos de 10% → bandera; el consenso de la verificación sirve si no hay titulares", () => {
+  it("consenso en el precio: mediana de titulares (2+) a menos de 10% tras subir más de 25% → bandera; barata con objetivo cercano no; la verificación sirve si no hay titulares", () => {
     expect(consensusUpsidePct(100, { n: 3, median: 108, min: 100, max: 120, latestDate: today }, null)).toBe(8);
     expect(consensusUpsidePct(100, { n: 1, median: 108, min: 108, max: 108, latestDate: today }, 130)).toBe(30); // un solo titular no alcanza: usa la verificación
     expect(consensusUpsidePct(100, null, null)).toBeNull();
-    const d = decideCandidate({ f, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 105, min: 100, max: 110, latestDate: today } }, policy);
+    const ran = series(Array.from({ length: 260 }, (_, i) => 70 * Math.pow(100 / 70, i / 259))); // +43% en 12 meses, suave
+    const d = decideCandidate({ f, candles: ran, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 105, min: 100, max: 110, latestDate: today } }, policy);
     if (!("excluded" in d)) expect(d.flags).toContain("consenso_en_precio");
-    const ok = decideCandidate({ f, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 125, min: 120, max: 130, latestDate: today } }, policy);
+    const cheap = decideCandidate({ f, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 105, min: 100, max: 110, latestDate: today } }, policy); // +25% justo: no subió "mucho"
+    if (!("excluded" in cheap)) expect(cheap.flags).not.toContain("consenso_en_precio");
+    const ok = decideCandidate({ f, candles: ran, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 125, min: 120, max: 130, latestDate: today } }, policy);
     if (!("excluded" in ok)) expect(ok.flags).not.toContain("consenso_en_precio");
   });
   it("subió más de 100% en 12 meses → bandera (GLW +133%); +25% no", () => {

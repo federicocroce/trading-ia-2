@@ -12,8 +12,12 @@ const EVENT_WINDOW_DAYS = 90;
 /** Salvedades de calidad de la ganancia, de litigio, de la verificación web y de precio que, juntas, pasan un COMPRAR a OBSERVAR. */
 export const QUALITY_FLAGS = new Set(["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas", "evento_moderado", "verificacion_reservas", "consenso_en_precio", "subio_mucho_12m"]);
 export const QUALITY_OBSERVE_AT = 2;
-/** Salvedades de precio (pieza 3): el objetivo de consenso a menos de esto sobre el precio, o una subida de 12 meses mayor a esto. */
-export const PRICE_THRESHOLDS = { consensusMinUpsidePct: 10, runup12mPct: 100 };
+/**
+ * Salvedades de precio (pieza 3). `consenso_en_precio` exige las dos cosas: objetivo de consenso a menos de 10% del precio
+ * Y una subida de 12 meses mayor a 25% (el mercado ya pagó la historia: GLW +133% con consenso a +4%). Una acción barata
+ * con objetivo cercano (LNC a 5x, +8%) no es "en el precio". `subio_mucho_12m`: subida mayor a 100% en 12 meses.
+ */
+export const PRICE_THRESHOLDS = { consensusMinUpsidePct: 10, consensusRunupPct: 25, runup12mPct: 100 };
 
 /** `consenso_en_precio`: mediana de objetivos de titulares (2 o más) o, si no hay, el consenso que trajo la verificación web. */
 export function consensusUpsidePct(close: number, analystTargets: AnalystTargets | null | undefined, consensusTarget: number | null | undefined): number | null {
@@ -171,10 +175,10 @@ export function decideCandidate(
     ...(i.verification !== undefined ? { verification: i.verification } : {}),
     today: i.today,
   });
-  // Salvedades de precio (pieza 3): objetivo de consenso pegado al precio, o subida de 12 meses que ya descuenta mucho.
+  // Salvedades de precio (pieza 3): objetivo de consenso pegado al precio tras una subida, o subida de 12 meses que ya descuenta mucho.
   const upside = consensusUpsidePct(gate.close, i.analystTargets, i.verification?.consensusTarget);
-  if (upside !== null && upside < PRICE_THRESHOLDS.consensusMinUpsidePct) flags.push("consenso_en_precio");
   const r12 = returnPct(i.candles, 252);
+  if (upside !== null && upside < PRICE_THRESHOLDS.consensusMinUpsidePct && r12 !== null && r12 > PRICE_THRESHOLDS.consensusRunupPct) flags.push("consenso_en_precio");
   if (r12 !== null && r12 > PRICE_THRESHOLDS.runup12mPct) flags.push("subio_mucho_12m");
   // La verificación web que dice "evitar" observa por sí sola, como un evento grave.
   const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : [])];
