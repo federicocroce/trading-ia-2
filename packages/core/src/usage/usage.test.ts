@@ -136,7 +136,10 @@ describe("summarizeUsage", () => {
     expect(k1.validacion).toBe(1);
     expect(k1.saturado).toBe(1);
     expect(k1.tokensIn).toBe(30_000);
-    expect(k1.pctDay).toBe(2);
+    expect(k1.pctDay).toBeNull(); // Google no publica la cuota diaria real: sin evidencia no hay %
+    const exhausted = summarizeUsage([g({}), g({ result: "rpd", status: 429, tokensIn: null, tokensOut: null, tokensThink: null })], { date: "2026-09-10" });
+    expect(exhausted.gemini.rows[0]!.pctDay).toBe(100);
+    expect(exhausted.warnings.some((w) => w.includes("cuota diaria agotada"))).toBe(true);
     // 30k in * 0.30 + 3k out * 2.50 = 0.009 + 0.0075
     expect(k1.costUsd).toBeCloseTo(0.0165, 3);
     expect(s.gemini.failedPct).toBe(50);

@@ -108,7 +108,7 @@ function UsagePanel({ u }: { u: UsageSummary | null }) {
             <>
               <p className="muted" style={{ marginBottom: 2 }}>Gemini por modelo y clave · tokens {n(u.gemini.tokensIn)} entrada / {n(u.gemini.tokensOut)} salida / {n(u.gemini.tokensThink)} pensamiento · costo equivalente {usd(u.gemini.costUsd)}{u.gemini.failedPct !== null && <span className={u.gemini.failedPct >= 20 ? " warn" : ""}> · falló {pct(u.gemini.failedPct)}</span>}</p>
               <table>
-                <thead><tr><th>modelo</th><th>clave</th><th>llamadas</th><th>ok</th><th>por minuto</th><th>por día</th><th>saturado</th><th>validación</th><th>error</th><th>tokens entrada</th><th>salida + pensamiento</th><th>costo</th><th>% del día</th></tr></thead>
+                <thead><tr><th>modelo</th><th>clave</th><th>llamadas</th><th>ok</th><th>por minuto</th><th>por día</th><th>saturado</th><th>validación</th><th>error</th><th>tokens entrada</th><th>salida + pensamiento</th><th>costo</th><th>cuota diaria</th></tr></thead>
                 <tbody>
                   {u.gemini.rows.map((g) => (
                     <tr key={`${g.model}#${g.keyIndex}`}>
@@ -124,7 +124,7 @@ function UsagePanel({ u }: { u: UsageSummary | null }) {
                       <td className="mono">{n(g.tokensIn)}</td>
                       <td className="mono">{n(g.tokensOut + g.tokensThink)}</td>
                       <td className="mono">{usd(g.costUsd)}</td>
-                      <td className={g.pctDay !== null && g.pctDay >= 80 ? "warn mono" : "mono"}>{pct(g.pctDay)}</td>
+                      <td className={g.rpd ? "bad" : "mono muted"}>{g.rpd ? "agotada hoy" : "—"}</td>
                     </tr>
                   ))}
                 </tbody>

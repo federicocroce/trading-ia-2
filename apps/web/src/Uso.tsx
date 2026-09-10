@@ -116,7 +116,7 @@ export function Uso() {
         <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
           <div>
             <b>Uso de fuentes externas</b>
-            <div className="muted" style={{ fontSize: 12 }}>Una fila por pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo, con su paso y resultado. Gemini: cuota por modelo y por clave (cada clave es un proyecto), 10 por minuto y 250 por día como piso, reinicio a la medianoche de California (04:00 en Buenos Aires). El costo es lo que valdría en el plan pago.</div>
+            <div className="muted" style={{ fontSize: 12 }}>Una fila por pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo, con su paso y resultado. Gemini: cuota por modelo y por clave (cada clave es un proyecto), 10 por minuto; la cuota diaria real no la publica Google (el 10/9 se agotó con 15 a 20 llamadas, y la búsqueda integrada con menos de 10), así que "agotada hoy" sale de un 429 diario real. Reinicio a la medianoche de California (04:00 en Buenos Aires). El costo es lo que valdría en el plan pago.</div>
           </div>
           <div className="row" style={{ gap: 6 }}>
             <input type="date" value={date} max={localToday()} onChange={(e) => setDate(e.target.value || localToday())} />
@@ -170,7 +170,7 @@ export function Uso() {
             <>
               <div style={{ marginTop: 12 }}><b>Gemini por modelo y clave</b> <span className="muted">tokens {n(summary.gemini.tokensIn)} entrada / {n(summary.gemini.tokensOut)} salida / {n(summary.gemini.tokensThink)} pensamiento · {usd(summary.gemini.costUsd)}</span></div>
               <table style={{ marginTop: 6 }}>
-                <thead><tr><th>modelo</th><th>clave</th><th>llamadas</th><th>ok</th><th>429 minuto</th><th>429 día</th><th>503</th><th>no validó</th><th>error</th><th>tokens entrada</th><th>salida + pensamiento</th><th>costo</th><th>% del día</th></tr></thead>
+                <thead><tr><th>modelo</th><th>clave</th><th>llamadas</th><th>ok</th><th>429 minuto</th><th>429 día</th><th>503</th><th>no validó</th><th>error</th><th>tokens entrada</th><th>salida + pensamiento</th><th>costo</th><th>cuota diaria</th></tr></thead>
                 <tbody>
                   {summary.gemini.rows.map((g) => (
                     <tr key={`${g.model}#${g.keyIndex}`}>
@@ -186,7 +186,7 @@ export function Uso() {
                       <td className="mono">{n(g.tokensIn)}</td>
                       <td className="mono">{n(g.tokensOut + g.tokensThink)}</td>
                       <td className="mono">{usd(g.costUsd)}</td>
-                      <td className={g.pctDay !== null && g.pctDay >= 80 ? "warn mono" : "mono"}>{pct(g.pctDay)}</td>
+                      <td className={g.rpd ? "bad" : "mono muted"}>{g.rpd ? "agotada hoy" : "—"}</td>
                     </tr>
                   ))}
                 </tbody>

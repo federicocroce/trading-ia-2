@@ -174,8 +174,11 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
   const geminiRows = [...gem.values()]
     .map((g) => {
       g.costUsd = r2(g.costUsd * 1000) / 1000;
-      g.pctDay = pct(g.calls, g.limitPerDay);
-      if (g.pctDay !== null && g.pctDay >= warnAt) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.calls} llamadas hoy (${g.pctDay}% de ${g.limitPerDay})`);
+      // Google no publica la cuota diaria real de estas claves (10/9: 429 diario con 15–20 llamadas, y la búsqueda con menos de 10):
+      // la evidencia manda: un 429 diario en el día = agotada (100%).
+      g.pctDay = g.rpd > 0 ? 100 : pct(g.calls, g.limitPerDay);
+      if (g.rpd > 0) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: cuota diaria agotada (429 por día) tras ${g.calls} llamadas`);
+      else if (g.pctDay !== null && g.pctDay >= warnAt) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.calls} llamadas hoy (${g.pctDay}% de ${g.limitPerDay})`);
       return g;
     })
     .sort((a, b) => a.model.localeCompare(b.model) || a.keyIndex - b.keyIndex);
