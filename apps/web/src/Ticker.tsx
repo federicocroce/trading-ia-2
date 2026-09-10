@@ -166,7 +166,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.candidate.mainRisk && <div><b>Riesgo principal:</b> {t.candidate.mainRisk}</div>}
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
           <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)})</div>
-          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} close={t.quote?.price ?? t.candidate.close} metricsRaw={t.fundamentals?.metricsRaw} />
+          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate.close} metricsRaw={t.fundamentals?.metricsRaw} />
           {t.peers.length > 0 && (
             <table style={{ marginTop: 8 }}>
               <thead><tr><th>par</th><th>P/E</th><th>EV/EBITDA</th><th>P/S</th><th>ROE</th><th>margen op.</th><th>crec. ingresos</th><th>deuda/patr.</th></tr></thead>

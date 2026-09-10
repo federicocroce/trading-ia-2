@@ -212,7 +212,7 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
                     {detail.fundamentals.earningsSurprises?.length ? ` · sorpresas: ${detail.fundamentals.earningsSurprises.map((s) => `${s.period.slice(0, 7)} ${pct(s.surprisePercent)}`).join(", ")}` : ""}
                   </div>
                 )}
-                <VerificationSections statements={detail.statements} events={detail.events} analystActions={detail.analystActions} close={c.close} metricsRaw={detail.fundamentals?.metricsRaw} />
+                <VerificationSections statements={detail.statements} events={detail.events} analystActions={detail.analystActions} analystTargets={c.analystTargets} close={c.close} metricsRaw={detail.fundamentals?.metricsRaw} />
                 {detail.peers.length > 0 && (
                   <table style={{ marginTop: 8 }}>
                     <thead><tr><th>par</th><th>P/E</th><th>EV/EBITDA</th><th>P/S</th><th>ROE</th><th>margen op.</th><th>crec. ingresos</th><th>deuda/patr.</th></tr></thead>
