@@ -24,9 +24,11 @@ export interface Novedades {
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * 86_400_000).toISOString().slice(0, 10);
 const isUs = (c: CandidateRow) => c.kind === "stock" || c.kind === "etf";
 
-export async function buildNovedades(store: Store & CarteraStore & RadarStore & TickerStore, opts: { today: string }): Promise<Novedades> {
-  // Veredictos: última fecha y la anterior.
-  const verdicts = await store.allVerdicts();
+export async function buildNovedades(store: Store & CarteraStore & RadarStore & TickerStore, opts: { today: string; at?: string | null }): Promise<Novedades> {
+  // Histórico: "hoy" es la corrida pedida y se compara con la anterior a esa fecha.
+  const cut = opts.at ?? null;
+  // Veredictos: última fecha (≤ la pedida) y la anterior.
+  const verdicts = (await store.allVerdicts()).filter((v) => !cut || v.verdictDate <= cut);
   const vDates = [...new Set(verdicts.map((v) => v.verdictDate))].sort();
   const vLast = vDates.at(-1) ?? null;
   const vPrev = vDates.at(-2) ?? null;
@@ -39,7 +41,7 @@ export async function buildNovedades(store: Store & CarteraStore & RadarStore & 
   const alerts = todayV.filter((v) => v.verb === "VENDER" || v.verb === "REVISAR").map((v) => ({ symbol: v.symbol, verb: v.verb, reason: v.reason }));
 
   // Candidatos US: COMPRAR que entran y salen contra la fecha anterior.
-  const cands = (await store.allCandidates()).filter(isUs);
+  const cands = (await store.allCandidates()).filter((c) => isUs(c) && (!cut || c.candidateDate <= cut));
   const cDates = [...new Set(cands.map((c) => c.candidateDate))].sort();
   const cLast = cDates.at(-1) ?? null;
   const cPrev = cDates.at(-2) ?? null;
@@ -56,9 +58,10 @@ export async function buildNovedades(store: Store & CarteraStore & RadarStore & 
 
   // Noticias de lo tuyo: posiciones + líneas del plan, de hoy y ayer.
   const mine = new Set<string>([...(await store.positions()).map((p) => p.symbol), ...((await store.latestPlan())?.lines.map((l) => l.symbol) ?? [])]);
-  const since = addDays(opts.today, -1);
+  const since = addDays(cut ?? opts.today, -1);
+  const until = cut ?? opts.today;
   const news: NewsItem[] = [];
-  for (const sym of [...mine].sort()) news.push(...(await store.news(sym, 5)).filter((n) => n.date >= since));
+  for (const sym of [...mine].sort()) news.push(...(await store.news(sym, 5)).filter((n) => n.date >= since && n.date <= until));
 
   const date = vLast && cLast ? (vLast > cLast ? vLast : cLast) : vLast ?? cLast;
   const previousDate = vPrev ?? cPrev;

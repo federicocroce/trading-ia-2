@@ -37,6 +37,7 @@ function app() {
   const a = new Hono();
   a.route("/", radarRoutes(c));
   a.route("/", taxonomyRoutes(c));
+  a.get("/runs/dates", async (ctx) => ctx.json(await store.runDates(90)));
   return { a, store };
 }
 const post = (a: Hono, path: string, body?: unknown) => a.request(path, { method: "POST", ...(body ? { body: JSON.stringify(body), headers: { "content-type": "application/json" } } : {}) });
@@ -210,5 +211,20 @@ describe("/prices", () => {
     await app2.request("/symbols/search?q=MELI");
     expect(calls).toEqual(["meli"]);
     expect(await (await app2.request("/symbols/search?q=")).json()).toEqual([]);
+  });
+});
+
+describe("histórico por fecha", () => {
+  it("?date= devuelve candidatos y macro tal como quedaron ese día; /runs/dates lista las corridas", async () => {
+    const { a, store } = app();
+    const base = { kind: "stock" as const, verdict: "COMPRAR" as const, axes: {}, peerGroup: [], rankInGroup: 1, groupSize: 5, close: 10, entryLow: 10, entryHigh: 10.2, stop: 9, target: 12, sizeUsd: 1000, sizeQty: 100, riskScore: 3, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null };
+    await store.upsertCandidates([{ ...base, candidateDate: "2026-09-07", symbol: "OLD", score: 1 }, { ...base, candidateDate: "2026-09-08", symbol: "NEW", score: 2 }]);
+    await store.saveMacroAr({ date: "2026-09-07", oficial: 1, mep: 1, ccl: 1500, blue: 1, mayorista: 1, brechaPct: 0, riesgoPais: 500, merval: 1, mervalUsd: 1 });
+    await store.saveMacroAr({ date: "2026-09-08", oficial: 1, mep: 1, ccl: 1583, blue: 1, mayorista: 1, brechaPct: 0, riesgoPais: 490, merval: 1, mervalUsd: 1 });
+    expect((await (await a.request("/radar/candidates")).json()).map((c: { symbol: string }) => c.symbol)).toEqual(["NEW"]);
+    expect((await (await a.request("/radar/candidates?date=2026-09-07")).json()).map((c: { symbol: string }) => c.symbol)).toEqual(["OLD"]);
+    expect((await (await a.request("/radar/argentina?date=2026-09-07")).json()).macro.ccl).toBe(1500);
+    expect((await (await a.request("/radar/top?date=2026-09-07")).json()).picks.map((p: { symbol: string }) => p.symbol)).toEqual(["OLD"]);
+    expect(await (await a.request("/runs/dates")).json()).toEqual(["2026-09-08", "2026-09-07"]);
   });
 });

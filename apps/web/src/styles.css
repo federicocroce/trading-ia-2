@@ -76,3 +76,4 @@ th.help, .help { cursor: help; text-decoration: underline dotted var(--muted); t
 .symsearch-row { display: flex; gap: 8px; align-items: center; padding: 8px 10px; cursor: pointer; }
 .symsearch-row.sel, .symsearch-row:hover { background: var(--bg); }
 .tape-dot { font-size: 9px; margin-right: 2px; }
+.hist-banner { padding: 8px 20px; background: rgba(245,158,11,0.12); border-bottom: 1px solid rgba(245,158,11,0.4); font-size: 13px; display: flex; gap: 10px; align-items: center; }

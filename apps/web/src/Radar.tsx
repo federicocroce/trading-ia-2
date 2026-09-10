@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type ArgentinaData, type Candidate, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
+import { api, isHistorical, type ArgentinaData, type Candidate, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { HELP, RadarHelpModal, Th } from "./RadarHelp";
@@ -95,11 +95,12 @@ export function Radar() {
         <b>Radar</b>
         <span className="muted">{date ? `candidatos del ${date}` : "sin candidatos todavía: barré el universo y rankeá"}</span>
         <div style={{ flex: 1 }} />
-        <button className="ghost" disabled={!!busy || !!scan?.running} onClick={() => act("scan", async () => { await api.radar.scan(); setScan(await api.radar.scanStatus()); return "Barrido iniciado en segundo plano (≈1 h). Podés seguir usando la app."; })}>Barrer universo</button>
-        <button className="ghost" disabled={!!busy} onClick={() => act("rank", async () => { const r = await api.radar.rank(); return `Ranking: ${r.candidates.length} candidatos, ${r.errors.length} errores.`; })}>{busy === "rank" ? "Rankeando…" : "Rankear"}</button>
-        <button className="ghost" disabled={!!busy} onClick={() => act("refresh", async () => `Refrescados ${(await api.radar.refresh()).refreshed} candidatos.`)}>Refrescar</button>
-        <button className="ghost" disabled={!!busy} onClick={() => act("argentina", async () => { const r = await api.radar.refreshArgentina(); return `Argentina: ${r.acciones} acciones, ${r.cedears} CEDEARs, ${r.errors.length} errores.`; })}>{busy === "argentina" ? "Argentina…" : "Refrescar Argentina"}</button>
-        <button className="primary" disabled={!!busy} onClick={() => act("plan", async () => `Plan ${(await api.radar.buildPlan()).month} regenerado.`)}>Regenerar plan</button>
+        {isHistorical() && <span className="muted">modo histórico: sin acciones</span>}
+        {!isHistorical() && <button className="ghost" disabled={!!busy || !!scan?.running} onClick={() => act("scan", async () => { await api.radar.scan(); setScan(await api.radar.scanStatus()); return "Barrido iniciado en segundo plano (≈1 h). Podés seguir usando la app."; })}>Barrer universo</button>}
+        {!isHistorical() && <button className="ghost" disabled={!!busy} onClick={() => act("rank", async () => { const r = await api.radar.rank(); return `Ranking: ${r.candidates.length} candidatos, ${r.errors.length} errores.`; })}>{busy === "rank" ? "Rankeando…" : "Rankear"}</button>}
+        {!isHistorical() && <button className="ghost" disabled={!!busy} onClick={() => act("refresh", async () => `Refrescados ${(await api.radar.refresh()).refreshed} candidatos.`)}>Refrescar</button>}
+        {!isHistorical() && <button className="ghost" disabled={!!busy} onClick={() => act("argentina", async () => { const r = await api.radar.refreshArgentina(); return `Argentina: ${r.acciones} acciones, ${r.cedears} CEDEARs, ${r.errors.length} errores.`; })}>{busy === "argentina" ? "Argentina…" : "Refrescar Argentina"}</button>}
+        {!isHistorical() && <button className="primary" disabled={!!busy} onClick={() => act("plan", async () => `Plan ${(await api.radar.buildPlan()).month} regenerado.`)}>Regenerar plan</button>}
       </div>
       {msg && <div className="card">{msg}</div>}
       <div className="card row" style={{ gap: 8 }}>

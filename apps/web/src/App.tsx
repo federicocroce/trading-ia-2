@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type CatchUpStatus, type Thesis } from "./api";
+import { api, setViewDate, type CatchUpStatus, type Thesis } from "./api";
 import { Cartera } from "./Cartera";
 import { Radar } from "./Radar";
 import { Ticker } from "./Ticker";
@@ -13,15 +13,22 @@ type Tab = (typeof TABS)[number];
 const isTab = (x: string | null): x is Tab => x !== null && (TABS as readonly string[]).includes(x);
 
 /** La navegación vive en la URL: `?tab=radar` es la pestaña y `?symbol=NBN` la ficha por ticker (pueden convivir). Sin `tab` o con uno inválido cae en Cartera. */
-function readLocation(): { tab: Tab; symbol: string | null } {
+function readLocation(): { tab: Tab; symbol: string | null; date: string | null } {
   const q = new URLSearchParams(window.location.search);
   const t = q.get("tab");
-  return { tab: isTab(t) ? t : "hoy", symbol: q.get("symbol")?.toUpperCase() ?? null };
+  const d = q.get("date");
+  const date = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
+  setViewDate(date);
+  return { tab: isTab(t) ? t : "hoy", symbol: q.get("symbol")?.toUpperCase() ?? null, date };
 }
 
 /** Arma la URL nueva a partir de la actual y la empuja al historial sin recargar. `symbol: null` saca la ficha; lo que no se pasa queda como está. */
-function pushLocation(patch: { tab?: Tab; symbol?: string | null }) {
+function pushLocation(patch: { tab?: Tab; symbol?: string | null; date?: string | null }) {
   const url = new URL(window.location.href);
+  if (patch.date !== undefined) {
+    if (patch.date) url.searchParams.set("date", patch.date);
+    else url.searchParams.delete("date");
+  }
   if (patch.tab !== undefined) {
     url.searchParams.set("tab", patch.tab);
     url.searchParams.delete("sub"); // la sub-pestaña es de cada pestaña
@@ -34,7 +41,9 @@ function pushLocation(patch: { tab?: Tab; symbol?: string | null }) {
 }
 
 export function App() {
-  const [{ tab, symbol }, setLocation] = useState(readLocation);
+  const [{ tab, symbol, date }, setLocation] = useState(readLocation);
+  const [runDates, setRunDates] = useState<string[]>([]);
+  useEffect(() => { api.runs.dates().then(setRunDates).catch(() => setRunDates([])); }, []);
   useEffect(() => {
     // Único listener: atrás/adelante del navegador y goToSymbol (que dispara popstate) releen la URL entera.
     const onPop = () => setLocation(readLocation());
@@ -107,6 +116,10 @@ export function App() {
         </nav>
         <div className="spacer" />
         <span className="tag">paper</span>
+        <select value={date ?? ""} onChange={(e) => navigate({ date: e.target.value || null })} title="Ver los datos tal como quedaron en una corrida anterior. Los botones de acción se apagan en modo histórico.">
+          <option value="">corrida: la última</option>
+          {runDates.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
         <CorridasButton st={catchup} onChanged={() => void refreshHealth()} />
         {catchup && catchup.due.length > 0 && !catchup.running && <button className="primary" onClick={catchUpNow} disabled={busy} title="Corre solo los pasos que quedaron sin correr. Lo ya hecho no se repite.">{busy ? "Poniéndome al día…" : "Ponerme al día"}</button>}
         <button className="ghost" onClick={run} disabled={busy} title="Fuerza el pipeline de tesis por eventos ahora, aunque ya haya corrido hoy.">
@@ -117,7 +130,8 @@ export function App() {
         </button>
       </header>
       <Tape />
-      <div className="layout">
+      {date && <div className="hist-banner">Estás viendo la corrida del <b>{date}</b>: veredictos, candidatos, riesgo y novedades tal como quedaron ese día. Los botones de acción están apagados. <button className="ghost" onClick={() => navigate({ date: null })}>Volver a la última</button></div>}
+      <div className="layout" key={date ?? "latest"}>
       <Sidebar open={sidebar} onToggle={toggleSidebar} />
       <main>
         {!health && <div className="err">No se puede hablar con la API (¿está corriendo `pnpm dev:api`?)</div>}

@@ -35,6 +35,15 @@ describe("buildNovedades", () => {
     expect(n.news.map((x) => `${x.symbol}:${x.headline}`).sort()).toEqual(["NVDA:no es tuya", "YPF:YPF recompra deuda"]);
     expect(n.empty).toBe(false);
   });
+  it("histórico: con `at` compara esa corrida con la anterior a esa fecha", async () => {
+    const store = new MemoryStore();
+    await store.upsertVerdicts([verdict("2026-09-06", "YPF", "MANTENER"), verdict("2026-09-07", "YPF", "SUMAR"), verdict("2026-09-08", "YPF", "REVISAR")]);
+    const n = await buildNovedades(store, { today: "2026-09-08", at: "2026-09-07" });
+    expect(n.date).toBe("2026-09-07");
+    expect(n.previousDate).toBe("2026-09-06");
+    expect(n.verdictChanges).toEqual([{ symbol: "YPF", from: "MANTENER", to: "SUMAR", reason: "r" }]);
+    expect(n.alerts).toEqual([]);
+  });
   it("sin corrida previa ni cambios: vacío y lo dice", async () => {
     const store = new MemoryStore();
     const n = await buildNovedades(store, { today: "2026-09-08" });

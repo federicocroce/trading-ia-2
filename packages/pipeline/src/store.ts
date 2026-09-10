@@ -37,6 +37,9 @@ export interface CarteraStore {
   saveProfile(p: SymbolProfile): Promise<void>;
   upsertVerdicts(rows: VerdictRow[]): Promise<void>;
   latestVerdicts(): Promise<VerdictRow[]>;
+  /** Histórico: veredictos de una fecha exacta y panel de riesgo vigente a esa fecha (el último ≤ fecha). */
+  verdictsForDate(date: string): Promise<VerdictRow[]>;
+  riskForDate(date: string): Promise<{ date: string; report: RiskReport } | null>;
   verdictsToMeasure(before: string, horizon: 7 | 30): Promise<VerdictRow[]>;
   setMeasurement(verdictDate: string, symbol: string, m: Partial<Pick<VerdictRow, "close7d" | "spy7d" | "alpha7dPct" | "close30d" | "spy30d" | "alpha30dPct">>): Promise<void>;
   allVerdicts(): Promise<VerdictRow[]>;
@@ -85,6 +88,10 @@ export interface RadarStore {
   latestScanDate(): Promise<string | null>;
   upsertCandidates(rows: CandidateRow[]): Promise<void>;
   latestCandidates(): Promise<CandidateRow[]>;
+  /** Histórico: por familia, las filas de la última fecha ≤ la pedida. Fechas de corrida disponibles (desc). */
+  candidatesForDate(date: string): Promise<CandidateRow[]>;
+  runDates(limit?: number): Promise<string[]>;
+  macroArForDate(date: string): Promise<MacroAr | null>;
   candidateHistory(symbol: string, weeks: number): Promise<CandidateRow[]>;
   candidatesToMeasure(before: string, horizon: 7 | 30 | 90): Promise<CandidateRow[]>;
   setCandidateMeasurement(date: string, symbol: string, m: Partial<Pick<CandidateRow, "close7d" | "spy7d" | "alpha7dPct" | "close30d" | "spy30d" | "alpha30dPct" | "close90d" | "spy90d" | "alpha90dPct">>): Promise<void>;
@@ -312,6 +319,13 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
     const v = this.verdicts.get(k);
     if (v) this.verdicts.set(k, { ...v, ...m, measuredAt: new Date().toISOString() });
   }
+  async verdictsForDate(date: string) {
+    return (await this.allVerdicts()).filter((v) => v.verdictDate === date);
+  }
+  async riskForDate(date: string) {
+    const d = [...this.risks.keys()].filter((k) => k <= date).sort().at(-1);
+    return d ? { date: d, report: this.risks.get(d)! } : null;
+  }
   async allVerdicts() {
     return [...this.verdicts.values()].sort((a, b) => b.verdictDate.localeCompare(a.verdictDate) || a.symbol.localeCompare(b.symbol));
   }
@@ -452,6 +466,22 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
     }
   }
   /** Última fecha por familia: las filas argentinas (corren otro día) no esconden el último ranking US ni al revés. */
+  async candidatesForDate(date: string) {
+    const all = [...this.candidates.values()].filter((c) => c.candidateDate <= date);
+    const family = (c: CandidateRow) => (c.kind === "ar" || c.kind === "cedear" ? "ar" : c.kind === "watch" ? "watch" : "us");
+    const last: Record<string, string | undefined> = {};
+    for (const c of all) if (!last[family(c)] || c.candidateDate > last[family(c)]!) last[family(c)] = c.candidateDate;
+    return all.filter((c) => c.candidateDate === last[family(c)]).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+  }
+  async runDates(limit = 60) {
+    const dates = new Set<string>([...this.verdicts.values()].map((v) => v.verdictDate));
+    for (const c of this.candidates.values()) if (c.kind === "stock" || c.kind === "etf") dates.add(c.candidateDate);
+    return [...dates].sort().reverse().slice(0, limit);
+  }
+  async macroArForDate(date: string) {
+    const d = [...this.macroAr.keys()].filter((k) => k <= date).sort().at(-1);
+    return d ? this.macroAr.get(d)! : null;
+  }
   async latestCandidates() {
     const all = [...this.candidates.values()];
     const family = (c: CandidateRow) => (c.kind === "ar" || c.kind === "cedear" ? "ar" : c.kind === "watch" ? "watch" : "us");

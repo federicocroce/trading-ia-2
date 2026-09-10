@@ -20,7 +20,9 @@ export function buildApp(c: Container) {
   /** Ponerse al día: qué pasos quedaron sin correr y correrlos (solo esos). */
   app.get("/catchup", async (ctx) => ctx.json(await catchUpStatus(c)));
   /** Novedades del día: qué cambió contra la corrida anterior (lo que se lee a la mañana). */
-  app.get("/novedades", async (ctx) => ctx.json(await buildNovedades(c.store, { today: ctx.req.query("today") ?? new Date().toISOString().slice(0, 10) })));
+  app.get("/novedades", async (ctx) => ctx.json(await buildNovedades(c.store, { today: ctx.req.query("today") ?? new Date().toISOString().slice(0, 10), at: ctx.req.query("date") ?? null })));
+  /** Fechas con corrida guardada, para el selector de histórico. */
+  app.get("/runs/dates", async (ctx) => ctx.json(await c.store.runDates(90)));
   app.post("/catchup", async (ctx) => ctx.json(await runCatchUp(c)));
   app.post("/catchup/run/:step", async (ctx) => {
     const id = ctx.req.param("step");

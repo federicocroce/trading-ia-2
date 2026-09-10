@@ -112,8 +112,16 @@ export interface TickerPage {
 
 const base = "/api";
 
+/** Fecha de corrida que se está viendo (histórico). null = la última. Las lecturas la mandan como ?date= y la API la respeta donde aplica. */
+let viewDate: string | null = null;
+export function setViewDate(d: string | null) { viewDate = d; }
+export function getViewDate(): string | null { return viewDate; }
+export const isHistorical = () => viewDate !== null;
+
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(base + path, { headers: { "Content-Type": "application/json" }, ...init });
+  const method = (init?.method ?? "GET").toUpperCase();
+  const url = method === "GET" && viewDate ? `${path}${path.includes("?") ? "&" : "?"}date=${viewDate}` : path;
+  const res = await fetch(base + url, { headers: { "Content-Type": "application/json" }, ...init });
   const body = (await res.json().catch(() => ({}))) as T & { error?: unknown; detail?: string; reason?: string };
   if (!res.ok) throw new Error(body.detail ? `${body.reason}: ${body.detail}` : JSON.stringify(body.error ?? body));
   return body;
@@ -172,6 +180,7 @@ export const api = {
     tape: () => j<Tape>("/prices/tape"),
   },
   novedades: () => j<Novedades>("/novedades"),
+  runs: { dates: () => j<string[]>("/runs/dates") },
   catchup: {
     status: () => j<CatchUpStatus>("/catchup"),
     run: () => j<CatchUpResult>("/catchup", { method: "POST" }),

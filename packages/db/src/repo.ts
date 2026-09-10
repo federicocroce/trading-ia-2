@@ -239,6 +239,13 @@ export class Repo {
     for (const [k, v] of Object.entries(m)) set[k] = v === null || v === undefined ? null : str(v);
     await this.db.update(s.portfolioVerdicts).set(set).where(and(eq(s.portfolioVerdicts.verdictDate, verdictDate), eq(s.portfolioVerdicts.symbol, symbol)));
   }
+  async verdictsForDate(date: string): Promise<VerdictRow[]> {
+    return (await this.db.select().from(s.portfolioVerdicts).where(eq(s.portfolioVerdicts.verdictDate, date)).orderBy(s.portfolioVerdicts.symbol)).map((r) => this.rowToVerdict(r));
+  }
+  async riskForDate(date: string): Promise<{ date: string; report: RiskReport } | null> {
+    const r = (await this.db.select().from(s.portfolioRisk).where(sql`${s.portfolioRisk.snapshotDate} <= ${date}`).orderBy(desc(s.portfolioRisk.snapshotDate)).limit(1))[0];
+    return r ? { date: r.snapshotDate, report: r.report as RiskReport } : null;
+  }
   async allVerdicts(): Promise<VerdictRow[]> {
     return (await this.db.select().from(s.portfolioVerdicts).orderBy(desc(s.portfolioVerdicts.verdictDate), s.portfolioVerdicts.symbol)).map((r) => this.rowToVerdict(r));
   }
@@ -401,6 +408,23 @@ export class Repo {
     for (const [k, v] of Object.entries(m)) set[k] = v === null || v === undefined ? null : str(v);
     await this.db.update(s.radarCandidates).set(set).where(and(eq(s.radarCandidates.candidateDate, date), eq(s.radarCandidates.symbol, symbol)));
   }
+  /** Histórico: por familia, las filas de la última fecha ≤ la pedida. */
+  async candidatesForDate(date: string): Promise<CandidateRow[]> {
+    const out: CandidateRow[] = [];
+    for (const kinds of [["stock", "etf"], ["ar", "cedear"], ["watch"]]) {
+      const last = (await this.db.select({ d: sql<string | null>`max(${s.radarCandidates.candidateDate})` }).from(s.radarCandidates).where(and(inArray(s.radarCandidates.kind, kinds), sql`${s.radarCandidates.candidateDate} <= ${date}`)))[0]?.d;
+      if (!last) continue;
+      const rows = await this.db.select().from(s.radarCandidates).where(and(eq(s.radarCandidates.candidateDate, last), inArray(s.radarCandidates.kind, kinds))).orderBy(desc(s.radarCandidates.score));
+      out.push(...rows.map((r) => this.rowToCandidate(r)));
+    }
+    return out;
+  }
+  /** Fechas con corrida (veredictos o ranking US), de la más nueva a la más vieja. */
+  async runDates(limit = 60): Promise<string[]> {
+    const v = await this.db.selectDistinct({ d: s.portfolioVerdicts.verdictDate }).from(s.portfolioVerdicts);
+    const c = await this.db.selectDistinct({ d: s.radarCandidates.candidateDate }).from(s.radarCandidates).where(inArray(s.radarCandidates.kind, ["stock", "etf"]));
+    return [...new Set([...v.map((x) => x.d), ...c.map((x) => x.d)])].sort().reverse().slice(0, limit);
+  }
   async allCandidates(): Promise<CandidateRow[]> {
     return (await this.db.select().from(s.radarCandidates).orderBy(desc(s.radarCandidates.candidateDate), s.radarCandidates.symbol)).map((r) => this.rowToCandidate(r));
   }
@@ -475,6 +499,10 @@ export class Repo {
   }
   async latestMacroAr(): Promise<MacroAr | null> {
     const r = (await this.db.select().from(s.macroArDaily).orderBy(desc(s.macroArDaily.date)).limit(1))[0];
+    return r ? this.rowToMacro(r) : null;
+  }
+  async macroArForDate(date: string): Promise<MacroAr | null> {
+    const r = (await this.db.select().from(s.macroArDaily).where(sql`${s.macroArDaily.date} <= ${date}`).orderBy(desc(s.macroArDaily.date)).limit(1))[0];
     return r ? this.rowToMacro(r) : null;
   }
   async macroArSeries(days: number): Promise<MacroAr[]> {

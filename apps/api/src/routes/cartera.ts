@@ -81,8 +81,9 @@ export function carteraRoutes(c: Container) {
     curveCache = { at: Date.now(), value };
     return ctx.json(value);
   });
-  app.get("/cartera/verdicts", async (ctx) => ctx.json(await store.latestVerdicts()));
-  app.get("/cartera/risk", async (ctx) => ctx.json(await store.latestRisk()));
+  // ?date=YYYY-MM-DD: histórico, tal como quedó esa corrida.
+  app.get("/cartera/verdicts", async (ctx) => { const d = ctx.req.query("date"); return ctx.json(d ? await store.verdictsForDate(d) : await store.latestVerdicts()); });
+  app.get("/cartera/risk", async (ctx) => { const d = ctx.req.query("date"); return ctx.json(d ? await store.riskForDate(d) : await store.latestRisk()); });
   app.get("/cartera/measurement", async (ctx) => {
     const all = await store.allVerdicts();
     return ctx.json({ total: all.length, ...summarizeMeasurement(all) });

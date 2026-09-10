@@ -11,6 +11,8 @@ export function radarRoutes(c: Container) {
   const store = deps.store;
   const today = (ctx: { req: { query: (k: string) => string | undefined } }) => ctx.req.query("today") ?? new Date().toISOString().slice(0, 10);
   const portfolioUsd = async () => (await store.latestRisk())?.report.totalValue ?? null;
+  /** Candidatos vigentes, o los de una corrida anterior con ?date=. */
+  const candidatesAt = async (ctx: { req: { query: (k: string) => string | undefined } }) => { const d = ctx.req.query("date"); return d ? store.candidatesForDate(d) : store.latestCandidates(); };
   const withTags = async (rows: CandidateRow[]) => {
     const tags = await store.allTags();
     return rows.map((r) => ({ ...r, tags: tags[r.symbol] ?? null }));
@@ -18,7 +20,7 @@ export function radarRoutes(c: Container) {
 
   app.get("/radar/candidates", async (ctx) => {
     const q = ctx.req.query();
-    let rows = await withTags(await store.latestCandidates());
+    let rows = await withTags(await candidatesAt(ctx));
     if (q["kind"]) rows = rows.filter((r) => r.kind === q["kind"]);
     if (q["verdict"]) rows = rows.filter((r) => r.verdict === q["verdict"]);
     if (q["sector"]) rows = rows.filter((r) => r.tags?.sector === q["sector"]);
@@ -29,10 +31,11 @@ export function radarRoutes(c: Container) {
   /** Los COMPRAR con más convicción: todos los factores en un número y en palabras. */
   app.get("/radar/top", async (ctx) => {
     const n = Math.max(1, Math.min(20, Number(ctx.req.query("n") ?? 5) || 5));
-    const rows = await store.latestCandidates();
+    const rows = await candidatesAt(ctx);
     const tags = await store.allTags();
     // Temas donde la cartera ya supera el umbral del panel de riesgo (40%): un candidato ahí suma menos.
-    const byTheme = (await store.latestRisk())?.report.concentration.byTheme ?? {};
+    const d = ctx.req.query("date");
+    const byTheme = (d ? await store.riskForDate(d) : await store.latestRisk())?.report.concentration.byTheme ?? {};
     const overweight = Object.fromEntries(Object.entries(byTheme).filter(([, pct]) => pct > 40));
     // Candidatos que se mueven como algo que ya tenés: mismo riesgo con otro nombre, suma menos.
     const overlap = await candidateOverlap(store, rows);
@@ -45,7 +48,8 @@ export function radarRoutes(c: Container) {
   });
   /** Argentina (etapa 3): macro del día y su serie, acciones de BYMA contra el Merval, CEDEARs contra el CCL. */
   app.get("/radar/argentina", async (ctx) => {
-    const [macro, series, rows] = await Promise.all([store.latestMacroAr(), store.macroArSeries(60), withTags(await store.latestCandidates())]);
+    const d = ctx.req.query("date");
+    const [macro, series, rows] = await Promise.all([d ? store.macroArForDate(d) : store.latestMacroAr(), store.macroArSeries(60), withTags(await candidatesAt(ctx))]);
     return ctx.json({ macro, series, acciones: rows.filter((r) => r.kind === "ar"), cedears: rows.filter((r) => r.kind === "cedear") });
   });
   app.post("/radar/argentina", async (ctx) => {
@@ -53,13 +57,13 @@ export function radarRoutes(c: Container) {
     return ctx.json({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors });
   });
   /** Lista de seguimiento: tickers elegidos a mano con veredicto diario aunque el ranking no los elija. */
-  const watchPayload = async () => {
+  const watchPayload = async (date?: string) => {
     const items = await store.watchlist();
     const set = new Set(items.map((i) => i.symbol));
-    const rows = (await withTags(await store.latestCandidates())).filter((r) => r.kind === "watch" && set.has(r.symbol));
+    const rows = (await withTags(date ? await store.candidatesForDate(date) : await store.latestCandidates())).filter((r) => r.kind === "watch" && set.has(r.symbol));
     return { items, rows };
   };
-  app.get("/radar/watchlist", async (ctx) => ctx.json(await watchPayload()));
+  app.get("/radar/watchlist", async (ctx) => ctx.json(await watchPayload(ctx.req.query("date"))));
   app.post("/radar/watchlist", async (ctx) => {
     const body = await ctx.req.json<{ symbol?: string; note?: string }>().catch(() => ({}) as { symbol?: string; note?: string });
     const symbol = (body.symbol ?? "").trim().toUpperCase();
@@ -93,7 +97,7 @@ export function radarRoutes(c: Container) {
     }
     return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions });
   });
-  app.get("/radar/etfs", async (ctx) => ctx.json(await withTags((await store.latestCandidates()).filter((r) => r.kind === "etf"))));
+  app.get("/radar/etfs", async (ctx) => ctx.json(await withTags((await candidatesAt(ctx)).filter((r) => r.kind === "etf"))));
 
   app.post("/radar/scan", async (ctx) => {
     if (c.cfg && !c.cfg.finnhubToken) return ctx.json({ error: "FINNHUB_API_KEY requerida para barrer el universo" }, 400);

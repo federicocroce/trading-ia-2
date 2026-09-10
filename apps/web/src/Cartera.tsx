@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { api, type CurveMetrics, type CurveResponse, type Measurement, type Position, type Quote, type RiskReport, type Tags, type Verdict } from "./api";
+import { api, isHistorical, type CurveMetrics, type CurveResponse, type Measurement, type Position, type Quote, type RiskReport, type Tags, type Verdict } from "./api";
 import { CurveChart } from "./CurveChart";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
@@ -129,7 +129,7 @@ export function Cartera() {
         <span className="muted">{date ? `veredictos del ${date}` : "sin veredictos todavía"}</span>
         <div className="spacer" style={{ flex: 1 }} />
         <button className="ghost" onClick={() => setForm({ ...EMPTY })} disabled={busy}>Agregar posición</button>
-        <button className="primary" onClick={run} disabled={busy}>{busy ? "Corriendo…" : "Actualizar veredictos"}</button>
+        {!isHistorical() && <button className="primary" onClick={run} disabled={busy}>{busy ? "Corriendo…" : "Actualizar veredictos"}</button>}
       </div>
       {msg && <div className="card">{msg}</div>}
       {positions.length > 0 && (
