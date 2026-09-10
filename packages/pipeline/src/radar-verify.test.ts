@@ -48,6 +48,18 @@ describe("verifyFor", () => {
     expect(re?.verdict).toBe("evitar");
     expect(v.calls).toEqual(["A", "A"]);
   });
+  it("presupuesto por corrida: sin presupuesto no llama al modelo (lo viejo o pendiente); lo cacheado no descuenta", async () => {
+    const store = new MemoryStore();
+    const v = verifier([result("apto", "a"), result("apto", "b")]);
+    const budget = { left: 1 };
+    expect((await verifyFor({ store, verifier: v }, "A", { today: "2026-09-10", name: null, budget }))?.reason).toBe("a");
+    expect(budget.left).toBe(0);
+    expect(await verifyFor({ store, verifier: v }, "B", { today: "2026-09-10", name: null, budget })).toBeNull();
+    expect((await verifyFor({ store, verifier: v }, "A", { today: "2026-09-11", name: null, budget }))?.reason).toBe("a"); // caché: no descuenta ni llama
+    expect(v.calls).toEqual(["A"]);
+    await store.saveVerification({ symbol: "B", date: "2026-08-01", verdict: "con_reservas", reason: "vieja", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [], researchText: "", promptVersion: "v1-test", model: null, detectedAt: "2026-08-01T00:00:00Z" });
+    expect((await verifyFor({ store, verifier: v }, "B", { today: "2026-09-10", name: null, budget }))?.reason).toBe("vieja");
+  });
   it("si el modelo falla: deja lo que había (aunque esté vencido) o null si nunca hubo", async () => {
     const store = new MemoryStore();
     const logs: string[] = [];

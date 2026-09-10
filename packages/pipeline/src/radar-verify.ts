@@ -12,16 +12,28 @@ export interface VerifyDeps {
   log?: (msg: string, extra?: unknown) => void;
 }
 export const VERIFY_FRESH_DAYS = 7;
+/** Tope de llamadas al modelo con búsqueda por corrida: la cuota gratis de búsqueda es de pocas por día y por clave (10/9: se agotó con menos de 10). */
+export const VERIFY_PER_RUN_DEFAULT = 8;
 const DAY = 86_400_000;
 const ageDays = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / DAY;
 const summary = (v: CandidateVerification): VerificationSummary => ({ date: v.date, verdict: v.verdict, reason: v.reason });
 
-export async function verifyFor(deps: VerifyDeps, symbol: string, opts: { today: string; name: string | null; context?: string | null }): Promise<VerificationSummary | null> {
+/** Presupuesto compartido por una corrida: cada verificación nueva (no cacheada) descuenta una. */
+export interface VerifyBudget {
+  left: number;
+}
+
+export async function verifyFor(deps: VerifyDeps, symbol: string, opts: { today: string; name: string | null; context?: string | null; budget?: VerifyBudget }): Promise<VerificationSummary | null> {
   const verifier = deps.verifier;
   if (!verifier) return null;
   const sym = symbol.toUpperCase();
   const prev = await deps.store.verification(sym);
   if (prev && prev.promptVersion === verifier.promptVersion && ageDays(prev.date, opts.today) < VERIFY_FRESH_DAYS) return summary(prev);
+  if (opts.budget && opts.budget.left <= 0) {
+    // Sin presupuesto en esta corrida: queda lo viejo (con su fecha) o pendiente para la próxima.
+    return prev ? summary(prev) : null;
+  }
+  if (opts.budget) opts.budget.left--;
   try {
     const r = await verifier.verify({ symbol: sym, name: opts.name, today: opts.today, context: opts.context ?? null });
     const full: CandidateVerification = { ...r, symbol: sym, date: opts.today, detectedAt: new Date().toISOString(), promptVersion: verifier.promptVersion };

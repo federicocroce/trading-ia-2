@@ -22,9 +22,12 @@ Para cada acción que queda **COMPRAR después de todas las reglas** (técnica, 
 
 `verifyFor` (`packages/pipeline/src/radar-verify.ts`): caché por símbolo de 7 días y misma versión del prompt (`radar_verifications`, una fila por símbolo con el informe completo, fuentes y modelo); un fallo deja lo que había (vencido incluido) o null. Se llama en el ranking semanal y en el refresco diario, solo para lo que quedó COMPRAR, y el dictamen vuelve a pasar por `decideCandidate`. La fila del candidato guarda el resumen (`verification: { date, verdict, reason }`, migración 0013).
 
-## Cuota
+## Cuota (medida el 2026-09-10, no la publicada)
 
-~40 COMPRAR por semana × 2 llamadas = 80 llamadas el día del rank, más lo nuevo que entra cada día. Con el registro de uso: propósito `verificacion` (con búsqueda, tokens de entrada incluyen lo leído de la web) y `verificacion_estructura`. Freno de 8 por minuto por modelo y clave compartido.
+Sondeo con las cuatro claves: la búsqueda integrada tiene su propia cuota diaria gratis por proyecto y modelo, y en `gemini-2.5-flash` se agotó con **menos de 10 pedidos con búsqueda por clave**; en los modelos 3.x devuelve 429 sin detalle (no hay búsqueda gratis). La cuota diaria sin búsqueda también es menor a la publicada: 429 diario con 15–20 llamadas por modelo y clave. Consecuencias:
+- Tope por corrida `candidates.verifyPerRun` (default 8, `VERIFY_PER_RUN_DEFAULT`): las verificaciones nuevas se reparten en días; lo que no entra queda `verificacion_pendiente` (o con su verificación vieja) hasta la próxima corrida. Con caché de 7 días, ~27 COMPRAR se cubren en 3–4 días y después solo se verifica lo que entra o vence.
+- Registro de uso: propósito `verificacion` (con búsqueda; los tokens de entrada incluyen lo leído de la web) y `verificacion_estructura`. El panel marca la cuota diaria como "agotada hoy" por evidencia (429 diario), no por un tope inventado.
+- Primera corrida real (10/9): 26 verificadas y 5 fallas; el modelo decía "con reservas" a casi todo porque 2.5 Flash gastaba el presupuesto pensando y el informe salía cortado. Arreglado con `thinkingBudget` 2.048, `maxOutputTokens` 12.000 y el dictamen en la primera línea del informe.
 
 ## Ficha y panel
 

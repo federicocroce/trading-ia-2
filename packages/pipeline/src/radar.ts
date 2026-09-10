@@ -47,7 +47,7 @@ import {
   returnPct,
 } from "@thesis/core";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
-import { verifyFor } from "./radar-verify.js";
+import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-verify.js";
 import type { CarteraStore, RadarStore, TickerStore } from "./store.js";
 
 /**
@@ -354,6 +354,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   if (spy.length) await store.upsertCandles("SPY", spy).catch(() => {});
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const { candles, errors } = await candlesFor(deps, pre.map((r) => r.symbol));
+  const verifyBudget: VerifyBudget = { left: policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT };
 
   // Filtro técnico sobre la pre-selección; quedan los `top` mejores por score.
   const kept: RankedStock[] = [];
@@ -395,7 +396,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
         continue;
       }
       // Verificación web solo para lo que ya es COMPRAR por reglas: el dictamen vuelve a pasar por las reglas.
-      const verification = await verifyIfBuy(deps, sym, d, opts.today);
+      const verification = await verifyIfBuy(deps, sym, d, opts.today, verifyBudget);
       if (verification !== undefined) {
         const again = decideCandidate({ ...input, verification }, policy);
         if (!("excluded" in again)) d = again;
@@ -455,6 +456,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   const needCards = deps.cardWriter && latest.some((c) => c.kind === "stock" && c.summary === null);
   const ranked = needCards ? new Map(rankStocks(await rankableFundamentals(deps, opts.today), policy.weights).ranked.map((r) => [r.symbol, r])) : null;
   const rows: CandidateRow[] = [];
+  const verifyBudget: VerifyBudget = { left: policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT };
   for (const prev of latest) {
     // Solo la familia US: Argentina y seguimiento tienen su propio refresco.
     if (prev.kind !== "stock" && prev.kind !== "etf") continue;
@@ -493,7 +495,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     let d = decideCandidate(input, policy);
     let verification: VerificationSummary | null | undefined = prev.verification;
     if (!("excluded" in d)) {
-      const v = await verifyIfBuy(deps, prev.symbol, d, opts.today);
+      const v = await verifyIfBuy(deps, prev.symbol, d, opts.today, verifyBudget);
       if (v !== undefined) {
         verification = v;
         const again = decideCandidate({ ...input, verification: v }, policy);
@@ -535,11 +537,11 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
  * Verificación web para un candidato que quedó COMPRAR (acciones). `undefined` = no aplica (sin verificador, no es
  * COMPRAR o no es acción): la decisión no cambia. `null` = aplica pero no respondió: bandera pendiente.
  */
-async function verifyIfBuy(deps: RadarDeps, sym: string, d: { verdict: "COMPRAR" | "OBSERVAR"; flags: string[] }, today: string): Promise<VerificationSummary | null | undefined> {
+async function verifyIfBuy(deps: RadarDeps, sym: string, d: { verdict: "COMPRAR" | "OBSERVAR"; flags: string[] }, today: string, budget: VerifyBudget): Promise<VerificationSummary | null | undefined> {
   if (!deps.verifier || d.verdict !== "COMPRAR") return undefined;
   const profile = await deps.store.profile(sym).catch(() => null);
   const context = `banderas del Radar: ${d.flags.join(", ") || "ninguna"}`;
-  return verifyFor(deps, sym, { today, name: profile?.profile.name ?? null, context });
+  return verifyFor(deps, sym, { today, name: profile?.profile.name ?? null, context, budget });
 }
 
 // ---------- medición ----------

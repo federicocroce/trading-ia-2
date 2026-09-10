@@ -29,7 +29,8 @@ export interface RadarPolicy {
   prefilter: { minPrice: number; minIexDollarVolume: number };
   technical: { maxReturn21dPct: number; earningsWithinDays: number };
   sizing: { riskPerTradePct: number; maxPositionPct: number; fallbackPortfolioUsd: number };
-  candidates: { top: number; preselect: number; chronicWeeks: number };
+  /** `verifyPerRun`: tope de verificaciones web (llamadas al modelo con búsqueda) por corrida; la cuota gratis de búsqueda es chica (default 8). */
+  candidates: { top: number; preselect: number; chronicWeeks: number; verifyPerRun?: number | undefined };
   contribution: {
     monthlyUsd: number; coreTargetPct: number; maxPositionPct: number; maxNewPositionsPerMonth: number; maxLinePctOfContribution: number;
     /** Mientras el núcleo esté bajo su objetivo, qué % del monto va al núcleo (default 60). */
