@@ -1,6 +1,7 @@
-import type { Candle, CandidateRow, Fundamentals, WatchItem } from "@thesis/core";
+import type { Candle, CandidateRow, Fundamentals, VerificationSummary, WatchItem } from "@thesis/core";
 import { computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
 import { tagSymbol, type RadarDeps } from "./radar.js";
+import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-verify.js";
 
 /**
  * Lista de seguimiento: tickers elegidos a mano. Reciben todos los días el mismo tratamiento que un candidato
@@ -59,6 +60,8 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
   if (spy.length) await store.upsertCandles("SPY", spy).catch(() => {});
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const previous = (await store.latestCandidates()).filter((r) => r.kind === "watch");
+  // La lista de seguimiento comparte la cuota de búsqueda: la mitad del tope de una corrida.
+  const verifyBudget: VerifyBudget = { left: Math.max(1, Math.floor((policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT) / 2)) };
 
   const rows: CandidateRow[] = [];
   for (const item of items) {
@@ -71,7 +74,15 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       const f = all.get(sym) ?? stubFundamentals(sym, close);
       const prev = previous.find((p) => p.symbol === sym);
       const nth = prev ? (prev.candidateDate === opts.today ? prev.nthAppearance : prev.nthAppearance + 1) : 1;
-      const d = decideCandidate({ f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today }, policy);
+      let d = decideCandidate({ f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today }, policy);
+      // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
+      let verification: VerificationSummary | null | undefined = prev?.verification;
+      if (!("excluded" in d) && d.verdict === "COMPRAR" && deps.verifier) {
+        const profile = await store.profile(sym).catch(() => null);
+        verification = await verifyFor(deps, sym, { today: opts.today, name: profile?.profile.name ?? null, context: `lista de seguimiento · banderas: ${d.flags.join(", ") || "ninguna"}`, budget: verifyBudget });
+        const again = decideCandidate({ f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, verification }, policy);
+        if (!("excluded" in again)) d = again;
+      }
       const r = byRank.get(sym);
       const row: CandidateRow = {
         ...baseRow(opts.today, sym, close),
@@ -83,7 +94,7 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
         // Tendencia de fondo bajista: se sigue igual, con el stop dinámico como referencia y sin objetivo.
         rows.push({ ...row, verdict: "OBSERVAR", flags: d.reasons, stop: computeTrailingStop(candles) });
       } else {
-        rows.push({ ...row, verdict: d.verdict, flags: d.flags, entryLow: d.entryLow, entryHigh: round2(d.entryHigh), stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore });
+        rows.push({ ...row, verification: verification ?? null, verdict: d.verdict, flags: d.flags, entryLow: d.entryLow, entryHigh: round2(d.entryHigh), stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore });
       }
       // Reglas de taxonomía cada día (barato): un tema nuevo en config llega solo. Lo manual no se pisa.
       await tagSymbol(deps, sym, { industry: f.industry, country: null }).catch(() => null);

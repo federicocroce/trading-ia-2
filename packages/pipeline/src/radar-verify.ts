@@ -16,7 +16,7 @@ export const VERIFY_FRESH_DAYS = 7;
 export const VERIFY_PER_RUN_DEFAULT = 8;
 const DAY = 86_400_000;
 const ageDays = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / DAY;
-const summary = (v: CandidateVerification): VerificationSummary => ({ date: v.date, verdict: v.verdict, reason: v.reason });
+const summary = (v: CandidateVerification): VerificationSummary => ({ date: v.date, verdict: v.verdict, reason: v.reason, consensusTarget: v.consensusTarget ?? null });
 
 /** Presupuesto compartido por una corrida: cada verificación nueva (no cacheada) descuenta una. */
 export interface VerifyBudget {

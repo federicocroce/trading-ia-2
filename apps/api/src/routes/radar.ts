@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { AXES, AXIS_METRICS, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
-import { buildContributionPlan, candidateOverlap, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse } from "@thesis/pipeline";
+import { AXES, AXIS_METRICS, assessRegime, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
+import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
 
@@ -39,12 +39,15 @@ export function radarRoutes(c: Container) {
     const overweight = Object.fromEntries(Object.entries(byTheme).filter(([, pct]) => pct > 40));
     // Candidatos que se mueven como algo que ya tenés: mismo riesgo con otro nombre, suma menos.
     const overlap = await candidateOverlap(store, rows);
+    // Régimen macro desde el 10 años guardado por el plan (sin volver a pedirlo a Yahoo).
+    const since = new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10);
+    const regime = assessRegime(await store.candles(TNX_SYMBOL, since).catch(() => []), { reservePctWhenRestrictive: c.radarDeps.policy.contribution.reservePctWhenRestrictive });
     const bySymbol = new Map(rows.map((r) => [r.symbol, r]));
-    const picks = topPicks(rows, tags, overweight, n, overlap).map((p) => {
+    const picks = topPicks(rows, tags, overweight, n, overlap, regime).map((p) => {
       const r = bySymbol.get(p.symbol)!;
       return { ...p, close: r.close, entryHigh: r.entryHigh, stop: r.stop, target: r.target, sizeUsd: r.sizeUsd, sizeQty: r.sizeQty, riskScore: r.riskScore, score: r.score, rankInGroup: r.rankInGroup, groupSize: r.groupSize, summary: r.summary, mainRisk: r.mainRisk, tags: tags[p.symbol] ?? null };
     });
-    return ctx.json({ date: rows[0]?.candidateDate ?? null, overweight, picks });
+    return ctx.json({ date: rows[0]?.candidateDate ?? null, overweight, regime, picks });
   });
   /** Argentina (etapa 3): macro del día y su serie, acciones de BYMA contra el Merval, CEDEARs contra el CCL. */
   app.get("/radar/argentina", async (ctx) => {

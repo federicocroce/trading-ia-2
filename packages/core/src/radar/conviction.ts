@@ -1,4 +1,5 @@
 import type { Overlap } from "./overlap.js";
+import { isRateSensitive, type MacroRegime } from "./regime.js";
 import type { CandidateRow, Tags } from "./types.js";
 
 /**
@@ -12,7 +13,9 @@ import type { CandidateRow, Tags } from "./types.js";
  *             −0.15 insiders venden (suele ser rutina); −0.3 sorpresa negativa / consenso de venta;
  *             −0.3 evento moderado reciente (se cita fecha y titular); −0.3 hay titulares sin clasificar;
  *             −0.3 cada salvedad de calidad de la ganancia (socios minoritarios, cobranza lenta, ganancia sin ventas);
- *             −0.3 verificación web con reservas (se cita el motivo); apta suma a las razones sin bonificar.
+ *             −0.3 verificación web con reservas (se cita el motivo); apta suma a las razones sin bonificar;
+ *             −0.3 consenso a menos de 10% del precio; −0.3 subió más de 100% en 12 meses;
+ *             −0.3 sensible a tasas (REIT, servicios públicos, minera de oro) con régimen restrictivo.
  * - riesgo: −0.1 por cada punto por encima de 5.
  * - objetivo: −0.3 si queda a menos de 5% (el objetivo es 2× la distancia al stop, no un pronóstico).
  * - tema cargado: −0.3 si comparte un tema donde la cartera ya supera el umbral de concentración.
@@ -47,6 +50,8 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   cobranza_lenta: { text: "cuentas a cobrar altas contra los ingresos: factura mucho más de lo que cobra", penalty: 0.3 },
   ganancia_sin_ventas: { text: "el último trimestre vendió menos y ganó mucho más: revisá de dónde sale la ganancia", penalty: 0.3 },
   verificacion_reservas: { text: "verificación web con reservas", penalty: 0.3 },
+  consenso_en_precio: { text: "el objetivo de consenso está a menos de 10% del precio: poco margen", penalty: 0.3 },
+  subio_mucho_12m: { text: "subió más de 100% en 12 meses: el precio ya descuenta mucho", penalty: 0.3 },
 };
 const INFO: Record<string, string> = {
   resultado_extraordinario: "la ganancia reportada incluye extraordinarios: el ranking usa la ganancia núcleo",
@@ -68,7 +73,7 @@ const signed = (n: number) => `${n >= 0 ? "+" : ""}${r1(n)}%`;
  * `overweight`: tema → % de la cartera, solo los que ya superan el umbral de concentración.
  * `overlap`: símbolo → posición con la que más correlaciona por encima del umbral (ver `holdingsOverlap`).
  */
-export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: Record<string, number>, overlap: Record<string, Overlap> = {}): TopPick | null {
+export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: Record<string, number>, overlap: Record<string, Overlap> = {}, regime: MacroRegime | null = null): TopPick | null {
   if (row.kind !== "stock" || row.verdict !== "COMPRAR" || row.score === null) return null;
   if (row.stop === null || row.target === null || row.stop >= row.close || row.target <= row.close) return null;
   const gainPct = ((row.target - row.close) / row.close) * 100;
@@ -120,12 +125,17 @@ export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: 
     conviction -= 0.3;
     cautions.push(overlapCaution(twin));
   }
+  // Régimen restrictivo (pieza 4): lo sensible a tasas (REITs, servicios públicos, mineras de oro) suma menos.
+  if (regime?.state === "restrictivo" && isRateSensitive(tags)) {
+    conviction -= 0.3;
+    cautions.push(`régimen restrictivo (${regime.why}): sensible a tasas`);
+  }
   return { symbol: row.symbol, conviction: r4(conviction), gainPct: r4(gainPct), lossPct: r4(lossPct), reasons, cautions, allAligned: cautions.length === 0 };
 }
 
-export function topPicks(rows: CandidateRow[], tags: Record<string, Tags>, overweight: Record<string, number>, n = 5, overlap: Record<string, Overlap> = {}): TopPick[] {
+export function topPicks(rows: CandidateRow[], tags: Record<string, Tags>, overweight: Record<string, number>, n = 5, overlap: Record<string, Overlap> = {}, regime: MacroRegime | null = null): TopPick[] {
   return rows
-    .map((r) => convictionFor(r, tags[r.symbol] ?? null, overweight, overlap))
+    .map((r) => convictionFor(r, tags[r.symbol] ?? null, overweight, overlap, regime))
     .filter((p): p is TopPick => p !== null)
     .sort((a, b) => b.conviction - a.conviction)
     .slice(0, n);

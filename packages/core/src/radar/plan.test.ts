@@ -53,12 +53,18 @@ describe("planContribution", () => {
     };
     const p = planContribution(i, c, { amountUsd: 40_000 });
     expect(p.totalUsd).toBe(40_000);
-    // Un monto de 3 aportes o más admite una posición nueva extra: entran las tres primeras por convicción.
-    expect(p.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([
-      ["VTI", "nucleo", 14_400], ["VEA", "nucleo", 6_000], ["VWO", "nucleo", 3_600],
-      ["NEM", "sumar", 4_800],
-      ["ZVRA", "comprar", 2_800], ["NBN", "comprar", 2_800], ["NVDA", "comprar", 2_800], ["CEG", "seguimiento", 2_800],
+    // Un monto de 6 aportes admite dos posiciones nuevas extra (una por cada 3 aportes): entran las tres acciones y el ETF satélite,
+    // repartidas por convicción (pieza 5), no parejo.
+    expect(p.lines.map((l) => [l.symbol, l.kind])).toEqual([
+      ["VTI", "nucleo"], ["VEA", "nucleo"], ["VWO", "nucleo"],
+      ["NEM", "sumar"],
+      ["ZVRA", "comprar"], ["NBN", "comprar"], ["NVDA", "comprar"], ["CEG", "seguimiento"], ["COPX", "comprar"],
     ]);
+    expect(p.lines.slice(0, 4).map((l) => l.amountUsd)).toEqual([14_400, 6_000, 3_600, 4_800]);
+    const zvraUsd = p.lines.find((l) => l.symbol === "ZVRA")!.amountUsd;
+    const nvdaUsd = p.lines.find((l) => l.symbol === "NVDA")!.amountUsd;
+    expect(zvraUsd).toBeGreaterThan(nvdaUsd); // más convicción, más plata
+    expect(p.lines.slice(4).reduce((s, l) => s + l.amountUsd, 0)).toBe(11_200);
     // Con el aporte mensual normal, el tope sigue siendo el de la política.
     const mensual = planContribution({ ...i, closes: i.closes }, c);
     expect(mensual.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["ZVRA", "NBN"]);
@@ -75,7 +81,7 @@ describe("planContribution", () => {
     expect([nem.stop, nem.target]).toEqual([118.5, 152.4]); // el stop y objetivo del veredicto de Cartera viajan a la línea SUMAR
     const zvra = p.lines.find((l) => l.symbol === "ZVRA")!;
     expect([zvra.entryHigh, zvra.stop, zvra.target]).toEqual([12.92, 11.59, 14.83]);
-    expect(p.notes.join(" ")).toMatch(/COPX/);
+    expect(p.lines.some((l) => l.symbol === "COPX" && l.kind === "comprar")).toBe(true); // con 4 nuevas el ETF satélite entra
   });
   it("una salvedad del candidato (se mueve como algo tuyo) queda escrita en la razón de la línea", () => {
     const i: PlanInput = {

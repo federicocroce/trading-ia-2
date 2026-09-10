@@ -1,3 +1,4 @@
+import type { MacroRegime } from "./regime.js";
 import type { AssetClass, EtfConfig, EtfRole, RadarPolicy } from "./types.js";
 
 /**
@@ -12,17 +13,21 @@ export interface PlanInput {
   month: string;
   portfolioValueUsd: number;
   positions: Array<{ symbol: string; valueUsd: number; assetClass: AssetClass; role?: EtfRole }>;
-  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null }>;
+  /** `caution`: si el ETF del tema está en OBSERVAR (oro bajo la media de 200 con NEM subponderada), no se suma y la nota lo dice. */
+  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null; caution?: string | null }>;
   /** `cautions`: salvedades ya escritas (p. ej. "se mueve como YPF que ya tenés") que van a la razón de la línea.
-   *  `verification`: veredicto de la verificación web; "con_reservas" no entra como posición nueva y la nota dice por qué. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: { verdict: "apto" | "con_reservas" | "evitar"; reason: string } | null }>;
+   *  `verification`: veredicto de la verificación web; "con_reservas" no entra como posición nueva y la nota dice por qué.
+   *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva. */
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: { verdict: "apto" | "con_reservas" | "evitar"; reason: string } | null; flags?: string[] }>;
+  /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
+  regime?: MacroRegime | null;
   coreEtfs: EtfConfig[];
   spyClose: number | null;
   closes: Record<string, number>;
 }
 export interface PlanLine {
   symbol: string;
-  kind: "nucleo" | "sumar" | "comprar" | "seguimiento";
+  kind: "reserva" | "nucleo" | "sumar" | "comprar" | "seguimiento";
   amountUsd: number;
   rationale: string;
   close: number | null;
@@ -43,6 +48,14 @@ export interface PlanOptions {
   amountUsd?: number;
 }
 const DEFAULTS = { coreSharePctWhileBelowTarget: 60, sumarSharePctOfRest: 30, watchLinesMax: 1, etfLinesMax: 1 };
+export const DEFAULT_RESERVE_SYMBOL = "SGOV";
+/** Banderas de precio que dejan a un candidato fuera de las posiciones nuevas del plan (la convicción ya lo descuenta; acá se explica). */
+export const PLAN_PRICE_BLOCKERS: Record<string, string> = {
+  consenso_en_precio: "el objetivo de consenso está a menos de 10% del precio",
+  subio_mucho_12m: "subió más de 100% en 12 meses",
+};
+/** Posiciones nuevas según el monto: el tope base más una por cada 3 aportes mensuales, hasta 5 (40k con 6.5k mensual → 4). */
+export const maxNewPositions = (aporte: number, monthlyUsd: number, base: number) => Math.min(5, base + Math.floor(aporte / (3 * Math.max(1, monthlyUsd))));
 export interface ContributionPlan {
   month: string;
   totalUsd: number;
@@ -85,12 +98,23 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     return true;
   };
 
+  // 0. Reserva (pieza 4): con régimen restrictivo, una parte del aporte espera en letras del Tesoro antes de repartir el resto.
+  if (i.regime && i.regime.reservePct > 0) {
+    const amt = Math.round((i.regime.reservePct / 100) * aporte);
+    if (amt >= MIN_LINE_USD) {
+      lines.push(line(c.reserveSymbol ?? DEFAULT_RESERVE_SYMBOL, "reserva", amt, `régimen ${i.regime.state}: ${i.regime.why}. ${i.regime.reservePct}% del aporte en letras del Tesoro, para comprar en una corrección`));
+      remaining -= amt;
+    }
+  }
+  if (i.regime) notes.push(`Régimen macro al ${i.regime.asOf}: ${i.regime.state} (${i.regime.why}).`);
+
   // 1. Núcleo: mientras esté bajo el objetivo, una parte fija del monto (el resto sigue bajando a lo demás).
   const coreValue = i.positions.filter(isCore).reduce((s, p) => s + p.valueUsd, 0);
   const coreTarget = (c.coreTargetPct / 100) * total;
   const gap = Math.max(0, coreTarget - coreValue);
   if (gap > 0) {
-    const toCore = Math.min(Math.round(gap), Math.round((cfg.coreSharePctWhileBelowTarget / 100) * aporte), remaining);
+    // Sobre lo que queda después de la reserva (sin reserva es el aporte entero).
+    const toCore = Math.min(Math.round(gap), Math.round((cfg.coreSharePctWhileBelowTarget / 100) * remaining), remaining);
     if (i.coreEtfs.some((e) => e.role === "nucleo")) allocateCore(toCore, `núcleo al ${Math.round((coreValue / total) * 100)}% de la cartera, objetivo ${c.coreTargetPct}%: ${cfg.coreSharePctWhileBelowTarget}% del monto`);
     else notes.push(`Sin núcleo definido en config/etfs.json: faltan USD ${Math.round(gap)} para el objetivo del ${c.coreTargetPct}%.`);
   }
@@ -101,6 +125,11 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   let sumarPool = Math.round((cfg.sumarSharePctOfRest / 100) * remaining);
   for (const s of [...i.sumarCandidates].sort((a, b) => a.weightPct - b.weightPct)) {
     if (remaining < MIN_LINE_USD || sumarPool < MIN_LINE_USD) break;
+    // Coherencia (pieza 3): subponderada, pero el ETF de su tema dice OBSERVAR: no se suma y se dice por qué.
+    if (s.caution) {
+      notes.push(`No se sumó ${s.symbol}: ${s.caution}.`);
+      continue;
+    }
     const amt = Math.floor(Math.min(remaining, sumarPool, maxLine, Math.max(0, equalTarget - s.valueUsd), capFor(s.symbol)));
     if (amt < MIN_LINE_USD) continue;
     lines.push({ ...line(s.symbol, "sumar", amt, `subponderada (${s.weightPct}% vs ${Math.round((equalTarget / total) * 100)}% igualitario)`), stop: s.stop ?? null, target: s.target ?? null });
@@ -108,10 +137,10 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     sumarPool -= amt;
   }
 
-  // 3. Nuevas: acciones por prioridad (convicción), una de seguimiento, un ETF satélite. Repartidas parejo.
+  // 3. Nuevas: acciones por prioridad (convicción), una de seguimiento, un ETF satélite. Repartidas por convicción (pieza 5).
   const byPriority = (a: PlanInput["buyCandidates"][number], b: PlanInput["buyCandidates"][number]) => (b.priority ?? -Infinity) - (a.priority ?? -Infinity) || (b.score ?? -Infinity) - (a.score ?? -Infinity);
-  // Un monto grande (3 aportes o más de una vez) admite una posición nueva extra: repartir 40k en 2 acciones es concentrar.
-  const maxNew = c.maxNewPositionsPerMonth + (aporte >= 3 * c.monthlyUsd ? 1 : 0);
+  // Un monto grande admite más posiciones nuevas: una extra por cada 3 aportes mensuales, hasta 5 (repartir 40k en 2 acciones es concentrar).
+  const maxNew = maxNewPositions(aporte, c.monthlyUsd, c.maxNewPositionsPerMonth);
   const pools: Array<{ kind: "stock" | "watch" | "etf"; max: number; countsAsNew: boolean }> = [
     { kind: "stock", max: maxNew, countsAsNew: true },
     { kind: "watch", max: cfg.watchLinesMax, countsAsNew: false },
@@ -134,6 +163,17 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         leftOut.push({ symbol: b.symbol, reason: `${place}: verificación web ${b.verification.verdict === "evitar" ? "dice evitar" : "con reservas"}: ${b.verification.reason}` });
         return;
       }
+      // Salvedades de precio (pieza 3): tampoco entra como nueva, con el motivo.
+      const blocker = (b.flags ?? []).find((f) => PLAN_PRICE_BLOCKERS[f]);
+      if (blocker) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${PLAN_PRICE_BLOCKERS[blocker]}` });
+        return;
+      }
+      // Ya está en el tope por posición (PAM 10/9: 15,8% de la cartera): no ocupa un lugar que otro puede usar.
+      if (capFor(b.symbol) < MIN_LINE_USD) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ya está en el tope del ${c.maxPositionPct}% por posición` });
+        return;
+      }
       if (taken >= pool.max) {
         leftOut.push({ symbol: b.symbol, reason: `${place}: tope de ${pool.max} ${POOL_LABEL[pool.kind]}` });
         return;
@@ -149,10 +189,15 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     });
   }
   if (chosen.length && remaining >= MIN_LINE_USD) {
-    const per = Math.floor(remaining / chosen.length);
+    // Reparto por convicción (pieza 5): cada acción pesa 1 + su convicción (más convicción, más plata, sin extremos: 1,5 contra 0,6
+    // de convicción reparte 62/38, no 71/29); seguimiento y ETF pesan como el promedio de las acciones.
+    const stockWeights = chosen.filter((b) => b.kind === "stock" && b.priority !== null).map((b) => 1 + Math.max(0, b.priority!));
+    const avg = stockWeights.length ? stockWeights.reduce((s, x) => s + x, 0) / stockWeights.length : 1;
+    const weightOf = (b: PlanInput["buyCandidates"][number]) => (b.kind === "stock" && b.priority !== null ? 1 + Math.max(0, b.priority) : avg);
+    const wsum = chosen.reduce((s, b) => s + weightOf(b), 0);
     let used = 0;
     chosen.forEach((b, idx) => {
-      const share = idx === chosen.length - 1 ? remaining - used : per;
+      const share = idx === chosen.length - 1 ? remaining - used : Math.floor((remaining * weightOf(b)) / wsum);
       const amt = Math.floor(Math.min(share, maxLine, b.sizeUsd ?? share, capFor(b.symbol)));
       if (amt < MIN_LINE_USD) {
         leftOut.push({ symbol: b.symbol, reason: `quedaría con menos de USD ${MIN_LINE_USD} (tope por posición o monto chico)` });

@@ -40,6 +40,9 @@ export interface RadarPolicy {
     /** Máximo de líneas de seguimiento y de ETFs satélite por plan (default 1 y 1). */
     watchLinesMax?: number | undefined;
     etfLinesMax?: number | undefined;
+    /** Régimen restrictivo (tasas altas o subiendo): % del aporte que va a letras del Tesoro (default 15) y con qué ETF (default SGOV). */
+    reservePctWhenRestrictive?: number | undefined;
+    reserveSymbol?: string | undefined;
   };
 }
 
@@ -106,6 +109,8 @@ export interface VerificationSummary {
   date: string;
   verdict: VerificationVerdict;
   reason: string;
+  /** Objetivo de consenso que encontró la verificación (para la salvedad "consenso en el precio" cuando no hay titulares de analistas). */
+  consensusTarget?: number | null;
 }
 export interface CandidateVerification extends VerificationSummary {
   symbol: string;

@@ -1,0 +1,156 @@
+import { describe, expect, it } from "vitest";
+import { PLAN_PRICE_BLOCKERS, assessRegime, consensusUpsidePct, convictionFor, decideCandidate, isRateSensitive, maxNewPositions, planContribution, type Candle, type CandidateRow, type EtfConfig, type Fundamentals, type PlanInput, type Tags } from "../index.js";
+
+const series = (closes: number[], start = "2025-09-01"): Candle[] => closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1_000_000 }));
+
+describe("régimen macro (pieza 4)", () => {
+  const tnx = (from: number, to: number, n = 200) => series(Array.from({ length: n }, (_, i) => from + ((to - from) * i) / (n - 1)));
+  it("^TNX viene ×10; 10 años ≥ 4,5% es restrictivo con reserva 15% por defecto", () => {
+    const r = assessRegime(tnx(44.9, 48.4))!;
+    expect(r.state).toBe("restrictivo");
+    expect(r.tenYearPct).toBe(4.84);
+    expect(r.change3mBp).toBeGreaterThan(0);
+    expect(r.reservePct).toBe(15);
+    expect(r.why).toContain("4.84%");
+    expect(assessRegime(tnx(44.9, 48.4), { reservePctWhenRestrictive: 10 })!.reservePct).toBe(10);
+  });
+  it("subida de 40 pb en 3 meses (63 ruedas) también es restrictivo aunque esté bajo 4,5%; bajada de 40 pb bajo 4% es expansivo; el resto neutral", () => {
+    expect(assessRegime(tnx(3.7, 4.2, 64))!).toMatchObject({ state: "restrictivo", change3mBp: 50 });
+    expect(assessRegime(tnx(4.3, 3.6, 64))!).toMatchObject({ state: "expansivo", change3mBp: -70 });
+    expect(assessRegime(tnx(4.1, 4.15))!).toMatchObject({ state: "neutral", reservePct: 0 });
+    expect(assessRegime([])).toBeNull();
+    expect(assessRegime(series([41.2]))!.change3mBp).toBeNull();
+  });
+  it("sensible a tasas por sector o tema; financiero no", () => {
+    expect(isRateSensitive({ sector: "Inmobiliario", themes: [] })).toBe(true);
+    expect(isRateSensitive({ sector: "Materiales", themes: ["oro_mineria"] })).toBe(true);
+    expect(isRateSensitive({ sector: "Financiero", themes: ["dividendos"] })).toBe(false);
+    expect(isRateSensitive(null)).toBe(false);
+  });
+});
+
+const up = series(Array.from({ length: 260 }, (_, i) => 80 + (20 * i) / 259));
+const today = "2026-05-19";
+const f: Fundamentals = { symbol: "X", asOf: today, metrics: { beta: 1, "totalDebt/totalEquityAnnual": 0.5 }, peers: [], industry: "I", mcapUsd: 20e9, dollarVolumeUsd: 50e6, nextEarnings: null, insiderBuys90d: 0, insiderSells90d: 0, analyst: null, earningsSurprises: null, priceUsd: 100 } as unknown as Fundamentals;
+const policy = { technical: { maxReturn21dPct: 15, earningsWithinDays: 10 }, sizing: { riskPerTradePct: 1, maxPositionPct: 10, fallbackPortfolioUsd: 150_000 }, candidates: { top: 40, preselect: 150, chronicWeeks: 4 } };
+
+describe("salvedades de precio (pieza 3)", () => {
+  it("consenso en el precio: mediana de titulares (2+) a menos de 10% → bandera; el consenso de la verificación sirve si no hay titulares", () => {
+    expect(consensusUpsidePct(100, { n: 3, median: 108, min: 100, max: 120, latestDate: today }, null)).toBe(8);
+    expect(consensusUpsidePct(100, { n: 1, median: 108, min: 108, max: 108, latestDate: today }, 130)).toBe(30); // un solo titular no alcanza: usa la verificación
+    expect(consensusUpsidePct(100, null, null)).toBeNull();
+    const d = decideCandidate({ f, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 105, min: 100, max: 110, latestDate: today } }, policy);
+    if (!("excluded" in d)) expect(d.flags).toContain("consenso_en_precio");
+    const ok = decideCandidate({ f, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 125, min: 120, max: 130, latestDate: today } }, policy);
+    if (!("excluded" in ok)) expect(ok.flags).not.toContain("consenso_en_precio");
+  });
+  it("subió más de 100% en 12 meses → bandera (GLW +133%); +25% no", () => {
+    // 253 velas suaves: 70 → 160 (+129%) sin superar +15% en 21 ruedas.
+    const runup = series(Array.from({ length: 260 }, (_, i) => 70 * Math.pow(160 / 70, i / 259)));
+    const d = decideCandidate({ f, candles: runup, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+    if (!("excluded" in d)) expect(d.flags).toContain("subio_mucho_12m");
+    const calm = decideCandidate({ f, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+    if (!("excluded" in calm)) expect(calm.flags).not.toContain("subio_mucho_12m");
+  });
+  it("las dos juntas ya observan (dos salvedades de calidad o precio)", () => {
+    const runup = series(Array.from({ length: 260 }, (_, i) => 70 * Math.pow(160 / 70, i / 259)));
+    const d = decideCandidate({ f, candles: runup, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 165, min: 160, max: 170, latestDate: today } }, policy);
+    if (!("excluded" in d)) {
+      expect(d.verdict).toBe("OBSERVAR");
+      expect(d.reasons).toEqual(["salvedades_de_calidad"]);
+    }
+  });
+});
+
+const row = (o: Partial<CandidateRow>): CandidateRow => ({
+  candidateDate: "2026-09-10", symbol: "AAA", kind: "stock", verdict: "COMPRAR", score: 1.2, axes: {}, peerGroup: [], rankInGroup: 1, groupSize: 20,
+  close: 100, entryLow: 100, entryHigh: 102, stop: 92, target: 116, sizeUsd: 10_000, sizeQty: 100, riskScore: 4, flags: [], nthAppearance: 1,
+  summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null,
+  close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, ...o,
+});
+const tags = (sector: string, themes: string[]): Tags => ({ assetClass: "accion_us", sector, industry: null, themes, themesSource: "regla" });
+
+describe("convicción con precio y régimen", () => {
+  it("−0.3 por consenso en el precio, −0.3 por subida de 12 meses, −0.3 por sensible a tasas en régimen restrictivo", () => {
+    const clean = convictionFor(row({}), null, {})!;
+    const priced = convictionFor(row({ flags: ["consenso_en_precio", "subio_mucho_12m"] }), null, {})!;
+    expect(priced.conviction).toBeCloseTo(clean.conviction - 0.6, 4);
+    const restrictive = { state: "restrictivo" as const, asOf: "2026-09-10", tenYearPct: 4.84, change3mBp: 35, reservePct: 15, why: "10 años 4.84% (+35 pb en 3 meses): tasas altas o subiendo" };
+    const reit = convictionFor(row({}), tags("Inmobiliario", ["dividendos"]), {}, {}, restrictive)!;
+    expect(reit.conviction).toBeCloseTo(clean.conviction - 0.3, 4);
+    expect(reit.cautions[0]).toContain("régimen restrictivo");
+    const bank = convictionFor(row({}), tags("Financiero", ["bancos"]), {}, {}, restrictive)!;
+    expect(bank.conviction).toBeCloseTo(clean.conviction, 4);
+    const neutral = convictionFor(row({}), tags("Inmobiliario", []), {}, {}, { ...restrictive, state: "neutral", reservePct: 0 })!;
+    expect(neutral.conviction).toBeCloseTo(clean.conviction, 4);
+  });
+});
+
+describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000", () => {
+  const c = { monthlyUsd: 6500, coreTargetPct: 40, maxPositionPct: 15, maxNewPositionsPerMonth: 2, maxLinePctOfContribution: 50, coreSharePctWhileBelowTarget: 60, sumarSharePctOfRest: 30, watchLinesMax: 1, etfLinesMax: 1 };
+  const core: EtfConfig[] = [
+    { symbol: "VTI", name: "VTI", role: "nucleo", exposure: "rv_us", ter: 0.03, themes: [], coreWeight: 0.6 },
+    { symbol: "VEA", name: "VEA", role: "nucleo", exposure: "rv_internacional", ter: 0.05, themes: [], coreWeight: 0.25 },
+    { symbol: "VWO", name: "VWO", role: "nucleo", exposure: "emergentes", ter: 0.08, themes: [], coreWeight: 0.15 },
+  ];
+  const buy = (symbol: string, priority: number, extra: Partial<PlanInput["buyCandidates"][number]> = {}): PlanInput["buyCandidates"][number] => ({ symbol, kind: "stock", priority, score: 1.2, sizeUsd: 8000, close: 100, entryHigh: 102, stop: 92, target: 116, ...extra });
+  const positions = [
+    { symbol: "GGAL", valueUsd: 40_965, assetClass: "adr" as const }, { symbol: "PAM", valueUsd: 31_541, assetClass: "adr" as const }, { symbol: "YPF", valueUsd: 30_437, assetClass: "adr" as const },
+    { symbol: "VIST", valueUsd: 17_296, assetClass: "adr" as const }, { symbol: "HUT", valueUsd: 14_355, assetClass: "accion_us" as const }, { symbol: "TSM", valueUsd: 11_549, assetClass: "adr" as const },
+    { symbol: "MARA", valueUsd: 7_539, assetClass: "accion_us" as const }, { symbol: "NEM", valueUsd: 5_727, assetClass: "accion_us" as const },
+  ];
+  const input: PlanInput = {
+    month: "2026-09",
+    portfolioValueUsd: 159_409,
+    positions,
+    sumarCandidates: [{ symbol: "NEM", valueUsd: 5_727, weightPct: 3.59, stop: 121.67, target: 142.79, caution: "el ETF de su tema (GLD) está en OBSERVAR: bajo la SMA200, fuerza relativa 6m -25%" }],
+    buyCandidates: [
+      buy("APH", 1.4709, { verification: { verdict: "apto", reason: "pedidos +94%" } }),
+      buy("NVDA", 1.4608, { verification: { verdict: "apto", reason: "superó y subió guía" } }),
+      buy("HRTG", 1.4508, { verification: { verdict: "con_reservas", reason: "reservas liberadas en temporada benigna" } }),
+      buy("LNC", 1.3686, { verification: { verdict: "apto", reason: "5x adelantado" } }),
+      buy("SOLV", 1.3297, { verification: { verdict: "con_reservas", reason: "0,82 de EPS único" } }),
+      buy("PAM", 1.2, { verification: { verdict: "apto", reason: "récord" } }),
+      buy("NBN", 1.14, { verification: { verdict: "apto", reason: "ROE 23%" } }),
+      buy("TER", 1.05, { flags: ["subio_mucho_12m"] }),
+      { symbol: "GLW", kind: "watch", priority: -2, score: -0.33, sizeUsd: 8000, close: 168, entryHigh: 171, stop: 153, target: 199, flags: ["subio_mucho_12m"], verification: { verdict: "con_reservas", reason: "consenso en el precio" } },
+    ],
+    coreEtfs: core,
+    spyClose: 762.4,
+    closes: {},
+    regime: { state: "restrictivo", asOf: "2026-09-10", tenYearPct: 4.84, change3mBp: 35, reservePct: 15, why: "10 años 4.84% (+35 pb en 3 meses): tasas altas o subiendo" },
+  };
+  it("reserva 15% en SGOV primero; NEM no se suma (oro en OBSERVAR); cuatro nuevas por convicción; HRTG, GLW y TER afuera con motivo", () => {
+    const p = planContribution(input, c, { amountUsd: 40_000 });
+    const by = Object.fromEntries(p.lines.map((l) => [`${l.kind}:${l.symbol}`, l.amountUsd]));
+    expect(by["reserva:SGOV"]).toBe(6000);
+    expect(p.lines.filter((l) => l.kind === "sumar")).toHaveLength(0);
+    expect(p.notes.some((n) => n.startsWith("No se sumó NEM: el ETF de su tema (GLD)"))).toBe(true);
+    expect(p.notes.some((n) => n.startsWith("Régimen macro al 2026-09-10: restrictivo"))).toBe(true);
+    // Núcleo: 60% de lo que queda tras la reserva (34.000) = 20.400 repartido 60/25/15.
+    expect(by["nucleo:VTI"]).toBe(12_240);
+    expect(by["nucleo:VEA"]).toBe(5_100);
+    expect(by["nucleo:VWO"]).toBe(3_060);
+    // Mi cartera del 10/9: APH, NVDA, LNC y NBN. PAM ya está en el tope por posición y no ocupa el lugar.
+    expect(p.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["APH", "NVDA", "LNC", "NBN"]);
+    expect(maxNewPositions(40_000, 6500, 2)).toBe(4);
+    expect(maxNewPositions(6_500, 6500, 2)).toBe(2);
+    const left = Object.fromEntries((p.leftOut ?? []).map((x) => [x.symbol, x.reason]));
+    expect(left["HRTG"]).toBe("3° por convicción: verificación web con reservas: reservas liberadas en temporada benigna");
+    expect(left["SOLV"]).toContain("verificación web con reservas");
+    expect(left["PAM"]).toBe("6° por convicción: ya está en el tope del 15% por posición");
+    expect(left["TER"]).toBe(`8° por convicción: ${PLAN_PRICE_BLOCKERS["subio_mucho_12m"]}`);
+    expect(left["GLW"]).toContain("verificación web con reservas");
+    // Reparto por convicción sobre 13.600 (peso 1 + convicción): 3.559 / 3.545 / 3.412 / 3.084 (yo: 3.500 / 3.500 / 3.000 / 3.000).
+    const comprar = p.lines.filter((l) => l.kind === "comprar");
+    expect(comprar.map((l) => l.amountUsd)).toEqual([3_559, 3_545, 3_412, 3_084]);
+    expect(comprar.reduce((s, l) => s + l.amountUsd, 0) + 6000 + 20_400).toBe(40_000);
+    expect(p.lines.filter((l) => l.kind === "seguimiento")).toHaveLength(0);
+  });
+  it("sin régimen restrictivo no hay reserva ni nota de régimen; con 6.500 mensuales siguen dos nuevas", () => {
+    const p = planContribution({ ...input, regime: { ...input.regime!, state: "neutral", reservePct: 0 } }, c);
+    expect(p.lines.some((l) => l.kind === "reserva")).toBe(false);
+    expect(p.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["APH", "NVDA"]);
+    expect(p.notes.some((n) => n.includes("neutral"))).toBe(true);
+  });
+});

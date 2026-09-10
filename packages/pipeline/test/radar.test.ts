@@ -46,7 +46,8 @@ function deps(over: Partial<RadarDeps> = {}) {
     insiders: async () => ({ buys: 1, sells: 0 }),
     nextEarnings: async () => null,
   };
-  const history = { candles: async (s: string) => series(s === "XLE" ? ramp(80, priceLevel * 1.25) : ramp(80, priceLevel).map((c) => (s === "SPY" ? c * 5 : c))) };
+  // ^TNX (10 años) sin historia: sin régimen macro, para que el plan de estos tests no lleve reserva.
+  const history = { candles: async (s: string) => (s === "^TNX" ? [] : series(s === "XLE" ? ramp(80, priceLevel * 1.25) : ramp(80, priceLevel).map((c) => (s === "SPY" ? c * 5 : c)))) };
   const cardWriter: CardWriter = { promptVersion: "card-test", write: async (i: CardInput): Promise<Card> => ({ summary: `${i.symbol} hace cosas`, whyRanks: "rankea", mainRisk: "riesgo", moat: "moderado", themes: ["IA"], degrade: i.symbol === "SB", ...(i.symbol === "SB" ? { degradeReason: "6-K: guidance recortado" } : {}) }) };
   const d: RadarDeps = { store, assets: { list: async () => assets, snapshots }, fundamentals, history, cardWriter, taxonomy, etfs, policy, filings: async () => ["8-K algo"], ...over };
   return { store, d, finnhubCalls };
@@ -190,7 +191,8 @@ describe("plan y medición", () => {
     await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
     const plan = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
     // Regla v2: SUMAR hasta el 30% del resto; las dos nuevas (máximo por mes) se reparten parejo lo que queda.
-    expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 1950], ["SA", "comprar", 2275], ["SH", "comprar", 2275]]);
+    // Las dos nuevas se reparten por convicción (peso 1 + convicción): SA rankea mejor que SH y se lleva más.
+    expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 1950], ["SA", "comprar", 2935], ["SH", "comprar", 1615]]);
     expect((await store.latestPlan())?.month).toBe("2026-05");
 
     // medición: velas hasta 2026-05-18 → un candidato del 2026-04-01 tiene 7 y 30 días de vela posterior

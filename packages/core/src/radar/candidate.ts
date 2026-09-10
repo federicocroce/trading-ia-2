@@ -2,16 +2,25 @@ import { atr, computeTarget, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import type { Fundamentals } from "./ranking.js";
 import { earningsQualityFlags, hasExtraordinary } from "./statements.js";
-import type { CandidateEvent, CoreEarnings, RadarPolicy, VerificationSummary } from "./types.js";
+import type { AnalystTargets, CandidateEvent, CoreEarnings, RadarPolicy, VerificationSummary } from "./types.js";
 
 /** Reglas de candidato (spec etapa 2 §6): lo técnico filtra, no rankea. Puro. */
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const DAY = 86_400_000;
 /** Un evento grave solo pesa en el veredicto dentro de esta ventana; antes, ya pasó. */
 const EVENT_WINDOW_DAYS = 90;
-/** Salvedades de calidad de la ganancia, de litigio y de la verificación web que, juntas, pasan un COMPRAR a OBSERVAR. */
-export const QUALITY_FLAGS = new Set(["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas", "evento_moderado", "verificacion_reservas"]);
+/** Salvedades de calidad de la ganancia, de litigio, de la verificación web y de precio que, juntas, pasan un COMPRAR a OBSERVAR. */
+export const QUALITY_FLAGS = new Set(["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas", "evento_moderado", "verificacion_reservas", "consenso_en_precio", "subio_mucho_12m"]);
 export const QUALITY_OBSERVE_AT = 2;
+/** Salvedades de precio (pieza 3): el objetivo de consenso a menos de esto sobre el precio, o una subida de 12 meses mayor a esto. */
+export const PRICE_THRESHOLDS = { consensusMinUpsidePct: 10, runup12mPct: 100 };
+
+/** `consenso_en_precio`: mediana de objetivos de titulares (2 o más) o, si no hay, el consenso que trajo la verificación web. */
+export function consensusUpsidePct(close: number, analystTargets: AnalystTargets | null | undefined, consensusTarget: number | null | undefined): number | null {
+  const median = analystTargets && analystTargets.n >= 2 && analystTargets.median !== null ? analystTargets.median : (consensusTarget ?? null);
+  if (median === null || !(close > 0)) return null;
+  return round2((median / close - 1) * 100);
+}
 
 /** Bandera de la verificación web. `undefined` = no hay verificador; `null` = hay pero todavía no respondió (pendiente). */
 export function verificationFlag(v: VerificationSummary | null | undefined): string | null {
@@ -148,6 +157,8 @@ export function decideCandidate(
     eventsUnclassified?: boolean;
     /** Verificación web: `undefined` sin verificador, `null` pendiente. */
     verification?: VerificationSummary | null;
+    /** Objetivos de analistas de titulares (90 días), para la salvedad "consenso en el precio". */
+    analystTargets?: AnalystTargets | null;
   },
   p: Pick<RadarPolicy, "technical" | "sizing" | "candidates">,
 ): CandidateDecision | { excluded: true; reasons: string[] } {
@@ -160,6 +171,11 @@ export function decideCandidate(
     ...(i.verification !== undefined ? { verification: i.verification } : {}),
     today: i.today,
   });
+  // Salvedades de precio (pieza 3): objetivo de consenso pegado al precio, o subida de 12 meses que ya descuenta mucho.
+  const upside = consensusUpsidePct(gate.close, i.analystTargets, i.verification?.consensusTarget);
+  if (upside !== null && upside < PRICE_THRESHOLDS.consensusMinUpsidePct) flags.push("consenso_en_precio");
+  const r12 = returnPct(i.candles, 252);
+  if (r12 !== null && r12 > PRICE_THRESHOLDS.runup12mPct) flags.push("subio_mucho_12m");
   // La verificación web que dice "evitar" observa por sí sola, como un evento grave.
   const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : [])];
   // Dos o más salvedades de calidad o litigio: cada una sola es una advertencia, juntas son un motivo para observar

@@ -26,5 +26,7 @@ const FLAG_LABEL: Record<string, string> = {
   verificacion_reservas: "verificación web: con reservas",
   verificacion_evitar: "verificación web: evitar",
   verificacion_pendiente: "verificación web pendiente",
+  consenso_en_precio: "objetivo de consenso a < 10% del precio",
+  subio_mucho_12m: "subió > 100% en 12 meses",
 };
 export const flagLabel = (flag: string): string => FLAG_LABEL[flag] ?? flag;

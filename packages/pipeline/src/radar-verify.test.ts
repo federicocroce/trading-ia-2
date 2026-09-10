@@ -29,7 +29,7 @@ describe("verifyFor", () => {
     const store = new MemoryStore();
     const v = verifier([result("apto", "limpia")]);
     const first = await verifyFor({ store, verifier: v }, "nvda", { today: "2026-09-10", name: "NVIDIA", context: "banderas: x" });
-    expect(first).toEqual({ date: "2026-09-10", verdict: "apto", reason: "limpia" });
+    expect(first).toEqual({ date: "2026-09-10", verdict: "apto", reason: "limpia", consensusTarget: null });
     const saved = (await store.verification("NVDA"))!;
     expect(saved).toMatchObject({ symbol: "NVDA", date: "2026-09-10", promptVersion: "v1-test", researchText: "informe", sources: [{ title: "sec.gov", url: "https://x" }] });
     expect(saved.detectedAt).toMatch(/T/);
@@ -68,6 +68,6 @@ describe("verifyFor", () => {
     expect(logs[0]).toContain("falló");
     await store.saveVerification({ symbol: "B", date: "2026-08-01", verdict: "apto", reason: "vieja", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [], researchText: "", promptVersion: "v1-test", model: null, detectedAt: "2026-08-01T00:00:00Z" });
     const v2 = verifier([new Error("cuota")]);
-    expect(await verifyFor({ store, verifier: v2 }, "B", { today: "2026-09-10", name: null })).toEqual({ date: "2026-08-01", verdict: "apto", reason: "vieja" });
+    expect(await verifyFor({ store, verifier: v2 }, "B", { today: "2026-09-10", name: null })).toEqual({ date: "2026-08-01", verdict: "apto", reason: "vieja", consensusTarget: null });
   });
 });

@@ -27,6 +27,7 @@ import {
   type CandidateVerifier,
   type CoreEarnings,
   type VerificationSummary,
+  assessRegime,
   type EtfConfig,
   type EventClassifier,
   type FinnhubMetrics,
@@ -92,6 +93,8 @@ const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * DAY).
 const ageDays = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / DAY;
 const FRESH_DAYS = 7;
 const HISTORY_DAYS = 260;
+/** Bono a 10 años en Yahoo (rendimiento × 10): base del régimen macro. */
+export const TNX_SYMBOL = "^TNX";
 const STATEMENTS_CONCURRENCY = 4;
 
 // ---------- taxonomía ----------
@@ -389,7 +392,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       const nth = await nthAppearanceFor(deps, sym, opts.today);
       const symCore = coreOf(sym);
       const ev = await scanCandidateEvents(deps, sym, opts.today, true);
-      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified } : {}) };
+      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate(input, policy);
       if ("excluded" in d) {
         skipped.push({ symbol: sym, reason: d.reasons.join(",") });
@@ -491,7 +494,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     }
     const evEvents = ev?.events ?? prev.events ?? [];
     const eventsUnclassified = ev ? ev.unclassified : true;
-    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified };
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null };
     let d = decideCandidate(input, policy);
     let verification: VerificationSummary | null | undefined = prev.verification;
     if (!("excluded" in d)) {
@@ -632,13 +635,25 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   const etfOf = (s: string) => deps.etfs.find((e) => e.symbol === s);
   const overweight = Object.fromEntries(Object.entries(risk?.report.concentration.byTheme ?? {}).filter(([, pct]) => pct > 40));
   const overlap = await candidateOverlap(store, candidates);
-  const conviction = new Map(topPicks(candidates, tags, overweight, 1000, overlap).map((p) => [p.symbol, p.conviction]));
+  // Régimen macro (pieza 4): el 10 años de Yahoo (^TNX); se guarda para que el panel lo lea sin volver a pedirlo.
+  const tnx = await deps.history.candles(TNX_SYMBOL, HISTORY_DAYS).catch(() => [] as Candle[]);
+  if (tnx.length) await store.upsertCandles(TNX_SYMBOL, tnx).catch(() => {});
+  const regime = assessRegime(tnx, { reservePctWhenRestrictive: policy.contribution.reservePctWhenRestrictive });
+  const conviction = new Map(topPicks(candidates, tags, overweight, 1000, overlap, regime).map((p) => [p.symbol, p.conviction]));
+  // Coherencia (pieza 3): una posición subponderada no se suma si el ETF de su tema está en OBSERVAR (oro bajo la media con NEM).
+  const etfObserved = candidates.filter((c) => c.kind === "etf" && c.verdict === "OBSERVAR");
+  const sumarCaution = (symbol: string): string | null => {
+    const themes = new Set(tags[symbol]?.themes ?? []);
+    if (!themes.size) return null;
+    const hit = etfObserved.find((e) => (deps.etfs.find((cfg) => cfg.symbol === e.symbol)?.themes ?? []).some((t) => themes.has(t)));
+    return hit ? `el ETF de su tema (${hit.symbol}) está en OBSERVAR: ${hit.flags.join(", ") || "sin fuerza"}` : null;
+  };
   const plan = planContribution(
     {
       month: opts.month,
       portfolioValueUsd,
       positions: positions.map((p) => ({ symbol: p.symbol, valueUsd: weights.get(p.symbol)?.value ?? (closes[p.symbol] ?? p.avgCost) * p.quantity, assetClass: tags[p.symbol]?.assetClass ?? (etfOf(p.symbol) ? "etf" : p.market === "adr" ? "adr" : p.market === "ar" ? "accion_ar" : "accion_us"), ...(etfOf(p.symbol) || p.layer === "nucleo" ? { role: (etfOf(p.symbol)?.role ?? "nucleo") as EtfConfig["role"] } : {}) })),
-      sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: v.stop, target: v.target })),
+      sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: v.stop, target: v.target, caution: sumarCaution(v.symbol) })),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
       // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
       buyCandidates: candidates
@@ -650,10 +665,13 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           cautions: overlap[c.symbol] ? [overlapCaution(overlap[c.symbol]!)] : [],
           // Verificación web: "con reservas" no entra como posición nueva y la nota dice por qué.
           verification: c.verification ? { verdict: c.verification.verdict, reason: c.verification.reason } : null,
+          // Salvedades de precio (consenso en el precio, subida de 12 meses): tampoco entran como nueva.
+          flags: c.flags,
         })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,
       closes,
+      regime,
     },
     policy.contribution,
     opts.amountUsd ? { amountUsd: opts.amountUsd } : {},
