@@ -161,13 +161,17 @@ export function coreEarnings(quarters: QuarterStatement[]): CoreEarnings | null 
   };
 }
 
-/** Bandera `resultado_extraordinario` cuando el neto reportado se aparta del núcleo más del 25%. */
-export const hasExtraordinary = (core: CoreEarnings | null | undefined): boolean => !!core && core.deviationPct !== null && Math.abs(core.deviationPct) > DEVIATION_FLAG;
+/** Bandera `resultado_extraordinario`: solo con ganancias extraordinarias operativas identificadas (`extraordinaryTTM ≠ 0`) y un desvío > 25%. Sin one-offs identificados, la fórmula ignora intereses (NOPAT) y un desvío grande no dice nada sobre extraordinarios: no se marca. */
+export const hasExtraordinary = (core: CoreEarnings | null | undefined): boolean =>
+  !!core && core.extraordinaryTTM !== 0 && core.deviationPct !== null && Math.abs(core.deviationPct) > DEVIATION_FLAG;
 
-/** Reemplaza P/E, ROE y márgenes por las cifras núcleo; Finnhub queda en `metricsRaw`. Sin núcleo o sin ingresos: nada cambia, `statementsAsOf` null. */
+/** Reemplaza P/E, ROE y márgenes por las cifras núcleo; Finnhub queda en `metricsRaw`. Sin núcleo o sin ingresos: nada cambia, `statementsAsOf` null.
+ *  Sin ganancias extraordinarias operativas identificadas (`extraordinaryTTM === 0`): tampoco se reemplaza (el núcleo ignora intereses y sesgaría a
+ *  favor de empresas apalancadas), pero `statementsAsOf` sí se marca: los estados están disponibles y se muestran. */
 export function applyCoreMetrics(f: Fundamentals, core: CoreEarnings | null, priceUsd: number): Fundamentals {
   const raw = f.metricsRaw ?? f.metrics;
   if (!core || core.revenueTTM === null || core.revenueTTM <= 0 || core.coreOperatingIncomeTTM === null) return { ...f, metrics: raw, metricsRaw: raw, statementsAsOf: null };
+  if (core.extraordinaryTTM === 0) return { ...f, metrics: raw, metricsRaw: raw, statementsAsOf: core.asOf };
   const metrics: FinnhubMetrics = { ...raw };
   metrics["peTTM"] = core.coreEpsTTM !== null && core.coreEpsTTM > 0 ? r4(priceUsd / core.coreEpsTTM) : null;
   metrics["operatingMarginTTM"] = r4((core.coreOperatingIncomeTTM / core.revenueTTM) * 100);

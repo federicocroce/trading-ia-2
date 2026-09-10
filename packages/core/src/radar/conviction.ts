@@ -43,7 +43,7 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   eventos_sin_clasificar: { text: "hay titulares materiales sin clasificar (cuota del modelo): revisá la ficha", penalty: 0.3 },
 };
 const INFO: Record<string, string> = {
-  resultado_extraordinario: "la ganancia reportada está inflada por extraordinarios: el ranking usa la ganancia núcleo",
+  resultado_extraordinario: "la ganancia reportada incluye extraordinarios: el ranking usa la ganancia núcleo",
   sin_estados: "sin estados de la SEC: las métricas son de Finnhub y pueden incluir extraordinarios",
 };
 const SMALL_GROUP = 10;

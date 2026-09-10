@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { applyCoreMetrics, buildQuarters, coreEarnings, type CompanyFactsJson, type Fundamentals } from "../index.js";
+import { applyCoreMetrics, buildQuarters, coreEarnings, hasExtraordinary, type CompanyFactsJson, type Fundamentals, type QuarterStatement } from "../index.js";
 
 const zvra = JSON.parse(readFileSync("test/fixtures/zvra-companyfacts.json", "utf8")) as CompanyFactsJson;
 const M = (n: number | null) => (n === null ? null : Math.round(n / 1e5) / 10); // millones con un decimal
@@ -127,5 +127,56 @@ describe("applyCoreMetrics", () => {
   it("EPS núcleo ≤ 0 → P/E null (se trata como faltante en el ranking)", () => {
     const out = applyCoreMetrics(f(), { ...core!, coreEpsTTM: -0.1 }, 12.57);
     expect(out.metrics["peTTM"]).toBeNull();
+  });
+});
+
+// Ronda final: sin ganancias extraordinarias operativas identificadas (extraordinaryTTM === 0), la fórmula
+// núcleo ignora intereses (NOPAT) y puede mostrar un desvío grande contra el neto sin que sea extraordinario
+// (empresa apalancada, con intereses). No debe marcarse la bandera ni reemplazarse las métricas.
+describe("hasExtraordinary / applyCoreMetrics sin one-offs operativos (NOPAT)", () => {
+  const f = (over: Partial<Fundamentals> = {}): Fundamentals => ({ symbol: "SYN", asOf: "2026-01-15", metrics: { peTTM: 15.2, roeTTM: 22.5, operatingMarginTTM: 20, netProfitMarginTTM: 9, psTTM: 3.1 }, peers: [], industry: "Industrials", mcapUsd: 5_000e6, dollarVolumeUsd: 20e6, priceUsd: 45, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null, ...over });
+  const q = (end: string, start: string): QuarterStatement => ({
+    start,
+    end,
+    fp: "Q",
+    revenue: 500e6,
+    operatingIncome: 100e6,
+    netIncome: 45e6,
+    pretaxIncome: 60e6,
+    taxExpense: 15e6,
+    nonoperatingIncome: 0,
+    operatingCashFlow: 90e6,
+    capex: 10e6,
+    dilutedShares: 100e6,
+    equity: 1_000e6,
+    extraordinary: [],
+  });
+  const noExtra = [
+    q("2025-03-31", "2025-01-01"),
+    q("2025-06-30", "2025-04-01"),
+    q("2025-09-30", "2025-07-01"),
+    q("2025-12-31", "2025-10-01"),
+  ];
+  const core = coreEarnings(noExtra)!;
+  it("sin one-offs, el desvío contra el neto puede ser grande (intereses) pero no hay bandera", () => {
+    expect(core.extraordinaryTTM).toBe(0);
+    expect(Math.abs(core.deviationPct!)).toBeGreaterThan(0.25); // 400M núcleo op × 0.75 = 300M vs 180M neto reportado
+    expect(hasExtraordinary(core)).toBe(false);
+  });
+  it("applyCoreMetrics no reemplaza peTTM/roeTTM/márgenes; statementsAsOf sí se marca", () => {
+    const raw = f();
+    const out = applyCoreMetrics(raw, core, 12.57);
+    expect(out.metrics).toEqual(raw.metrics);
+    expect(out.metrics["peTTM"]).toBe(raw.metrics["peTTM"]);
+    expect(out.metrics["roeTTM"]).toBe(raw.metrics["roeTTM"]);
+    expect(out.metrics["operatingMarginTTM"]).toBe(raw.metrics["operatingMarginTTM"]);
+    expect(out.metrics["netProfitMarginTTM"]).toBe(raw.metrics["netProfitMarginTTM"]);
+    expect(out.metricsRaw).toEqual(raw.metrics);
+    expect(out.statementsAsOf).toBe(core.asOf);
+  });
+  it("ZVRA sigue con extraordinaryTTM ≠ 0: la bandera y el recálculo no cambian", () => {
+    const zvraCore = coreEarnings(buildQuarters(zvra))!;
+    expect(zvraCore.extraordinaryTTM).not.toBe(0);
+    expect(hasExtraordinary(zvraCore)).toBe(true);
   });
 });
