@@ -6,6 +6,9 @@ import type { RadarStore, TickerStore } from "./store.js";
  * Noticias de Finnhub → prefiltro por reglas → analistas por regex → clasificador (modelo, solo lo nuevo) → eventos guardados.
  * Lo que el modelo no devuelve se guarda como `ruido` para no volver a mandarlo cada día. Si el modelo o las noticias
  * fallan, el barrido no avanza y el candidato lleva la bandera `eventos_sin_clasificar` hasta el próximo intento.
+ * Tope de `MAX_ITEMS_PER_CALL` titulares nuevos por llamada al clasificador: lo que sobra no se descarta,
+ * queda pendiente (el barrido tampoco avanza) y se manda en la próxima corrida, ya que lo clasificado esta
+ * vez sale de `known` y no vuelve a pedirse.
  */
 export interface EventsDeps {
   store: RadarStore & Pick<TickerStore, "upsertNews">;
@@ -42,7 +45,9 @@ export async function scanEventsFor(deps: EventsDeps, symbol: string, opts: { to
   const actions = matched.filter((m) => m.kind === "analista").map((m) => parseAnalystAction(m.item)).filter((a): a is AnalystAction => a !== null);
   if (actions.length) await store.upsertAnalystActions(actions);
   const known = new Set((await store.eventsFor(sym, since)).map((e) => e.url));
-  const toClassify = matched.filter((m) => m.kind !== "analista" && !known.has(m.item.url)).slice(0, MAX_ITEMS_PER_CALL);
+  const pending = matched.filter((m) => m.kind !== "analista" && !known.has(m.item.url));
+  const toClassify = pending.slice(0, MAX_ITEMS_PER_CALL);
+  const deferred = pending.length - toClassify.length;
   let unclassified = false;
   if (toClassify.length) {
     if (!deps.classifier) unclassified = true;
@@ -55,6 +60,10 @@ export async function scanEventsFor(deps: EventsDeps, symbol: string, opts: { to
         const returned = new Set(events.map((e) => e.url));
         for (const m of toClassify) if (!returned.has(m.item.url)) events.push({ symbol: sym, date: m.item.date, kind: m.kind, severity: "ruido", headline: m.item.headline, url: m.item.url, source: m.item.source, why: null, detectedAt: now, promptVersion: version });
         await store.upsertEvents(events);
+        if (deferred > 0) {
+          unclassified = true;
+          deps.log?.(`[radar] ${sym}: ${deferred} titulares postergados al próximo barrido (tope de ${MAX_ITEMS_PER_CALL} por llamada)`, { deferred });
+        }
       } catch (e) {
         unclassified = true;
         deps.log?.(`[radar] clasificador de titulares falló para ${sym}`, { error: String(e).slice(0, 120) });

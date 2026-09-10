@@ -50,4 +50,22 @@ describe("scanEventsFor", () => {
     expect(r.events).toHaveLength(1);
     expect(await store.newsScannedTo("ZVRA")).toBeNull();
   });
+  it("más de 30 titulares nuevos: el tope no los descarta, quedan postergados y se completan en el próximo barrido", async () => {
+    const store = new MemoryStore();
+    const items: NewsItem[] = Array.from({ length: 35 }, (_, i) => ({ symbol: "ZVRA", date: "2026-07-24", headline: `Zevra Receives Complete Response Letter ${i}`, source: "Benzinga", url: `https://n/crl-${i}`, summary: null }));
+    const classified: number[] = [];
+    const classifier: EventClassifier = {
+      promptVersion: "e-test",
+      classify: async (i: EventClassifierInput): Promise<ClassifiedEvent[]> => { classified.push(i.items.length); return i.items.map((x) => ({ date: x.date, kind: x.kind, severity: "ruido", headline: x.headline, url: x.url, source: x.source, why: "test" })); },
+    };
+    const news = { companyNews: async () => items };
+    const r1 = await scanEventsFor({ store, news, classifier }, "ZVRA", { today: T, name: null, full: true });
+    expect(classified).toEqual([30]);
+    expect(r1.unclassified).toBe(true);
+    expect(await store.newsScannedTo("ZVRA")).toBeNull();
+    const r2 = await scanEventsFor({ store, news, classifier }, "ZVRA", { today: T, name: null, full: true });
+    expect(classified).toEqual([30, 5]); // los 5 que quedaron afuera la primera vez
+    expect(r2.unclassified).toBe(false);
+    expect(await store.newsScannedTo("ZVRA")).toBe(T);
+  });
 });

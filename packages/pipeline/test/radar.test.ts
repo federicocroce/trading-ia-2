@@ -315,4 +315,25 @@ describe("rankRadar y refreshRadar con noticias", () => {
     expect(sa.verdict).toBe("COMPRAR");
     expect(sa.flags).toContain("eventos_sin_clasificar");
   });
+  it("una falla del store en un símbolo durante el refresco no aborta a los demás", async () => {
+    const news = { companyNews: async (s: string) => (s === "SA" ? fixture : []) };
+    const { store, d } = deps({ news, eventClassifier: classifier });
+    await scanUniverse(d, { scanDate: "2026-09-06", today: T });
+    const ranked = await rankRadar(d, { today: T, portfolioUsd: 150_000 });
+    // SB revienta al pedir su fecha de barrido; los demás símbolos (incluida SA, con su evento) no deberían perderse.
+    const failingStore = new Proxy(store, {
+      get(target, prop, receiver) {
+        if (prop === "newsScannedTo") return async (s: string) => { if (s === "SB") throw new Error("db"); return target.newsScannedTo(s); };
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as typeof store;
+    const rf = await refreshRadar({ ...d, store: failingStore }, { today: "2026-09-10", portfolioUsd: 150_000 });
+    expect(rf.errors).toEqual([{ symbol: "SB", error: expect.stringContaining("db") }]);
+    expect(rf.refreshed).toBe(ranked.candidates.length - 1);
+    const after = await store.latestCandidates();
+    expect(after.some((c) => c.symbol === "SB")).toBe(false); // SB no se refrescó esta corrida
+    const sa = after.find((c) => c.symbol === "SA")!;
+    expect(sa.verdict).toBe("OBSERVAR");
+    expect(sa.events).toHaveLength(1);
+  });
 });
