@@ -1,7 +1,7 @@
 import { atr, computeTarget, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import type { Fundamentals } from "./ranking.js";
-import { hasExtraordinary } from "./statements.js";
+import { earningsQualityFlags, hasExtraordinary } from "./statements.js";
 import type { CandidateEvent, CoreEarnings, RadarPolicy } from "./types.js";
 
 /** Reglas de candidato (spec etapa 2 §6): lo técnico filtra, no rankea. Puro. */
@@ -9,6 +9,9 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const DAY = 86_400_000;
 /** Un evento grave solo pesa en el veredicto dentro de esta ventana; antes, ya pasó. */
 const EVENT_WINDOW_DAYS = 90;
+/** Salvedades de calidad de la ganancia y de litigio que, juntas, pasan un COMPRAR a OBSERVAR. */
+export const QUALITY_FLAGS = new Set(["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas", "evento_moderado"]);
+export const QUALITY_OBSERVE_AT = 2;
 
 export function sma(candles: Candle[], n: number): number | null {
   if (candles.length < n) return null;
@@ -102,6 +105,7 @@ export function buildFlags(
   if (nthAppearance >= chronicWeeks) flags.push("residente_cronico");
   if (extra.core === null) flags.push("sin_estados");
   if (hasExtraordinary(extra.core)) flags.push("resultado_extraordinario");
+  flags.push(...earningsQualityFlags(extra.core));
   const since = extra.today ? Date.parse(extra.today) - EVENT_WINDOW_DAYS * DAY : Number.NEGATIVE_INFINITY;
   const recent = (extra.events ?? []).filter((e) => Date.parse(e.date) >= since);
   if (recent.some((e) => e.severity === "grave")) flags.push("evento_grave");
@@ -145,6 +149,9 @@ export function decideCandidate(
     today: i.today,
   });
   const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : [])];
+  // Dos o más salvedades de calidad o litigio: cada una sola es una advertencia, juntas son un motivo para observar
+  // (enmienda 2026-09-10: NUTX tenía demanda, ingresos cayendo con ganancia subiendo y socios minoritarios, y seguía COMPRAR).
+  if (flags.filter((x) => QUALITY_FLAGS.has(x)).length >= QUALITY_OBSERVE_AT) reasons.push("salvedades_de_calidad");
   const close = gate.close;
   const entryHigh = round2(close * 1.02);
   const stop = computeTrailingStop(i.candles);

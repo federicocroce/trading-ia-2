@@ -291,22 +291,32 @@ async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, ve
 }
 
 /** Pide (o lee de caché, 7 días) los estados de `symbols`, recalcula sus métricas en `all` y las persiste. Devuelve el núcleo por símbolo (null = no hay). */
+/** Estados guardados antes de la enmienda de calidad (2026-09-10) no traen minoritarios ni cuentas a cobrar: se piden de nuevo aunque estén frescos. */
+const hasQualityFields = (st: Statements): boolean => st.quarters.every((q) => "noncontrolling" in q) && (st.core === null || "lastQuarterYoy" in st.core);
+
+/** Estados del símbolo: los guardados si están frescos y completos; si no, se piden a la SEC y se guardan. Un fallo de red deja lo que había. */
+export async function statementsFor(deps: RadarDeps, sym: string, today: string): Promise<Statements | null> {
+  const src = deps.statements;
+  if (!src) return null;
+  let st = await deps.store.statements(sym);
+  if (!st || ageDays(st.asOf, today) >= FRESH_DAYS || !hasQualityFields(st)) {
+    const fetched = await src.quarters(sym, today).catch((e) => { deps.log?.(`[radar] estados de ${sym} fallaron`, { error: String(e).slice(0, 120) }); return undefined; });
+    if (fetched !== undefined) {
+      st = fetched ?? { symbol: sym, cik: "", asOf: today, quarters: [], core: null };
+      await deps.store.saveStatements(st);
+    }
+  }
+  return st ?? null;
+}
+
 export async function withStatements(deps: RadarDeps, all: Map<string, Fundamentals>, symbols: string[], today: string): Promise<Map<string, CoreEarnings | null>> {
   const cores = new Map<string, CoreEarnings | null>();
-  const src = deps.statements;
-  if (!src) return cores;
+  if (!deps.statements) return cores;
   const { store } = deps;
   const pending = [...new Set(symbols)].filter((s) => all.has(s));
   for (let i = 0; i < pending.length; i += STATEMENTS_CONCURRENCY) {
     await Promise.all(pending.slice(i, i + STATEMENTS_CONCURRENCY).map(async (sym) => {
-      let st = await store.statements(sym);
-      if (!st || ageDays(st.asOf, today) >= FRESH_DAYS) {
-        const fetched = await src.quarters(sym, today).catch((e) => { deps.log?.(`[radar] estados de ${sym} fallaron`, { error: String(e).slice(0, 120) }); return undefined; });
-        if (fetched !== undefined) {
-          st = fetched ?? { symbol: sym, cik: "", asOf: today, quarters: [], core: null };
-          await store.saveStatements(st);
-        }
-      }
+      const st = await statementsFor(deps, sym, today);
       const core = st?.core ?? null;
       cores.set(sym, core);
       const f = all.get(sym)!;
@@ -457,7 +467,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     let core: CoreEarnings | null | undefined;
     let ev: EventScan | null;
     try {
-      core = deps.statements ? ((await store.statements(prev.symbol))?.core ?? null) : undefined;
+      // Se piden de nuevo solo si vencieron (7 días) o vienen del formato anterior a la enmienda de calidad.
+      core = deps.statements ? ((await statementsFor(deps, prev.symbol, opts.today))?.core ?? null) : undefined;
       ev = await scanCandidateEvents(deps, prev.symbol, opts.today, false);
     } catch (e) {
       errors.push({ symbol: prev.symbol, error: String(e) });

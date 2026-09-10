@@ -171,3 +171,28 @@ Fixtures reales guardados en el repo: `companyfacts` de ZVRA recortado a los tag
 - Eventos: `evento_grave` fechado 2026-07-24 citando el titular del rechazo de la EMA; veredicto OBSERVAR hasta el 2026-10-22; la ficha lo muestra y `mainRisk` lo menciona.
 - Analistas: tres acciones del 2026-07-27 (BTIG 24, Guggenheim 24, Canaccord Genuity 20), mediana 24.
 - Velas: un refresco antes de las 16:10 de Nueva York usa el cierre del 2026-09-08 (12,675), igual que el plan.
+
+## 13. Enmienda 2026-09-10: calidad de la ganancia (pieza 1 de la estandarización)
+
+**Por qué.** El 2026-09-10 NUTX rankeó 1° de su grupo y COMPRAR con: EPS núcleo 41 cuando el atribuible era ~25 (los médicos socios de cada hospital se llevan 32% de la ganancia), ingresos del último trimestre −13,6% con operativo +261%, y una demanda colectiva ("moderado"). Cada dato solo era una advertencia; juntos son motivo para observar. Lo mismo con UNIT (ganancia única de 1.685M por Windstream bajo `OtherNonrecurringGain`, fuera de la lista), KRG (venta de propiedades) y las aseguradoras (liberación de reservas de años anteriores).
+
+**Estados (§4), campos nuevos.** `QuarterStatement.noncontrolling` (`NetIncomeLossAttributableToNoncontrollingInterest`, por trimestre, directo o por diferencia de acumulados) y `QuarterStatement.receivables` (instantáneo: `AccountsReceivableNetCurrent`, `ReceivablesNetCurrent`, `AccountsReceivableNet`, `ContractWithCustomerReceivableAfterAllowanceForCreditLossCurrent`, `PremiumsAndOtherReceivablesNet`, `PremiumsReceivableAtCarryingValue`; lo que no está queda null, caso NUTX).
+
+**Fórmula (§4).** `netoNucleoTTM = operativoNucleoTTM × (1 − tasa) − max(0, minoritariosTTM)`. El neto reportado (`NetIncomeLoss`) ya viene sin la parte de los socios, así que ahora el desvío compara peras con peras. `CoreEarnings` suma `noncontrollingTTM`, `receivablesPctRevenue` (cuentas a cobrar del último trimestre sobre ingresos TTM) y `lastQuarterYoy` (último trimestre contra el que terminó 350–380 días antes, ingresos y operativo en %, null si la base no es positiva).
+
+**Extraordinarios (§4), lista ampliada.** Ganancias: `OtherNonrecurringGain`, `GainLossOnSaleOfProperties`, `GainsLossesOnSalesOfInvestmentRealEstate`, `GainLossOnInvestments`, `UnrealizedGainLossOnInvestments`, `EquitySecuritiesFvNiGainLoss`. Categoría nueva `releases`: `SupplementalInformationForPropertyCasualtyInsuranceUnderwritersPriorYearClaimsAndClaimsAdjustmentExpense`, negativo cuando es favorable (HRTG Q2 2026 −23,4M; OSCR H1 2026 −194M): entra como ganancia con el signo dado vuelta. La deduplicación por valor exacto sigue (KRG tagea la misma venta bajo dos elementos).
+
+**Banderas nuevas (reglas puras, `earningsQualityFlags`, umbrales en `QUALITY_THRESHOLDS`):**
+- `interes_minoritario`: minoritariosTTM / (netoNucleoTTM + minoritariosTTM) ≥ 20%.
+- `cobranza_lenta`: cuentas a cobrar ≥ 35% de los ingresos TTM (≈ 128 días).
+- `ganancia_sin_ventas`: ingresos del último trimestre < 0% interanual y operativo ≥ +50% interanual.
+
+**Veredicto.** Dos o más de {`resultado_extraordinario`, `interes_minoritario`, `cobranza_lenta`, `ganancia_sin_ventas`, `evento_moderado`} → OBSERVAR con motivo `salvedades_de_calidad` (`QUALITY_FLAGS`, `QUALITY_OBSERVE_AT = 2`). Una sola sigue COMPRAR. Grave sigue mandando solo.
+
+**Convicción.** −0,3 por cada una de las tres banderas nuevas, con texto. `resultado_extraordinario` sigue sin penalizar (el núcleo ya corrige).
+
+**Ranking.** El eje de crecimiento suma `revenueGrowthQuarterlyYoy` con el mismo peso que los otros tres: un trimestre en baja ya no queda tapado por el crecimiento a 5 años.
+
+**Ficha y panel.** El prompt de la ficha recibe una línea "Calidad" con minoritarios, cuentas a cobrar y el último trimestre interanual; la sección Estados (SEC) de la ficha muestra lo mismo, en ámbar cuando cruza el umbral.
+
+**Aceptación (NUTX, companyfacts al 2026-09-10, fixture `test/fixtures/nutx-companyfacts.json`).** Minoritarios TTM 92,6M; neto núcleo 196,4M; EPS núcleo ≈ 28 (Finnhub 25,3; antes 41); último trimestre ingresos −13,6% y operativo +261%; banderas `interes_minoritario` y `ganancia_sin_ventas`; con la demanda del 31/8, tres salvedades → OBSERVAR por `salvedades_de_calidad`. Cuentas a cobrar null (NUTX no usa un tag estándar): queda documentado como límite.

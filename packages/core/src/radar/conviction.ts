@@ -10,7 +10,8 @@ import type { CandidateRow, Tags } from "./types.js";
  * - fiabilidad: min(1, pares / 10). Ser 1° de 5 vale la mitad que ser 1° de 10 o más.
  * - banderas: +0.2 consenso de compra / insiders compran / sorpresa positiva;
  *             −0.15 insiders venden (suele ser rutina); −0.3 sorpresa negativa / consenso de venta;
- *             −0.3 evento moderado reciente (se cita fecha y titular); −0.3 hay titulares sin clasificar.
+ *             −0.3 evento moderado reciente (se cita fecha y titular); −0.3 hay titulares sin clasificar;
+ *             −0.3 cada salvedad de calidad de la ganancia (socios minoritarios, cobranza lenta, ganancia sin ventas).
  * - riesgo: −0.1 por cada punto por encima de 5.
  * - objetivo: −0.3 si queda a menos de 5% (el objetivo es 2× la distancia al stop, no un pronóstico).
  * - tema cargado: −0.3 si comparte un tema donde la cartera ya supera el umbral de concentración.
@@ -41,6 +42,9 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   consenso_venta: { text: "analistas: consenso de venta", penalty: 0.3 },
   evento_moderado: { text: "evento moderado reciente", penalty: 0.3 },
   eventos_sin_clasificar: { text: "hay titulares materiales sin clasificar (cuota del modelo): revisá la ficha", penalty: 0.3 },
+  interes_minoritario: { text: "los socios minoritarios se llevan una parte grande de la ganancia: el EPS del accionista es menor", penalty: 0.3 },
+  cobranza_lenta: { text: "cuentas a cobrar altas contra los ingresos: factura mucho más de lo que cobra", penalty: 0.3 },
+  ganancia_sin_ventas: { text: "el último trimestre vendió menos y ganó mucho más: revisá de dónde sale la ganancia", penalty: 0.3 },
 };
 const INFO: Record<string, string> = {
   resultado_extraordinario: "la ganancia reportada incluye extraordinarios: el ranking usa la ganancia núcleo",

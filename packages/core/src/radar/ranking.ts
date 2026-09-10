@@ -35,7 +35,8 @@ export const AXIS_METRICS: Record<Axis, Array<{ key: string; invert: boolean; po
     { key: "psTTM", invert: true, positiveOnly: true },
   ],
   quality: [{ key: "roeTTM", invert: false }, { key: "operatingMarginTTM", invert: false }, { key: "netProfitMarginTTM", invert: false }],
-  growth: [{ key: "revenueGrowthTTMYoy", invert: false }, { key: "revenueGrowth5Y", invert: false }, { key: "epsGrowthTTMYoy", invert: false }],
+  // El último trimestre pesa igual que el año: un trimestre en baja no queda tapado por el crecimiento a 5 años (NUTX −13,6% con growth 1,99).
+  growth: [{ key: "revenueGrowthTTMYoy", invert: false }, { key: "revenueGrowth5Y", invert: false }, { key: "epsGrowthTTMYoy", invert: false }, { key: "revenueGrowthQuarterlyYoy", invert: false }],
   balance: [{ key: "totalDebt/totalEquityAnnual", invert: true }, { key: "currentRatioAnnual", invert: false }],
 };
 

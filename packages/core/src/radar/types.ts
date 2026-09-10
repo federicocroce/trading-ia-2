@@ -301,6 +301,10 @@ export interface QuarterStatement {
   capex: number | null;
   dilutedShares: number | null;
   equity: number | null;
+  /** Ganancia del trimestre que se llevan los socios minoritarios (NetIncomeLossAttributableToNoncontrollingInterest). */
+  noncontrolling: number | null;
+  /** Cuentas a cobrar al cierre del trimestre (instantáneo). */
+  receivables: number | null;
   /** Ítems extraordinarios del trimestre con signo: ganancia > 0 infla, cargo < 0 deprime. */
   extraordinary: Array<{ tag: string; value: number }>;
 }
@@ -321,6 +325,12 @@ export interface CoreEarnings {
   extraordinaryItems: Array<{ tag: string; quarterEnd: string; value: number }>;
   /** (neto − núcleo) / max(|neto|, |núcleo|, 1). > 0 ganancia inflada; < 0 deprimida. */
   deviationPct: number | null;
+  /** Ganancia TTM de los socios minoritarios (ya restada del neto núcleo). null si la empresa no la reporta. */
+  noncontrollingTTM: number | null;
+  /** Cuentas a cobrar del último trimestre sobre ingresos TTM (0.42 = cobra 42% de un año de ventas). null si no hay dato. */
+  receivablesPctRevenue: number | null;
+  /** Último trimestre contra el mismo del año anterior, en %. null si falta el comparable o la base no es positiva. */
+  lastQuarterYoy: { end: string; revenuePct: number | null; operatingPct: number | null } | null;
 }
 export interface Statements {
   symbol: string;

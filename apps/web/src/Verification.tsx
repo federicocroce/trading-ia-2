@@ -32,6 +32,14 @@ export function VerificationSections({ statements, events, analystActions, analy
                 {core.extraordinaryTTM !== 0 && core.deviationPct !== null && Math.abs(core.deviationPct) > 0.25 && <span className="warn"> · desvío {signedPct(core.deviationPct * 100)} por extraordinarios</span>}
               </div>
             )}
+            {core && (core.noncontrollingTTM != null || core.receivablesPctRevenue != null || core.lastQuarterYoy) && (
+              <div className="muted mono" style={{ marginTop: 2 }}>
+                Calidad:
+                {core.noncontrollingTTM != null && core.noncontrollingTTM > 0 && <span className={core.coreNetIncomeTTM != null && core.noncontrollingTTM / (core.coreNetIncomeTTM + core.noncontrollingTTM) >= 0.2 ? " warn" : ""}> socios minoritarios {M(core.noncontrollingTTM)} ({pctOf(core.noncontrollingTTM, core.coreNetIncomeTTM != null ? core.coreNetIncomeTTM + core.noncontrollingTTM : null)} de la ganancia, ya restado)</span>}
+                {core.receivablesPctRevenue != null && <span className={core.receivablesPctRevenue >= 0.35 ? " warn" : ""}> · cuentas a cobrar {Math.round(core.receivablesPctRevenue * 100)}% de los ingresos</span>}
+                {core.lastQuarterYoy && <span className={core.lastQuarterYoy.revenuePct != null && core.lastQuarterYoy.operatingPct != null && core.lastQuarterYoy.revenuePct < 0 && core.lastQuarterYoy.operatingPct >= 50 ? " warn" : ""}> · último trimestre vs año anterior: ingresos {core.lastQuarterYoy.revenuePct == null ? "—" : signedPct(core.lastQuarterYoy.revenuePct)} · operativo {core.lastQuarterYoy.operatingPct == null ? "—" : signedPct(core.lastQuarterYoy.operatingPct)}</span>}
+              </div>
+            )}
           </>
         )}
       </div>

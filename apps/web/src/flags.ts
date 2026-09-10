@@ -18,5 +18,9 @@ const FLAG_LABEL: Record<string, string> = {
   evento_grave: "evento grave en 90 días",
   evento_moderado: "evento moderado en 90 días",
   eventos_sin_clasificar: "titulares sin clasificar",
+  interes_minoritario: "socios minoritarios se llevan ≥ 20% de la ganancia",
+  cobranza_lenta: "cuentas a cobrar ≥ 35% de los ingresos",
+  ganancia_sin_ventas: "último trimestre: menos ventas, mucha más ganancia",
+  salvedades_de_calidad: "dos o más salvedades de calidad o litigio",
 };
 export const flagLabel = (flag: string): string => FLAG_LABEL[flag] ?? flag;

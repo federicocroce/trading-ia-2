@@ -227,7 +227,7 @@ describe("MemoryStore: estados", () => {
 });
 
 /** 4 trimestres sintéticos: operativo 60M con una ganancia por venta de 35M adentro → núcleo 25M; 1M de acciones → EPS núcleo alto → P/E ≈ 5. */
-const syntheticQuarters = (): QuarterStatement[] => ["2025-09-30", "2025-12-31", "2026-03-31", "2026-06-30"].map((end, i) => ({ start: end, end, fp: `Q${i + 1}`, revenue: 100e6, operatingIncome: 60e6, netIncome: 60e6, pretaxIncome: 60e6, taxExpense: 12e6, nonoperatingIncome: null, operatingCashFlow: 20e6, capex: 1e6, dilutedShares: 1e6, equity: 200e6, extraordinary: [{ tag: "GainLossOnDispositionOfAssets1", value: 35e6 }] }));
+const syntheticQuarters = (): QuarterStatement[] => ["2025-09-30", "2025-12-31", "2026-03-31", "2026-06-30"].map((end, i) => ({ start: end, end, fp: `Q${i + 1}`, revenue: 100e6, operatingIncome: 60e6, netIncome: 60e6, pretaxIncome: 60e6, taxExpense: 12e6, nonoperatingIncome: null, operatingCashFlow: 20e6, capex: 1e6, dilutedShares: 1e6, equity: 200e6, noncontrolling: null, receivables: null, extraordinary: [{ tag: "GainLossOnDispositionOfAssets1", value: 35e6 }] }));
 
 describe("rankRadar con estados de la SEC", () => {
   it("segunda pasada con ganancia núcleo: bandera, metricsRaw, caché de 7 días y estados en la ficha", async () => {
@@ -256,6 +256,25 @@ describe("rankRadar con estados de la SEC", () => {
     calls.length = 0;
     await rankRadar(d, { today: "2026-05-20", portfolioUsd: 150_000 });
     expect(calls).toEqual([]); // frescos: no vuelve a pedir
+  });
+  it("estados guardados en el formato anterior a la enmienda de calidad (sin minoritarios) se piden de nuevo aunque estén frescos, también en el refresco", async () => {
+    const calls: string[] = [];
+    const qs = syntheticQuarters();
+    const statements = { quarters: async (s: string, today: string): Promise<Statements | null> => { calls.push(s); return { symbol: s, cik: "1", asOf: today, quarters: qs, core: coreEarnings(qs) }; } };
+    const { store, d } = deps({ statements });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const old = qs.map(({ noncontrolling: _n, receivables: _r, ...q }) => q) as unknown as QuarterStatement[];
+    for (const s of symbols) await store.saveStatements({ symbol: s, cik: "1", asOf: TODAY, quarters: old, core: null });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    expect(new Set(calls)).toEqual(new Set(symbols));
+    // Ya guardados con el formato nuevo: el refresco no vuelve a pedir.
+    calls.length = 0;
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 150_000 });
+    expect(calls).toEqual([]);
+    // Formato viejo otra vez: el refresco también repide.
+    for (const s of symbols) await store.saveStatements({ symbol: s, cik: "1", asOf: "2026-05-20", quarters: old, core: null });
+    await refreshRadar(d, { today: "2026-05-21", portfolioUsd: 150_000 });
+    expect(calls.length).toBeGreaterThan(0);
   });
 });
 

@@ -83,7 +83,14 @@ function statementsSection(i: CardInput): string {
   const items = c?.extraordinaryItems.length ? ` por extraordinarios: ${c.extraordinaryItems.map((e) => `${e.tag} ${M(e.value)} (${e.quarterEnd})`).join(", ")}` : "";
   const deviation = c && c.extraordinaryTTM === 0 ? "sin extraordinarios identificados: las métricas propias son de Finnhub" : `desvío ${c && c.deviationPct !== null ? `${Math.round(c.deviationPct * 100)}%` : "—"}`;
   const ttm = c ? `TTM: ingresos ${M(c.revenueTTM)} · operativo núcleo ${M(c.coreOperatingIncomeTTM)} · neto reportado ${M(c.netIncomeTTM)} · neto núcleo ${M(c.coreNetIncomeTTM)} · EPS núcleo ${c.coreEpsTTM ?? "—"} · ${deviation}${items}` : "TTM: sin núcleo (menos de 4 trimestres completos)";
-  return `# Estados (SEC, últimos 4 trimestres)\n${rows.join("\n")}\n${ttm}`;
+  const quality = c
+    ? [
+        c.noncontrollingTTM !== null && c.noncontrollingTTM > 0 ? `socios minoritarios se llevan ${M(c.noncontrollingTTM)} de la ganancia (ya restado del núcleo)` : null,
+        c.receivablesPctRevenue !== null ? `cuentas a cobrar ${Math.round(c.receivablesPctRevenue * 100)}% de los ingresos TTM` : null,
+        c.lastQuarterYoy ? `último trimestre (${c.lastQuarterYoy.end}) contra el año anterior: ingresos ${c.lastQuarterYoy.revenuePct === null ? "—" : `${c.lastQuarterYoy.revenuePct > 0 ? "+" : ""}${Math.round(c.lastQuarterYoy.revenuePct)}%`} · operativo ${c.lastQuarterYoy.operatingPct === null ? "—" : `${c.lastQuarterYoy.operatingPct > 0 ? "+" : ""}${Math.round(c.lastQuarterYoy.operatingPct)}%`}` : null,
+      ].filter((x): x is string => x !== null)
+    : [];
+  return `# Estados (SEC, últimos 4 trimestres)\n${rows.join("\n")}\n${ttm}${quality.length ? `\nCalidad: ${quality.join(" · ")}` : ""}`;
 }
 
 function eventsSection(i: CardInput): string {

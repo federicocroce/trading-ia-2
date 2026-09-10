@@ -149,6 +149,8 @@ describe("hasExtraordinary / applyCoreMetrics sin one-offs operativos (NOPAT)", 
     capex: 10e6,
     dilutedShares: 100e6,
     equity: 1_000e6,
+    noncontrolling: null,
+    receivables: null,
     extraordinary: [],
   });
   const noExtra = [
