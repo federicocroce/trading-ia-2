@@ -12,6 +12,7 @@ const FLAG_LABEL: Record<string, string> = {
   residente_cronico: "residente crónico",
   bajo_stop: "bajo el stop dinámico",
   bajo_sma200: "bajo la SMA200",
+  sin_historial: "sin 200 velas de historial",
   resultado_extraordinario: "ganancia con extraordinarios (ranking con núcleo)",
   sin_estados: "sin estados de la SEC",
   evento_grave: "evento grave en 90 días",
