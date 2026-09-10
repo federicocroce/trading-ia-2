@@ -78,9 +78,10 @@ const VerificationSchema = z
       .object({ reportDate: dateOrNull, revenueVsConsensus: trim(200).nullable(), epsVsConsensus: trim(200).nullable(), oneOffs: z.array(trim(200)).max(12), guidance: trim(300).nullable() })
       .strict()
       .nullable(),
-    analysts: z.array(z.object({ date: dateOrNull.pipe(z.string()), firm: trim(80), action: trim(40), target: z.number().nullable() }).strict()).max(30),
+    // Un ítem sin fecha (el modelo no la encontró) se descarta; no invalida la verificación entera (caso DEC 2026-09-10).
+    analysts: z.array(z.object({ date: dateOrNull, firm: trim(80), action: trim(40), target: z.number().nullable() }).strict()).max(40).transform((xs) => xs.flatMap((x) => (x.date ? [{ ...x, date: x.date }] : []))),
     consensusTarget: z.number().nullable(),
-    events: z.array(z.object({ date: dateOrNull.pipe(z.string()), kind: trim(40), headline: trim(300) }).strict()).max(30),
+    events: z.array(z.object({ date: dateOrNull, kind: trim(40), headline: trim(300) }).strict()).max(40).transform((xs) => xs.flatMap((x) => (x.date ? [{ ...x, date: x.date }] : []))),
     valuation: trim(300).nullable(),
     nextEarnings: dateOrNull,
   })

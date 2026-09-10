@@ -52,6 +52,11 @@ describe("verificador: prompts y parseo", () => {
     expect(() => parseVerification({ ...args, extra: 1 })).toThrow();
     expect(parseVerification({ ...args, reason: `${"x".repeat(400)}` }).reason).toHaveLength(300);
   });
+  it("un analista o evento sin fecha se descarta en vez de invalidar la verificación", () => {
+    const p = parseVerification({ ...args, analysts: [...args.analysts, { date: null, firm: "Sin fecha", action: "mantiene", target: 10 }], events: [{ date: null, kind: "litigio", headline: "sin fecha" }, ...args.events] });
+    expect(p.analysts.map((a) => a.firm)).toEqual(["UBS", "Piper Sandler"]);
+    expect(p.events).toHaveLength(1);
+  });
 });
 
 describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estructurar)", () => {
