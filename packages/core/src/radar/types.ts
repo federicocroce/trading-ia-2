@@ -210,7 +210,8 @@ export interface AnalystTargets {
 export interface EventClassifierInput {
   symbol: string;
   name: string | null;
-  items: Array<{ date: string; source: string | null; headline: string; summary: string | null; url: string; kind: EventKind }>;
+  /** `id` es el índice 0-based dentro de este envío, asignado por `scanEventsFor`: el modelo lo usa para identificar cada ítem sin ambigüedad de titular. */
+  items: Array<{ id: number; date: string; source: string | null; headline: string; summary: string | null; url: string; kind: EventKind }>;
 }
 export interface ClassifiedEvent {
   date: string;
