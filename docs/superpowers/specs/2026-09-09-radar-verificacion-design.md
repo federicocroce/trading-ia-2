@@ -64,6 +64,12 @@ desvioPct            = (netoTTM − netoNucleoTTM) / max(|netoTTM|, |netoNucleoT
 
 La fórmula ignora el resultado no operativo a propósito: ahí caen las ganancias por venta de vouchers, revaluaciones de warrants y similares (ZVRA Q2 2025: USD 147,9M no operativos). El costo es subestimar levemente a empresas con mucho interés cobrado; se acepta.
 
+**Ajustes de implementación (2026-09-09)**
+
+- `buildQuarters` deduplica ítems extraordinarios con el mismo valor exacto dentro del trimestre (el mismo hecho etiquetado bajo dos tags, caso ZVRA Q1 2026: `GainLossOnDispositionOfAssets1` y `GainLossOnDispositionOfIntangibleAssets`).
+- `QuarterStatement.nonoperatingIncome` (tags `NonoperatingIncomeExpense`, `OtherNonoperatingIncomeExpense`): una ganancia extraordinaria se resta del operativo solo si es positiva y no está explicada por el resultado no operativo del trimestre (≥ 80% de la ganancia → vive fuera del operativo, caso del voucher de ZVRA Q2 2025).
+- Los cargos e impairments NO se suman de vuelta (quedan informativos en `extraordinaryItems`): en XBRL muchos viven en notas y no en el estado de resultados (ZVRA Q1 2026 "impairment" 43,3M ausente del P&L), así que sumarlos inflaría el núcleo; dirección conservadora.
+
 **Salida** `CoreEarnings`: `revenueTTM`, `operatingIncomeTTM`, `coreOperatingIncomeTTM`, `netIncomeTTM`, `coreNetIncomeTTM`, `coreEpsTTM`, `operatingCashFlowTTM`, `freeCashFlowTTM`, `equity`, `taxRate`, `extraordinaryItems[]` (`{tag, quarterEnd, value}`), `deviationPct`, `quarters[]` (los 8, para la ficha).
 
 **Bandera** `resultado_extraordinario` cuando `|desvioPct| > 0.25`. Texto en la ficha y en salvedades: "ganancia TTM inflada 45% por extraordinarios (venta de activos 43,3M, Q1 2026): P/E núcleo 24x" o "deprimida" si el signo es negativo. Aparece como salvedad sin penalización de convicción: el ranking ya usa las cifras núcleo.
@@ -91,6 +97,7 @@ La fórmula ignora el resultado no operativo a propósito: ahí caen las gananci
 | `analista` | price target, maintains, reiterates, upgrades, downgrades, initiates (va a §6, no al modelo) |
 
 **Clasificación** (modelo, tool estricta `material_events`, `packages/reasoner/src/events.ts`): entrada = símbolo, nombre, hasta 30 titulares que pasaron el prefiltro (fecha, fuente, titular, resumen). Salida = `events[]` con `date`, `kind` (los tipos de arriba más `otro`), `severity ∈ grave | moderado | ruido`, `headline` (debe ser idéntico a uno recibido; si no, se descarta), `why` (≤ 200 caracteres). Reglas del prompt: **grave** = la propia empresa recibió un rechazo regulatorio, CRL o clinical hold sobre un producto principal; duda de continuidad; reexpresión, fraude o investigación de la SEC a la empresa; aviso de delisting. **Moderado** = recorte de guidance, oferta dilutiva, demanda colectiva presentada o investigaciones de estudios tras una caída, salida del CEO. **Ruido** = resúmenes de mercado, notas promocionales, menciones de terceros. Solo con lo recibido; nunca inferir. Sin titulares que pasen el prefiltro no hay llamada. Fallo del modelo (cuota, parseo): los titulares quedan pendientes y el candidato lleva la bandera `eventos_sin_clasificar` (salvedad, −0,3 de convicción) hasta el próximo intento diario.
+- Tope de 30 titulares por llamada: el excedente deja `eventos_sin_clasificar` y no avanza el barrido; el refresco siguiente clasifica el resto (los conocidos se excluyen por URL).
 
 **Persistencia.** Tabla `radar_events`: `symbol`, `date`, `kind`, `severity`, `headline`, `url`, `source`, `why`, `detected_at`, `prompt_version`; único (`symbol`, `url`). Los `ruido` también se guardan (para no reclasificar).
 
