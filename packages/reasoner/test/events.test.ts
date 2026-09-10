@@ -41,13 +41,26 @@ describe("clasificador de titulares", () => {
     expect(out).toHaveLength(1);
     expect(out[0]!.headline).toBe(input.items[0]!.headline); // nunca el texto inventado por el modelo
   });
-  it("severidad o tipo inválidos → error; why obligatorio; why largo se trunca a 200", () => {
+  it("severidad o tipo inválidos → error; why obligatorio (vacío o solo espacios); why largo se trunca a 200", () => {
     expect(() => parseMaterialEvents({ events: [{ ...good.events[0], severity: "catastrófico" }] }, input)).toThrow();
     expect(() => parseMaterialEvents({ events: [{ ...good.events[0], kind: "meteorológico" }] }, input)).toThrow();
     expect(() => parseMaterialEvents({ events: [{ ...good.events[0], why: "" }] }, input)).toThrow();
+    expect(() => parseMaterialEvents({ events: [{ ...good.events[0], why: "   " }] }, input)).toThrow(); // solo espacios: trim vacío, no pasa min(1)
     const long = "x".repeat(300);
     const out = parseMaterialEvents({ events: [{ ...good.events[0], why: long }] }, input);
     expect(out[0]!.why).toHaveLength(200);
+  });
+  it("titular del modelo igual al de OTRO ítem del envío: id probablemente mezclado, se descarta el evento entero", () => {
+    const shuffled = { events: [{ ...good.events[0], id: 0, headline: input.items[1]!.headline }] };
+    expect(parseMaterialEvents(shuffled, input)).toEqual([]);
+    const ownHeadline = { events: [{ ...good.events[0], id: 0, headline: input.items[0]!.headline }] };
+    const out1 = parseMaterialEvents(ownHeadline, input);
+    expect(out1).toHaveLength(1);
+    expect(out1[0]!.headline).toBe(input.items[0]!.headline);
+    const unrelated = { events: [{ ...good.events[0], id: 0, headline: "Zevra approved everywhere" }] };
+    const out2 = parseMaterialEvents(unrelated, input);
+    expect(out2).toHaveLength(1);
+    expect(out2[0]!.headline).toBe(input.items[0]!.headline);
   });
   it("GeminiEventClassifier manda system y tool material_events forzada", async () => {
     const { f, calls } = fakeFetch(good);

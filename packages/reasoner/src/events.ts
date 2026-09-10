@@ -47,18 +47,25 @@ export const EVENTS_TOOL: ToolSpec = {
 export const EVENTS_VERSION = `e1-${createHash("sha256").update(EVENTS_SYSTEM).update(JSON.stringify(EVENTS_TOOL)).digest("hex").slice(0, 12)}`;
 
 const EventsSchema = z.object({
-  events: z.array(z.object({ id: z.number().int(), date: z.string(), kind: z.enum(KINDS), severity: z.enum(SEVERITIES), headline: z.string().min(1), why: z.string().min(1).transform((s) => s.trim().slice(0, 200)) }).strict()),
+  events: z.array(z.object({ id: z.number().int(), date: z.string(), kind: z.enum(KINDS), severity: z.enum(SEVERITIES), headline: z.string().min(1), why: z.string().transform((s) => s.trim().slice(0, 200)).pipe(z.string().min(1)) }).strict()),
 }).strict();
+
+const normHeadline = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Fail-closed: un evento se identifica por `id` contra `input.items`; un id desconocido se descarta. El titular del
  *  modelo es solo una guarda informativa (nunca decide): aun si difiere del original, se acepta por id igual, y
- *  fecha, URL, fuente y titular siempre salen del ítem recibido, nunca del modelo. */
+ *  fecha, URL, fuente y titular siempre salen del ítem recibido, nunca del modelo. Guarda extra: si el titular que
+ *  manda el modelo coincide con el de OTRO ítem del envío, el id probablemente viene mezclado (id shuffled); ese
+ *  evento se descarta entero (no se empareja por id equivocado) y queda pendiente para el próximo intento. */
 export function parseMaterialEvents(args: unknown, input: EventClassifierInput): ClassifiedEvent[] {
   const parsed = EventsSchema.parse(args);
   const out: ClassifiedEvent[] = [];
   for (const e of parsed.events) {
     const item = input.items.find((i) => i.id === e.id);
     if (!item) continue;
+    const modelHeadline = normHeadline(e.headline);
+    const belongsToOther = modelHeadline.length > 0 && input.items.some((i) => i.id !== e.id && normHeadline(i.headline) === modelHeadline);
+    if (belongsToOther) continue;
     out.push({ date: item.date, kind: e.kind, severity: e.severity, headline: item.headline, url: item.url, source: item.source, why: e.why });
   }
   return out;

@@ -437,7 +437,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     // Solo la familia US: Argentina y seguimiento tienen su propio refresco.
     if (prev.kind !== "stock" && prev.kind !== "etf") continue;
     const c = candles[prev.symbol];
-    if (!c) continue;
+    if (!c || !c.length) continue;
     if (prev.kind === "etf") {
       const cfg = deps.etfs.find((e) => e.symbol === prev.symbol);
       if (!cfg) continue;
@@ -461,7 +461,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       ev = await scanCandidateEvents(deps, prev.symbol, opts.today, false);
     } catch (e) {
       errors.push({ symbol: prev.symbol, error: String(e) });
-      core = deps.statements ? null : undefined;
+      core = undefined;
       ev = null;
     }
     const evEvents = ev?.events ?? prev.events ?? [];

@@ -339,4 +339,18 @@ describe("rankRadar y refreshRadar con noticias", () => {
     expect(sa.verdict).toBe("OBSERVAR");
     expect(sa.events).toHaveLength(1);
   });
+  it("velas vacías para un símbolo durante el refresco no abortan a los demás", async () => {
+    const news = { companyNews: async (s: string) => (s === "SA" ? fixture : []) };
+    const { store, d } = deps({ news, eventClassifier: classifier });
+    await scanUniverse(d, { scanDate: "2026-09-06", today: T });
+    await rankRadar(d, { today: T, portfolioUsd: 150_000 });
+    // SB no trae velas (proveedor sin datos para ese símbolo); los demás (incluida SA) no deberían perderse.
+    const history = { candles: async (s: string, days: number) => (s === "SB" ? [] : d.history.candles(s, days)) };
+    const rf = await refreshRadar({ ...d, history }, { today: "2026-09-10", portfolioUsd: 150_000 });
+    expect(rf.errors).toEqual([]); // no revienta: la vela vacía se salta, no llega a leer c[c.length - 1]
+    const after = await store.latestCandidates();
+    expect(after.find((c) => c.symbol === "SB")).toBeUndefined(); // sin velas: se omite esa fila (queda con la fecha vieja)
+    const sa = after.find((c) => c.symbol === "SA")!;
+    expect(sa).toBeDefined();
+  });
 });

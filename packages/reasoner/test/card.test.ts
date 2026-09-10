@@ -51,6 +51,13 @@ describe("ficha de candidato", () => {
     expect(buildCardMessage(input)).not.toContain("Estados (SEC");
     expect(CARD_SYSTEM).toContain("ganancia núcleo");
   });
+  it("sin ganancias extraordinarias operativas identificadas (extraordinaryTTM 0): lo dice en vez del desvío", () => {
+    const q = { start: "2026-04-01", end: "2026-06-30", fp: "Q2", revenue: 39.7e6, operatingIncome: 16.8e6, netIncome: 8.8e6, pretaxIncome: 12.8e6, taxExpense: 4e6, nonoperatingIncome: null, operatingCashFlow: 17.1e6, capex: 0, dilutedShares: 61.3e6, equity: 217.7e6, extraordinary: [] };
+    const core = { asOf: "2026-06-30", revenueTTM: 136.1e6, operatingIncomeTTM: 82.4e6, coreOperatingIncomeTTM: 82.4e6, netIncomeTTM: 58.3e6, coreNetIncomeTTM: 58.3e6, coreEpsTTM: 0.95, operatingCashFlowTTM: 32.6e6, freeCashFlowTTM: 32.6e6, equity: 217.7e6, taxRate: 0.16, extraordinaryTTM: 0, extraordinaryItems: [], deviationPct: 0 };
+    const m = buildCardMessage({ ...input, quarters: [q], core });
+    expect(m).toContain("sin extraordinarios identificados");
+    expect(m).not.toContain("desvío");
+  });
   it("eventos materiales: los lista con severidad; sin eventos lo dice; sin campo no aparece", () => {
     const m = buildCardMessage({ ...input, events: [{ date: "2026-07-24", kind: "regulatorio", severity: "grave", headline: "EMA CHMP negativa" }] });
     expect(m).toContain("# Eventos materiales (90 días)\n- 2026-07-24 [grave] regulatorio: EMA CHMP negativa");

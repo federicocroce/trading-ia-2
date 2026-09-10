@@ -16,7 +16,7 @@ Escribí en español, breve y concreto:
 - mainRisk: el riesgo principal, una oración, basado en datos recibidos (deuda, márgenes, sorpresas negativas, insiders vendiendo, resultados cerca).
 - moat: debil, moderado, fuerte o desconocido. Solo fuerte con evidencia en los números (márgenes y ROE muy por encima del grupo de forma sostenida).
 - themes: subconjunto de la lista de temas permitidos que apliquen. No inventes temas.
-Si recibís "Estados (SEC)": las métricas propias ya están recalculadas con la ganancia núcleo (operativo sin extraordinarios, neto de impuestos). Citá el P/E y los márgenes recalculados, nunca los de Finnhub, y si el desvío supera 25% decilo en mainRisk con el ítem que lo causa.
+Si recibís "Estados (SEC)": cuando la sección lista ítems extraordinarios, las métricas propias ya están recalculadas con la ganancia núcleo (operativo sin extraordinarios, neto de impuestos); citá el P/E y los márgenes recalculados, nunca los de Finnhub, y si el desvío supera 25% decilo en mainRisk con el ítem que lo causa.
 Si recibís "Eventos materiales" con uno grave (rechazo regulatorio, continuidad, reexpresión, delisting), mainRisk tiene que mencionarlo con su fecha; no lo minimices.
 No propongas otro verbo. Solo podés pedir degradar (degrade = true) COMPRAR a OBSERVAR si ves deterioro concreto en un filing o dato recibido (recorte de guidance, pérdida material, litigio, dilución, default): degradeReason debe citarlo. Respondé únicamente llamando a la herramienta candidate_card.`;
 
@@ -69,7 +69,8 @@ function statementsSection(i: CardInput): string {
   const rows = i.quarters.map((q) => `${q.end}: ingresos ${M(q.revenue)} · operativo ${M(q.operatingIncome)} · neto ${M(q.netIncome)} · flujo operativo ${M(q.operatingCashFlow)}`);
   const c = i.core;
   const items = c?.extraordinaryItems.length ? ` por extraordinarios: ${c.extraordinaryItems.map((e) => `${e.tag} ${M(e.value)} (${e.quarterEnd})`).join(", ")}` : "";
-  const ttm = c ? `TTM: ingresos ${M(c.revenueTTM)} · operativo núcleo ${M(c.coreOperatingIncomeTTM)} · neto reportado ${M(c.netIncomeTTM)} · neto núcleo ${M(c.coreNetIncomeTTM)} · EPS núcleo ${c.coreEpsTTM ?? "—"} · desvío ${c.deviationPct === null ? "—" : `${Math.round(c.deviationPct * 100)}%`}${items}` : "TTM: sin núcleo (menos de 4 trimestres completos)";
+  const deviation = c && c.extraordinaryTTM === 0 ? "sin extraordinarios identificados: las métricas propias son de Finnhub" : `desvío ${c && c.deviationPct !== null ? `${Math.round(c.deviationPct * 100)}%` : "—"}`;
+  const ttm = c ? `TTM: ingresos ${M(c.revenueTTM)} · operativo núcleo ${M(c.coreOperatingIncomeTTM)} · neto reportado ${M(c.netIncomeTTM)} · neto núcleo ${M(c.coreNetIncomeTTM)} · EPS núcleo ${c.coreEpsTTM ?? "—"} · ${deviation}${items}` : "TTM: sin núcleo (menos de 4 trimestres completos)";
   return `# Estados (SEC, últimos 4 trimestres)\n${rows.join("\n")}\n${ttm}`;
 }
 

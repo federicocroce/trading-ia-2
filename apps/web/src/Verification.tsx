@@ -29,7 +29,7 @@ export function VerificationSections({ statements, events, analystActions, analy
             {core && (
               <div className="muted mono" style={{ marginTop: 4 }}>
                 TTM: ingresos {M(core.revenueTTM)} · operativo núcleo {M(core.coreOperatingIncomeTTM)} ({pctOf(core.coreOperatingIncomeTTM, core.revenueTTM)}) · neto reportado {M(core.netIncomeTTM)} · neto núcleo {M(core.coreNetIncomeTTM)} · P/E núcleo {corePe}{metricsRaw?.["peTTM"] != null && ` (Finnhub ${f1(metricsRaw["peTTM"])})`} · flujo libre {M(core.freeCashFlowTTM)}
-                {core.deviationPct !== null && Math.abs(core.deviationPct) > 0.25 && <span className="warn"> · desvío {signedPct(core.deviationPct * 100)} por extraordinarios</span>}
+                {core.extraordinaryTTM !== 0 && core.deviationPct !== null && Math.abs(core.deviationPct) > 0.25 && <span className="warn"> · desvío {signedPct(core.deviationPct * 100)} por extraordinarios</span>}
               </div>
             )}
           </>
