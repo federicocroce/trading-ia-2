@@ -7,6 +7,7 @@ export * from "./close.js";
 export * from "./calibration.js";
 export * from "./cartera.js";
 export * from "./radar.js";
+export * from "./radar-events.js";
 export * from "./ticker.js";
 export * from "./argentina.js";
 export * from "./catchup.js";

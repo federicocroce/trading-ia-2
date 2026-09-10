@@ -51,4 +51,11 @@ describe("ficha de candidato", () => {
     expect(buildCardMessage(input)).not.toContain("Estados (SEC");
     expect(CARD_SYSTEM).toContain("ganancia núcleo");
   });
+  it("eventos materiales: los lista con severidad; sin eventos lo dice; sin campo no aparece", () => {
+    const m = buildCardMessage({ ...input, events: [{ date: "2026-07-24", kind: "regulatorio", severity: "grave", headline: "EMA CHMP negativa" }] });
+    expect(m).toContain("# Eventos materiales (90 días)\n- 2026-07-24 [grave] regulatorio: EMA CHMP negativa");
+    expect(buildCardMessage({ ...input, events: [] })).toContain("ninguno detectado");
+    expect(buildCardMessage(input)).not.toContain("Eventos materiales");
+    expect(CARD_SYSTEM).toContain("Eventos materiales");
+  });
 });

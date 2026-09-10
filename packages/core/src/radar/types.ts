@@ -126,6 +126,8 @@ export interface CardInput {
   /** Estados de la SEC (spec verificación §4): últimos 4 trimestres y ganancia núcleo. undefined = no se pidieron; [] = no hay. */
   quarters?: QuarterStatement[];
   core?: CoreEarnings | null;
+  /** Eventos materiales de 90 días (grave y moderado). undefined = no se buscaron. */
+  events?: CandidateEvent[];
 }
 export interface Card {
   summary: string;

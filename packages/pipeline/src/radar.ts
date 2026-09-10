@@ -19,14 +19,17 @@ import {
   themesFor,
   type AssetInfo,
   type Candle,
+  type CandidateEvent,
   type CandidateRow,
   type CardInput,
   type CardWriter,
   type ContributionPlan,
   type CoreEarnings,
   type EtfConfig,
+  type EventClassifier,
   type FinnhubMetrics,
   type Fundamentals,
+  type NewsItem,
   type Overlap,
   type PriceHistory,
   type QuarterStatement,
@@ -41,7 +44,8 @@ import {
   topPicks,
   returnPct,
 } from "@thesis/core";
-import type { CarteraStore, RadarStore } from "./store.js";
+import { scanEventsFor, type EventScan } from "./radar-events.js";
+import type { CarteraStore, RadarStore, TickerStore } from "./store.js";
 
 /**
  * Radar (spec etapa 2): universo semanal reanudable, ranking contra pares, candidatos,
@@ -57,7 +61,7 @@ export interface FundamentalsSource {
   nextEarnings(symbol: string, today: string): Promise<string | null>;
 }
 export interface RadarDeps {
-  store: CarteraStore & RadarStore;
+  store: CarteraStore & RadarStore & Pick<TickerStore, "upsertNews">;
   assets: { list(): Promise<AssetInfo[]>; snapshots(symbols: string[]): Promise<SnapshotLite[]> };
   fundamentals: FundamentalsSource;
   history: PriceHistory;
@@ -69,6 +73,10 @@ export interface RadarDeps {
   filings: (symbol: string) => Promise<string[]>;
   /** Estados de la SEC (spec verificación §4). Sin él, el ranking usa solo Finnhub. */
   statements?: { quarters(symbol: string, today: string): Promise<Statements | null> } | null;
+  /** Noticias por símbolo (Finnhub) para eventos materiales y analistas (spec verificación §5, §6). Sin él no se buscan. */
+  news?: { companyNews(symbol: string, from: string, to: string): Promise<NewsItem[]> } | null;
+  /** Clasificador de titulares (modelo). null con noticias = todo lo material queda `eventos_sin_clasificar`. */
+  eventClassifier?: EventClassifier | null;
   log?: (msg: string, extra?: unknown) => void;
   onProgress?: (s: { done: number; total: number; stage: string }) => void;
   shouldStop?: () => boolean;
@@ -271,12 +279,12 @@ async function rankableFundamentals(deps: RadarDeps, today: string): Promise<Map
 }
 
 /** Escribe la ficha de un candidato y aplica sus efectos (degradar, temas). Devuelve null si el modelo falló. */
-async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: { flags: string[]; entryLow: number; stop: number | null; target: number | null; riskScore: number }, ins: { buys: number; sells: number } | null, extra: { core?: CoreEarnings | null; quarters?: QuarterStatement[] | undefined } = {}): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
+async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: { flags: string[]; entryLow: number; stop: number | null; target: number | null; riskScore: number }, ins: { buys: number; sells: number } | null, extra: { core?: CoreEarnings | null; quarters?: QuarterStatement[] | undefined; events?: CandidateEvent[] | undefined } = {}): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
   if (!deps.cardWriter) return null;
   const sym = f.symbol;
   const tags = (await deps.store.tags(sym)) ?? (await tagSymbol(deps, sym, { industry: f.industry, country: null }));
   const profile = await deps.store.profile(sym);
-  const input: CardInput = { symbol: sym, name: profile?.profile.name ?? null, industry: f.industry, sector: tags.sector, themes: tags.themes, themeOptions: deps.taxonomy.themes, verdict, score: r.score, axes: r.axes, rankInGroup: r.rankInGroup, groupSize: r.groupSize, basis: r.basis, own: ownMetrics(f), medians: r.medians, peers: r.group, flags: d.flags, insiders: ins, analyst: f.analyst, surprises: f.earningsSurprises, filings: await deps.filings(sym).catch(() => []), close: d.entryLow, stop: d.stop, target: d.target, riskScore: d.riskScore, ...(extra.quarters !== undefined ? { quarters: extra.quarters } : {}), ...(extra.core !== undefined ? { core: extra.core } : {}) };
+  const input: CardInput = { symbol: sym, name: profile?.profile.name ?? null, industry: f.industry, sector: tags.sector, themes: tags.themes, themeOptions: deps.taxonomy.themes, verdict, score: r.score, axes: r.axes, rankInGroup: r.rankInGroup, groupSize: r.groupSize, basis: r.basis, own: ownMetrics(f), medians: r.medians, peers: r.group, flags: d.flags, insiders: ins, analyst: f.analyst, surprises: f.earningsSurprises, filings: await deps.filings(sym).catch(() => []), close: d.entryLow, stop: d.stop, target: d.target, riskScore: d.riskScore, ...(extra.quarters !== undefined ? { quarters: extra.quarters } : {}), ...(extra.core !== undefined ? { core: extra.core } : {}), ...(extra.events !== undefined ? { events: extra.events } : {}) };
   const c = await deps.cardWriter.write(input);
   if (c.themes.length) await tagSymbol(deps, sym, { industry: f.industry, country: null }, c.themes, "modelo");
   return { card: { summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat }, degrade: c.degrade, degradeReason: c.degradeReason ?? null };
@@ -308,6 +316,13 @@ export async function withStatements(deps: RadarDeps, all: Map<string, Fundament
     }));
   }
   return cores;
+}
+
+/** Barrido de noticias del símbolo (ventana completa en el ranking, incremental en el refresco). null si el Radar no tiene fuente de noticias. */
+async function scanCandidateEvents(deps: RadarDeps, sym: string, today: string, full: boolean): Promise<EventScan | null> {
+  if (!deps.news) return null;
+  const profile = await deps.store.profile(sym);
+  return scanEventsFor({ store: deps.store, news: deps.news, classifier: deps.eventClassifier ?? null, ...(deps.log ? { log: deps.log } : {}) }, sym, { today, name: profile?.profile.name ?? null, full });
 }
 
 export async function rankRadar(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null }): Promise<RankSummary> {
@@ -357,7 +372,8 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       await store.saveFundamentals(f);
       const nth = await nthAppearanceFor(deps, sym, opts.today);
       const symCore = coreOf(sym);
-      const d = decideCandidate({ f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(symCore !== undefined ? { core: symCore } : {}) }, policy);
+      const ev = await scanCandidateEvents(deps, sym, opts.today, true);
+      const d = decideCandidate({ f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified } : {}) }, policy);
       if ("excluded" in d) {
         skipped.push({ symbol: sym, reason: d.reasons.join(",") });
         continue;
@@ -367,7 +383,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       let card: { summary: string; whyRanks: string; mainRisk: string; moat: string } | null = null;
       if (deps.cardWriter) {
         try {
-          const w = await writeCardFor(deps, f, r, verdict, d, ins, { ...(symCore !== undefined ? { core: symCore } : {}), quarters: deps.statements ? ((await store.statements(sym))?.quarters.slice(-4) ?? []) : undefined });
+          const w = await writeCardFor(deps, f, r, verdict, d, ins, { ...(symCore !== undefined ? { core: symCore } : {}), quarters: deps.statements ? ((await store.statements(sym))?.quarters.slice(-4) ?? []) : undefined, ...(ev ? { events: ev.events } : {}) });
           if (w) {
             card = w.card;
             if (w.degrade && verdict === "COMPRAR") {
@@ -381,7 +397,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
           log(`[radar] ficha falló para ${sym}`, { error: String(e).slice(0, 120) });
         }
       }
-      rows.push({ ...emptyRow(opts.today, sym, "stock", verdict, d.entryLow), score: r.score, axes: r.axes, peerGroup: r.group, rankInGroup: r.rankInGroup, groupSize: r.groupSize, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: d.flags, nthAppearance: nth, summary: card?.summary ?? null, whyRanks: card?.whyRanks ?? null, mainRisk: card?.mainRisk ?? null, moat: card?.moat ?? null, degradedBy, promptVersion: deps.cardWriter?.promptVersion ?? null, spyClose });
+      rows.push({ ...emptyRow(opts.today, sym, "stock", verdict, d.entryLow), score: r.score, axes: r.axes, peerGroup: r.group, rankInGroup: r.rankInGroup, groupSize: r.groupSize, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: d.flags, nthAppearance: nth, summary: card?.summary ?? null, whyRanks: card?.whyRanks ?? null, mainRisk: card?.mainRisk ?? null, moat: card?.moat ?? null, degradedBy, promptVersion: deps.cardWriter?.promptVersion ?? null, spyClose, events: ev?.events ?? [], analystTargets: ev?.analystTargets ?? null });
       log(`[radar] ${sym} ${verdict}`, { score: r.score, rank: `${r.rankInGroup}/${r.groupSize}` });
     } catch (e) {
       errors.push({ symbol: sym, error: String(e) });
@@ -436,9 +452,11 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       continue;
     }
     const core: CoreEarnings | null | undefined = deps.statements ? ((await store.statements(prev.symbol))?.core ?? null) : undefined;
-    const d = decideCandidate({ f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}) }, policy);
+    const ev = await scanCandidateEvents(deps, prev.symbol, opts.today, false);
+    const evEvents = ev?.events ?? prev.events;
+    const d = decideCandidate({ f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), ...(evEvents !== undefined ? { events: evEvents } : {}), ...(ev?.unclassified !== undefined ? { eventsUnclassified: ev.unclassified } : {}) }, policy);
     if ("excluded" in d) {
-      rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
+      rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: ev?.events ?? prev.events ?? [], analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
       continue;
     }
     let degraded = prev.degradedBy === "narrator";
@@ -449,7 +467,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       const r = ranked.get(prev.symbol);
       if (r) {
         try {
-          const w = await writeCardFor(deps, f, r, d.verdict, d, f.insiderBuys90d === null ? null : { buys: f.insiderBuys90d, sells: f.insiderSells90d ?? 0 }, { ...(core !== undefined ? { core } : {}), quarters: deps.statements ? ((await store.statements(prev.symbol))?.quarters.slice(-4) ?? []) : undefined });
+          const w = await writeCardFor(deps, f, r, d.verdict, d, f.insiderBuys90d === null ? null : { buys: f.insiderBuys90d, sells: f.insiderSells90d ?? 0 }, { ...(core !== undefined ? { core } : {}), quarters: deps.statements ? ((await store.statements(prev.symbol))?.quarters.slice(-4) ?? []) : undefined, events: ev?.events ?? prev.events });
           if (w) {
             card = w.card;
             if (w.degrade && d.verdict === "COMPRAR") {
@@ -462,7 +480,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
         }
       }
     }
-    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
+    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: ev?.events ?? prev.events ?? [], analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
   }
   await store.upsertCandidates(rows);
   return { refreshed: rows.length, errors };

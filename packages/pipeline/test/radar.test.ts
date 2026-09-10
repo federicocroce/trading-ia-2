@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { coreEarnings, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type EtfConfig, type FinnhubMetrics, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
+import { coreEarnings, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
 import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
@@ -276,5 +277,42 @@ describe("MemoryStore: eventos, analistas y barridos", () => {
     const back = (await store.latestCandidates())[0]!;
     expect(back.events).toEqual(row.events);
     expect(back.analystTargets?.median).toBe(24);
+  });
+});
+
+describe("rankRadar y refreshRadar con noticias", () => {
+  const T = "2026-09-09";
+  const fixture = (JSON.parse(readFileSync("test/fixtures/zvra-news-2026-07.json", "utf8")) as NewsItem[]).map((n) => ({ ...n, symbol: "SA" }));
+  const classifier: EventClassifier = { promptVersion: "e-test", classify: async (i): Promise<ClassifiedEvent[]> => i.items.map((x) => ({ date: x.date, kind: x.kind, severity: /Negative Opinion From EMA CHMP/.test(x.headline) ? "grave" : "ruido", headline: x.headline, url: x.url, source: x.source, why: "test" })) };
+  it("SA con rechazo regulatorio → OBSERVAR por evento_grave, con eventos y objetivos en la fila y en la ficha; el refresco lo mantiene", async () => {
+    const inputs: CardInput[] = [];
+    const cardWriter: CardWriter = { promptVersion: "card-test", write: async (i) => { inputs.push(i); return { summary: "x", whyRanks: "y", mainRisk: "z", moat: "moderado", themes: [], degrade: false }; } };
+    const news = { companyNews: async (s: string) => (s === "SA" ? fixture : []) };
+    const { store, d } = deps({ news, eventClassifier: classifier, cardWriter });
+    await scanUniverse(d, { scanDate: "2026-09-06", today: T });
+    const r = await rankRadar(d, { today: T, portfolioUsd: 150_000 });
+    const sa = r.candidates.find((c) => c.symbol === "SA")!;
+    expect(sa.verdict).toBe("OBSERVAR");
+    expect(sa.flags).toContain("evento_grave");
+    expect(sa.events).toHaveLength(1);
+    expect(sa.events![0]).toMatchObject({ date: "2026-07-24", severity: "grave" });
+    expect(sa.analystTargets?.median).toBe(24);
+    expect(inputs.find((i) => i.symbol === "SA")!.events).toHaveLength(1);
+    const sb = r.candidates.find((c) => c.symbol === "SB")!;
+    expect(sb.events).toEqual([]);
+    expect(sb.flags).not.toContain("evento_grave");
+    const rf = await refreshRadar(d, { today: "2026-09-10", portfolioUsd: 150_000 });
+    expect(rf.errors).toEqual([]);
+    const after = (await store.latestCandidates()).find((c) => c.symbol === "SA")!;
+    expect(after.verdict).toBe("OBSERVAR");
+    expect(after.events).toHaveLength(1);
+  });
+  it("clasificador caído → eventos_sin_clasificar y sigue COMPRAR", async () => {
+    const failing: EventClassifier = { promptVersion: "e", classify: async () => { throw new Error("cuota"); } };
+    const { d } = deps({ news: { companyNews: async (s: string) => (s === "SA" ? fixture : []) }, eventClassifier: failing });
+    await scanUniverse(d, { scanDate: "2026-09-06", today: T });
+    const sa = (await rankRadar(d, { today: T, portfolioUsd: 150_000 })).candidates.find((c) => c.symbol === "SA")!;
+    expect(sa.verdict).toBe("COMPRAR");
+    expect(sa.flags).toContain("eventos_sin_clasificar");
   });
 });

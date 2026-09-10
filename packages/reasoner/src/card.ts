@@ -17,6 +17,7 @@ Escribí en español, breve y concreto:
 - moat: debil, moderado, fuerte o desconocido. Solo fuerte con evidencia en los números (márgenes y ROE muy por encima del grupo de forma sostenida).
 - themes: subconjunto de la lista de temas permitidos que apliquen. No inventes temas.
 Si recibís "Estados (SEC)": las métricas propias ya están recalculadas con la ganancia núcleo (operativo sin extraordinarios, neto de impuestos). Citá el P/E y los márgenes recalculados, nunca los de Finnhub, y si el desvío supera 25% decilo en mainRisk con el ítem que lo causa.
+Si recibís "Eventos materiales" con uno grave (rechazo regulatorio, continuidad, reexpresión, delisting), mainRisk tiene que mencionarlo con su fecha; no lo minimices.
 No propongas otro verbo. Solo podés pedir degradar (degrade = true) COMPRAR a OBSERVAR si ves deterioro concreto en un filing o dato recibido (recorte de guidance, pérdida material, litigio, dilución, default): degradeReason debe citarlo. Respondé únicamente llamando a la herramienta candidate_card.`;
 
 export const CARD_TOOL: ToolSpec = {
@@ -72,6 +73,11 @@ function statementsSection(i: CardInput): string {
   return `# Estados (SEC, últimos 4 trimestres)\n${rows.join("\n")}\n${ttm}`;
 }
 
+function eventsSection(i: CardInput): string {
+  if (!i.events?.length) return "# Eventos materiales (90 días)\n(ninguno detectado en noticias)";
+  return `# Eventos materiales (90 días)\n${i.events.map((e) => `- ${e.date} [${e.severity}] ${e.kind}: ${e.headline}`).join("\n")}`;
+}
+
 export function buildCardMessage(i: CardInput): string {
   const axes = Object.entries(i.axes).map(([k, v]) => `${k} ${fmt(v)}`).join(" · ");
   const metrics = Object.keys(i.own).map((k) => `${k}: propia ${fmt(i.own[k])} / mediana ${fmt(i.medians[k])}`).join("\n");
@@ -80,6 +86,7 @@ export function buildCardMessage(i: CardInput): string {
     `# Veredicto por reglas\n${i.verdict} · score ${i.score} · rank ${i.rankInGroup}/${i.groupSize} entre ${i.basis} (${i.peers.join(", ")})\nejes (z contra el grupo): ${axes}\ncierre ${i.close} · stop ${fmt(i.stop)} · objetivo ${fmt(i.target)} · riesgo ${i.riskScore}/10`,
     `# Métricas (propia / mediana del grupo)\n${metrics}`,
     ...(i.quarters !== undefined ? [statementsSection(i)] : []),
+    ...(i.events !== undefined ? [eventsSection(i)] : []),
     `# Banderas\n${i.flags.join(", ") || "(ninguna)"}`,
     `# Insiders 90 días\n${i.insiders ? `compras ${i.insiders.buys}, ventas ${i.insiders.sells}` : "sin dato"}`,
     `# Consenso de analistas\n${i.analyst ? `strongBuy ${i.analyst.strongBuy}, buy ${i.analyst.buy}, hold ${i.analyst.hold}, sell ${i.analyst.sell}, strongSell ${i.analyst.strongSell} (${i.analyst.period})` : "sin dato"}`,
