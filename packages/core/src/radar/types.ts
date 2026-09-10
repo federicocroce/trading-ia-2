@@ -95,6 +95,47 @@ export interface CandidateRow {
   measuredAt: string | null;
   events?: CandidateEvent[];
   analystTargets?: AnalystTargets | null;
+  /** Verificación web del candidato (modelo con búsqueda): lo que la fila necesita para salvedades, plan y ficha. */
+  verification?: VerificationSummary | null;
+}
+
+/** Verificación por candidata (spec 2026-09-10): el modelo investiga en la web con un cuestionario fijo y dictamina. */
+export type VerificationVerdict = "apto" | "con_reservas" | "evitar";
+export interface VerificationSummary {
+  date: string;
+  verdict: VerificationVerdict;
+  reason: string;
+}
+export interface CandidateVerification extends VerificationSummary {
+  symbol: string;
+  /** Último trimestre reportado: fecha, contra consenso, únicos, guía. */
+  lastQuarter: { reportDate: string | null; revenueVsConsensus: string | null; epsVsConsensus: string | null; oneOffs: string[]; guidance: string | null } | null;
+  /** Acciones de analistas de los últimos 90 días con fecha. */
+  analysts: Array<{ date: string; firm: string; action: string; target: number | null }>;
+  consensusTarget: number | null;
+  /** Eventos materiales de 90 días: regulatorio, litigio, dilución, gestión, informes bajistas, ciberataques. */
+  events: Array<{ date: string; kind: string; headline: string }>;
+  valuation: string | null;
+  nextEarnings: string | null;
+  /** Fuentes que la búsqueda citó (título y URL). */
+  sources: Array<{ title: string; url: string }>;
+  /** Texto de la investigación, para auditar. */
+  researchText: string;
+  promptVersion: string;
+  model: string | null;
+  detectedAt: string;
+}
+export interface VerifierInput {
+  symbol: string;
+  name: string | null;
+  today: string;
+  /** Contexto que la app ya sabe (resumen de la ficha, banderas): el modelo lo contrasta, no lo repite. */
+  context?: string | null;
+}
+export type VerifierResult = Omit<CandidateVerification, "symbol" | "date" | "detectedAt" | "promptVersion">;
+export interface CandidateVerifier {
+  readonly promptVersion: string;
+  verify(input: VerifierInput): Promise<VerifierResult>;
 }
 
 /** Ficha de candidato escrita por el modelo (spec §9). El verbo ya está decidido; solo puede degradar. */

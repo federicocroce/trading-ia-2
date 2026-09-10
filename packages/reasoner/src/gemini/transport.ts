@@ -39,9 +39,22 @@ export const DEFAULT_RPM_PER_KEY = 8;
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 interface GenerateResponse {
-  candidates?: Array<{ content?: { parts?: Array<{ functionCall?: { name: string; args: unknown } }> }; finishReason?: string }>;
-  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
+  candidates?: Array<{
+    content?: { parts?: Array<{ functionCall?: { name: string; args: unknown }; text?: string; thought?: boolean }> };
+    finishReason?: string;
+    groundingMetadata?: { webSearchQueries?: string[]; groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> };
+  }>;
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; toolUsePromptTokenCount?: number };
   error?: { status?: string; message?: string; details?: unknown[] };
+}
+
+/** Respuesta de una llamada con búsqueda de Google: texto, fuentes citadas y qué buscó. */
+export interface GroundedResult {
+  text: string;
+  sources: Array<{ title: string; url: string }>;
+  queries: string[];
+  model: string;
+  callId: string;
 }
 
 /** Lee el detalle del 429 de Google: QuotaFailure.violations[].quotaId (…PerMinute… / …PerDay…) y RetryInfo.retryDelay ("31s"). */
@@ -113,14 +126,51 @@ export class GeminiToolCaller {
     if (callId) this.recorder.setResult(callId, "validacion");
   }
 
-  private async generate(model: string, key: string, keyIndex: number, system: string, user: string, tool: ToolSpec, meta: CallMeta): Promise<{ args: unknown; usage: string; callId: string }> {
+  /**
+   * Llamada con la búsqueda de Google integrada (sin function call): el modelo busca, lee y responde en texto.
+   * Misma rotación y registro; `models` permite otro orden (la cuota de búsqueda gratis es más amplia en 2.5 Flash).
+   */
+  async callGrounded(system: string, user: string, meta: CallMeta = { purpose: "otro" }, opts: { models?: string[]; maxOutputTokens?: number } = {}): Promise<GroundedResult> {
+    const { result, model, keyIndex } = await withRotation({
+      models: opts.models ?? this.models,
+      keys: this.keys,
+      tracker: this.tracker,
+      log: this.log,
+      ...(this.now ? { now: this.now } : {}),
+      ...(this.sleep ? { sleep: this.sleep } : {}),
+      attempt: (m, key, k) => this.generateGrounded(m, key, k, system, user, meta, opts.maxOutputTokens ?? this.maxOutputTokens),
+    });
+    this.log(`[gemini] ${model} key#${keyIndex + 1} ok con búsqueda (${result.usage}; ${result.queries.length} búsquedas, ${result.sources.length} fuentes)`);
+    return { text: result.text, sources: result.sources, queries: result.queries, model, callId: result.callId };
+  }
+
+  private async generateGrounded(model: string, key: string, keyIndex: number, system: string, user: string, meta: CallMeta, maxOutputTokens: number): Promise<{ text: string; sources: GroundedResult["sources"]; queries: string[]; usage: string; callId: string }> {
     const body = {
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
-      tools: [{ functionDeclarations: [{ name: tool.name, description: tool.description, parametersJsonSchema: tool.inputSchema }] }],
-      toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: [tool.name] } },
-      generationConfig: { maxOutputTokens: this.maxOutputTokens, temperature: 0.1 },
+      tools: [{ google_search: {} }],
+      generationConfig: { maxOutputTokens, temperature: 0.1 },
     };
+    const { data, res, row, tokens, t0, now } = await this.post(model, key, keyIndex, body, meta);
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const text = parts.filter((p) => typeof p.text === "string" && !p.thought).map((p) => p.text as string).join("").trim();
+    if (!text) {
+      this.recorder.record({ ...row, ...tokens, status: res.status, result: "validacion", ms: now() - t0 });
+      throw new Error(`gemini: respuesta con búsqueda sin texto (finish=${data.candidates?.[0]?.finishReason ?? "?"})`);
+    }
+    const gm = data.candidates?.[0]?.groundingMetadata ?? {};
+    const sources = (gm.groundingChunks ?? []).flatMap((c) => (c.web?.uri ? [{ title: c.web.title ?? c.web.uri, url: c.web.uri }] : []));
+    const callId = this.recorder.record({ ...row, ...tokens, status: res.status, result: "ok", ms: now() - t0 });
+    return { text, sources, queries: gm.webSearchQueries ?? [], usage: this.usageText(data), callId };
+  }
+
+  private usageText(data: GenerateResponse): string {
+    const u = data.usageMetadata ?? {};
+    return `tokens in/out/think ${u.promptTokenCount ?? "?"}/${u.candidatesTokenCount ?? "?"}/${u.thoughtsTokenCount ?? "?"}`;
+  }
+
+  /** POST común: registra la fila en fallo (red, HTTP) y devuelve lo necesario para que el llamador registre el éxito. */
+  private async post(model: string, key: string, keyIndex: number, body: unknown, meta: CallMeta) {
     await this.pace.acquire(`${model}#${keyIndex}`);
     const now = this.now ?? Date.now;
     const t0 = now();
@@ -145,13 +195,26 @@ export class GeminiToolCaller {
       throw new GeminiHttpError(message, res.status, q.quotaKind, q.retryDelayMs);
     }
     const u = data.usageMetadata ?? {};
-    const tokens = { tokensIn: u.promptTokenCount ?? null, tokensOut: u.candidatesTokenCount ?? null, tokensThink: u.thoughtsTokenCount ?? null };
+    // Con búsqueda, lo que el modelo leyó de la web viaja aparte (toolUsePromptTokenCount): cuenta como entrada.
+    const tokens = { tokensIn: u.promptTokenCount === undefined ? null : u.promptTokenCount + (u.toolUsePromptTokenCount ?? 0), tokensOut: u.candidatesTokenCount ?? null, tokensThink: u.thoughtsTokenCount ?? null };
+    return { data, res, row, tokens, t0, now };
+  }
+
+  private async generate(model: string, key: string, keyIndex: number, system: string, user: string, tool: ToolSpec, meta: CallMeta): Promise<{ args: unknown; usage: string; callId: string }> {
+    const body = {
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts: [{ text: user }] }],
+      tools: [{ functionDeclarations: [{ name: tool.name, description: tool.description, parametersJsonSchema: tool.inputSchema }] }],
+      toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: [tool.name] } },
+      generationConfig: { maxOutputTokens: this.maxOutputTokens, temperature: 0.1 },
+    };
+    const { data, res, row, tokens, t0, now } = await this.post(model, key, keyIndex, body, meta);
     const call = (data.candidates?.[0]?.content?.parts ?? []).find((p) => p.functionCall)?.functionCall;
     if (!call) {
       this.recorder.record({ ...row, ...tokens, status: res.status, result: "validacion", ms: now() - t0 });
       throw new Error(`gemini: sin functionCall (finish=${data.candidates?.[0]?.finishReason ?? "?"})`);
     }
     const callId = this.recorder.record({ ...row, ...tokens, status: res.status, result: "ok", ms: now() - t0 });
-    return { args: call.args, usage: `tokens in/out/think ${u.promptTokenCount ?? "?"}/${u.candidatesTokenCount ?? "?"}/${u.thoughtsTokenCount ?? "?"}`, callId };
+    return { args: call.args, usage: this.usageText(data), callId };
   }
 }

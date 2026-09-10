@@ -2,16 +2,23 @@ import { atr, computeTarget, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import type { Fundamentals } from "./ranking.js";
 import { earningsQualityFlags, hasExtraordinary } from "./statements.js";
-import type { CandidateEvent, CoreEarnings, RadarPolicy } from "./types.js";
+import type { CandidateEvent, CoreEarnings, RadarPolicy, VerificationSummary } from "./types.js";
 
 /** Reglas de candidato (spec etapa 2 §6): lo técnico filtra, no rankea. Puro. */
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const DAY = 86_400_000;
 /** Un evento grave solo pesa en el veredicto dentro de esta ventana; antes, ya pasó. */
 const EVENT_WINDOW_DAYS = 90;
-/** Salvedades de calidad de la ganancia y de litigio que, juntas, pasan un COMPRAR a OBSERVAR. */
-export const QUALITY_FLAGS = new Set(["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas", "evento_moderado"]);
+/** Salvedades de calidad de la ganancia, de litigio y de la verificación web que, juntas, pasan un COMPRAR a OBSERVAR. */
+export const QUALITY_FLAGS = new Set(["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas", "evento_moderado", "verificacion_reservas"]);
 export const QUALITY_OBSERVE_AT = 2;
+
+/** Bandera de la verificación web. `undefined` = no hay verificador; `null` = hay pero todavía no respondió (pendiente). */
+export function verificationFlag(v: VerificationSummary | null | undefined): string | null {
+  if (v === undefined) return null;
+  if (v === null) return "verificacion_pendiente";
+  return v.verdict === "apto" ? "verificacion_apta" : v.verdict === "con_reservas" ? "verificacion_reservas" : "verificacion_evitar";
+}
 
 export function sma(candles: Candle[], n: number): number | null {
   if (candles.length < n) return null;
@@ -84,7 +91,7 @@ export function buildFlags(
   gate: TechnicalGate,
   nthAppearance: number,
   chronicWeeks: number,
-  extra: { core?: CoreEarnings | null; events?: CandidateEvent[]; eventsUnclassified?: boolean; today?: string } = {},
+  extra: { core?: CoreEarnings | null; events?: CandidateEvent[]; eventsUnclassified?: boolean; today?: string; verification?: VerificationSummary | null } = {},
 ): string[] {
   const flags: string[] = [];
   if ((f.insiderBuys90d ?? 0) >= 1) flags.push("insiders_compran");
@@ -111,6 +118,8 @@ export function buildFlags(
   if (recent.some((e) => e.severity === "grave")) flags.push("evento_grave");
   else if (recent.some((e) => e.severity === "moderado")) flags.push("evento_moderado");
   if (extra.eventsUnclassified) flags.push("eventos_sin_clasificar");
+  const vf = verificationFlag(extra.verification);
+  if (vf) flags.push(vf);
   return flags;
 }
 
@@ -137,6 +146,8 @@ export function decideCandidate(
     core?: CoreEarnings | null;
     events?: CandidateEvent[];
     eventsUnclassified?: boolean;
+    /** Verificación web: `undefined` sin verificador, `null` pendiente. */
+    verification?: VerificationSummary | null;
   },
   p: Pick<RadarPolicy, "technical" | "sizing" | "candidates">,
 ): CandidateDecision | { excluded: true; reasons: string[] } {
@@ -146,9 +157,11 @@ export function decideCandidate(
     ...(i.core !== undefined ? { core: i.core } : {}),
     ...(i.events !== undefined ? { events: i.events } : {}),
     ...(i.eventsUnclassified !== undefined ? { eventsUnclassified: i.eventsUnclassified } : {}),
+    ...(i.verification !== undefined ? { verification: i.verification } : {}),
     today: i.today,
   });
-  const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : [])];
+  // La verificación web que dice "evitar" observa por sí sola, como un evento grave.
+  const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : [])];
   // Dos o más salvedades de calidad o litigio: cada una sola es una advertencia, juntas son un motivo para observar
   // (enmienda 2026-09-10: NUTX tenía demanda, ingresos cayendo con ganancia subiendo y socios minoritarios, y seguía COMPRAR).
   if (flags.filter((x) => QUALITY_FLAGS.has(x)).length >= QUALITY_OBSERVE_AT) {

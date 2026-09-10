@@ -95,7 +95,8 @@ export function radarRoutes(c: Container) {
       const f = await store.fundamentals(p);
       if (f) peers.push({ symbol: p, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])) });
     }
-    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions });
+    const verification = await store.verification(symbol).catch(() => null);
+    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions, verification });
   });
   app.get("/radar/etfs", async (ctx) => ctx.json(await withTags((await candidatesAt(ctx)).filter((r) => r.kind === "etf"))));
 

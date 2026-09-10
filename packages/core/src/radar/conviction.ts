@@ -11,7 +11,8 @@ import type { CandidateRow, Tags } from "./types.js";
  * - banderas: +0.2 consenso de compra / insiders compran / sorpresa positiva;
  *             −0.15 insiders venden (suele ser rutina); −0.3 sorpresa negativa / consenso de venta;
  *             −0.3 evento moderado reciente (se cita fecha y titular); −0.3 hay titulares sin clasificar;
- *             −0.3 cada salvedad de calidad de la ganancia (socios minoritarios, cobranza lenta, ganancia sin ventas).
+ *             −0.3 cada salvedad de calidad de la ganancia (socios minoritarios, cobranza lenta, ganancia sin ventas);
+ *             −0.3 verificación web con reservas (se cita el motivo); apta suma a las razones sin bonificar.
  * - riesgo: −0.1 por cada punto por encima de 5.
  * - objetivo: −0.3 si queda a menos de 5% (el objetivo es 2× la distancia al stop, no un pronóstico).
  * - tema cargado: −0.3 si comparte un tema donde la cartera ya supera el umbral de concentración.
@@ -45,10 +46,12 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   interes_minoritario: { text: "los socios minoritarios se llevan una parte grande de la ganancia: el EPS del accionista es menor", penalty: 0.3 },
   cobranza_lenta: { text: "cuentas a cobrar altas contra los ingresos: factura mucho más de lo que cobra", penalty: 0.3 },
   ganancia_sin_ventas: { text: "el último trimestre vendió menos y ganó mucho más: revisá de dónde sale la ganancia", penalty: 0.3 },
+  verificacion_reservas: { text: "verificación web con reservas", penalty: 0.3 },
 };
 const INFO: Record<string, string> = {
   resultado_extraordinario: "la ganancia reportada incluye extraordinarios: el ranking usa la ganancia núcleo",
   sin_estados: "sin estados de la SEC: las métricas son de Finnhub y pueden incluir extraordinarios",
+  verificacion_pendiente: "verificación web pendiente (todavía no respondió el modelo)",
 };
 const SMALL_GROUP = 10;
 const MIN_GAIN_PCT = 5;
@@ -91,9 +94,12 @@ export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: 
     } else if (NEGATIVE[f]) {
       conviction -= NEGATIVE[f].penalty;
       const ev = f === "evento_moderado" ? [...(row.events ?? [])].filter((e) => e.severity === "moderado").sort((a, b) => b.date.localeCompare(a.date))[0] : undefined;
-      cautions.push(ev ? `evento moderado ${ev.date}: ${ev.headline}` : NEGATIVE[f].text);
+      const vr = f === "verificacion_reservas" && row.verification?.reason ? `verificación web con reservas (${row.verification.date}): ${row.verification.reason}` : null;
+      cautions.push(ev ? `evento moderado ${ev.date}: ${ev.headline}` : vr ?? NEGATIVE[f].text);
     } else if (INFO[f]) {
       cautions.push(INFO[f]);
+    } else if (f === "verificacion_apta") {
+      reasons.push(row.verification?.reason ? `verificación web apta (${row.verification.date}): ${row.verification.reason}` : "verificación web apta");
     }
   }
   reasons.push(`objetivo ${signed(gainPct)} contra stop ${signed(lossPct)} (2 a 1)`);

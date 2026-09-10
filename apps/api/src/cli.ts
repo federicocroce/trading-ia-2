@@ -15,6 +15,9 @@ if (cmd === "daily") {
   console.log({ synced: await syncOrders(c.store, c.broker) });
 } else {
   console.error("uso: tsx src/cli.ts daily [sinceISO] | sync");
+  await c.usage?.flush();
   process.exit(1);
 }
+// Lo encolado por el registro de uso se escribe antes de salir: process.exit no espera al volcado.
+await c.usage?.flush();
 process.exit(0);

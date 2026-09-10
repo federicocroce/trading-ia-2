@@ -234,6 +234,24 @@ export const statements = pgTable("statements", {
   core: jsonb("core"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+/** Verificación web por candidata (spec 2026-09-10): la última por símbolo; el informe completo queda para auditar. */
+export const radarVerifications = pgTable("radar_verifications", {
+  symbol: text("symbol").primaryKey(),
+  date: date("date").notNull(),
+  verdict: text("verdict").notNull(),
+  reason: text("reason").notNull(),
+  lastQuarter: jsonb("last_quarter"),
+  analysts: jsonb("analysts").notNull().default([]),
+  consensusTarget: numeric("consensus_target", { precision: 14, scale: 4 }),
+  events: jsonb("events").notNull().default([]),
+  valuation: text("valuation"),
+  nextEarnings: text("next_earnings"),
+  sources: jsonb("sources").notNull().default([]),
+  researchText: text("research_text").notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  model: text("model"),
+  detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+});
 export const universeScan = pgTable(
   "universe_scan",
   {
@@ -276,6 +294,8 @@ export const radarCandidates = pgTable(
     spyClose: numeric("spy_close", { precision: 14, scale: 4 }),
     events: jsonb("events").notNull().default([]),
     analystTargets: jsonb("analyst_targets"),
+    /** Verificación web (spec 2026-09-10): { date, verdict, reason } o null. */
+    verification: jsonb("verification"),
     close7d: numeric("close_7d", { precision: 14, scale: 4 }),
     spy7d: numeric("spy_7d", { precision: 14, scale: 4 }),
     alpha7dPct: numeric("alpha_7d_pct", { precision: 10, scale: 4 }),

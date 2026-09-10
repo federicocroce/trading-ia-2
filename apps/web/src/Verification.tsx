@@ -1,4 +1,4 @@
-import type { AnalystAction, AnalystTargets, RadarEvent, Statements } from "./api";
+import type { AnalystAction, AnalystTargets, CandidateVerification, RadarEvent, Statements } from "./api";
 
 const M = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${(v / 1e6).toFixed(1)}M`);
 const f1 = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toFixed(1));
@@ -6,12 +6,42 @@ const pctOf = (a: number | null | undefined, b: number | null | undefined) => (a
 const signedPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(0)}%`;
 
 /** Tres secciones de la verificación (spec verificación §9): estados con núcleo contra reportado, eventos materiales, analistas de 90 días. */
-export function VerificationSections({ statements, events, analystActions, analystTargets, close, metricsRaw }: { statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[]; analystTargets?: AnalystTargets | null; close: number | null; metricsRaw?: Record<string, number | null> | null }) {
+const VERDICT_LABEL: Record<CandidateVerification["verdict"], string> = { apto: "APTA", con_reservas: "CON RESERVAS", evitar: "EVITAR" };
+
+/** Verificación web por candidata (spec 2026-09-10): dictamen del modelo con búsqueda, con sus datos y fuentes. */
+function WebVerification({ v, close }: { v: CandidateVerification | null | undefined; close: number | null }) {
+  if (!v) return <div className="muted">sin verificación web: se verifica solo lo que queda COMPRAR por reglas, una vez por semana</div>;
+  const cls = v.verdict === "apto" ? "verb COMPRAR" : v.verdict === "con_reservas" ? "verb OBSERVAR" : "bad";
+  const lq = v.lastQuarter;
+  return (
+    <>
+      <div><span className={cls}>{VERDICT_LABEL[v.verdict]}</span> <span className="muted mono">{v.date}</span> · {v.reason}</div>
+      {lq && <div className="muted mono">Último trimestre{lq.reportDate ? ` (${lq.reportDate})` : ""}: ingresos {lq.revenueVsConsensus ?? "—"} · EPS {lq.epsVsConsensus ?? "—"}{lq.oneOffs.length ? ` · únicos: ${lq.oneOffs.join("; ")}` : ""}{lq.guidance ? ` · guía: ${lq.guidance}` : ""}</div>}
+      {(v.consensusTarget !== null || v.analysts.length > 0) && (
+        <div className="muted mono">
+          Analistas: objetivo de consenso {v.consensusTarget ?? "—"}{v.consensusTarget !== null && close ? ` (${signedPct(((v.consensusTarget - close) / close) * 100)} vs precio)` : ""}
+          {v.analysts.map((a) => ` · ${a.date} ${a.firm} ${a.action}${a.target !== null ? ` ${a.target}` : ""}`).join("")}
+        </div>
+      )}
+      {v.events.map((e) => <div key={`${e.date}|${e.headline}`} className="mono"><span className="warn">{e.date}</span> · {e.kind} · {e.headline}</div>)}
+      {v.valuation && <div className="muted">Valuación: {v.valuation}</div>}
+      {v.nextEarnings && <div className="muted">Próximos resultados: {v.nextEarnings}</div>}
+      {v.sources.length > 0 && <div className="muted">Fuentes: {v.sources.slice(0, 8).map((s, i) => <span key={s.url}>{i > 0 ? " · " : ""}<a href={s.url} target="_blank" rel="noreferrer">{s.title}</a></span>)}</div>}
+      <details><summary className="muted">informe completo del modelo</summary><pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>{v.researchText}</pre></details>
+    </>
+  );
+}
+
+export function VerificationSections({ statements, events, analystActions, analystTargets, close, metricsRaw, verification }: { statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[]; analystTargets?: AnalystTargets | null; close: number | null; metricsRaw?: Record<string, number | null> | null; verification?: CandidateVerification | null }) {
   const core = statements?.core ?? null;
   const last4 = statements?.quarters.slice(-4) ?? [];
   const corePe = core?.coreEpsTTM && core.coreEpsTTM > 0 && close ? (close / core.coreEpsTTM).toFixed(1) : "—";
   return (
     <>
+      <div style={{ marginTop: 10 }}>
+        <b>Verificación web (modelo con búsqueda)</b>
+        <WebVerification v={verification} close={close} />
+      </div>
       <div style={{ marginTop: 10 }}>
         <b>Estados (SEC)</b>
         {!statements || !last4.length ? (

@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, SecStatements, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
-import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
+import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
-import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
+import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
 import { KeyedRateLimiter, recordingFetch } from "@thesis/core";
 import { StoreUsageRecorder } from "@thesis/pipeline";
 import type { Config, ReasonerConfig } from "./config.js";
@@ -81,6 +81,12 @@ export function buildCardWriter(r: ReasonerConfig, shared: GeminiShared = {}): C
 }
 
 /** Clasificador de titulares del Radar: misma regla de proveedor. Solo clasifica; el veredicto lo deciden las reglas. */
+/** Verificación web por candidata: solo con Gemini (búsqueda de Google integrada). Con Anthropic no hay verificador. */
+export function buildVerifier(r: ReasonerConfig, shared: GeminiShared = {}): CandidateVerifier | null {
+  if (r.kind !== "gemini") return null;
+  return new GeminiCandidateVerifier({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
+}
+
 export function buildEventClassifier(r: ReasonerConfig, shared: GeminiShared = {}): EventClassifier {
   if (r.kind === "gemini") {
     return new GeminiEventClassifier({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
@@ -177,6 +183,7 @@ export function buildContainer(cfg: Config): Container {
     statements: new SecStatements(http),
     news: finnhub ? { companyNews: (s, from, to) => finnhub.companyNews(s, from, to) } : null,
     eventClassifier: buildEventClassifier(cfg.reasoner, gemini),
+    verifier: buildVerifier(cfg.reasoner, gemini),
   };
 
   // Argentina: Yahoo para `.BA` y el Merval (en pesos), dolarapi + argentinadatos para el macro, Alpaca para el precio US de los CEDEARs.

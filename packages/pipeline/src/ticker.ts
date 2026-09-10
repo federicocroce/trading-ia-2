@@ -1,4 +1,4 @@
-import type { AnalystAction, Candle, CandidateRow, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
 import { AXES, AXIS_METRICS } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
@@ -31,6 +31,8 @@ export interface TickerPage {
   statements: Statements | null;
   events: RadarEvent[];
   analystActions: AnalystAction[];
+  /** Verificación web del candidato (spec 2026-09-10), si existe. */
+  verification: CandidateVerification | null;
   theses: Thesis[];
   transactions: Transaction[];
   transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; invested: number };
@@ -209,10 +211,11 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     : null;
   const candidate = candidates.find((c) => c.symbol === symbol) ?? null;
   const since90 = addDays(opts.today, -90);
-  const [statements, allEvents, analystActions] = await Promise.all([
+  const [statements, allEvents, analystActions, verification] = await Promise.all([
     store.statements(symbol).catch(() => null),
     store.eventsFor(symbol, since90).catch(() => []),
     store.analystActions(symbol, since90).catch(() => []),
+    store.verification(symbol).catch(() => null),
   ]);
   const events = allEvents.filter((e) => e.severity !== "ruido");
   const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
@@ -245,6 +248,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     statements,
     events,
     analystActions,
+    verification,
     theses,
     transactions: mine,
     transactionSummary: { buys, sells, dividends, invested: round2(buys.total - sells.total) },

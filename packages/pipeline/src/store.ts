@@ -1,4 +1,4 @@
-import type { AnalystAction, Candle, CandidateRow, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -84,6 +84,9 @@ export interface RadarStore {
   /** Eventos materiales y analistas desde noticias (spec verificación §5 y §6); `radar_news_scans` guarda hasta qué fecha se leyó cada símbolo. */
   upsertEvents(events: RadarEvent[]): Promise<number>;
   eventsFor(symbol: string, since: string): Promise<RadarEvent[]>;
+  /** Verificación web por candidata (spec 2026-09-10): la última por símbolo. */
+  saveVerification(v: CandidateVerification): Promise<void>;
+  verification(symbol: string): Promise<CandidateVerification | null>;
   upsertAnalystActions(actions: AnalystAction[]): Promise<number>;
   analystActions(symbol: string, since: string): Promise<AnalystAction[]>;
   newsScannedTo(symbol: string): Promise<string | null>;
@@ -376,6 +379,13 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async saveStatements(s: Statements) {
     this.statementsMap.set(s.symbol.toUpperCase(), { ...s, symbol: s.symbol.toUpperCase() });
+  }
+  verifications = new Map<string, CandidateVerification>();
+  async saveVerification(v: CandidateVerification) {
+    this.verifications.set(v.symbol.toUpperCase(), { ...v, symbol: v.symbol.toUpperCase() });
+  }
+  async verification(symbol: string) {
+    return this.verifications.get(symbol.toUpperCase()) ?? null;
   }
   async upsertEvents(events: RadarEvent[]) {
     let n = 0;

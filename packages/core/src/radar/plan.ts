@@ -13,8 +13,9 @@ export interface PlanInput {
   portfolioValueUsd: number;
   positions: Array<{ symbol: string; valueUsd: number; assetClass: AssetClass; role?: EtfRole }>;
   sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null }>;
-  /** `cautions`: salvedades ya escritas (p. ej. "se mueve como YPF que ya tenés") que van a la razón de la línea. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[] }>;
+  /** `cautions`: salvedades ya escritas (p. ej. "se mueve como YPF que ya tenés") que van a la razón de la línea.
+   *  `verification`: veredicto de la verificación web; "con_reservas" no entra como posición nueva y la nota dice por qué. */
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: { verdict: "apto" | "con_reservas" | "evitar"; reason: string } | null }>;
   coreEtfs: EtfConfig[];
   spyClose: number | null;
   closes: Record<string, number>;
@@ -128,6 +129,11 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     queue.forEach((b, idx) => {
       const place = pool.kind === "stock" ? `${idx + 1}° por convicción` : pool.kind === "watch" ? "seguimiento" : "ETF";
       const isNew = valueOf(b.symbol) === 0;
+      // La verificación web con reservas no compra: queda en la fila con su motivo (evitar ya es OBSERVAR y no llega acá).
+      if (b.verification && b.verification.verdict !== "apto") {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: verificación web ${b.verification.verdict === "evitar" ? "dice evitar" : "con reservas"}: ${b.verification.reason}` });
+        return;
+      }
       if (taken >= pool.max) {
         leftOut.push({ symbol: b.symbol, reason: `${place}: tope de ${pool.max} ${POOL_LABEL[pool.kind]}` });
         return;

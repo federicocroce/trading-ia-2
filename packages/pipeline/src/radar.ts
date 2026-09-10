@@ -24,7 +24,9 @@ import {
   type CardInput,
   type CardWriter,
   type ContributionPlan,
+  type CandidateVerifier,
   type CoreEarnings,
+  type VerificationSummary,
   type EtfConfig,
   type EventClassifier,
   type FinnhubMetrics,
@@ -45,6 +47,7 @@ import {
   returnPct,
 } from "@thesis/core";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
+import { verifyFor } from "./radar-verify.js";
 import type { CarteraStore, RadarStore, TickerStore } from "./store.js";
 
 /**
@@ -77,6 +80,8 @@ export interface RadarDeps {
   news?: { companyNews(symbol: string, from: string, to: string): Promise<NewsItem[]> } | null;
   /** Clasificador de titulares (modelo). null con noticias = todo lo material queda `eventos_sin_clasificar`. */
   eventClassifier?: EventClassifier | null;
+  /** Verificación web por candidata (spec 2026-09-10): solo para lo que queda COMPRAR. null = sin verificador. */
+  verifier?: CandidateVerifier | null;
   log?: (msg: string, extra?: unknown) => void;
   onProgress?: (s: { done: number; total: number; stage: string }) => void;
   shouldStop?: () => boolean;
@@ -383,10 +388,17 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       const nth = await nthAppearanceFor(deps, sym, opts.today);
       const symCore = coreOf(sym);
       const ev = await scanCandidateEvents(deps, sym, opts.today, true);
-      const d = decideCandidate({ f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified } : {}) }, policy);
+      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified } : {}) };
+      let d = decideCandidate(input, policy);
       if ("excluded" in d) {
         skipped.push({ symbol: sym, reason: d.reasons.join(",") });
         continue;
+      }
+      // Verificación web solo para lo que ya es COMPRAR por reglas: el dictamen vuelve a pasar por las reglas.
+      const verification = await verifyIfBuy(deps, sym, d, opts.today);
+      if (verification !== undefined) {
+        const again = decideCandidate({ ...input, verification }, policy);
+        if (!("excluded" in again)) d = again;
       }
       let verdict = d.verdict;
       let degradedBy: string | null = null;
@@ -407,7 +419,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
           log(`[radar] ficha falló para ${sym}`, { error: String(e).slice(0, 120) });
         }
       }
-      rows.push({ ...emptyRow(opts.today, sym, "stock", verdict, d.entryLow), score: r.score, axes: r.axes, peerGroup: r.group, rankInGroup: r.rankInGroup, groupSize: r.groupSize, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: d.flags, nthAppearance: nth, summary: card?.summary ?? null, whyRanks: card?.whyRanks ?? null, mainRisk: card?.mainRisk ?? null, moat: card?.moat ?? null, degradedBy, promptVersion: deps.cardWriter?.promptVersion ?? null, spyClose, events: ev?.events ?? [], analystTargets: ev?.analystTargets ?? null });
+      rows.push({ ...emptyRow(opts.today, sym, "stock", verdict, d.entryLow), score: r.score, axes: r.axes, peerGroup: r.group, rankInGroup: r.rankInGroup, groupSize: r.groupSize, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: d.flags, nthAppearance: nth, summary: card?.summary ?? null, whyRanks: card?.whyRanks ?? null, mainRisk: card?.mainRisk ?? null, moat: card?.moat ?? null, degradedBy, promptVersion: deps.cardWriter?.promptVersion ?? null, spyClose, events: ev?.events ?? [], analystTargets: ev?.analystTargets ?? null, verification: verification ?? null });
       log(`[radar] ${sym} ${verdict}`, { score: r.score, rank: `${r.rankInGroup}/${r.groupSize}` });
     } catch (e) {
       errors.push({ symbol: sym, error: String(e) });
@@ -477,7 +489,17 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     }
     const evEvents = ev?.events ?? prev.events ?? [];
     const eventsUnclassified = ev ? ev.unclassified : true;
-    const d = decideCandidate({ f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified }, policy);
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified };
+    let d = decideCandidate(input, policy);
+    let verification: VerificationSummary | null | undefined = prev.verification;
+    if (!("excluded" in d)) {
+      const v = await verifyIfBuy(deps, prev.symbol, d, opts.today);
+      if (v !== undefined) {
+        verification = v;
+        const again = decideCandidate({ ...input, verification: v }, policy);
+        if (!("excluded" in again)) d = again;
+      }
+    }
     if ("excluded" in d) {
       rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
       continue;
@@ -503,10 +525,21 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
         }
       }
     }
-    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
+    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, verification: verification ?? null });
   }
   await store.upsertCandidates(rows);
   return { refreshed: rows.length, errors };
+}
+
+/**
+ * Verificación web para un candidato que quedó COMPRAR (acciones). `undefined` = no aplica (sin verificador, no es
+ * COMPRAR o no es acción): la decisión no cambia. `null` = aplica pero no respondió: bandera pendiente.
+ */
+async function verifyIfBuy(deps: RadarDeps, sym: string, d: { verdict: "COMPRAR" | "OBSERVAR"; flags: string[] }, today: string): Promise<VerificationSummary | null | undefined> {
+  if (!deps.verifier || d.verdict !== "COMPRAR") return undefined;
+  const profile = await deps.store.profile(sym).catch(() => null);
+  const context = `banderas del Radar: ${d.flags.join(", ") || "ninguna"}`;
+  return verifyFor(deps, sym, { today, name: profile?.profile.name ?? null, context });
 }
 
 // ---------- medición ----------
@@ -613,6 +646,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           priority: c.kind === "stock" ? (conviction.get(c.symbol) ?? null) : c.kind === "watch" ? -(c.riskScore ?? 10) : (c.axes["rs6m"] ?? null),
           // La salvedad que más pesa al comprar: si se mueve como algo tuyo, la línea del plan lo dice.
           cautions: overlap[c.symbol] ? [overlapCaution(overlap[c.symbol]!)] : [],
+          // Verificación web: "con reservas" no entra como posición nueva y la nota dice por qué.
+          verification: c.verification ? { verdict: c.verification.verdict, reason: c.verification.reason } : null,
         })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,

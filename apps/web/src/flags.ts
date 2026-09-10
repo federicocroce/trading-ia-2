@@ -22,5 +22,9 @@ const FLAG_LABEL: Record<string, string> = {
   cobranza_lenta: "cuentas a cobrar ≥ 35% de los ingresos",
   ganancia_sin_ventas: "último trimestre: menos ventas, mucha más ganancia",
   salvedades_de_calidad: "dos o más salvedades de calidad o litigio",
+  verificacion_apta: "verificación web: apta",
+  verificacion_reservas: "verificación web: con reservas",
+  verificacion_evitar: "verificación web: evitar",
+  verificacion_pendiente: "verificación web pendiente",
 };
 export const flagLabel = (flag: string): string => FLAG_LABEL[flag] ?? flag;
