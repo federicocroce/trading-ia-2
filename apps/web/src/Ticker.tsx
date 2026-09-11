@@ -3,6 +3,7 @@ import { api, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
+import { EntryLine } from "./Entry";
 import { WatchlistButton } from "./WatchlistButton";
 import { usePrices } from "./prices";
 import { flagLabel } from "./flags";
@@ -165,6 +166,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.candidate.whyRanks && <div><b>Por qué rankea:</b> {t.candidate.whyRanks}</div>}
           {t.candidate.mainRisk && <div><b>Riesgo principal:</b> {t.candidate.mainRisk}</div>}
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
+          <EntryLine e={t.candidate.entry} />
           <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)})</div>
           <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate.close} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} />
           {t.peers.length > 0 && (

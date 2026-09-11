@@ -1,3 +1,4 @@
+import type { EntryTiming } from "./entry.js";
 import type { MacroRegime } from "./regime.js";
 import type { AssetClass, EtfConfig, EtfRole, RadarPolicy } from "./types.js";
 
@@ -18,7 +19,7 @@ export interface PlanInput {
   /** `cautions`: salvedades ya escritas (p. ej. "se mueve como YPF que ya tenés") que van a la razón de la línea.
    *  `verification`: veredicto de la verificación web; "con_reservas" no entra como posición nueva y la nota dice por qué.
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: { verdict: "apto" | "con_reservas" | "evitar"; reason: string } | null; flags?: string[] }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: { verdict: "apto" | "con_reservas" | "evitar"; reason: string } | null; flags?: string[]; entry?: PlanLine["entry"] }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   coreEtfs: EtfConfig[];
@@ -44,6 +45,8 @@ export interface PlanLine {
   ret12mPartial?: boolean | null;
   /** Prioridad con la que entró (convicción para acciones, −riesgo para seguimiento, FR 6m para ETFs). */
   priority?: number | null;
+  /** Cuándo comprarla: ahora, o esperando un nivel. `entryHigh` es el techo de esa franja. */
+  entry?: EntryTiming | null;
 }
 export interface PlanOptions {
   /** Monto a repartir en vez del aporte mensual (plata líquida de una vez). */
@@ -216,7 +219,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       const kind: PlanLine["kind"] = b.kind === "watch" ? "seguimiento" : "comprar";
       const base = b.kind === "watch" ? `tu lista de seguimiento, COMPRAR hoy${b.score !== null ? `, score ${b.score}` : ""}` : b.kind === "etf" ? "ETF satélite con fuerza relativa positiva" : `${placeOf.get(b.symbol) ?? "candidato del Radar"}, convicción ${b.priority ?? "—"}${b.score !== null ? `, score ${b.score}` : ""}`;
       const why = b.cautions?.length ? `${base} · ⚠ ${b.cautions.join(" · ⚠ ")}` : base;
-      lines.push({ ...line(b.symbol, kind, amt, why), entryHigh: b.entryHigh ?? null, stop: b.stop ?? null, target: b.target ?? null, priority: b.priority ?? null });
+      lines.push({ ...line(b.symbol, kind, amt, why), entryHigh: b.entryHigh ?? null, stop: b.stop ?? null, target: b.target ?? null, priority: b.priority ?? null, entry: b.entry ?? null });
       used += amt;
     });
     remaining -= used;

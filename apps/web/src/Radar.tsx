@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, isHistorical, type ArgentinaData, type Candidate, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
+import { EntryCell } from "./Entry";
 import { HELP, RadarHelpModal, Th } from "./RadarHelp";
 import { SymbolSearch } from "./SymbolSearch";
 import { flagLabel } from "./flags";
@@ -186,7 +187,7 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
         <td className="mono">{f2(c.score)}</td>
         <td className="mono">{c.rankInGroup ?? "—"}/{c.groupSize ?? "—"}</td>
         <td className="mono">{f2(c.close)}</td>
-        <td className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</td>
+        <td><EntryCell e={c.entry} fallback={<span className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</span>} /></td>
         <td className="mono">{f2(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
         <td className="mono">{f2(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
         <td className="mono">{c.sizeQty ?? "—"} · {money(c.sizeUsd)}</td>
@@ -304,7 +305,7 @@ function WatchCard({ w, setWatch, editing, setEditing, reload }: { w: Watchlist;
               <td className="mono">{c.score === null ? <span className="muted" title="No está en el universo del Radar (o no pasó el quality bar): sin rank contra pares.">—</span> : f2(c.score)}</td>
               <td className="mono">{c.rankInGroup !== null ? `${c.rankInGroup}/${c.groupSize}` : "—"}</td>
               <td className="mono">{f2(c.close)}</td>
-              <td className="mono">{c.entryLow !== null ? `${f2(c.entryLow)}–${f2(c.entryHigh)}` : "—"}</td>
+              <td><EntryCell e={c.entry} fallback={c.entryLow !== null ? <span className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</span> : <span className="muted">—</span>} /></td>
               <td className="mono">{f2(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
               <td className="mono">{f2(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
               <td className="mono">{c.sizeQty ?? "—"}{c.sizeUsd !== null && <span className="muted"> · {money(c.sizeUsd)}</span>}</td>
@@ -432,7 +433,7 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
         <button className="primary" disabled={busy || !(Number(amount) > 0)} onClick={() => void onBuild(Number(amount))}>{busy ? "Armando…" : "Armar plan con este monto"}</button>
       </div>
       <table style={{ marginTop: 8 }}>
-        <thead><tr><Th k="simbolo" /><th>tipo</th><th>monto</th><Th k="cantidad" /><Th k="precio" /><Th k="comprarHasta" /><Th k="stopPlan" /><Th k="objetivoPlan" /><th>por qué</th><Th k="alpha30" /><Th k="alpha90" /></tr></thead>
+        <thead><tr><Th k="simbolo" /><th>tipo</th><th>monto</th><Th k="cantidad" /><Th k="precio" /><Th k="cuandoEntrar" /><Th k="stopPlan" /><Th k="objetivoPlan" /><th>por qué</th><Th k="alpha30" /><Th k="alpha90" /></tr></thead>
         <tbody>
           {lines.map((l) => (
             <tr key={`${l.kind}:${l.symbol}`}>
@@ -441,7 +442,7 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
               <td className="mono">{money(l.amountUsd)}</td>
               <td className="mono">{qty(l) ?? "—"}</td>
               <td className="mono">{f2(l.close)}</td>
-              <td className="mono">{l.entryHigh ? f2(l.entryHigh) : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted">mercado</span> : "—"}</td>
+              <td><EntryCell e={l.entry} fallback={l.entryHigh ? <span className="mono">hasta {f2(l.entryHigh)}</span> : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted" title="El núcleo se compra al precio que esté: es aporte periódico, no una operación.">a mercado</span> : <span className="muted">—</span>} /></td>
               <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="El núcleo no se vende por stop: se compra y se mantiene. Es la base de la cartera, no una apuesta.">sin stop</span> : "—"}</td>
               <td className="mono">{l.target ? <>{f2(l.target)}{l.close && <span className="ok"> {pct(((l.target - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="Sin objetivo: el núcleo se mantiene años, no se vende al llegar a un precio. El % es lo que rindió en los últimos 12 meses: contexto, no promesa.">se mantiene{l.ret12mPct !== null && l.ret12mPct !== undefined && <> · {pct(l.ret12mPct)} últimos 12 m</>}</span> : "—"}</td>
               <td>{l.rationale}</td>
@@ -460,7 +461,7 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
           <table style={{ marginTop: 6 }}><tbody>{p.leftOut.map((x) => <tr key={x.symbol}><td><SymbolLink symbol={x.symbol} /></td><td className="muted">{x.reason}</td></tr>)}</tbody></table>
         </details>
       )}
-      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>Regla: mientras el núcleo esté bajo su objetivo va el 60% del monto al núcleo; SUMAR hasta el 30% del resto; nuevas por convicción repartidas parejo, más una de tu seguimiento. Si un precio ya pasó "comprar hasta", no lo corras. Cargá las operaciones en Cartera cuando las hagas.</div>
+      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>Regla: mientras el núcleo esté bajo su objetivo va el 60% del monto al núcleo; SUMAR hasta el 30% del resto; nuevas por convicción repartidas parejo, más una de tu seguimiento. Mirá "cuándo entrar" antes de ejecutar: lo que dice "esperar" se deja como orden limitada al precio indicado y se revisa a las 15 ruedas, no se compra a mercado. Cargá las operaciones en Cartera cuando las hagas.</div>
     </div>
   );
 }

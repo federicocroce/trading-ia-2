@@ -298,6 +298,8 @@ export const radarCandidates = pgTable(
     analystTargets: jsonb("analyst_targets"),
     /** Verificación web (spec 2026-09-10): { date, verdict, reason } o null. */
     verification: jsonb("verification"),
+    /** Momento de entrada (2026-09-11): estado, nivel y condición. */
+    entry: jsonb("entry"),
     close7d: numeric("close_7d", { precision: 14, scale: 4 }),
     spy7d: numeric("spy_7d", { precision: 14, scale: 4 }),
     alpha7dPct: numeric("alpha_7d_pct", { precision: 10, scale: 4 }),

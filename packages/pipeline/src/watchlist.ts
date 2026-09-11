@@ -94,7 +94,7 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
         // Tendencia de fondo bajista: se sigue igual, con el stop dinámico como referencia y sin objetivo.
         rows.push({ ...row, verdict: "OBSERVAR", flags: d.reasons, stop: computeTrailingStop(candles) });
       } else {
-        rows.push({ ...row, verification: verification ?? null, verdict: d.verdict, flags: d.flags, entryLow: d.entryLow, entryHigh: round2(d.entryHigh), stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore });
+        rows.push({ ...row, verification: verification ?? null, entry: d.entry, verdict: d.verdict, flags: d.flags, entryLow: d.entryLow, entryHigh: round2(d.entryHigh), stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore });
       }
       // Reglas de taxonomía cada día (barato): un tema nuevo en config llega solo. Lo manual no se pisa.
       await tagSymbol(deps, sym, { industry: f.industry, country: null }).catch(() => null);

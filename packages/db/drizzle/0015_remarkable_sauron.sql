@@ -1,0 +1,1 @@
+ALTER TABLE "radar_candidates" ADD COLUMN "entry" jsonb;

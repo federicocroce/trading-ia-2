@@ -80,6 +80,9 @@ describe("decideCandidate", () => {
     expect(d.verdict).toBe("COMPRAR");
     expect(d.entryLow).toBe(100);
     expect(d.entryHigh).toBe(102);
+    // El precio de entrada ya no es un 2% inventado: sale del momento de entrada y coincide con él.
+    expect(d.entry!.state).toBe("en_zona");
+    expect(d.entry!.level).toBe(d.entryHigh);
     expect(d.stop).toBeLessThan(100);
     expect(d.target).toBeGreaterThan(100);
     expect(d.size!.qty).toBeGreaterThan(0);
@@ -91,8 +94,11 @@ describe("decideCandidate", () => {
     const c = series(closes);
     const d = decideCandidate({ f: f(), candles: c, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
     if ("excluded" in d) throw new Error("no debía excluir");
-    expect(d.stop).toBeGreaterThan(d.entryLow);
+    expect(d.stop).toBeGreaterThan(100); // el stop quedó arriba del cierre: la tendencia se dio vuelta
     expect(d.verdict).toBe("OBSERVAR");
+    // Cayó bajo su media de 50: no se compra la caída, se espera que recupere el máximo reciente.
+    expect(d.entry!.state).toBe("esperar_confirmacion");
+    expect(d.entryLow).toBeGreaterThan(100);
     expect(d.flags).toContain("bajo_stop");
     expect(d.size).toBeNull();
     expect(d.target).toBeNull();

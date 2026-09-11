@@ -98,6 +98,8 @@ export interface CandidateRow {
   analystTargets?: AnalystTargets | null;
   /** Verificación web del candidato (modelo con búsqueda): lo que la fila necesita para salvedades, plan y ficha. */
   verification?: VerificationSummary | null;
+  /** Cuándo entrar: estado, nivel y condición (ver radar/entry.ts). */
+  entry?: import("./entry.js").EntryTiming | null;
 }
 
 /** Verificación por candidata (spec 2026-09-10): el modelo investiga en la web con un cuestionario fijo y dictamina. */

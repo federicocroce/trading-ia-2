@@ -424,7 +424,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
           log(`[radar] ficha falló para ${sym}`, { error: String(e).slice(0, 120) });
         }
       }
-      rows.push({ ...emptyRow(opts.today, sym, "stock", verdict, d.entryLow), score: r.score, axes: r.axes, peerGroup: r.group, rankInGroup: r.rankInGroup, groupSize: r.groupSize, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: d.flags, nthAppearance: nth, summary: card?.summary ?? null, whyRanks: card?.whyRanks ?? null, mainRisk: card?.mainRisk ?? null, moat: card?.moat ?? null, degradedBy, promptVersion: deps.cardWriter?.promptVersion ?? null, spyClose, events: ev?.events ?? [], analystTargets: ev?.analystTargets ?? null, verification: verification ?? null });
+      rows.push({ ...emptyRow(opts.today, sym, "stock", verdict, d.entryLow), score: r.score, axes: r.axes, peerGroup: r.group, rankInGroup: r.rankInGroup, groupSize: r.groupSize, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: d.flags, nthAppearance: nth, summary: card?.summary ?? null, whyRanks: card?.whyRanks ?? null, mainRisk: card?.mainRisk ?? null, moat: card?.moat ?? null, degradedBy, promptVersion: deps.cardWriter?.promptVersion ?? null, spyClose, events: ev?.events ?? [], analystTargets: ev?.analystTargets ?? null, verification: verification ?? null, entry: d.entry });
       log(`[radar] ${sym} ${verdict}`, { score: r.score, rank: `${r.rankInGroup}/${r.groupSize}` });
     } catch (e) {
       errors.push({ symbol: sym, error: String(e) });
@@ -531,7 +531,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
         }
       }
     }
-    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, verification: verification ?? null });
+    rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.entryLow, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, verification: verification ?? null, entry: d.entry });
   }
   await store.upsertCandidates(rows);
   return { refreshed: rows.length, errors };
@@ -668,6 +668,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           verification: c.verification ? { verdict: c.verification.verdict, reason: c.verification.reason } : null,
           // Salvedades de precio (consenso en el precio, subida de 12 meses): tampoco entran como nueva.
           flags: c.flags,
+          // Cuándo comprarla: si está extendida, la línea del plan dice el nivel a esperar.
+          entry: c.entry ?? null,
         })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,
