@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, SecStatements, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
 import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
-import { EdgarDocumentProvider, buildSnapshot, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
+import { EdgarDocumentProvider, buildSnapshot, eventUniverse, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
 import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
 import { KeyedRateLimiter, recordingFetch } from "@thesis/core";
 import { StoreUsageRecorder } from "@thesis/pipeline";
@@ -111,18 +111,16 @@ export function buildContainer(cfg: Config): Container {
   const marketData = new AlpacaMarketData(http, cfg.alpaca);
   const broker = new AlpacaBroker(createTradingHttp(http, cfg.userAgent, usageFetch), cfg.alpaca);
   const risk = new DefaultRiskEngine(DEFAULT_RISK_LIMITS);
-  // Universo de eventos: lo de config más lo que la cartera va sumando sola (posiciones, seguimiento, plan). Sin .BA: EDGAR no los cubre.
-  const eventUniverse = async (): Promise<string[]> => {
-    const [positions, watch, plan] = await Promise.all([store.positions(), store.watchlist(), store.latestPlan()]);
-    const all = [...cfg.universe.us, ...cfg.universe.adr, ...positions.map((p) => p.symbol), ...watch.map((w) => w.symbol), ...(plan?.lines.map((l) => l.symbol) ?? [])];
-    return [...new Set(all.map((x) => x.toUpperCase()))].filter((x) => !x.endsWith(".BA"));
+  // Universo de eventos: config más lo que la cartera y el Radar suman solos (posiciones, seguimiento, plan, COMPRAR del ranking). Ver eventUniverse.
+  const allTickers = async (): Promise<string[]> => {
+    const [positions, watchlist, plan, candidates] = await Promise.all([store.positions(), store.watchlist(), store.latestPlan(), store.latestCandidates()]);
+    return eventUniverse({ config: cfg.universe, positions, watchlist, plan, candidates });
   };
   const adrAllowlist = async (): Promise<string[]> => {
     const [positions, tags] = await Promise.all([store.positions(), store.allTags()]);
     const adrs = [...cfg.universe.adr, ...positions.filter((p) => p.market === "adr").map((p) => p.symbol), ...Object.entries(tags).filter(([, t]) => t.assetClass === "adr").map(([sym]) => sym)];
     return [...new Set(adrs.map((x) => x.toUpperCase()))];
   };
-  const allTickers = eventUniverse;
 
   const ingestors: Ingestor[] = [
     new EdgarIngestor({ http, universe: allTickers }),
