@@ -10,11 +10,13 @@ export interface SourceLimit {
 
 /**
  * Límites conservadores del plan gratis, en código para que el panel los muestre contra el uso.
- * Gemini: por proyecto y por modelo; cada clave es un proyecto distinto (confirmado 2026-09-10).
- * Google publica 10 RPM y entre 250 y 1.500 RPD según el modelo: se toma el piso.
+ * Gemini: por proyecto y por modelo; cada clave es un proyecto distinto (confirmado 2026-09-10). Google publica 10 RPM;
+ * la cuota diaria real de estas claves no la publica y el 10/9 devolvió 429 diario con 15–20 llamadas (y la búsqueda
+ * integrada con menos de 10; en los modelos 3.x no hay búsqueda gratis): por eso `perDay` queda null y el panel
+ * marca "agotada" cuando aparece un 429 diario.
  */
 export const USAGE_LIMITS: Record<UsageSource, SourceLimit> = {
-  gemini: { perMinute: 10, perDay: 250, perModelKey: true },
+  gemini: { perMinute: 10, perDay: null, perModelKey: true },
   finnhub: { perMinute: 60, perDay: null },
   alpaca: { perMinute: 200, perDay: null },
   sec: { perMinute: 600, perDay: null },

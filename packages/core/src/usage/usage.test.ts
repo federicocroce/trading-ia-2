@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KeyedRateLimiter, RateLimiter, estimateCostUsd, recordingFetch, resultForStatus, sourceForHost, summarizeUsage, type UsageCall, type UsageCallInput, type UsageRecorder, type UsageResult } from "./index.js";
+import { KeyedRateLimiter, RateLimiter, dailyUsage, estimateCostUsd, recordingFetch, resultForStatus, sourceForHost, summarizeUsage, type UsageCall, type UsageCallInput, type UsageRecorder, type UsageResult } from "./index.js";
 
 function memRecorder() {
   const rows: Array<UsageCallInput & { id: string }> = [];
@@ -136,7 +136,10 @@ describe("summarizeUsage", () => {
     expect(k1.validacion).toBe(1);
     expect(k1.saturado).toBe(1);
     expect(k1.tokensIn).toBe(30_000);
-    expect(k1.pctDay).toBe(2);
+    expect(k1.pctDay).toBeNull(); // Google no publica la cuota diaria real: sin evidencia no hay %
+    const exhausted = summarizeUsage([g({}), g({ result: "rpd", status: 429, tokensIn: null, tokensOut: null, tokensThink: null })], { date: "2026-09-10" });
+    expect(exhausted.gemini.rows[0]!.pctDay).toBe(100);
+    expect(exhausted.warnings.some((w) => w.includes("cuota diaria agotada"))).toBe(true);
     // 30k in * 0.30 + 3k out * 2.50 = 0.009 + 0.0075
     expect(k1.costUsd).toBeCloseTo(0.0165, 3);
     expect(s.gemini.failedPct).toBe(50);
@@ -150,5 +153,18 @@ describe("summarizeUsage", () => {
     expect(s.total.calls).toBe(0);
     expect(s.gemini.failedPct).toBeNull();
     expect(s.warnings).toEqual([]);
+  });
+  it("dailyUsage: un punto por día pedido (ceros incluidos), por fuente, con el día local que le pasan", () => {
+    const calls = [
+      call({ at: "2026-09-09T23:30:00.000Z" }), // en Buenos Aires es el 9 a las 20:30
+      call({ at: "2026-09-10T01:00:00.000Z", source: "gemini", model: "gemini-2.5-flash", tokensIn: 1_000_000, tokensOut: 0, tokensThink: 0 }), // 9 a las 22:00
+      call({ at: "2026-09-10T15:00:00.000Z", source: "gemini", model: "gemini-2.5-flash", result: "rpm", status: 429 }),
+    ];
+    const ba = (iso: string) => new Date(new Date(iso).getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
+    const s = dailyUsage(calls, ["2026-09-08", "2026-09-09", "2026-09-10"], ba);
+    expect(s.map((d) => [d.date, d.calls, d.errors])).toEqual([["2026-09-08", 0, 0], ["2026-09-09", 2, 0], ["2026-09-10", 1, 1]]);
+    expect(s[1]!.bySource).toEqual({ finnhub: 1, gemini: 1 });
+    expect(s[1]!.costUsd).toBeCloseTo(0.3, 3);
+    expect(s[2]!).toMatchObject({ geminiCalls: 1, geminiFailed: 1, bySource: { gemini: 1 } });
   });
 });

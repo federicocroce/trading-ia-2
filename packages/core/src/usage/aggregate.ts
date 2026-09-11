@@ -68,6 +68,41 @@ export interface SummarizeOptions {
   geminiFailWarnPct?: number;
 }
 
+/** Un día de la serie de uso: llamadas, errores, costo equivalente y llamadas por fuente. */
+export interface UsageDay {
+  date: string;
+  calls: number;
+  errors: number;
+  costUsd: number;
+  bySource: Record<string, number>;
+  geminiCalls: number;
+  geminiFailed: number;
+}
+
+/**
+ * Serie diaria para el gráfico de la pestaña Uso. `dates` fija qué días salen (con ceros si no hubo nada) y
+ * `dateOf` traduce la hora ISO de cada llamada al día local (la API pasa su `localDate`). Puro.
+ */
+export function dailyUsage(calls: UsageCall[], dates: string[], dateOf: (iso: string) => string): UsageDay[] {
+  const days = new Map<string, UsageDay>(dates.map((d) => [d, { date: d, calls: 0, errors: 0, costUsd: 0, bySource: {}, geminiCalls: 0, geminiFailed: 0 }]));
+  for (const c of calls) {
+    const d = days.get(dateOf(c.at));
+    if (!d) continue;
+    d.calls++;
+    if (c.result !== "ok") d.errors++;
+    d.bySource[c.source] = (d.bySource[c.source] ?? 0) + 1;
+    if (c.source === "gemini") {
+      d.geminiCalls++;
+      if (c.result !== "ok") d.geminiFailed++;
+      d.costUsd += estimateCostUsd(c.model ?? c.endpoint, c.tokensIn, c.tokensOut, c.tokensThink);
+    }
+  }
+  return dates.map((x) => {
+    const d = days.get(x)!;
+    return { ...d, costUsd: Math.round(d.costUsd * 1000) / 1000 };
+  });
+}
+
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const pct = (n: number, limit: number | null) => (limit === null || limit <= 0 ? null : r2((n / limit) * 100));
 const isError = (r: UsageResult) => r !== "ok";
@@ -139,8 +174,11 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
   const geminiRows = [...gem.values()]
     .map((g) => {
       g.costUsd = r2(g.costUsd * 1000) / 1000;
-      g.pctDay = pct(g.calls, g.limitPerDay);
-      if (g.pctDay !== null && g.pctDay >= warnAt) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.calls} llamadas hoy (${g.pctDay}% de ${g.limitPerDay})`);
+      // Google no publica la cuota diaria real de estas claves (10/9: 429 diario con 15–20 llamadas, y la búsqueda con menos de 10):
+      // la evidencia manda: un 429 diario en el día = agotada (100%).
+      g.pctDay = g.rpd > 0 ? 100 : pct(g.calls, g.limitPerDay);
+      if (g.rpd > 0) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: cuota diaria agotada (429 por día) tras ${g.calls} llamadas`);
+      else if (g.pctDay !== null && g.pctDay >= warnAt) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.calls} llamadas hoy (${g.pctDay}% de ${g.limitPerDay})`);
       return g;
     })
     .sort((a, b) => a.model.localeCompare(b.model) || a.keyIndex - b.keyIndex);
