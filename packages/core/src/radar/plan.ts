@@ -242,5 +242,13 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     notes.push(`Se sacó ${l.symbol} del plan: toda línea que no sea núcleo tiene que tener stop, o es plata que entra y no sale.`);
   }
   const finales = lines.filter(lineHasExit);
+  // Cuánta de esta plata se puede ejecutar hoy. Una línea que dice "esperar" tiene asignado un monto que no se
+  // gasta hoy: sin decirlo, el plan parece ejecutable entero y el que lo lee termina comprando a mercado igual.
+  const esperando = finales.filter((l) => l.entry && (l.entry.state === "esperar_retroceso" || l.entry.state === "esperar_confirmacion"));
+  if (esperando.length) {
+    const enEspera = Math.round(esperando.reduce((s, l) => s + l.amountUsd, 0));
+    const detalle = esperando.map((l) => `${l.symbol} ${l.entry!.state === "esperar_retroceso" ? "en" : "arriba de"} ${l.entry!.level}`).join(", ");
+    notes.push(`Hoy se ejecutan USD ${Math.round(aporte) - enEspera} de USD ${Math.round(aporte)}. Los otros USD ${enEspera} van como orden limitada, no a mercado: ${detalle}. Vale ${esperando[0]!.entry!.validSessions} ruedas; si no se da, esa plata se reasigna en la próxima corrida.`);
+  }
   return { month: i.month, totalUsd: aporte, lines: finales, notes, leftOut, tranches };
 }

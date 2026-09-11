@@ -14,6 +14,27 @@ const base: PlanInput = {
 };
 
 describe("planContribution", () => {
+  it("una línea que hay que esperar no cuenta como plata ejecutable hoy, y la nota lo dice", () => {
+    const esperando = { state: "esperar_retroceso" as const, level: 150, levelLabel: "media de 20 ruedas", low: 148.5, high: 150, validSessions: 15, sma20: 150, sma50: 140, atr14: 4, extensionAtr: 2.5, rangePct60: 90, why: "está 2.5 ATR arriba de su media de 20" };
+    const p = planContribution({
+      ...base,
+      buyCandidates: [
+        { symbol: "AMD", kind: "stock", priority: 2.1, score: 2.1, sizeUsd: 9_000, close: 160, stop: 150, entry: esperando },
+        { symbol: "NVDA", kind: "stock", priority: 1.5, score: 1.5, sizeUsd: 9_000, close: 180, stop: 170 },
+      ],
+    }, c);
+    const amd = p.lines.find((l) => l.symbol === "AMD")!;
+    const nota = p.notes.find((n) => n.startsWith("Hoy se ejecutan"))!;
+    expect(nota).toContain(`USD ${Math.round(p.totalUsd) - Math.round(amd.amountUsd)} de USD ${Math.round(p.totalUsd)}`);
+    expect(nota).toContain("AMD en 150");
+    expect(nota).toContain("orden limitada, no a mercado");
+  });
+
+  it("si todas las líneas se pueden comprar hoy no aparece la nota de espera", () => {
+    const p = planContribution({ ...base, buyCandidates: [{ symbol: "NVDA", kind: "stock", priority: 1.5, score: 1.5, sizeUsd: 9_000, close: 180, stop: 170 }] }, c);
+    expect(p.notes.some((n) => n.startsWith("Hoy se ejecutan"))).toBe(false);
+  });
+
   it("núcleo vacío → todo el aporte al núcleo, repartido por peso objetivo", () => {
     const p = planContribution(base, c);
     expect(p.totalUsd).toBe(6500);
