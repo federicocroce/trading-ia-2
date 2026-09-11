@@ -161,7 +161,7 @@ export function Cartera() {
       )}
       <div className="card" style={{ overflowX: "auto" }}>
         <table>
-          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>precio</th><th>valor</th><th>P&amp;L</th><th>P&amp;L %</th><th>peso</th><th>veredicto</th><th>stop</th><th>objetivo</th><th>etiquetas</th><th></th></tr></thead>
+          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>invertido</th><th>precio</th><th>valor</th><th>P&amp;L</th><th>P&amp;L %</th><th>peso</th><th>veredicto</th><th>stop</th><th>objetivo</th><th>etiquetas</th><th></th></tr></thead>
           <tbody>
             {positions.map((p) => {
               const v = vBy.get(p.symbol);
@@ -169,7 +169,7 @@ export function Cartera() {
                 <Row key={p.symbol} p={p} v={v} q={quotes[p.symbol] ?? null} tags={tags[p.symbol] ?? null} open={open === p.symbol} onToggle={() => setOpen(open === p.symbol ? null : p.symbol)} onEdit={() => setForm({ ...p })} onRemove={() => remove(p.symbol)} editingTags={editingTags === p.symbol} onEditTags={() => setEditingTags(editingTags === p.symbol ? null : p.symbol)} onTagsSaved={() => { setEditingTags(null); void load(); }} />
               );
             })}
-            {!positions.length && <tr><td colSpan={13} className="muted">Sin posiciones. Agregá una o corré <span className="mono">pnpm import:v1</span>.</td></tr>}
+            {!positions.length && <tr><td colSpan={14} className="muted">Sin posiciones. Agregá una o corré <span className="mono">pnpm import:v1</span>.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -189,6 +189,7 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
         <td><SymbolLink symbol={p.symbol} /> <span className="muted">{p.market}{p.layer !== "riesgo" ? ` · ${p.layer}` : ""}</span></td>
         <td className="mono">{f2(p.quantity)}</td>
         <td className="mono">{f2(p.avgCost)}</td>
+        <td className="mono" title="USD invertidos en el ticker: cantidad × costo promedio">{usd(x.cost)}</td>
         <td className="mono" style={{ whiteSpace: "nowrap" }}>
           <span className={q && x.live ? "" : "muted"} title={priceTitle}>{f2(x.price)}</span>
           {q && q.changePct !== null && <span className={x.live ? cls(q.changePct) : "muted"} style={{ marginLeft: 6, fontSize: 11 }} title="variación contra el cierre previo">{pct2(q.changePct)}</span>}
@@ -208,10 +209,10 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
           <button className="ghost" onClick={onRemove}>Borrar</button>
         </td>
       </tr>
-      {editingTags && <tr><td colSpan={13}><TagEditor symbol={p.symbol} current={tags} onSaved={onTagsSaved} onCancel={onEditTags} /></td></tr>}
+      {editingTags && <tr><td colSpan={14}><TagEditor symbol={p.symbol} current={tags} onSaved={onTagsSaved} onCancel={onEditTags} /></td></tr>}
       {open && v && (
         <tr>
-          <td colSpan={13}>
+          <td colSpan={14}>
             <div><b>Por qué:</b> {v.reason}</div>
             {v.narrative && <div style={{ marginTop: 6 }}><b>Modelo:</b> {v.narrative}{v.degradedBy && <span className="muted"> (degradó el veredicto)</span>}</div>}
             {v.warning && <div className="warn" style={{ marginTop: 6 }}><b>Aviso:</b> {v.warning}</div>}
