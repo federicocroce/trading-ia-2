@@ -319,6 +319,10 @@ export const contributionPlans = pgTable("contribution_plans", {
   totalUsd: numeric("total_usd", { precision: 14, scale: 2 }).notNull(),
   lines: jsonb("lines").notNull().default([]),
   notes: jsonb("notes").notNull().default([]),
+  /** Todo COMPRAR que no entró, con su lugar y motivo. Se guarda porque la regla es que cada exclusión quede explicada: sin esto la lista desaparecía al recargar. */
+  leftOut: jsonb("left_out").notNull().default([]),
+  /** En cuántas compras conviene ejecutarlo (1 = de una vez). */
+  tranches: integer("tranches"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 /** Eventos materiales detectados en noticias (spec verificación §5). Único por símbolo + URL; los `ruido` también se guardan. */

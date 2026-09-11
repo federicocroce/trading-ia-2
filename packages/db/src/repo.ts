@@ -438,10 +438,10 @@ export class Repo {
     return (await this.db.select().from(s.radarCandidates).orderBy(desc(s.radarCandidates.candidateDate), s.radarCandidates.symbol)).map((r) => this.rowToCandidate(r));
   }
   private rowToPlan(r: typeof s.contributionPlans.$inferSelect): ContributionPlan {
-    return { month: r.planMonth, totalUsd: num(r.totalUsd), lines: (r.lines as PlanLine[]) ?? [], notes: (r.notes as string[]) ?? [] };
+    return { month: r.planMonth, totalUsd: num(r.totalUsd), lines: (r.lines as PlanLine[]) ?? [], notes: (r.notes as string[]) ?? [], leftOut: (r.leftOut as ContributionPlan["leftOut"]) ?? [], ...(r.tranches === null ? {} : { tranches: r.tranches }) };
   }
   async savePlan(p: ContributionPlan): Promise<void> {
-    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes };
+    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes, leftOut: p.leftOut ?? [], tranches: p.tranches ?? null };
     await this.db.insert(s.contributionPlans).values(v).onConflictDoUpdate({ target: s.contributionPlans.planMonth, set: v });
   }
   async latestPlan(): Promise<ContributionPlan | null> {
