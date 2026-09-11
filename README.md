@@ -48,7 +48,7 @@ pnpm run:daily              # una corrida a mano (ingesta → filtro → razonam
 
 Flujo: la corrida deja tesis en **Propuestas**. Vos abrís cada una, leés razonamiento e invalidación, y aprobás (pasa por riesgo y va a Alpaca paper) o rechazás (queda registrado, para medir tu criterio). Cuando el evento se resuelve, en **Abiertas** cerrás la posición diciendo si pasó lo predicho; eso alimenta **Calibración**.
 
-Eventos con fecha que no tienen API gratuita (PDUFA, fallos, licitaciones) se cargan a mano en `config/events.csv`. El universo de tickers está en `config/universe.json`.
+Eventos con fecha que no tienen API gratuita (PDUFA, fallos, licitaciones) se cargan a mano en `config/events.csv`. El universo de tickers es `config/universe.json` más tus posiciones, tu seguimiento, las líneas del plan del aporte y los COMPRAR del último ranking del Radar (acciones y seguimiento; ETFs, argentinas y CEDEARs no presentan filings). Para no gastar razonador en compras rutinarias de insiders, el filtro deja un solo Form 4 por ticker por corrida, el de mayor compra; el resto queda descartado con razón `form4 cap`.
 
 ## Cartera real
 

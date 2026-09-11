@@ -58,3 +58,21 @@ describe("DefaultFilter", () => {
 describe("daysBetween", () => {
   it("cuenta días calendario", () => expect(daysBetween("2026-09-04", "2026-09-20")).toBe(16));
 });
+
+describe("DefaultFilter: tope de Form 4 por ticker", () => {
+  const f4 = (ticker: string, ref: string, buy: number) =>
+    ev({ ticker, eventType: "operational", eventDate: null, source: "edgar", sourceRef: ref, payload: { form: "4", insider: "compra", insiderBuyShares: buy } });
+  const k8 = (ticker: string, ref: string) => ev({ ticker, eventType: "operational", eventDate: null, source: "edgar", sourceRef: ref, payload: { form: "8-K" } });
+  const wide = { today: "2026-09-04", maxCandidates: 10 };
+
+  it("queda un solo Form 4 por ticker por corrida, el de la compra más grande; el resto se descarta con razón form4 cap", async () => {
+    const r = await new DefaultFilter(quotes).apply([f4("AAA", "a", 56), f4("AAA", "b", 5000), f4("AAA", "c", 100), k8("AAA", "d")], wide);
+    expect(r.passed.map((e) => e.sourceRef).sort()).toEqual(["b", "d"]);
+    expect(r.dropped.map((d) => [d.event.sourceRef, d.reason])).toEqual([["a", "form4 cap"], ["c", "form4 cap"]]);
+  });
+  it("el tope es por ticker: un Form 4 de otro ticker no se descarta", async () => {
+    const r = await new DefaultFilter(quotes).apply([f4("AAA", "a", 56), f4("BBB", "b", 10)], wide);
+    expect(r.passed.map((e) => e.ticker).sort()).toEqual(["AAA", "BBB"]);
+    expect(r.dropped).toEqual([]);
+  });
+});

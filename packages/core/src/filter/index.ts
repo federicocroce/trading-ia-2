@@ -18,6 +18,8 @@ export interface FilterConfig {
   allowlist: string[] | (() => Promise<string[]>);
   /** Prioridad por tipo cuando hay que recortar al presupuesto. */
   priority: Record<RawEvent["eventType"], number>;
+  /** Form 4 (insiders) por ticker por corrida: queda la compra más grande, el resto se descarta. Frena el ruido de planes de compra rutinarios. */
+  maxForm4PerTicker: number;
 }
 
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
@@ -27,6 +29,7 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   minPrice: 3,
   allowlist: [],
   priority: { fda: 5, earnings: 4, legal: 3, macro_ar: 2, operational: 1 },
+  maxForm4PerTicker: 1,
 };
 
 export type QuoteLookup = (ticker: string) => Promise<Quote | null>;
@@ -84,14 +87,31 @@ export class DefaultFilter implements Filter {
       candidates.push(event);
     }
 
-    candidates.sort((a, b) => {
+    const capped = this.capForm4(candidates, dropped);
+
+    capped.sort((a, b) => {
       const p = this.cfg.priority[b.eventType] - this.cfg.priority[a.eventType];
       if (p !== 0) return p;
       return (a.eventDate ?? "9999").localeCompare(b.eventDate ?? "9999");
     });
-    const passed = candidates.slice(0, ctx.maxCandidates);
-    for (const event of candidates.slice(ctx.maxCandidates)) dropped.push({ event, reason: "budget exceeded" });
+    const passed = capped.slice(0, ctx.maxCandidates);
+    for (const event of capped.slice(ctx.maxCandidates)) dropped.push({ event, reason: "budget exceeded" });
     return { passed, dropped };
+  }
+
+  /** Deja a lo sumo `maxForm4PerTicker` Form 4 por ticker (los de más acciones compradas); el resto va a `dropped`. */
+  private capForm4(candidates: RawEvent[], dropped: FilterResult["dropped"]): RawEvent[] {
+    const isForm4 = (e: RawEvent) => e.source === "edgar" && e.payload["form"] === "4";
+    const shares = (e: RawEvent) => Number(e.payload["insiderBuyShares"] ?? 0);
+    const byTicker = new Map<string, RawEvent[]>();
+    for (const e of candidates) if (isForm4(e)) byTicker.set(e.ticker, [...(byTicker.get(e.ticker) ?? []), e]);
+    const cut = new Set<RawEvent>();
+    for (const list of byTicker.values()) {
+      const ranked = [...list].sort((a, b) => shares(b) - shares(a));
+      for (const e of ranked.slice(this.cfg.maxForm4PerTicker)) cut.add(e);
+    }
+    for (const e of candidates) if (cut.has(e)) dropped.push({ event: e, reason: "form4 cap" });
+    return candidates.filter((e) => !cut.has(e));
   }
 }
 
