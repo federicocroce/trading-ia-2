@@ -5,7 +5,7 @@ import { SymbolLink } from "./SymbolLink";
 import { EntryCell } from "./Entry";
 import { HELP, RadarHelpModal, Th } from "./RadarHelp";
 import { SymbolSearch } from "./SymbolSearch";
-import { flagLabel } from "./flags";
+import { Flags, countSalvedades } from "./flags";
 import { VerificationSections } from "./Verification";
 
 const HELP_CONVICCION = HELP["conviccion"]!.short;
@@ -157,7 +157,7 @@ export function Radar() {
             {etfs.map((c) => (
               <tr key={c.symbol}>
                 <td><SymbolLink symbol={c.symbol} /></td>
-                <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <span className="flag">{c.flags.map(flagLabel).join(" · ")}</span>}</td>
+                <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
                 <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
                 <td className="mono">{f2(c.close)}</td><td className="mono">{f2(c.stop)}</td><td className="mono">{f2(c.target)}</td>
                 <td><TagChips tags={c.tags} /></td>
@@ -199,7 +199,16 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
       {open && (
         <tr>
           <td colSpan={12}>
-            {c.flags.length > 0 && <div>{c.flags.map((f) => <span key={f} className="flag">⚑ {flagLabel(f)}</span>)}</div>}
+            {c.flags.length > 0 && (
+              <div>
+                <Flags flags={c.flags} />
+                <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                  {countSalvedades(c.flags) === 0
+                    ? "Ninguna salvedad: todas las banderas son a favor o son datos que faltan."
+                    : `${countSalvedades(c.flags)} ${countSalvedades(c.flags) === 1 ? "salvedad" : "salvedades"}. Con dos de calidad o litigio el veredicto pasa a OBSERVAR solo.`}
+                </div>
+              </div>
+            )}
             {c.summary && <div style={{ marginTop: 6 }}><b>Qué hace:</b> {c.summary}</div>}
             {c.whyRanks && <div><b>Por qué rankea:</b> {c.whyRanks}</div>}
             {c.mainRisk && <div><b>Riesgo principal:</b> {c.mainRisk}</div>}
@@ -301,7 +310,7 @@ function WatchCard({ w, setWatch, editing, setEditing, reload }: { w: Watchlist;
           {rows.map((c) => (
             <tr key={c.symbol}>
               <td><SymbolLink symbol={c.symbol} />{c.nthAppearance > 1 && <span className="muted"> ×{c.nthAppearance}</span>}</td>
-              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <span className="flag">{c.flags.map(flagLabel).join(" · ")}</span>}</td>
+              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
               <td className="mono">{c.score === null ? <span className="muted" title="No está en el universo del Radar (o no pasó el quality bar): sin rank contra pares.">—</span> : f2(c.score)}</td>
               <td className="mono">{c.rankInGroup !== null ? `${c.rankInGroup}/${c.groupSize}` : "—"}</td>
               <td className="mono">{f2(c.close)}</td>
@@ -354,7 +363,7 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
             <tr key={c.symbol}>
               <td><SymbolLink symbol={c.symbol} /></td>
               <td>{c.peerGroup[0] ? <SymbolLink symbol={c.peerGroup[0]} /> : <span className="muted">—</span>}</td>
-              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <span className="flag">{c.flags.map(flagLabel).join(" · ")}</span>}</td>
+              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
               <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
               <td className="mono">{ars(c.close)}</td><td className="mono">{c.axes["closeUsd"] !== null && c.axes["closeUsd"] !== undefined ? `US$ ${c.axes["closeUsd"].toFixed(2)}` : "—"}</td>
               <td className="mono">{ars(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>

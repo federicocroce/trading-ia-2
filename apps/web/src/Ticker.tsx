@@ -6,7 +6,7 @@ import { SymbolLink } from "./SymbolLink";
 import { EntryLine } from "./Entry";
 import { WatchlistButton } from "./WatchlistButton";
 import { usePrices } from "./prices";
-import { flagLabel } from "./flags";
+import { Flags } from "./flags";
 import { VerificationSections } from "./Verification";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -147,7 +147,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
       {t.candidate && t.candidate.kind === "ar" && (
         <div className="card">
           <b>Radar Argentina</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">contra el Merval, en pesos · {t.candidate.candidateDate}</span>
-          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}>{t.candidate.flags.map((f) => <span key={f} className="flag">⚑ {flagLabel(f)}</span>)}</div>}
+          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}><Flags flags={t.candidate.flags} /></div>}
           <div className="muted mono" style={{ marginTop: 6 }}>FR 3m {pct(t.candidate.axes["rs3m"])} · FR 6m {pct(t.candidate.axes["rs6m"])} · FR 12m {pct(t.candidate.axes["rs12m"])} · vs SMA200 {pct(t.candidate.axes["distSma200Pct"])} · precio al CCL US$ {f2(t.candidate.axes["closeUsd"])}</div>
           {t.candidate.peerGroup[0] && <div style={{ marginTop: 6 }}>Fundamentals y ranking contra pares: en el ADR <SymbolLink symbol={t.candidate.peerGroup[0]} />.</div>}
         </div>
@@ -161,7 +161,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
       {t.candidate && (t.candidate.kind === "stock" || t.candidate.kind === "etf") && (
         <div className="card">
           <b>Radar</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">score {f2(t.candidate.score)} · rank {t.candidate.rankInGroup}/{t.candidate.groupSize} entre pares · riesgo {t.candidate.riskScore}/10 · {t.candidate.candidateDate}</span>
-          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}>{t.candidate.flags.map((f) => <span key={f} className="flag">⚑ {flagLabel(f)}</span>)}</div>}
+          {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}><Flags flags={t.candidate.flags} /></div>}
           {t.candidate.summary && <div style={{ marginTop: 6 }}><b>Qué hace:</b> {t.candidate.summary}</div>}
           {t.candidate.whyRanks && <div><b>Por qué rankea:</b> {t.candidate.whyRanks}</div>}
           {t.candidate.mainRisk && <div><b>Riesgo principal:</b> {t.candidate.mainRisk}</div>}
