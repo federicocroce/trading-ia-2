@@ -470,14 +470,14 @@ export class Repo {
   async upsertCandles(symbol: string, candles: Candle[]): Promise<void> {
     const sym = symbol.toUpperCase();
     for (let i = 0; i < candles.length; i += 500) {
-      const chunk = candles.slice(i, i + 500).map((c) => ({ symbol: sym, date: c.date, open: str(c.open), high: str(c.high), low: str(c.low), close: str(c.close), volume: str(Math.round(c.volume)) }));
+      const chunk = candles.slice(i, i + 500).map((c) => ({ symbol: sym, date: c.date, open: str(c.open), high: str(c.high), low: str(c.low), close: str(c.close), volume: str(Math.round(c.volume)), adjClose: c.adjClose === null || c.adjClose === undefined ? null : str(c.adjClose) }));
       if (!chunk.length) continue;
-      await this.db.insert(s.candlesDaily).values(chunk).onConflictDoUpdate({ target: [s.candlesDaily.symbol, s.candlesDaily.date], set: { open: sql`excluded.open`, high: sql`excluded.high`, low: sql`excluded.low`, close: sql`excluded.close`, volume: sql`excluded.volume` } });
+      await this.db.insert(s.candlesDaily).values(chunk).onConflictDoUpdate({ target: [s.candlesDaily.symbol, s.candlesDaily.date], set: { open: sql`excluded.open`, high: sql`excluded.high`, low: sql`excluded.low`, close: sql`excluded.close`, volume: sql`excluded.volume`, adjClose: sql`coalesce(excluded.adj_close, ${s.candlesDaily.adjClose})` } });
     }
   }
   async candles(symbol: string, fromDate: string): Promise<Candle[]> {
     const rows = await this.db.select().from(s.candlesDaily).where(and(eq(s.candlesDaily.symbol, symbol.toUpperCase()), sql`${s.candlesDaily.date} >= ${fromDate}`)).orderBy(s.candlesDaily.date);
-    return rows.map((r) => ({ date: r.date, open: num(r.open), high: num(r.high), low: num(r.low), close: num(r.close), volume: num(r.volume) }));
+    return rows.map((r) => ({ date: r.date, open: num(r.open), high: num(r.high), low: num(r.low), close: num(r.close), volume: num(r.volume), adjClose: r.adjClose === null ? null : num(r.adjClose) }));
   }
   async upsertNews(items: NewsItem[]): Promise<number> {
     let n = 0;

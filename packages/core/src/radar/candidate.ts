@@ -45,6 +45,21 @@ export function returnPct(candles: Candle[], n: number): number | null {
   const prev = candles[candles.length - 1 - n]!.close;
   return prev > 0 ? round2((last / prev - 1) * 100) : null;
 }
+/**
+ * Retorno TOTAL contra `n` velas atrás, con dividendos (usa `adjClose`; sin él cae a `close` y avisa con `partial`).
+ * Es lo único con lo que se puede comparar instrumentos que rinden por cupón contra los que rinden por precio:
+ * SGOV en precio da 0,0% a 12 meses y en retorno total da ~3,4%, contra 17,7% de VTI.
+ */
+export function totalReturnPct(candles: Candle[], n: number): { pct: number; partial: boolean } | null {
+  if (candles.length < n + 1) return null;
+  const last = candles[candles.length - 1]!;
+  const prev = candles[candles.length - 1 - n]!;
+  const a = last.adjClose ?? null;
+  const b = prev.adjClose ?? null;
+  if (a !== null && b !== null && b > 0) return { pct: round2((a / b - 1) * 100), partial: false };
+  return prev.close > 0 ? { pct: round2((last.close / prev.close - 1) * 100), partial: true } : null;
+}
+
 export function atrPct(candles: Candle[], period = 14): number | null {
   const a = atr(candles, period);
   const close = candles[candles.length - 1]?.close;

@@ -7,6 +7,12 @@ export interface Candle {
   low: number;
   close: number;
   volume: number;
+  /**
+   * Cierre ajustado por dividendos (y splits). `close` solo está ajustado por splits, así que un instrumento
+   * que rinde por cupón (SGOV: precio clavado en 100,4 con una caída de 0,28% cada primero de mes) parece
+   * plano. El retorno total se calcula con este campo; los precios, stops y medias siguen usando `close`.
+   */
+  adjClose?: number | null;
 }
 export type Market = "us" | "adr" | "ar";
 export type Layer = "riesgo" | "nucleo" | "cobertura";

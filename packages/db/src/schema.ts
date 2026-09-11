@@ -186,6 +186,8 @@ export const candlesDaily = pgTable(
     low: numeric("low", { precision: 14, scale: 4 }).notNull(),
     close: numeric("close", { precision: 14, scale: 4 }).notNull(),
     volume: numeric("volume", { precision: 18, scale: 0 }).notNull(),
+    /** Cierre ajustado por dividendos: sin esto el retorno total de un ETF de renta fija se ve como cero. */
+    adjClose: numeric("adj_close", { precision: 14, scale: 4 }),
   },
   (t) => [primaryKey({ columns: [t.symbol, t.date] })],
 );

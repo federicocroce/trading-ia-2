@@ -245,7 +245,7 @@ function TopPicks({ t, plan }: { t: RadarTop; plan: ContributionPlan | null }) {
           <span className="verb NUCLEO">NUCLEO</span> Antes que cualquier acción, el plan de {plan.month} manda {money(nucleoUsd)} de {money(plan.totalUsd)} al núcleo ({nucleo.map((l) => l.symbol).join(", ")}): {nucleo[0]?.rationale}.
         </div>
       )}
-      {t.regime && <div className={t.regime.state === "restrictivo" ? "warn" : "muted"} style={{ marginTop: 4 }}>Régimen macro: {t.regime.state} ({t.regime.why}){t.regime.reservePct > 0 ? ` · el plan reserva ${t.regime.reservePct}% en letras` : ""}</div>}
+      {t.regime && <div className={t.regime.state === "restrictivo" ? "warn" : "muted"} style={{ marginTop: 4 }}>Régimen macro: {t.regime.state} ({t.regime.why}){t.regime.state === "restrictivo" ? " · lo sensible a tasas (REITs, servicios públicos, oro) suma menos convicción" : ""}</div>}
       {Object.keys(t.overweight).length > 0 && <div className="muted" style={{ marginTop: 4 }}>Ya estás cargado en: {Object.entries(t.overweight).map(([k, v]) => `${k} ${v.toFixed(1)}%`).join(", ")}. Los candidatos de esos temas suman menos.</div>}
       {t.picks.length === 0 ? <div className="muted" style={{ marginTop: 8 }}>Ningún COMPRAR califica todavía.</div> : (
         <div className="picks">
@@ -400,7 +400,7 @@ const readPlanSort = (): PlanSort => { try { const v = localStorage.getItem("pla
 const gainPct = (l: PlanLine) => (l.target && l.close ? (l.target / l.close - 1) * 100 : null);
 function sortPlanLines(lines: PlanLine[], sort: PlanSort): PlanLine[] {
   if (sort === "prioridad") return lines;
-  const KIND_ORDER: Record<PlanLine["kind"], number> = { comprar: 0, seguimiento: 1, sumar: 2, nucleo: 3, reserva: 4 };
+  const KIND_ORDER: Record<PlanLine["kind"], number> = { comprar: 0, seguimiento: 1, sumar: 2, nucleo: 3 };
   const key = sort === "conviccion" ? (l: PlanLine) => l.priority ?? null : gainPct;
   return [...lines].sort((a, b) => {
     const ka = key(a), kb = key(b);
@@ -416,7 +416,7 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
   const changeSort = (s: PlanSort) => { setSort(s); try { localStorage.setItem("plan.sort", s); } catch { /* sin almacenamiento: no pasa nada */ } };
   const lines = sortPlanLines(p.lines, sort);
   const qty = (l: PlanLine) => (l.close ? Math.floor(l.amountUsd / l.close) : null);
-  const KIND: Record<PlanLine["kind"], string> = { reserva: "reserva", nucleo: "núcleo", sumar: "sumar", comprar: "comprar", seguimiento: "seguimiento" };
+  const KIND: Record<PlanLine["kind"], string> = { nucleo: "núcleo", sumar: "sumar", comprar: "comprar", seguimiento: "seguimiento" };
   const risk = p.lines.reduce((s, l) => s + (l.stop && l.close && l.stop < l.close ? (qty(l) ?? 0) * (l.close - l.stop) : 0), 0);
   return (
     <div className="card" style={{ overflowX: "auto" }}>
@@ -441,9 +441,9 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
               <td className="mono">{money(l.amountUsd)}</td>
               <td className="mono">{qty(l) ?? "—"}</td>
               <td className="mono">{f2(l.close)}</td>
-              <td className="mono">{l.entryHigh ? f2(l.entryHigh) : l.kind === "nucleo" || l.kind === "sumar" || l.kind === "reserva" ? <span className="muted">mercado</span> : "—"}</td>
-              <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" || l.kind === "reserva" ? <span className="muted" title="El núcleo no se vende por stop: se compra y se mantiene. Es la base de la cartera, no una apuesta.">sin stop</span> : "—"}</td>
-              <td className="mono">{l.target ? <>{f2(l.target)}{l.close && <span className="ok"> {pct(((l.target - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" || l.kind === "reserva" ? <span className="muted" title="Sin objetivo: el núcleo se mantiene años, no se vende al llegar a un precio. El % es lo que rindió en los últimos 12 meses: contexto, no promesa.">se mantiene{l.ret12mPct !== null && l.ret12mPct !== undefined && <> · {pct(l.ret12mPct)} últimos 12 m</>}</span> : "—"}</td>
+              <td className="mono">{l.entryHigh ? f2(l.entryHigh) : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted">mercado</span> : "—"}</td>
+              <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="El núcleo no se vende por stop: se compra y se mantiene. Es la base de la cartera, no una apuesta.">sin stop</span> : "—"}</td>
+              <td className="mono">{l.target ? <>{f2(l.target)}{l.close && <span className="ok"> {pct(((l.target - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="Sin objetivo: el núcleo se mantiene años, no se vende al llegar a un precio. El % es lo que rindió en los últimos 12 meses: contexto, no promesa.">se mantiene{l.ret12mPct !== null && l.ret12mPct !== undefined && <> · {pct(l.ret12mPct)} últimos 12 m</>}</span> : "—"}</td>
               <td>{l.rationale}</td>
               <td className="mono">{l.alpha30dPct !== null ? pct(l.alpha30dPct) : <span className="muted" title="Se completa 30 días después del plan: cuánto le ganó (o perdió) esta línea a SPY.">en 30 días</span>}</td>
               <td className="mono">{l.alpha90dPct !== null ? pct(l.alpha90dPct) : <span className="muted" title="Se completa 90 días después del plan.">en 90 días</span>}</td>

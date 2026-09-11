@@ -10,7 +10,7 @@ interface YahooQuote {
 }
 interface YahooChartResp {
   chart: {
-    result: Array<{ timestamp?: number[]; indicators: { quote: YahooQuote[] } }> | null;
+    result: Array<{ timestamp?: number[]; indicators: { quote: YahooQuote[]; adjclose?: Array<{ adjclose: Array<number | null> }> } }> | null;
     error: { code: string; description: string } | null;
   };
 }
@@ -24,12 +24,15 @@ export function parseYahooChart(json: unknown): Candle[] {
   const r = d.chart?.result?.[0];
   if (!r?.timestamp) return [];
   const q = r.indicators.quote[0]!;
+  // `adjclose` incluye dividendos: sin él, un ETF de letras parece plano (ver Candle.adjClose).
+  const adj = r.indicators.adjclose?.[0]?.adjclose;
   const out: Candle[] = [];
   r.timestamp.forEach((ts, i) => {
     const close = q.close[i];
     if (close === null || close === undefined) return;
+    const a = adj?.[i];
     // Yahoo devuelve floats con ruido (44.36000061035156): se redondea a 4 decimales en la fuente.
-    out.push({ date: new Date(ts * 1000).toISOString().slice(0, 10), open: r4(q.open[i] ?? close), high: r4(q.high[i] ?? close), low: r4(q.low[i] ?? close), close: r4(close), volume: q.volume[i] ?? 0 });
+    out.push({ date: new Date(ts * 1000).toISOString().slice(0, 10), adjClose: a != null && Number.isFinite(a) ? r4(a) : null, open: r4(q.open[i] ?? close), high: r4(q.high[i] ?? close), low: r4(q.low[i] ?? close), close: r4(close), volume: q.volume[i] ?? 0});
   });
   return out;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "candles_daily" ADD COLUMN "adj_close" numeric(14, 4);

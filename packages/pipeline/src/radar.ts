@@ -46,6 +46,7 @@ import {
   type TaxonomyConfig,
   topPicks,
   returnPct,
+  totalReturnPct,
 } from "@thesis/core";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-verify.js";
@@ -638,7 +639,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   // Régimen macro (pieza 4): el 10 años de Yahoo (^TNX); se guarda para que el panel lo lea sin volver a pedirlo.
   const tnx = await deps.history.candles(TNX_SYMBOL, HISTORY_DAYS).catch(() => [] as Candle[]);
   if (tnx.length) await store.upsertCandles(TNX_SYMBOL, tnx).catch(() => {});
-  const regime = assessRegime(tnx, { reservePctWhenRestrictive: policy.contribution.reservePctWhenRestrictive });
+  const regime = assessRegime(tnx);
   const conviction = new Map(topPicks(candidates, tags, overweight, 1000, overlap, regime).map((p) => [p.symbol, p.conviction]));
   // Coherencia (pieza 3): una posición subponderada no se suma si el ETF de su tema está en OBSERVAR (oro bajo la media con NEM).
   const etfObserved = candidates.filter((c) => c.kind === "etf" && c.verdict === "OBSERVAR");
@@ -676,12 +677,15 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     policy.contribution,
     opts.amountUsd ? { amountUsd: opts.amountUsd } : {},
   );
-  // Núcleo: rendimiento de los últimos 12 meses como contexto de "cuánto suele dar" (velas ya guardadas por el ranking).
+  // Rendimiento TOTAL de los últimos 12 meses (con dividendos) para TODA línea, no solo el núcleo: es el número
+  // con el que se compara una línea contra la alternativa de comprar el núcleo. Sin dividendos, un ETF de letras
+  // aparecía en 0,0% y nadie lo notaba.
   const since = new Date(Date.now() - 420 * 86_400_000).toISOString().slice(0, 10);
   for (const l of plan.lines) {
-    if (l.kind !== "nucleo") continue;
     const candles = await store.candles(l.symbol, since).catch(() => [] as Candle[]);
-    l.ret12mPct = candles.length >= 200 ? returnPct(candles, Math.min(252, candles.length - 1)) : null;
+    const r = candles.length >= 200 ? totalReturnPct(candles, Math.min(252, candles.length - 1)) : null;
+    l.ret12mPct = r?.pct ?? null;
+    l.ret12mPartial = r?.partial ?? null;
   }
   await store.savePlan(plan);
   return plan;

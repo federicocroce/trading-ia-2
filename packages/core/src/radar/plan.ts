@@ -27,7 +27,7 @@ export interface PlanInput {
 }
 export interface PlanLine {
   symbol: string;
-  kind: "reserva" | "nucleo" | "sumar" | "comprar" | "seguimiento";
+  kind: "nucleo" | "sumar" | "comprar" | "seguimiento";
   amountUsd: number;
   rationale: string;
   close: number | null;
@@ -38,8 +38,10 @@ export interface PlanLine {
   entryHigh?: number | null;
   stop?: number | null;
   target?: number | null;
-  /** Solo núcleo: cuánto rindió el ETF en los últimos 12 meses. Contexto, no objetivo ni promesa. */
+  /** Rendimiento TOTAL (con dividendos) de los últimos 12 meses. Contexto para comparar contra el núcleo, no una promesa. */
   ret12mPct?: number | null;
+  /** true = se calculó sin dividendos (no había cierre ajustado): el número subestima lo que rindió. */
+  ret12mPartial?: boolean | null;
   /** Prioridad con la que entró (convicción para acciones, −riesgo para seguimiento, FR 6m para ETFs). */
   priority?: number | null;
 }
@@ -48,7 +50,8 @@ export interface PlanOptions {
   amountUsd?: number;
 }
 const DEFAULTS = { coreSharePctWhileBelowTarget: 60, sumarSharePctOfRest: 30, watchLinesMax: 1, etfLinesMax: 1 };
-export const DEFAULT_RESERVE_SYMBOL = "SGOV";
+/** A partir de cuántos aportes mensuales el plan sugiere escalonar la compra. */
+export const TRANCHE_AT_MONTHS = 3;
 /** Banderas de precio que dejan a un candidato fuera de las posiciones nuevas del plan (la convicción ya lo descuenta; acá se explica). */
 export const PLAN_PRICE_BLOCKERS: Record<string, string> = {
   consenso_en_precio: "el objetivo de consenso está a menos de 10% del precio",
@@ -63,6 +66,17 @@ export interface ContributionPlan {
   notes: string[];
   /** Todo COMPRAR que no entró, con su lugar y motivo: el plan se explica solo. */
   leftOut?: Array<{ symbol: string; reason: string }>;
+  /** En cuántas compras conviene ejecutarlo (1 = de una vez). */
+  tranches?: number;
+}
+
+/**
+ * Invariante del plan (2026-09-11): toda línea o es núcleo, que se compra y se mantiene por calendario, o es una
+ * tesis con salida, es decir con stop. Nada intermedio. Nació de haber metido una reserva en letras sin regla de
+ * despliegue: plata que entraba todos los meses y no salía nunca, y que además rinde menos que el núcleo.
+ */
+export function lineHasExit(l: Pick<PlanLine, "kind" | "stop">): boolean {
+  return l.kind === "nucleo" || (l.stop !== null && l.stop !== undefined);
 }
 
 const MIN_LINE_USD = 100;
@@ -98,15 +112,11 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     return true;
   };
 
-  // 0. Reserva (pieza 4): con régimen restrictivo, una parte del aporte espera en letras del Tesoro antes de repartir el resto.
-  if (i.regime && i.regime.reservePct > 0) {
-    const amt = Math.round((i.regime.reservePct / 100) * aporte);
-    if (amt >= MIN_LINE_USD) {
-      lines.push(line(c.reserveSymbol ?? DEFAULT_RESERVE_SYMBOL, "reserva", amt, `régimen ${i.regime.state}: ${i.regime.why}. ${i.regime.reservePct}% del aporte en letras del Tesoro, para comprar en una corrección`));
-      remaining -= amt;
-    }
-  }
   if (i.regime) notes.push(`Régimen macro al ${i.regime.asOf}: ${i.regime.state} (${i.regime.why}).`);
+  // Escalonado: un monto grande entra en tramos para no comprar todo en un solo precio. No es plata en efectivo
+  // esperando una corrección (eso es plata muerta), es el mismo plan ejecutado en dos o tres compras.
+  const tranches = aporte >= TRANCHE_AT_MONTHS * c.monthlyUsd ? Math.min(3, Math.floor(aporte / (TRANCHE_AT_MONTHS * c.monthlyUsd)) + 1) : 1;
+  if (tranches > 1) notes.push(`Monto de ${Math.round(aporte / c.monthlyUsd)} aportes: conviene ejecutarlo en ${tranches} tramos de USD ${Math.round(aporte / tranches)}, con dos o tres semanas entre cada uno. Mismas líneas y mismas proporciones en cada tramo.`);
 
   // 1. Núcleo: mientras esté bajo el objetivo, una parte fija del monto (el resto sigue bajando a lo demás).
   const coreValue = i.positions.filter(isCore).reduce((s, p) => s + p.valueUsd, 0);
@@ -222,5 +232,12 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     const ok = allocateCore(remaining, "sobrante del aporte");
     if (!ok) notes.push(`Sin núcleo definido: quedan USD ${remaining} sin asignar.`);
   }
-  return { month: i.month, totalUsd: aporte, lines, notes, leftOut };
+  // Invariante: nada sin salida sale en el plan. Si alguna línea la viola, no se muestra y queda dicho por qué.
+  const sinSalida = lines.filter((l) => !lineHasExit(l));
+  for (const l of sinSalida) {
+    leftOut.push({ symbol: l.symbol, reason: `sin salida definida (no es núcleo y no tiene stop): no entra` });
+    notes.push(`Se sacó ${l.symbol} del plan: toda línea que no sea núcleo tiene que tener stop, o es plata que entra y no sale.`);
+  }
+  const finales = lines.filter(lineHasExit);
+  return { month: i.month, totalUsd: aporte, lines: finales, notes, leftOut, tranches };
 }

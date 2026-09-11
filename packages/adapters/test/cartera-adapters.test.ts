@@ -6,9 +6,13 @@ const yahoo = { chart: { result: [{ timestamp: [1756684800, 1756771200, 17568576
 describe("parseYahooChart", () => {
   it("convierte timestamps a YYYY-MM-DD y descarta velas sin cierre", () => {
     expect(parseYahooChart(yahoo)).toEqual([
-      { date: "2025-09-01", open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 },
-      { date: "2025-09-02", open: 2, high: 3, low: 1.5, close: 2.5, volume: 200 },
+      { date: "2025-09-01", open: 1, high: 2, low: 0.5, close: 1.5, volume: 100, adjClose: null },
+      { date: "2025-09-02", open: 2, high: 3, low: 1.5, close: 2.5, volume: 200, adjClose: null },
     ]);
+  });
+  it("toma el cierre ajustado por dividendos cuando Yahoo lo manda (retorno total)", () => {
+    const conAdj = { chart: { result: [{ timestamp: [1756684800, 1756771200], indicators: { quote: [{ open: [1, 2], high: [2, 3], low: [0.5, 1.5], close: [1.5, 2.5], volume: [100, 200] }], adjclose: [{ adjclose: [1.4, 2.5] }] } }], error: null } };
+    expect(parseYahooChart(conAdj).map((c) => c.adjClose)).toEqual([1.4, 2.5]);
   });
   it("redondea el ruido de coma flotante a 4 decimales", () => {
     const noisy = { chart: { result: [{ timestamp: [1756684800], indicators: { quote: [{ open: [44.36000061035156], high: [45], low: [44], close: [44.36000061035156], volume: [1] }] } }], error: null } };

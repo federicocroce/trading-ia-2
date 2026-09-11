@@ -40,9 +40,6 @@ export interface RadarPolicy {
     /** Máximo de líneas de seguimiento y de ETFs satélite por plan (default 1 y 1). */
     watchLinesMax?: number | undefined;
     etfLinesMax?: number | undefined;
-    /** Régimen restrictivo (tasas altas o subiendo): % del aporte que va a letras del Tesoro (default 15) y con qué ETF (default SGOV). */
-    reservePctWhenRestrictive?: number | undefined;
-    reserveSymbol?: string | undefined;
   };
 }
 

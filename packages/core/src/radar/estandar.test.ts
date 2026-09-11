@@ -1,23 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { PLAN_PRICE_BLOCKERS, assessRegime, consensusUpsidePct, convictionFor, decideCandidate, isRateSensitive, maxNewPositions, planContribution, type Candle, type CandidateRow, type EtfConfig, type Fundamentals, type PlanInput, type Tags } from "../index.js";
+import { PLAN_PRICE_BLOCKERS, assessRegime, lineHasExit, totalReturnPct, consensusUpsidePct, convictionFor, decideCandidate, isRateSensitive, maxNewPositions, planContribution, type Candle, type CandidateRow, type EtfConfig, type Fundamentals, type PlanInput, type Tags } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01"): Candle[] => closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1_000_000 }));
 
+describe("retorno total con dividendos", () => {
+  it("SGOV: en precio da 0% y en retorno total da lo que rindió por cupón; el núcleo se compara contra eso", () => {
+    // Precio clavado en 100,40 y cierre ajustado que sí acumula el cupón (0,28% mensual).
+    const sgov = Array.from({ length: 253 }, (_, i) => ({ date: `d${i}`, open: 100.4, high: 100.42, low: 100.38, close: 100.4, volume: 1e6, adjClose: 97.2 * Math.pow(1.0034, i / 21) }));
+    const r = totalReturnPct(sgov, 252)!;
+    expect(r.pct).toBeCloseTo(4.1, 0);
+    expect(r.partial).toBe(false);
+  });
+  it("sin cierre ajustado cae al precio y lo marca como parcial; sin historia suficiente devuelve null", () => {
+    const flat = Array.from({ length: 253 }, () => ({ date: "d", open: 100.4, high: 100.4, low: 100.4, close: 100.4, volume: 1e6 }));
+    expect(totalReturnPct(flat, 252)).toEqual({ pct: 0, partial: true });
+    expect(totalReturnPct(flat.slice(0, 10), 252)).toBeNull();
+  });
+});
+
 describe("régimen macro (pieza 4)", () => {
   const tnx = (from: number, to: number, n = 200) => series(Array.from({ length: n }, (_, i) => from + ((to - from) * i) / (n - 1)));
-  it("^TNX viene ×10; 10 años ≥ 4,5% es restrictivo con reserva 15% por defecto", () => {
+  it("^TNX viene ×10; 10 años ≥ 4,5% es restrictivo, y NO genera reserva en efectivo", () => {
     const r = assessRegime(tnx(44.9, 48.4))!;
     expect(r.state).toBe("restrictivo");
     expect(r.tenYearPct).toBe(4.84);
     expect(r.change3mBp).toBeGreaterThan(0);
-    expect(r.reservePct).toBe(15);
     expect(r.why).toContain("4.84%");
-    expect(assessRegime(tnx(44.9, 48.4), { reservePctWhenRestrictive: 10 })!.reservePct).toBe(10);
+    expect(r).not.toHaveProperty("reservePct");
   });
   it("subida de 40 pb en 3 meses (63 ruedas) también es restrictivo aunque esté bajo 4,5%; bajada de 40 pb bajo 4% es expansivo; el resto neutral", () => {
     expect(assessRegime(tnx(3.7, 4.2, 64))!).toMatchObject({ state: "restrictivo", change3mBp: 50 });
     expect(assessRegime(tnx(4.3, 3.6, 64))!).toMatchObject({ state: "expansivo", change3mBp: -70 });
-    expect(assessRegime(tnx(4.1, 4.15))!).toMatchObject({ state: "neutral", reservePct: 0 });
+    expect(assessRegime(tnx(4.1, 4.15))!.state).toBe("neutral");
     expect(assessRegime([])).toBeNull();
     expect(assessRegime(series([41.2]))!.change3mBp).toBeNull();
   });
@@ -78,13 +92,13 @@ describe("convicción con precio y régimen", () => {
     const clean = convictionFor(row({}), null, {})!;
     const priced = convictionFor(row({ flags: ["consenso_en_precio", "subio_mucho_12m"] }), null, {})!;
     expect(priced.conviction).toBeCloseTo(clean.conviction - 0.6, 4);
-    const restrictive = { state: "restrictivo" as const, asOf: "2026-09-10", tenYearPct: 4.84, change3mBp: 35, reservePct: 15, why: "10 años 4.84% (+35 pb en 3 meses): tasas altas o subiendo" };
+    const restrictive = { state: "restrictivo" as const, asOf: "2026-09-10", tenYearPct: 4.84, change3mBp: 35, why: "10 años 4.84% (+35 pb en 3 meses): tasas altas o subiendo" };
     const reit = convictionFor(row({}), tags("Inmobiliario", ["dividendos"]), {}, {}, restrictive)!;
     expect(reit.conviction).toBeCloseTo(clean.conviction - 0.3, 4);
     expect(reit.cautions[0]).toContain("régimen restrictivo");
     const bank = convictionFor(row({}), tags("Financiero", ["bancos"]), {}, {}, restrictive)!;
     expect(bank.conviction).toBeCloseTo(clean.conviction, 4);
-    const neutral = convictionFor(row({}), tags("Inmobiliario", []), {}, {}, { ...restrictive, state: "neutral", reservePct: 0 })!;
+    const neutral = convictionFor(row({}), tags("Inmobiliario", []), {}, {}, { ...restrictive, state: "neutral" })!;
     expect(neutral.conviction).toBeCloseTo(clean.conviction, 4);
   });
 });
@@ -121,19 +135,24 @@ describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000"
     coreEtfs: core,
     spyClose: 762.4,
     closes: {},
-    regime: { state: "restrictivo", asOf: "2026-09-10", tenYearPct: 4.84, change3mBp: 35, reservePct: 15, why: "10 años 4.84% (+35 pb en 3 meses): tasas altas o subiendo" },
+    regime: { state: "restrictivo", asOf: "2026-09-10", tenYearPct: 4.84, change3mBp: 35, why: "10 años 4.84% (+35 pb en 3 meses): tasas altas o subiendo" },
   };
-  it("reserva 15% en SGOV primero; NEM no se suma (oro en OBSERVAR); cuatro nuevas por convicción; HRTG, GLW y TER afuera con motivo", () => {
+  it("sin reserva en efectivo: el aporte entero se reparte; NEM no se suma (oro en OBSERVAR); cuatro nuevas por convicción; HRTG, GLW y TER afuera con motivo", () => {
     const p = planContribution(input, c, { amountUsd: 40_000 });
     const by = Object.fromEntries(p.lines.map((l) => [`${l.kind}:${l.symbol}`, l.amountUsd]));
-    expect(by["reserva:SGOV"]).toBe(6000);
+    // Nada en efectivo esperando: una reserva sin regla de salida rinde menos que el núcleo y se acumula sola.
+    expect(p.lines.some((l) => l.symbol === "SGOV")).toBe(false);
+    expect(p.lines.every(lineHasExit)).toBe(true);
     expect(p.lines.filter((l) => l.kind === "sumar")).toHaveLength(0);
     expect(p.notes.some((n) => n.startsWith("No se sumó NEM: el ETF de su tema (GLD)"))).toBe(true);
     expect(p.notes.some((n) => n.startsWith("Régimen macro al 2026-09-10: restrictivo"))).toBe(true);
-    // Núcleo: 60% de lo que queda tras la reserva (34.000) = 20.400 repartido 60/25/15.
-    expect(by["nucleo:VTI"]).toBe(12_240);
-    expect(by["nucleo:VEA"]).toBe(5_100);
-    expect(by["nucleo:VWO"]).toBe(3_060);
+    // Escalonado en vez de reserva: mismas líneas, ejecutadas en tramos.
+    expect(p.tranches).toBe(3);
+    expect(p.notes.some((n) => n.includes("3 tramos de USD 13333"))).toBe(true);
+    // Núcleo: 60% del aporte entero, repartido 60/25/15.
+    expect(by["nucleo:VTI"]).toBe(14_400);
+    expect(by["nucleo:VEA"]).toBe(6_000);
+    expect(by["nucleo:VWO"]).toBe(3_600);
     // Mi cartera del 10/9: APH, NVDA, LNC y NBN. PAM ya está en el tope por posición y no ocupa el lugar.
     expect(p.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["APH", "NVDA", "LNC", "NBN"]);
     expect(maxNewPositions(40_000, 6500, 2)).toBe(4);
@@ -144,15 +163,27 @@ describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000"
     expect(left["PAM"]).toBe("6° por convicción: ya está en el tope del 15% por posición");
     expect(left["TER"]).toBe(`8° por convicción: ${PLAN_PRICE_BLOCKERS["subio_mucho_12m"]}`);
     expect(left["GLW"]).toContain("verificación web con reservas");
-    // Reparto por convicción sobre 13.600 (peso 1 + convicción): 3.559 / 3.545 / 3.412 / 3.084 (yo: 3.500 / 3.500 / 3.000 / 3.000).
     const comprar = p.lines.filter((l) => l.kind === "comprar");
-    expect(comprar.map((l) => l.amountUsd)).toEqual([3_559, 3_545, 3_412, 3_084]);
-    expect(comprar.reduce((s, l) => s + l.amountUsd, 0) + 6000 + 20_400).toBe(40_000);
+    expect(comprar.reduce((s, l) => s + l.amountUsd, 0) + 24_000).toBe(40_000);
+    expect(comprar[0]!.amountUsd).toBeGreaterThan(comprar[3]!.amountUsd); // más convicción, más plata
     expect(p.lines.filter((l) => l.kind === "seguimiento")).toHaveLength(0);
   });
-  it("sin régimen restrictivo no hay reserva ni nota de régimen; con 6.500 mensuales siguen dos nuevas", () => {
-    const p = planContribution({ ...input, regime: { ...input.regime!, state: "neutral", reservePct: 0 } }, c);
-    expect(p.lines.some((l) => l.kind === "reserva")).toBe(false);
+
+  it("invariante: una línea sin núcleo y sin stop no sale del plan y queda dicho por qué", () => {
+    const sinStop: PlanInput = { ...input, sumarCandidates: [{ symbol: "NEM", valueUsd: 5_727, weightPct: 3.59, stop: null, target: null, caution: null }] };
+    const p = planContribution(sinStop, c, { amountUsd: 40_000 });
+    expect(p.lines.some((l) => l.symbol === "NEM")).toBe(false);
+    expect(p.leftOut?.find((x) => x.symbol === "NEM")?.reason).toContain("sin salida definida");
+    expect(p.notes.some((n) => n.includes("toda línea que no sea núcleo tiene que tener stop"))).toBe(true);
+    expect(lineHasExit({ kind: "nucleo", stop: null })).toBe(true);
+    expect(lineHasExit({ kind: "comprar", stop: 92 })).toBe(true);
+    expect(lineHasExit({ kind: "sumar", stop: null })).toBe(false);
+  });
+
+  it("con el aporte mensual no se escalona y siguen dos nuevas", () => {
+    const p = planContribution({ ...input, regime: { ...input.regime!, state: "neutral" } }, c);
+    expect(p.tranches).toBe(1);
+    expect(p.notes.some((n) => n.includes("tramos"))).toBe(false);
     expect(p.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["APH", "NVDA"]);
     expect(p.notes.some((n) => n.includes("neutral"))).toBe(true);
   });

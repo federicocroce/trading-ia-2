@@ -41,7 +41,7 @@ export function radarRoutes(c: Container) {
     const overlap = await candidateOverlap(store, rows);
     // Régimen macro desde el 10 años guardado por el plan (sin volver a pedirlo a Yahoo).
     const since = new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10);
-    const regime = assessRegime(await store.candles(TNX_SYMBOL, since).catch(() => []), { reservePctWhenRestrictive: c.radarDeps.policy.contribution.reservePctWhenRestrictive });
+    const regime = assessRegime(await store.candles(TNX_SYMBOL, since).catch(() => []));
     const bySymbol = new Map(rows.map((r) => [r.symbol, r]));
     const picks = topPicks(rows, tags, overweight, n, overlap, regime).map((p) => {
       const r = bySymbol.get(p.symbol)!;
