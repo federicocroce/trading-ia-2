@@ -1,6 +1,7 @@
 import { computeTarget, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import { atrPct, returnPct, sma } from "./candidate.js";
+import { entryTiming, type EntryTiming } from "./entry.js";
 import type { EtfConfig, RadarPolicy } from "./types.js";
 
 /** Motor de ETFs (spec etapa 2 §7): fuerza relativa contra SPY; el núcleo no se "timea". Puro. */
@@ -26,6 +27,11 @@ export interface EtfDecision {
   close: number;
   stop: number | null;
   target: number | null;
+  /**
+   * Cuándo entrar. Solo para satélites: un ETF temático extendido se paga caro igual que una acción.
+   * El núcleo va en `null` a propósito, porque se compra por calendario y no se busca el momento.
+   */
+  entry: EntryTiming | null;
 }
 
 export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: RadarPolicy["technical"]): EtfDecision | { excluded: true; reasons: string[] } {
@@ -41,9 +47,11 @@ export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: R
     close,
     stop: computeTrailingStop(candles),
     target: null as number | null,
+    entry: null as EntryTiming | null,
   };
   // El núcleo no se vende por stop ni tiene objetivo: se compra por calendario y se mantiene.
-  if (cfg.role === "nucleo") return { ...base, stop: null, target: null, verdict: "NUCLEO", reasons: ["núcleo: se compra por calendario, sin timing"] };
+  if (cfg.role === "nucleo") return { ...base, stop: null, target: null, entry: null, verdict: "NUCLEO", reasons: ["núcleo: se compra por calendario, sin timing"] };
+  base.entry = entryTiming(candles);
   const reasons: string[] = [];
   if (base.rs6m === null || base.rs6m <= 0) reasons.push(`fuerza relativa 6m ${base.rs6m ?? "—"}% ≤ 0 contra SPY`);
   if (s200 !== null && close < s200) reasons.push("bajo SMA200");
