@@ -9,6 +9,12 @@ import { GeminiToolCaller, type GeminiCallerOptions, type ToolSpec } from "./gem
  * con una tool estricta. El dictamen lo da el modelo; qué hace la app con él (OBSERVAR, −0.3, fuera del plan) es regla en core.
  */
 export const VERDICTS = ["apto", "con_reservas", "evitar"] as const;
+/**
+ * El informe tiene que traer su dictamen explícito. Sin esta guarda, un informe cortado llegaba igual al
+ * estructurador, que devolvía "con reservas" con el motivo "el informe está incompleto" (10/9: LNC, CF, SOLV,
+ * SPNT, STNG, HSBC, CTRE quedaron fuera del plan por un artefacto de parseo, no por su negocio).
+ */
+export const DICTAMEN_RE = /DICTAMEN:\s*(APTO|CON RESERVAS|EVITAR)/i;
 
 export const RESEARCH_SYSTEM = `Sos analista de renta variable con acceso a búsqueda web. Recibís UNA empresa listada en EE.UU. y la fecha de hoy. Investigá y escribí un informe en español de como máximo 600 palabras, con fechas concretas y sin inventar: si algo no se puede verificar, decilo.
 
@@ -118,7 +124,7 @@ export class GeminiCandidateVerifier implements CandidateVerifier {
   }
   async verify(input: VerifierInput): Promise<VerifierResult> {
     // Presupuesto amplio y pensamiento acotado: el informe de 600 palabras nunca tiene que salir cortado (10/9: 2.5 Flash gastaba 3.800 tokens pensando y dejaba 450 caracteres de informe).
-    const research = await this.caller.callGrounded(RESEARCH_SYSTEM, buildResearchMessage(input), { purpose: "verificacion", symbol: input.symbol }, { models: this.researchModels, maxOutputTokens: 12_000, thinkingBudget: 2048 });
+    const research = await this.caller.callGrounded(RESEARCH_SYSTEM, buildResearchMessage(input), { purpose: "verificacion", symbol: input.symbol }, { models: this.researchModels, maxOutputTokens: 12_000, thinkingBudget: 2048, requireText: DICTAMEN_RE });
     const r = await this.caller.call(STRUCTURE_SYSTEM, `# Informe (${input.symbol}, ${input.today})\n${research.text}`, VERIFY_TOOL, { purpose: "verificacion_estructura", symbol: input.symbol });
     try {
       const parsed = parseVerification(r.args);

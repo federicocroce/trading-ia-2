@@ -130,7 +130,7 @@ export class GeminiToolCaller {
    * Llamada con la búsqueda de Google integrada (sin function call): el modelo busca, lee y responde en texto.
    * Misma rotación y registro; `models` permite otro orden (la cuota de búsqueda gratis es más amplia en 2.5 Flash).
    */
-  async callGrounded(system: string, user: string, meta: CallMeta = { purpose: "otro" }, opts: { models?: string[]; maxOutputTokens?: number; thinkingBudget?: number } = {}): Promise<GroundedResult> {
+  async callGrounded(system: string, user: string, meta: CallMeta = { purpose: "otro" }, opts: { models?: string[]; maxOutputTokens?: number; thinkingBudget?: number; requireText?: RegExp } = {}): Promise<GroundedResult> {
     const { result, model, keyIndex } = await withRotation({
       models: opts.models ?? this.models,
       keys: this.keys,
@@ -138,13 +138,13 @@ export class GeminiToolCaller {
       log: this.log,
       ...(this.now ? { now: this.now } : {}),
       ...(this.sleep ? { sleep: this.sleep } : {}),
-      attempt: (m, key, k) => this.generateGrounded(m, key, k, system, user, meta, opts.maxOutputTokens ?? this.maxOutputTokens, opts.thinkingBudget),
+      attempt: (m, key, k) => this.generateGrounded(m, key, k, system, user, meta, opts.maxOutputTokens ?? this.maxOutputTokens, opts.thinkingBudget, opts.requireText),
     });
     this.log(`[gemini] ${model} key#${keyIndex + 1} ok con búsqueda (${result.usage}; ${result.queries.length} búsquedas, ${result.sources.length} fuentes)`);
     return { text: result.text, sources: result.sources, queries: result.queries, model, callId: result.callId };
   }
 
-  private async generateGrounded(model: string, key: string, keyIndex: number, system: string, user: string, meta: CallMeta, maxOutputTokens: number, thinkingBudget?: number): Promise<{ text: string; sources: GroundedResult["sources"]; queries: string[]; usage: string; callId: string }> {
+  private async generateGrounded(model: string, key: string, keyIndex: number, system: string, user: string, meta: CallMeta, maxOutputTokens: number, thinkingBudget?: number, requireText?: RegExp): Promise<{ text: string; sources: GroundedResult["sources"]; queries: string[]; usage: string; callId: string }> {
     const body = {
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
@@ -168,6 +168,12 @@ export class GeminiToolCaller {
     if (sources.length === 0 && (gm.webSearchQueries ?? []).length === 0) {
       this.recorder.record({ ...row, ...tokens, status: res.status, result: "validacion", ms: now() - t0 });
       throw new Error("gemini: respuesta con búsqueda sin fuentes ni búsquedas (respondió de memoria)");
+    }
+    // El llamador puede exigir que el texto traiga su conclusión (la verificación exige la línea DICTAMEN):
+    // un informe cortado no se acepta, se descarta y la rotación prueba otro modelo o clave.
+    if (requireText && !requireText.test(text)) {
+      this.recorder.record({ ...row, ...tokens, status: res.status, result: "validacion", ms: now() - t0 });
+      throw new Error(`gemini: respuesta con búsqueda incompleta (sin ${requireText.source}, finish=${finish}, ${text.length} caracteres)`);
     }
     const callId = this.recorder.record({ ...row, ...tokens, status: res.status, result: "ok", ms: now() - t0 });
     return { text, sources, queries: gm.webSearchQueries ?? [], usage: this.usageText(data), callId };

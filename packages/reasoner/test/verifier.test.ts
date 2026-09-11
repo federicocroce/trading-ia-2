@@ -61,7 +61,7 @@ describe("verificador: prompts y parseo", () => {
 
 describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estructurar)", () => {
   it("investiga con google_search en el modelo de investigación, estructura con la tool, y registra ambas con su propósito", async () => {
-    const ff = fakeFetch([grounded("## Informe NVDA\nResultados del 26/8…\nFuentes: sec.gov, cnbc.com"), call(args)]);
+    const ff = fakeFetch([grounded("DICTAMEN: APTO — superó y subió guía.\n## Informe NVDA\nResultados del 26/8…\nFuentes: sec.gov, cnbc.com"), call(args)]);
     const rec = memRecorder();
     const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["gemini-3.8-flash", "gemini-2.5-flash"], researchModels: ["gemini-2.5-flash"], fetch: ff.fetch, recorder: rec });
     const r = await v.verify({ symbol: "NVDA", name: "NVIDIA", today: "2026-09-10" });
@@ -80,11 +80,25 @@ describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estru
     expect(v.promptVersion).toBe(`${VERIFY_VERSION}-gemini`);
   });
   it("estructura inválida marca la segunda llamada como validación y lanza", async () => {
-    const ff = fakeFetch([grounded("informe"), call({ ...args, verdict: "mmm" })]);
+    const ff = fakeFetch([grounded("DICTAMEN: APTO — motivo.\ninforme"), call({ ...args, verdict: "mmm" })]);
     const rec = memRecorder();
     const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: ff.fetch, recorder: rec });
     await expect(v.verify({ symbol: "X", name: null, today: "2026-09-10" })).rejects.toThrow();
     expect(rec.rows.map((x) => x.result)).toEqual(["ok", "validacion"]);
+  });
+  it("un informe cortado (sin la línea DICTAMEN) se descarta y rota: nunca se guarda un 'con reservas' por parseo", async () => {
+    const cut = grounded("## Informe LNC\n1. Último trimestre reportado: el 30 de julio de 2026 la compañía report");
+    const ff = fakeFetch([cut, grounded("DICTAMEN: APTO — 5x adelantado y 0,55x valor libro.\n1. Último trimestre…"), call({ ...args, verdict: "apto", reason: "5x adelantado" })]);
+    const rec = memRecorder();
+    const v = new GeminiCandidateVerifier({ keys: ["k0", "k1"], models: ["A"], researchModels: ["A"], fetch: ff.fetch, recorder: rec });
+    const r = await v.verify({ symbol: "LNC", name: "Lincoln National", today: "2026-09-11" });
+    expect(r.verdict).toBe("apto");
+    expect(rec.rows.map((x) => x.result)).toEqual(["validacion", "ok", "ok"]);
+  });
+  it("si ningún intento trae dictamen, la verificación falla (queda pendiente, no 'con reservas')", async () => {
+    const ff = fakeFetch([grounded("informe cortado"), grounded("otro informe cortado")]);
+    const v = new GeminiCandidateVerifier({ keys: ["k0", "k1"], models: ["A"], researchModels: ["A"], fetch: ff.fetch });
+    await expect(v.verify({ symbol: "LNC", name: null, today: "2026-09-11" })).rejects.toThrow(/incompleta/);
   });
   it("callGrounded sin fuentes ni búsquedas (respondió de memoria) registra validación y pasa al siguiente intento", async () => {
     const fromMemory = new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "DICTAMEN: APTO — de memoria" }] }, finishReason: "STOP" }] }), { status: 200 });
