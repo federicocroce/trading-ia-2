@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildFlags, buildQuarters, coreEarnings, decideCandidate, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
+import { buildFlags, buildQuarters, consensusUpsidePct, coreEarnings, decideCandidate, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01", volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume }));
@@ -69,6 +69,24 @@ describe("buildFlags", () => {
     expect(buildFlags(f({ metrics: { dividendYieldIndicatedAnnual: 3 } }), gate, 1, 4)).toContain("dividendo");
     expect(buildFlags(f(), gate, 4, 4)).toContain("residente_cronico");
     expect(buildFlags(f(), gate, 1, 4)).toEqual([]);
+  });
+});
+
+describe("consensusUpsidePct", () => {
+  const t = (median: number) => ({ n: 10, median, min: median, max: median, latestDate: "2026-08-20" });
+  it("con el consenso en escala devuelve el potencial", () => {
+    expect(consensusUpsidePct(100, t(112), null)).toBe(12);
+    // ZVRA: biotech caído a 12,57 con objetivos de 20 a 24. Son creíbles y tienen que seguir contando.
+    expect(consensusUpsidePct(12.57, t(24), null)).toBeGreaterThan(0);
+  });
+  it("APH del 10/9: una mediana de otra escala no produce potencial en vez de producir uno inventado", () => {
+    // 196 con la acción en 80,25 tras un split 2:1 daba +144%. Ahora no da nada y el chequeo lo reporta.
+    expect(consensusUpsidePct(80.25, t(196), null)).toBeNull();
+    expect(consensusUpsidePct(100, t(40), null)).toBeNull();
+  });
+  it("el consenso de la verificación web pasa por la misma banda", () => {
+    expect(consensusUpsidePct(80.25, null, 196)).toBeNull();
+    expect(consensusUpsidePct(80.25, null, 88)).toBeGreaterThan(0);
   });
 });
 

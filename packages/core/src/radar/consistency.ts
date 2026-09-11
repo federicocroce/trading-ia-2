@@ -1,4 +1,5 @@
 import type { Candle } from "../cartera/types.js";
+import { CONSENSUS_SCALE } from "./candidate.js";
 import { lineHasExit, type ContributionPlan } from "./plan.js";
 import type { CandidateRow } from "./types.js";
 
@@ -37,10 +38,9 @@ export interface ConsistencyInput {
 export const CONSISTENCY_THRESHOLDS = {
   /** Diferencia tolerada entre el precio guardado y el cierre de la última vela, en dólares. */
   priceEpsilon: 0.01,
-  /** Objetivo de analistas fuera de esta banda respecto del precio: casi siempre un split sin ajustar. */
-  targetMaxRatio: 2,
-  targetMinRatio: 0.5,
 };
+// La banda de escala del consenso vive en candidate.ts (CONSENSUS_SCALE): una sola fuente para la regla
+// que niega el potencial y para el chequeo que lo reporta, así no pueden discrepar.
 
 /** Qué bandera le corresponde a cada dictamen de la verificación web. */
 const FLAG_FOR_VERDICT: Record<string, string> = {
@@ -88,7 +88,7 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     const t = row.analystTargets;
     if (t && t.median !== null && row.close > 0) {
       const ratio = t.median / row.close;
-      if (ratio > CONSISTENCY_THRESHOLDS.targetMaxRatio || ratio < CONSISTENCY_THRESHOLDS.targetMinRatio) {
+      if (ratio > CONSENSUS_SCALE.maxRatio || ratio < CONSENSUS_SCALE.minRatio) {
         add("objetivo_fuera_de_escala", row.symbol, "aviso", `objetivo mediano ${r2(t.median)} contra un precio de ${r2(row.close)} (${r2(ratio)}×): sospecha de split sin ajustar`);
       }
     }

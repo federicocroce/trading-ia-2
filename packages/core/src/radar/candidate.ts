@@ -20,10 +20,24 @@ export const QUALITY_OBSERVE_AT = 2;
  */
 export const PRICE_THRESHOLDS = { consensusMinUpsidePct: 10, consensusRunupPct: 25, runup12mPct: 100 };
 
+/**
+ * Banda de escala del consenso. Fuera de esto el número no es una opinión audaz: es un precio de otra serie,
+ * casi siempre un split que la fuente no ajustó. APH el 10/9 tenía la mediana en 196 con la acción en 80,25
+ * tras un 2:1, y eso daba un potencial de +144% que no existía.
+ *
+ * Deliberadamente NO se descartan los objetivos al guardarlos. Probé esa versión y descartaba objetivos
+ * legítimos: ZVRA es un biotech caído a 12,57 con objetivos de 20 a 24, que son creíbles y se perdían.
+ * Acá solo se niega a producir un potencial con un número que no está en escala; el dato queda guardado
+ * y el chequeo de consistencia lo reporta como `objetivo_fuera_de_escala` para que se mire a mano.
+ */
+export const CONSENSUS_SCALE = { maxRatio: 2, minRatio: 0.5 };
+
 /** `consenso_en_precio`: mediana de objetivos de titulares (2 o más) o, si no hay, el consenso que trajo la verificación web. */
 export function consensusUpsidePct(close: number, analystTargets: AnalystTargets | null | undefined, consensusTarget: number | null | undefined): number | null {
   const median = analystTargets && analystTargets.n >= 2 && analystTargets.median !== null ? analystTargets.median : (consensusTarget ?? null);
   if (median === null || !(close > 0)) return null;
+  const ratio = median / close;
+  if (ratio > CONSENSUS_SCALE.maxRatio || ratio < CONSENSUS_SCALE.minRatio) return null;
   return round2((median / close - 1) * 100);
 }
 

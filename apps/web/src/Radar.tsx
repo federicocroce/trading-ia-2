@@ -405,7 +405,8 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
 
 /** Plan del aporte: con el aporte del mes o con el monto que tengas líquido. Muestra el ticket para ejecutar. */
 type PlanSort = "prioridad" | "conviccion" | "objetivo";
-const PLAN_SORT_LABEL: Record<PlanSort, string> = { prioridad: "prioridad de compra", conviccion: "convicción", objetivo: "% al objetivo" };
+// "objetivo" ordena por el doble de la distancia al stop: el nombre lo dice para que nadie lo lea como ganancia.
+const PLAN_SORT_LABEL: Record<PlanSort, string> = { prioridad: "prioridad de compra", conviccion: "convicción", objetivo: "distancia al stop (no es ganancia)" };
 const readPlanSort = (): PlanSort => { try { const v = localStorage.getItem("plan.sort"); return v === "conviccion" || v === "objetivo" ? v : "prioridad"; } catch { return "prioridad"; } };
 const gainPct = (l: PlanLine) => (l.target && l.close ? (l.target / l.close - 1) * 100 : null);
 function sortPlanLines(lines: PlanLine[], sort: PlanSort): PlanLine[] {
@@ -453,7 +454,22 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
               <td className="mono">{f2(l.close)}</td>
               <td><EntryCell e={l.entry} fallback={l.entryHigh ? <span className="mono">hasta {f2(l.entryHigh)}</span> : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted" title="El núcleo se compra al precio que esté: es aporte periódico, no una operación.">a mercado</span> : <span className="muted">—</span>} /></td>
               <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="El núcleo no se vende por stop: se compra y se mantiene. Es la base de la cartera, no una apuesta.">sin stop</span> : "—"}</td>
-              <td className="mono">{l.target ? <>{f2(l.target)}{l.close && <span className="ok"> {pct(((l.target - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="Sin objetivo: el núcleo se mantiene años, no se vende al llegar a un precio. El % es lo que rindió en los últimos 12 meses: contexto, no promesa.">se mantiene{l.ret12mPct !== null && l.ret12mPct !== undefined && <> · {pct(l.ret12mPct)} últimos 12 m</>}</span> : "—"}</td>
+              {/* El objetivo no es una ganancia esperada: es el doble de la distancia al stop, así que sigue a la
+                  volatilidad y no a la empresa. Se muestra sin el % en verde, que se leía como pronóstico, y al
+                  lado va el retorno real de 12 meses, que sí dice algo de la empresa. */}
+              <td className="mono">
+                {l.kind === "nucleo" ? (
+                  <span className="muted" title="Sin objetivo: el núcleo se mantiene años, no se vende al llegar a un precio.">se mantiene</span>
+                ) : l.target ? (
+                  <>
+                    {f2(l.target)}
+                    <div className="muted" style={{ fontSize: 11 }} title="No es un pronóstico ni una ganancia esperada: es el precio donde la operación paga dos veces lo que arriesga hasta el stop. Por eso acompaña a la distancia del stop, no a la empresa.">2× el riesgo</div>
+                  </>
+                ) : "—"}
+                {l.ret12mPct !== null && l.ret12mPct !== undefined && (
+                  <div className={l.ret12mPct >= 0 ? "ok" : "bad"} style={{ fontSize: 11 }} title="Retorno de los últimos 12 meses con dividendos. Es lo que pasó, no lo que va a pasar, pero al menos habla de la empresa.">{pct(l.ret12mPct)} 12 m</div>
+                )}
+              </td>
               <td>{l.rationale}</td>
               <td className="mono">{l.alpha30dPct !== null ? pct(l.alpha30dPct) : <span className="muted" title="Se completa 30 días después del plan: cuánto le ganó (o perdió) esta línea a SPY.">en 30 días</span>}</td>
               <td className="mono">{l.alpha90dPct !== null ? pct(l.alpha90dPct) : <span className="muted" title="Se completa 90 días después del plan.">en 90 días</span>}</td>
@@ -461,7 +477,7 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
           ))}
         </tbody>
       </table>
-      {sort === "objetivo" && <div className="warn" style={{ marginTop: 6 }}>Ordenado por % al objetivo: ese % es dos veces la distancia al stop, así que arriba quedan los más volátiles, no los mejores. El orden de compra del sistema es "prioridad de compra".</div>}
+      {sort === "objetivo" && <div className="warn" style={{ marginTop: 6 }}>Ordenado por distancia al stop. El objetivo es exactamente dos veces esa distancia: medido sobre los 26 COMPRAR de hoy, la correlación entre los dos números es 1,0000. Ordena por volatilidad, no por calidad, y no dice nada de cuánto puede ganar la empresa. El orden de compra del sistema es "prioridad de compra".</div>}
       {risk > 0 && <div className="muted" style={{ marginTop: 6 }}>Si todas las líneas con stop lo tocan, perdés {money(risk)}. Los ETFs de núcleo no llevan stop: se compran y se quedan.</div>}
       {p.notes.map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}
       {p.leftOut && p.leftOut.length > 0 && (
