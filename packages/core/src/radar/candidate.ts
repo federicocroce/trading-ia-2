@@ -155,6 +155,12 @@ export function buildFlags(
 export interface CandidateDecision {
   verdict: "COMPRAR" | "OBSERVAR";
   flags: string[];
+  /**
+   * Último cierre. Está acá porque antes `entryLow` era siempre el cierre y quien guardaba la fila lo usaba
+   * como tal; desde que la franja de compra depende del momento de entrada, `entryLow` puede quedar arriba
+   * o abajo del cierre y confundir los dos números escribe un precio falso en la base.
+   */
+  close: number;
   /** Cuándo entrar: estado, nivel y condición. null si no hay velas suficientes. */
   entry: EntryTiming | null;
   entryLow: number;
@@ -224,5 +230,5 @@ export function decideCandidate(
   const target = belowStop ? null : computeTarget(close, stop);
   const size = belowStop ? null : positionSize({ entryHigh, stop, portfolioUsd: i.portfolioUsd }, p.sizing);
   const risk = riskScore({ beta: i.f.metrics["beta"] ?? null, atrPct: gate.atrPct, debtToEquity: i.f.metrics["totalDebt/totalEquityAnnual"] ?? null, dollarVolumeUsd: i.f.dollarVolumeUsd, mcapUsd: i.f.mcapUsd });
-  return { verdict: reasons.length ? "OBSERVAR" : "COMPRAR", flags, entry, entryLow, entryHigh, stop, target, size: size ? { qty: size.qty, sizeUsd: size.sizeUsd } : null, riskScore: risk, reasons, gate };
+  return { verdict: reasons.length ? "OBSERVAR" : "COMPRAR", flags, close, entry, entryLow, entryHigh, stop, target, size: size ? { qty: size.qty, sizeUsd: size.sizeUsd } : null, riskScore: risk, reasons, gate };
 }

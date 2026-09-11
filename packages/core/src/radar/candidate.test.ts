@@ -103,6 +103,15 @@ describe("decideCandidate", () => {
     expect(d.size).toBeNull();
     expect(d.target).toBeNull();
   });
+  it("el cierre es el cierre, aunque la franja de compra quede arriba: no se puede tomar entryLow como precio", () => {
+    // Cayó bajo su media de 50: la franja arranca en el máximo de las últimas 10 ruedas, muy arriba del cierre.
+    // Quien guarda la fila usaba entryLow como precio; si vuelve a hacerlo, la base queda con un precio inventado.
+    const closes = [...Array.from({ length: 255 }, (_, i) => 80 + (30 * i) / 254), 108, 105, 103, 101, 100];
+    const d = decideCandidate({ f: f(), candles: series(closes), nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.close).toBe(100);
+    expect(d.entryLow).toBeGreaterThan(d.close);
+  });
   it("residente crónico → OBSERVAR", () => {
     const d = decideCandidate({ f: f(), candles: up, nthAppearance: 4, portfolioUsd: null, today }, policy);
     if ("excluded" in d) throw new Error("no debía excluir");

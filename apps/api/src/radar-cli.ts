@@ -21,7 +21,8 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   // Como el paso "radar" de ponerme al día: refresco, medición y lista de seguimiento.
   else if (cmd === "refresh") { console.log(await refreshRadar(deps, { today, portfolioUsd })); console.log(await measureRadar(deps, { today })); console.log(await refreshWatchlist(deps, { today, portfolioUsd })); }
   else if (cmd === "watchlist") console.log(await refreshWatchlist(deps, { today, portfolioUsd }));
-  else if (cmd === "plan") console.log(JSON.stringify(await buildContributionPlan(deps, { month: today.slice(0, 7), portfolioUsd }), null, 2));
+  // plan [monto]: sin monto usa el aporte mensual de la política; con monto arma el plan para esa plata.
+  else if (cmd === "plan") { const amountUsd = Number(process.argv[3]); console.log(JSON.stringify(await buildContributionPlan(deps, { month: today.slice(0, 7), portfolioUsd, ...(Number.isFinite(amountUsd) && amountUsd > 0 ? { amountUsd } : {}) }), null, 2)); }
   else if (cmd === "measure") console.log(await measureRadar(deps, { today }));
   else if (cmd === "argentina") { const r = await refreshArgentina(c.argentinaDeps, { today }); console.log(JSON.stringify({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors }, null, 2)); }
   else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina"); code = 1; }
