@@ -495,7 +495,10 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     }
     const evEvents = ev?.events ?? prev.events ?? [];
     const eventsUnclassified = ev ? ev.unclassified : true;
-    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null };
+    // La verificación guardada entra desde la PRIMERA decisión. Si se pasaba solo cuando el símbolo quedaba
+    // COMPRAR, un OBSERVAR conservaba su dictamen en la columna y lo perdía en las banderas: la fila decía
+    // "con reservas" en la ficha y no lo mostraba, y esa salvedad dejaba de contar (SOLV, TER y VIST el 11/9).
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(prev.verification ? { verification: prev.verification } : {}) };
     let d = decideCandidate(input, policy);
     let verification: VerificationSummary | null | undefined = prev.verification;
     if (!("excluded" in d)) {

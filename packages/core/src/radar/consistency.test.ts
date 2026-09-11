@@ -52,6 +52,17 @@ describe("checkConsistency", () => {
     expect(f[0]!.detail).toContain("no está restando convicción");
   });
 
+  it("SOLV, TER y VIST del 11/9: un OBSERVAR también tiene que mostrar su verificación guardada", () => {
+    // El refresco solo le pasaba el dictamen a la decisión si el símbolo quedaba COMPRAR. Un OBSERVAR
+    // conservaba la verificación en su columna y la perdía en las banderas, así que dejaba de restar.
+    const f = solo("verificacion_sin_bandera", checkConsistency({
+      rows: [fila({ symbol: "TER", verdict: "OBSERVAR", flags: ["insiders_venden", "bajo_stop"], verification: { date: "2026-09-11", verdict: "con_reservas", reason: "pico de ciclo" } })],
+      candles: {}, plan: null,
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+  });
+
   it("con la bandera puesta, la misma fila no reporta nada", () => {
     const f = solo("verificacion_sin_bandera", checkConsistency({
       rows: [fila({ symbol: "META", flags: ["verificacion_reservas"], verification: { date: "2026-09-11", verdict: "con_reservas", reason: "litigios" } })],

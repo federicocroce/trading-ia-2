@@ -74,13 +74,16 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       const f = all.get(sym) ?? stubFundamentals(sym, close);
       const prev = previous.find((p) => p.symbol === sym);
       const nth = prev ? (prev.candidateDate === opts.today ? prev.nthAppearance : prev.nthAppearance + 1) : 1;
-      let d = decideCandidate({ f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today }, policy);
-      // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
+      // El dictamen guardado entra desde la primera decisión: si solo se pasara cuando queda COMPRAR, un
+      // OBSERVAR conservaría la verificación en su columna y la perdería en las banderas.
       let verification: VerificationSummary | null | undefined = prev?.verification;
+      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today };
+      let d = decideCandidate({ ...base, ...(verification ? { verification } : {}) }, policy);
+      // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
       if (!("excluded" in d) && d.verdict === "COMPRAR" && deps.verifier) {
         const profile = await store.profile(sym).catch(() => null);
         verification = await verifyFor(deps, sym, { today: opts.today, name: profile?.profile.name ?? null, context: `lista de seguimiento · banderas: ${d.flags.join(", ") || "ninguna"}`, budget: verifyBudget });
-        const again = decideCandidate({ f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, verification }, policy);
+        const again = decideCandidate({ ...base, verification }, policy);
         if (!("excluded" in again)) d = again;
       }
       const r = byRank.get(sym);
