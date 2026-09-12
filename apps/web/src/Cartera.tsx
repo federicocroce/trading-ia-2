@@ -161,7 +161,7 @@ export function Cartera() {
       )}
       <div className="card" style={{ overflowX: "auto" }}>
         <table>
-          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>invertido</th><th>precio</th><th>valor</th><th>P&amp;L</th><th>P&amp;L %</th><th>peso</th><th>veredicto</th><th>stop</th><th>objetivo</th><th>etiquetas</th><th></th></tr></thead>
+          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>invertido</th><th>precio</th><th>valor</th><th>P&amp;L</th><th>P&amp;L %</th><th>peso</th><th>veredicto</th><th title="Si cierra por debajo, se vende: la tesis se anuló.">stop</th><th title="No es una ganancia esperada: es el doble de la distancia al stop. Un papel tranquilo muestra poco y uno volátil mucho, sin que eso diga cuál es mejor.">objetivo</th><th>etiquetas</th><th></th></tr></thead>
           <tbody>
             {positions.map((p) => {
               const v = vBy.get(p.symbol);
@@ -200,7 +200,15 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
         <td className="mono">{v ? `${v.weightPct.toFixed(1)}%` : "—"}</td>
         <td>{v ? <span className={`verb ${v.verb}`}>{v.verb}</span> : <span className="muted">sin veredicto</span>}</td>
         <td className="mono">{f2(v?.stop)}</td>
-        <td className="mono">{f2(v?.target)}</td>
+        {/* El "objetivo" es el precio donde la operación paga dos veces lo que arriesga hasta el stop: es
+            aritmética sobre el stop, no una ganancia esperada. En el plan del Radar ya se corrigió; acá
+            mostraba el mismo número con el mismo rótulo engañoso. Se deja apagado y con su motivo. */}
+        <td className="mono">
+          {f2(v?.target)}
+          {v?.target !== null && v?.target !== undefined && (
+            <div className="muted" style={{ fontSize: 11 }} title="No es una ganancia esperada ni un pronóstico: es el precio donde la operación paga dos veces lo que arriesga hasta el stop. Por eso acompaña a la distancia del stop y no a la empresa.">2× el riesgo</div>
+          )}
+        </td>
         <td><TagChips tags={tags} /></td>
         <td style={{ whiteSpace: "nowrap" }}>
           {v && <button className="ghost" onClick={onToggle}>{open ? "Cerrar" : "Ver"}</button>}{" "}
