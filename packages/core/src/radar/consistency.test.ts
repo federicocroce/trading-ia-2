@@ -159,8 +159,8 @@ describe("checkConsistency", () => {
       metrics: { DVA: { "totalDebt/totalEquityAnnual": 77.99, roeTTM: 181.2, operatingMarginTTM: 15.1, netProfitMarginTTM: 6.1 } },
     });
     expect(solo("patrimonio_sin_sentido", r)).toHaveLength(1);
-    expect(solo("roe_sin_sentido", r)).toHaveLength(1);
-    expect(solo("roe_sin_sentido", r)[0]!.detail).toContain("eje de calidad lo premia");
+    expect(solo("patrimonio_sin_sentido", r)[0]!.detail).toContain("ROE de 181.2%");
+    expect(solo("patrimonio_sin_sentido", r)[0]!.detail).toContain("eje de calidad los premia");
   });
 
   it("una empresa apalancada pero con patrimonio real no se reporta", () => {
@@ -169,7 +169,14 @@ describe("checkConsistency", () => {
       metrics: { HSBC: { "totalDebt/totalEquityAnnual": 2.55, roeTTM: 19.5, operatingMarginTTM: 40.4, netProfitMarginTTM: 34.2 } },
     });
     expect(solo("patrimonio_sin_sentido", r)).toEqual([]);
-    expect(solo("roe_sin_sentido", r)).toEqual([]);
+  });
+
+  it("NVDA: un ROE de 110% con patrimonio real y enorme no es un artefacto y no se reporta", () => {
+    const r = checkConsistency({
+      rows: [fila({ symbol: "NVDA" })], candles: {}, plan: null,
+      metrics: { NVDA: { roeTTM: 110.11, "totalDebt/totalEquityAnnual": 0.05, operatingMarginTTM: 65.2, netProfitMarginTTM: 63.7 } },
+    });
+    expect(r).toEqual([]);
   });
 
   it("cuenta graves y avisos por separado", () => {

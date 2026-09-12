@@ -54,8 +54,8 @@ export const FUNDAMENTAL_THRESHOLDS = {
   marginGapPct: 5,
   /** Deuda/patrimonio por encima de esto no mide apalancamiento: mide un patrimonio que ya no existe. */
   debtToEquityAbsurd: 20,
-  /** ROE por encima de esto mide el denominador, no el negocio. */
-  roeAbsurdPct: 100,
+  // No hay umbral de ROE suelto: NVDA tiene 110% con patrimonio real y enorme, así que un ROE alto por sí
+  // solo no prueba nada. Solo se reporta acompañando a un patrimonio que efectivamente se borró.
 };
 // La banda de escala del consenso vive en candidate.ts (CONSENSUS_SCALE): una sola fuente para la regla
 // que niega el potencial y para el chequeo que lo reporta, así no pueden discrepar.
@@ -131,12 +131,11 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       // DVA declaraba deuda/patrimonio 78 y ROE 181% con patrimonio de −765 M.
       const de = m["totalDebt/totalEquityAnnual"];
       if (de !== null && de !== undefined && Math.abs(de) > FUNDAMENTAL_THRESHOLDS.debtToEquityAbsurd) {
-        add("patrimonio_sin_sentido", row.symbol, "aviso", `deuda/patrimonio ${r2(de)}: el patrimonio quedó cerca de cero o negativo, así que ese ratio y el ROE son artefactos`);
+        const roe = m["roeTTM"];
+        const conRoe = roe === null || roe === undefined ? "" : ` y el ROE de ${r2(roe)}%`;
+        add("patrimonio_sin_sentido", row.symbol, "aviso", `deuda/patrimonio ${r2(de)}: el patrimonio quedó cerca de cero o negativo, así que ese ratio${conRoe} son artefactos del denominador y el eje de calidad los premia igual`);
       }
-      const roe = m["roeTTM"];
-      if (roe !== null && roe !== undefined && roe > FUNDAMENTAL_THRESHOLDS.roeAbsurdPct) {
-        add("roe_sin_sentido", row.symbol, "aviso", `ROE ${r2(roe)}%: a ese nivel mide un patrimonio casi borrado, no rentabilidad, y el eje de calidad lo premia igual`);
-      }
+
     }
 
     // 7. Un COMPRAR sin momento de entrada no puede decir cuándo comprar. El núcleo no cuenta: va por calendario.

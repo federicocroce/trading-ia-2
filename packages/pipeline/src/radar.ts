@@ -12,6 +12,7 @@ import {
   mergeThemes,
   overlapCaution,
   passesPreFilter,
+  residentWeeks,
   planContribution,
   qualityBar,
   rankStocks,
@@ -258,9 +259,9 @@ async function candlesFor(deps: RadarDeps, symbols: string[]): Promise<{ candles
 /** 1 + la aparición anterior si fue hace ≤ 10 días (rank semanal con refrescos diarios en el medio). */
 async function nthAppearanceFor(deps: RadarDeps, symbol: string, today: string): Promise<number> {
   const hist = await deps.store.candidateHistory(symbol, deps.policy.candidates.chronicWeeks + 1);
-  const prev = hist.find((c) => c.candidateDate < today);
-  if (!prev || ageDays(prev.candidateDate, today) > 10) return 1;
-  return prev.nthAppearance + 1;
+  // Semanas calendario consecutivas, no corridas: correr el ranking tres veces en una noche no vuelve
+  // crónico a nadie. Se incluye `today` para que la semana en curso cuente ya en la primera corrida.
+  return residentWeeks(hist.map((h) => h.candidateDate), today);
 }
 
 function ownMetrics(f: Fundamentals): Record<string, number | null> {

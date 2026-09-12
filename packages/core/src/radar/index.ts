@@ -15,3 +15,4 @@ export * from "./news.js";
 export * from "./regime.js";
 export * from "./entry.js";
 export * from "./consistency.js";
+export * from "./chronic.js";
