@@ -69,14 +69,36 @@ const metricOf = (f: Fundamentals, spec: { key: string; positiveOnly?: boolean }
   return v;
 };
 
-/** Grupo de comparación: pares ∩ universo (máx 10); si < minSize, la industria; si tampoco, null. */
+/**
+ * Umbrales para descartar comparables sin ingresos reales. Una empresa antes de facturar tiene P/S de miles
+ * y margen operativo de miles negativos: sus ratios no son una medición, son una división por casi cero.
+ * Metidos en un grupo de diez, corren la escala y aplastan la ventaja de los demás. Amphenol comparaba contra
+ * LWLG (825 M de capitalización, P/S 3.295, margen operativo −9.720%) y eso le bajaba su z de margen
+ * operativo de +3,00 a +2,00: dejaba de verse que tiene el mejor margen del grupo por lejos.
+ *
+ * Los umbrales son deliberadamente extremos: no sacan a una empresa cara ni a una que pierde plata, solo a la
+ * que todavía no vende. Un biotech con margen operativo de −421% sigue entrando.
+ */
+export const PEER_BAR = { maxPs: 50, minOperatingMarginPct: -500 };
+
+/** ¿Tiene ingresos suficientes para que sus ratios midan algo? */
+export function comparablePeer(f: Fundamentals | undefined): boolean {
+  if (!f) return false;
+  const ps = f.metrics["psTTM"];
+  const mo = f.metrics["operatingMarginTTM"];
+  if (typeof ps === "number" && Number.isFinite(ps) && ps > PEER_BAR.maxPs) return false;
+  if (typeof mo === "number" && Number.isFinite(mo) && mo < PEER_BAR.minOperatingMarginPct) return false;
+  return true;
+}
+
+/** Grupo de comparación: pares ∩ universo con ingresos reales (máx 10); si < minSize, la industria; si tampoco, null. */
 export function peerGroup(symbol: string, all: Map<string, Fundamentals>, minSize = 4): { members: string[]; basis: "pares" | "industria" } | null {
   const f = all.get(symbol);
   if (!f) return null;
-  const peers = [...new Set(f.peers.map((p) => p.toUpperCase()))].filter((p) => p !== symbol && all.has(p)).slice(0, 10);
+  const peers = [...new Set(f.peers.map((p) => p.toUpperCase()))].filter((p) => p !== symbol && all.has(p) && comparablePeer(all.get(p))).slice(0, 10);
   if (peers.length >= minSize) return { members: peers, basis: "pares" };
   if (f.industry) {
-    const ind = [...all.values()].filter((x) => x.symbol !== symbol && x.industry === f.industry).map((x) => x.symbol);
+    const ind = [...all.values()].filter((x) => x.symbol !== symbol && x.industry === f.industry && comparablePeer(x)).map((x) => x.symbol);
     if (ind.length >= minSize) return { members: ind, basis: "industria" };
   }
   return null;
