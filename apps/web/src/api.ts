@@ -91,7 +91,7 @@ export interface RadarMeasurement { total: number; pending: number; byVerdict: R
 export interface TaxonomyOptions { assetClasses: string[]; sectors: string[]; themes: string[] }
 
 export interface Candle { date: string; open: number; high: number; low: number; close: number; volume: number }
-export interface ChartBar { time: number; open: number; high: number; low: number; close: number; volume: number; sma20?: number | null; sma50?: number | null; sma200?: number | null; stop?: number | null }
+export interface ChartBar { time: number; open: number; high: number; low: number; close: number; volume: number; sma20?: number | null; sma50?: number | null; sma200?: number | null; stop?: number | null; rsi14?: number | null }
 export interface SymbolDescription { symbol: string; longName: string | null; summary: string | null; employees: number | null; website: string | null; exchangeName: string | null; firstTradeDate: string | null; sector: string | null; industry: string | null; country: string | null; updatedAt: string }
 export interface NewsItem { symbol: string; date: string; headline: string; source: string | null; url: string; summary: string | null }
 export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" | "DIVIDEND" | "TRANSFER"; quantity: number; price: number; fees: number; date: string; currency: string; platform: string | null; externalId: string | null; notes: string | null }

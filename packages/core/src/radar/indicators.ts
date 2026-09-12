@@ -62,3 +62,33 @@ export function chandelierSeries(bars: Bar[], n = 22, mult = 3): Array<number | 
     return max - mult * a;
   });
 }
+
+/**
+ * RSI de Wilder. Va en un panel aparte porque su escala es 0 a 100, no pesos.
+ *
+ * Es el único indicador del gráfico que la app NO usa para decidir: está como contexto de momento, para
+ * ver si una candidata que el filtro dejó pasar viene además sobrecomprada. La UI lo marca como contexto
+ * para que nadie lo confunda con una regla del sistema.
+ */
+export function rsiSeries(bars: Pick<Bar, "close">[], n = 14): Array<number | null> {
+  const out: Array<number | null> = new Array(bars.length).fill(null);
+  if (bars.length <= n) return out;
+  let ganancia = 0;
+  let perdida = 0;
+  for (let i = 1; i <= n; i++) {
+    const d = bars[i]!.close - bars[i - 1]!.close;
+    if (d >= 0) ganancia += d;
+    else perdida -= d;
+  }
+  ganancia /= n;
+  perdida /= n;
+  const rsi = (g: number, p: number) => (p === 0 ? 100 : 100 - 100 / (1 + g / p));
+  out[n] = rsi(ganancia, perdida);
+  for (let i = n + 1; i < bars.length; i++) {
+    const d = bars[i]!.close - bars[i - 1]!.close;
+    ganancia = (ganancia * (n - 1) + (d > 0 ? d : 0)) / n;
+    perdida = (perdida * (n - 1) + (d < 0 ? -d : 0)) / n;
+    out[i] = rsi(ganancia, perdida);
+  }
+  return out;
+}

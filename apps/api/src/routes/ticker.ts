@@ -1,4 +1,4 @@
-import { chandelierSeries, smaSeries, todayLocal } from "@thesis/core";
+import { chandelierSeries, rsiSeries, smaSeries, todayLocal } from "@thesis/core";
 import { Hono } from "hono";
 import type { ChartBar } from "@thesis/core";
 import { buildTicker, withTimeout } from "@thesis/pipeline";
@@ -53,9 +53,10 @@ export function tickerRoutes(c: Container) {
         const s50 = smaSeries(todas, 50);
         const s200 = smaSeries(todas, 200);
         const stop = chandelierSeries(todas, 22, 3);
+        const rsi = rsiSeries(todas, 14);
         const bars: ChartBar[] = todas.map((x, i) => ({
           time: Math.floor(Date.parse(x.date) / 1000), open: x.open, high: x.high, low: x.low, close: x.close, volume: x.volume,
-          sma20: s20[i] ?? null, sma50: s50[i] ?? null, sma200: s200[i] ?? null, stop: stop[i] ?? null,
+          sma20: s20[i] ?? null, sma50: s50[i] ?? null, sma200: s200[i] ?? null, stop: stop[i] ?? null, rsi14: rsi[i] ?? null,
         })).filter((b) => b.time >= Math.floor(Date.parse(desde) / 1000));
         return ctx.json(bars);
       }

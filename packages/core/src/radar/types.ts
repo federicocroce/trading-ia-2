@@ -291,6 +291,8 @@ export interface ChartBar {
   sma200?: number | null;
   /** Stop dinámico (chandelier 22 ruedas, 3 ATR): la línea que, si la rompe, anula la tesis. */
   stop?: number | null;
+  /** RSI de Wilder de 14 ruedas. Contexto de momento; la app NO decide con esto. */
+  rsi14?: number | null;
 }
 export interface LiveQuote {
   symbol: string;

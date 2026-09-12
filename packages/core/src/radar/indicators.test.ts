@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atrSeries, chandelierSeries, computeTrailingStop, sma, smaSeries, type Bar, type Candle } from "../index.js";
+import { atrSeries, chandelierSeries, computeTrailingStop, rsiSeries, sma, smaSeries, type Bar, type Candle } from "../index.js";
 
 const barras = (closes: number[], rango = 2): Bar[] => closes.map((c) => ({ high: c + rango / 2, low: c - rango / 2, close: c }));
 const velas = (closes: number[], rango = 2): Candle[] =>
@@ -45,5 +45,22 @@ describe("chandelierSeries", () => {
     const c = velas(Array.from({ length: 80 }, (_, i) => 80 + i * 0.4));
     const serie = chandelierSeries(c, 22, 3);
     expect(serie[serie.length - 1]).toBeCloseTo(computeTrailingStop(c)!, 2);
+  });
+});
+
+describe("rsiSeries", () => {
+  it("una serie que solo sube da 100 y una que solo baja da 0", () => {
+    expect(rsiSeries(barras(Array.from({ length: 40 }, (_, i) => 100 + i)))[39]).toBeCloseTo(100, 6);
+    expect(rsiSeries(barras(Array.from({ length: 40 }, (_, i) => 140 - i)))[39]).toBeCloseTo(0, 6);
+  });
+
+  it("null hasta tener las 14 barras de arranque", () => {
+    const s = rsiSeries(barras(Array.from({ length: 20 }, (_, i) => 100 + (i % 3))));
+    expect(s.slice(0, 14).every((x) => x === null)).toBe(true);
+    expect(s[14]).not.toBeNull();
+  });
+
+  it("serie más corta que la ventana devuelve todo null", () => {
+    expect(rsiSeries(barras([1, 2, 3]))).toEqual([null, null, null]);
   });
 });
