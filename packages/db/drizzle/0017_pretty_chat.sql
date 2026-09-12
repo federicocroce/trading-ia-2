@@ -1,0 +1,1 @@
+ALTER TABLE "radar_verifications" ADD COLUMN "p_market_from_options" boolean DEFAULT false NOT NULL;

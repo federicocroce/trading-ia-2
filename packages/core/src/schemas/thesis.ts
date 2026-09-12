@@ -56,6 +56,11 @@ export const Thesis = ThesisProposal.extend({
   edge: z.number(),
   status: ThesisStatus,
   rejectionReason: RejectionReason.nullable(),
+  /**
+   * ¿`pMarket` salió de la cadena de opciones (lo fija el sistema, auditable) o lo estimó el modelo?
+   * Importa porque el edge es pEstimate − pMarket: si pMarket no se midió, el edge no es contra el mercado.
+   */
+  pMarketFromOptions: z.boolean().optional(),
   promptVersion: z.string().min(1),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

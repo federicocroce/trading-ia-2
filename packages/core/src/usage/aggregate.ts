@@ -126,8 +126,11 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
     s.calls++;
     if (isError(c.result)) s.errors++;
     else s.ok++;
-    const minute = c.at.slice(0, 16);
-    s.minutes.set(minute, (s.minutes.get(minute) ?? 0) + 1);
+    // El freno por minuto de Gemini es por modelo Y por clave (KeyedRateLimiter usa `modelo#clave`), así que
+    // contar el minuto por fuente entera suma llamadas de cuatro claves contra un límite de una sola. El
+    // 11/9 eso mostraba 12 llamadas y "120% del límite" en rojo, cuando el máximo real por modelo+clave era 6.
+    const cubo = limits[c.source]?.perModelKey ? `${c.at.slice(0, 16)}|${c.model ?? ""}|${c.keyIndex ?? ""}` : c.at.slice(0, 16);
+    s.minutes.set(cubo, (s.minutes.get(cubo) ?? 0) + 1);
 
     const sk = `${c.step}|${c.source}`;
     let st = steps.get(sk);

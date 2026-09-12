@@ -81,14 +81,14 @@ function UsagePanel({ u }: { u: UsageSummary | null }) {
   return (
     <>
       <h3 style={{ marginTop: 18 }}>Uso de fuentes externas · {u.date} <button className="ghost" style={{ marginLeft: 8, fontSize: 12, padding: "3px 8px" }} onClick={() => goToTab("uso")}>Ver pestaña Uso</button></h3>
-      <p className="muted">Cada pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo queda registrado con su paso, resultado y tiempo. Gemini: la cuota es por modelo y por clave (cada clave es un proyecto), 10 por minuto y 250 por día como piso, y se reinicia a la medianoche de California (04:00 en Buenos Aires). El costo es lo que valdría en el plan pago.</p>
+      <p className="muted">Cada pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo queda registrado con su paso, resultado y tiempo. Gemini: la cuota es por modelo y por clave (cada clave es un proyecto), 10 por minuto. La cuota diaria real no la publica Google y en la práctica se agotó entre 15 y 26 llamadas por modelo y clave (10 y 11 de septiembre); se reinicia a la medianoche de California, 04:00 en Buenos Aires. El costo es lo que valdría en el plan pago.</p>
       {u.warnings.length > 0 && <div className="card bad" style={{ marginTop: 6 }}>{u.warnings.map((w) => <div key={w}>⚠ {w}</div>)}</div>}
       {u.total.calls === 0 ? (
         <p className="muted">Todavía no hubo pedidos salientes hoy.</p>
       ) : (
         <>
           <table>
-            <thead><tr><th>fuente</th><th>llamadas</th><th>con error</th><th>pico por minuto</th><th>límite por minuto</th><th>% del pico</th><th>límite por día</th><th>% del día</th></tr></thead>
+            <thead><tr><th>fuente</th><th>llamadas</th><th>con error</th><th>pico por minuto</th><th>límite por minuto</th><th title="Pico del minuto dividido por el límite por minuto.">% del límite por minuto</th></tr></thead>
             <tbody>
               {u.bySource.map((r) => (
                 <tr key={r.source}>
@@ -98,8 +98,6 @@ function UsagePanel({ u }: { u: UsageSummary | null }) {
                   <td className="mono">{n(r.peakPerMinute)}</td>
                   <td className="mono muted">{r.limitPerMinute ?? "—"}</td>
                   <td className={r.pctMinute !== null && r.pctMinute >= 80 ? "warn mono" : "mono"}>{pct(r.pctMinute)}</td>
-                  <td className="mono muted">{r.source === "gemini" ? "por modelo y clave" : (r.limitPerDay ?? "—")}</td>
-                  <td className={r.pctDay !== null && r.pctDay >= 80 ? "warn mono" : "mono"}>{pct(r.pctDay)}</td>
                 </tr>
               ))}
             </tbody>

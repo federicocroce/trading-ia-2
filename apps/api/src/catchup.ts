@@ -124,11 +124,13 @@ async function lastDates(c: Container): Promise<CatchUpStatus["last"]> {
   };
   for (const s of STEPS) {
     const j = jobs[s.id];
-    if (j && j.lastDate) out[s.id] = { lastDate: j.lastDate, ranAt: j.ranAt, detail: j.detail };
-    else {
-      const d = await fromData[s.id]().catch(() => null);
-      out[s.id] = d ? { lastDate: d, ranAt: null, detail: "según lo que hay en la base" } : null;
-    }
+    const enBase = await fromData[s.id]().catch(() => null);
+    // Manda la fecha MÁS NUEVA entre el registro de corridas y lo que hay en la base. Antes ganaba siempre
+    // job_runs, así que una corrida lanzada por la CLI o por el agente de launchd era invisible: el 12/9 la
+    // pantalla decía "última corrida 11/09, al día" mientras el Radar servía un ranking del 12.
+    if (j?.lastDate && (!enBase || j.lastDate >= enBase)) out[s.id] = { lastDate: j.lastDate, ranAt: j.ranAt, detail: j.detail };
+    else if (enBase) out[s.id] = { lastDate: enBase, ranAt: null, detail: j?.lastDate ? `corrida fuera del programador (el registro marca ${j.lastDate})` : "según lo que hay en la base" };
+    else out[s.id] = null;
   }
   return out;
 }

@@ -92,9 +92,11 @@ export async function buildBundle(event: RawEvent, deps: Pick<RunDeps, "document
  * pMarket lo fija el sistema desde opciones cuando existen, no el LLM (auditable).
  * Se aplica acá, en el pipeline, para que valga con cualquier Reasoner.
  */
-export function enforceMarketProbability(p: ThesisProposal, bundle: BundleWithMarket): ThesisProposal {
+export function enforceMarketProbability(p: ThesisProposal, bundle: BundleWithMarket): ThesisProposal & { pMarketFromOptions: boolean } {
   const im = bundle.market?.impliedMove;
-  if (!im || bundle.event.eventType === "macro_ar") return p;
+  // Queda registrado de dónde salió pMarket. Si no hay cadena de opciones lo estima el modelo, y en ese caso
+  // el edge (pEstimate − pMarket) no mide una diferencia contra el mercado: mide contra una suposición.
+  if (!im || bundle.event.eventType === "macro_ar") return { ...p, pMarketFromOptions: false };
   const pm = impliedProbability({ spot: im.spot, target: p.target, impliedMovePct: im.impliedMovePct, direction: p.direction });
-  return Number.isFinite(pm) ? { ...p, pMarket: Number(pm.toFixed(4)) } : p;
+  return Number.isFinite(pm) ? { ...p, pMarket: Number(pm.toFixed(4)), pMarketFromOptions: true } : { ...p, pMarketFromOptions: false };
 }

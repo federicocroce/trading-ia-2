@@ -149,7 +149,7 @@ export function Uso() {
           <b>Por fuente</b> <span className="muted">{summary.date}</span>
           {summary.bySource.length === 0 ? <div className="muted">sin pedidos ese día</div> : (
             <table style={{ marginTop: 6 }}>
-              <thead><tr><th>fuente</th><th>llamadas</th><th>con error</th><th>pico por minuto</th><th>límite por minuto</th><th>% del pico</th><th>límite por día</th><th>% del día</th></tr></thead>
+              <thead><tr><th>fuente</th><th>llamadas</th><th>con error</th><th>pico por minuto</th><th>límite por minuto</th><th title="Pico del minuto dividido por el límite por minuto.">% del límite por minuto</th></tr></thead>
               <tbody>
                 {summary.bySource.map((r) => (
                   <tr key={r.source} style={{ cursor: "pointer" }} onClick={() => setFilter((f) => ({ ...f, source: f.source === r.source ? "" : r.source }))}>
@@ -159,8 +159,6 @@ export function Uso() {
                     <td className="mono">{n(r.peakPerMinute)}</td>
                     <td className="mono muted">{r.limitPerMinute ?? "—"}</td>
                     <td className={r.pctMinute !== null && r.pctMinute >= 80 ? "warn mono" : "mono"}>{pct(r.pctMinute)}</td>
-                    <td className="mono muted">{r.source === "gemini" ? "por modelo y clave" : (r.limitPerDay ?? "—")}</td>
-                    <td className={r.pctDay !== null && r.pctDay >= 80 ? "warn mono" : "mono"}>{pct(r.pctDay)}</td>
                   </tr>
                 ))}
               </tbody>

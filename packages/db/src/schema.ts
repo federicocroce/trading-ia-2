@@ -57,6 +57,11 @@ export const theses = pgTable(
     direction: directionEnum("direction").notNull(),
     pEstimate: numeric("p_estimate", { precision: 5, scale: 4 }).notNull(),
     pMarket: numeric("p_market", { precision: 5, scale: 4 }).notNull(),
+    /**
+     * ¿`p_market` salió de la cadena de opciones o lo estimó el modelo? Sin esto la pantalla mostraba un
+     * "edge" contra el mercado que en el 85% de las tesis se calculaba contra un 0,50 puesto por defecto.
+     */
+    pMarketFromOptions: boolean("p_market_from_options").notNull().default(false),
     edge: numeric("edge", { precision: 6, scale: 4 }).notNull(),
     instrument: instrumentEnum("instrument").notNull(),
     entryMax: numeric("entry_max", { precision: 12, scale: 4 }).notNull(),

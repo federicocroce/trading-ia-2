@@ -208,7 +208,11 @@ function ThesisCard({ t, actions, onChange }: { t: Thesis; actions: "review" | "
         <span className="tag">{t.eventType}</span>
         <span className="muted">{t.eventDate ?? "sin fecha"}</span>
         <span className="mono">
-          pEst {pct(t.pEstimate)} · pMkt {pct(t.pMarket)} · <b>edge {pct(t.edge)}</b> · conf {t.confidence}
+          pEst {pct(t.pEstimate)} · pMkt {pct(t.pMarket)}
+          {t.pMarketFromOptions
+            ? <span className="ok" title="pMarket salió de la cadena de opciones: el sistema la calculó, es auditable."> (de opciones)</span>
+            : <span className="warn" title="No había cadena de opciones, así que pMarket lo estimó el modelo. El edge no mide una diferencia contra el mercado: mide contra una suposición."> (estimado, no de opciones)</span>}
+          {" · "}<b>edge {pct(t.edge)}</b> · conf {t.confidence}
         </span>
         <span className="muted mono">entry ≤ {t.entryMax} → target {t.target}</span>
         <div className="spacer" style={{ flex: 1 }} />

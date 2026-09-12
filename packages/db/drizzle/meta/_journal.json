@@ -120,6 +120,20 @@
       "when": 1789164112516,
       "tag": "0016_happy_firedrake",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789255386688,
+      "tag": "0017_pretty_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789255472101,
+      "tag": "0018_many_living_lightning",
+      "breakpoints": true
     }
   ]
 }

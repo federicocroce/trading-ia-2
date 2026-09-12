@@ -46,7 +46,7 @@ export class Repo {
   }
 
   // ---------- theses ----------
-  async insertThesis(rawEventId: string, p: ThesisProposal, promptVersion: string, minEdge: number): Promise<Thesis> {
+  async insertThesis(rawEventId: string, p: ThesisProposal & { pMarketFromOptions?: boolean }, promptVersion: string, minEdge: number): Promise<Thesis> {
     const edge = computeEdge(p);
     const status = edge >= minEdge ? "proposed" : "rejected";
     const [row] = await this.db
@@ -69,6 +69,7 @@ export class Repo {
         sources: p.sources,
         status,
         rejectionReason: status === "rejected" ? "edge_below_threshold" : null,
+        pMarketFromOptions: p.pMarketFromOptions ?? false,
         promptVersion,
       })
       .returning();
@@ -589,6 +590,7 @@ function toThesis(r: typeof s.theses.$inferSelect): Thesis {
   return {
     id: r.id,
     rawEventId: r.rawEventId,
+    pMarketFromOptions: r.pMarketFromOptions,
     ticker: r.ticker,
     eventType: r.eventType,
     eventDate: r.eventDate,

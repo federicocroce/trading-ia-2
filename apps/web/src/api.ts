@@ -16,6 +16,7 @@ export interface Thesis {
   sources: string[];
   status: string;
   rejectionReason: string | null;
+  pMarketFromOptions?: boolean;
   promptVersion: string;
   createdAt: string;
 }
@@ -69,7 +70,7 @@ export interface PriceRow { symbol: string; price: number; prevClose: number | n
 export interface SymbolHit { symbol: string; name: string; exchange: string; type: "accion_us" | "accion_ar" | "cedear" | "etf" | "cripto"; flag: string }
 export interface Tape { at: string; tracked: number; gainers: PriceRow[]; losers: PriceRow[] }
 export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; acciones: Candidate[]; cedears: Candidate[] }
-export interface Novedades { date: string | null; previousDate: string | null; verdictChanges: Array<{ symbol: string; from: string; to: string; reason: string }>; alerts: Array<{ symbol: string; verb: string; reason: string }>; enteredBuy: Array<{ symbol: string; kind: string; score: number | null }>; leftBuy: Array<{ symbol: string; kind: string; now: string }>; watchResolved: Array<{ symbol: string; status: string; returnPct: number | null }>; proposedTheses: Array<{ id: string; ticker: string; eventType: string; direction: string; edge: number; summary: string }>; news: NewsItem[]; empty: boolean }
+export interface Novedades { date: string | null; previousDate: string | null; verdictChanges: Array<{ symbol: string; from: string; to: string; reason: string }>; alerts: Array<{ symbol: string; verb: string; reason: string }>; enteredBuy: Array<{ symbol: string; kind: string; score: number | null }>; leftBuy: Array<{ symbol: string; kind: string; now: string }>; watchResolved: Array<{ symbol: string; status: string; returnPct: number | null; date?: string }>; proposedTheses: Array<{ id: string; ticker: string; eventType: string; direction: string; edge: number; pMarketFromOptions?: boolean; summary: string }>; news: NewsItem[]; empty: boolean }
 export interface CatchUpResult { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }
 export interface StepStatus { id: string; label: string; schedule: string; lastDate: string | null; ranAt: string | null; detail: string | null; lastError: string | null; lastErrorAt: string | null; expected: string; due: boolean; running: boolean }
 export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; steps: StepStatus[]; lastRunAt: string | null; running: boolean; current: string | null; lastResult: CatchUpResult | null }

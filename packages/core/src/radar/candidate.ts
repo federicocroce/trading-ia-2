@@ -241,8 +241,25 @@ export function decideCandidate(
     flags.push("bajo_stop");
     reasons.push("bajo_stop");
   }
-  const target = belowStop ? null : computeTarget(close, stop);
-  const size = belowStop ? null : positionSize({ entryHigh, stop, portfolioUsd: i.portfolioUsd }, p.sizing);
+  /*
+   * El objetivo y el tamaño se calculan sobre el precio que se va a PAGAR, no sobre el cierre de hoy.
+   * Mientras el objetivo salía del cierre y la entrada de otro lado, una misma fila mezclaba dos precios:
+   * CLS decía "esperar a 311,90" y al lado "stop −10,6% / objetivo +21,2% (2 a 1)", porcentajes medidos
+   * desde 346,55. Desde el precio real de entrada la relación era 52 a 1, y en ALL, MNPR, CARE y GOOGL el
+   * objetivo quedaba POR DEBAJO del precio de entrada: la operación nacía perdida.
+   *
+   * Y si el stop no queda por debajo de toda la franja de compra, el boleto no se puede ejecutar: comprando
+   * en el piso ya estarías debajo del stop (PAM, FRO, TRMD, META, BE el 12/9). En ese caso no hay objetivo
+   * ni tamaño, y queda dicho por qué.
+   */
+  const stopSirve = stop !== null && stop < entryLow;
+  if (!belowStop && stop !== null && !stopSirve) {
+    flags.push("stop_dentro_de_la_entrada");
+    reasons.push("stop_dentro_de_la_entrada");
+  }
+  const ejecutable = !belowStop && stopSirve;
+  const target = ejecutable ? computeTarget(entryHigh, stop) : null;
+  const size = ejecutable ? positionSize({ entryHigh, stop, portfolioUsd: i.portfolioUsd }, p.sizing) : null;
   const risk = riskScore({ beta: i.f.metrics["beta"] ?? null, atrPct: gate.atrPct, debtToEquity: i.f.metrics["totalDebt/totalEquityAnnual"] ?? null, dollarVolumeUsd: i.f.dollarVolumeUsd, mcapUsd: i.f.mcapUsd });
   return { verdict: reasons.length ? "OBSERVAR" : "COMPRAR", flags, close, entry, entryLow, entryHigh, stop, target, size: size ? { qty: size.qty, sizeUsd: size.sizeUsd } : null, riskScore: risk, reasons, gate };
 }

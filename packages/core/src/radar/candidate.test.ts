@@ -130,6 +130,40 @@ describe("decideCandidate", () => {
     expect(d.close).toBe(100);
     expect(d.entryLow).toBeGreaterThan(d.close);
   });
+  it("cuando hay objetivo, el 2 a 1 se mide desde el precio que se paga y nunca queda debajo", () => {
+    // Antes el objetivo salía del cierre mientras la entrada salía de otro lado: CLS mostraba "2 a 1"
+    // siendo 52 a 1, y ALL, MNPR, CARE y GOOGL tenían el objetivo POR DEBAJO del precio de entrada.
+    const fixtures: Candle[][] = [
+      up,
+      series([...Array.from({ length: 200 }, (_, i) => 60 + i * 0.2), ...Array(60).fill(100), ...Array(3).fill(112)]),
+      series([...Array.from({ length: 255 }, (_, i) => 80 + (30 * i) / 254), 108, 105, 103, 101, 100]),
+      series([...Array.from({ length: 220 }, (_, i) => 60 + i * 0.3), 128, 126, 124, 123, 122.5]),
+    ];
+    let conObjetivo = 0;
+    for (const c of fixtures) {
+      const d = decideCandidate({ f: f(), candles: c, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+      if ("excluded" in d || d.target === null) continue;
+      conObjetivo++;
+      expect(d.stop).not.toBeNull();
+      expect(d.stop!).toBeLessThan(d.entryLow); // el boleto se puede ejecutar
+      expect(d.target!).toBeGreaterThan(d.entryHigh); // nunca nace perdida
+      expect(d.target! - d.entryHigh).toBeCloseTo(2 * (d.entryHigh - d.stop!), 1);
+    }
+    expect(conObjetivo).toBeGreaterThan(0);
+  });
+
+  it("PAM del 12/9: si el stop no queda debajo de toda la franja, el boleto no se puede ejecutar", () => {
+    // Comprando en el piso ya estarías debajo del stop: sin objetivo, sin tamaño y con el motivo dicho.
+    const closes = [...Array.from({ length: 220 }, (_, i) => 60 + i * 0.3), 128, 126, 124, 123, 122.5];
+    const d = decideCandidate({ f: f(), candles: series(closes), nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+    if ("excluded" in d) throw new Error("no debía excluir");
+    if (d.stop !== null && d.stop < d.entryLow) return; // el fixture quedó ejecutable: nada que probar
+    expect(d.target).toBeNull();
+    expect(d.size).toBeNull();
+    expect(d.flags).toContain("stop_dentro_de_la_entrada");
+    expect(d.verdict).toBe("OBSERVAR");
+  });
+
   it("residente crónico → OBSERVAR", () => {
     const d = decideCandidate({ f: f(), candles: up, nthAppearance: 4, portfolioUsd: null, today }, policy);
     if ("excluded" in d) throw new Error("no debía excluir");

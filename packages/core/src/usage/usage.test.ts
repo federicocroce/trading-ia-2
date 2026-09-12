@@ -106,6 +106,18 @@ describe("RateLimiter", () => {
 
 describe("summarizeUsage", () => {
   const call = (o: Partial<UsageCall>): UsageCall => ({ id: "x", at: "2026-09-10T12:00:00.000Z", source: "finnhub", step: "radar", purpose: null, symbol: null, endpoint: "e", model: null, keyIndex: null, status: 200, result: "ok", tokensIn: null, tokensOut: null, tokensThink: null, ms: 10, ...o });
+  it("Gemini: el pico por minuto se cuenta por modelo y clave, no sumando las cuatro claves", () => {
+    // El 11/9 la pantalla mostraba "12 llamadas en un minuto, 120% del límite" en rojo. El freno real es por
+    // modelo y clave (KeyedRateLimiter usa `modelo#clave`), y el máximo real de ese minuto era 6.
+    const mismoMinuto = (model: string, keyIndex: number, n: number) =>
+      Array.from({ length: n }, (_, i) => call({ source: "gemini", model, keyIndex, at: `2026-09-10T12:00:${String(i).padStart(2, "0")}.000Z` }));
+    const calls = [...mismoMinuto("gemini-2.5-flash", 1, 6), ...mismoMinuto("gemini-2.5-flash", 2, 6)];
+    const g = summarizeUsage(calls, { date: "2026-09-10" }).bySource.find((r) => r.source === "gemini")!;
+    expect(g.calls).toBe(12);
+    expect(g.peakPerMinute).toBe(6);
+    expect(g.pctMinute).toBeLessThan(100);
+  });
+
   it("cuenta por fuente con pico por minuto y % contra límites; sin límite da null", () => {
     const calls = [
       ...Array.from({ length: 50 }, (_, i) => call({ at: `2026-09-10T12:00:${String(i).padStart(2, "0")}.000Z` })),

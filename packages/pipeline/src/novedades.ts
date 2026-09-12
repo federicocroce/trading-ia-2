@@ -21,6 +21,17 @@ export interface Novedades {
   empty: boolean;
 }
 
+/** Ventana de "qué cambió": una resolución más vieja que esto ya no es novedad. */
+export const NOVEDAD_DIAS = 2;
+
+/** Corta sin partir un número al medio: "incremento del 11" mostraba otra cifra que la real (11,36%). */
+function recortar(texto: string, max: number): string {
+  if (texto.length <= max) return texto;
+  const corte = texto.slice(0, max);
+  const limpio = corte.replace(/[\s.,]*[\d.,]*$/, "");
+  return `${(limpio.length > max * 0.6 ? limpio : corte).trimEnd()}…`;
+}
+
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * 86_400_000).toISOString().slice(0, 10);
 const isUs = (c: CandidateRow) => c.kind === "stock" || c.kind === "etf";
 
@@ -50,11 +61,25 @@ export async function buildNovedades(store: Store & CarteraStore & RadarStore & 
   const enteredBuy = cPrev ? todayC.filter((c) => c.verdict === "COMPRAR" && prevC.get(c.symbol)?.verdict !== "COMPRAR").map((c) => ({ symbol: c.symbol, kind: c.kind, score: c.score })).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity)) : [];
   const leftBuy = cPrev ? [...prevC.values()].filter((p) => p.verdict === "COMPRAR" && todayC.find((c) => c.symbol === p.symbol)?.verdict !== "COMPRAR").map((p) => ({ symbol: p.symbol, kind: p.kind, now: todayC.find((c) => c.symbol === p.symbol)?.verdict ?? "fuera" })) : [];
 
-  // Seguimiento resuelto (pide revisión).
-  const watchResolved = (await store.watchlist()).filter((w) => w.status !== "live").map((w) => ({ symbol: w.symbol, status: w.status, returnPct: w.resolutionReturn ?? w.lastReturn }));
+  // Seguimiento resuelto (pide revisión). Solo lo resuelto en la ventana de esta corrida: sin filtro de
+  // fecha, una resolución de hace tres días seguía apareciendo como novedad para siempre, y en modo
+  // histórico se mostraban resoluciones posteriores a la fecha elegida.
+  const hasta = cut ?? opts.today;
+  const desdeNovedad = addDays(hasta, -NOVEDAD_DIAS);
+  const watchResolved = (await store.watchlist())
+    .filter((w) => w.status !== "live")
+    .filter((w) => {
+      const cuando = (w.resolvedAt ?? w.lastEvaluatedAt ?? "").slice(0, 10);
+      return cuando ? cuando > desdeNovedad && cuando <= hasta : false;
+    })
+    .map((w) => ({ symbol: w.symbol, status: w.status, returnPct: w.resolutionReturn ?? w.lastReturn, date: (w.resolvedAt ?? w.lastEvaluatedAt ?? "").slice(0, 10) }));
 
-  // Tesis propuestas esperando decisión.
-  const proposedTheses = (await store.thesesByStatus("proposed")).map((t) => ({ id: t.id, ticker: t.ticker, eventType: t.eventType, direction: t.direction, edge: t.edge, summary: t.reasoning.slice(0, 160) })).sort((a, b) => b.edge - a.edge);
+  // Tesis propuestas esperando decisión, creadas hasta la fecha de la corrida (en histórico no se adelanta).
+  const proposedTheses = (await store.thesesByStatus("proposed"))
+    // Solo en modo histórico: mirando una corrida vieja no se pueden mostrar tesis creadas después.
+    .filter((t) => !cut || t.createdAt.slice(0, 10) <= cut)
+    .map((t) => ({ id: t.id, ticker: t.ticker, eventType: t.eventType, direction: t.direction, edge: t.edge, pMarketFromOptions: t.pMarketFromOptions ?? false, summary: recortar(t.reasoning, 160) }))
+    .sort((a, b) => b.edge - a.edge);
 
   // Noticias de lo tuyo: posiciones + líneas del plan, de hoy y ayer.
   const mine = new Set<string>([...(await store.positions()).map((p) => p.symbol), ...((await store.latestPlan())?.lines.map((l) => l.symbol) ?? [])]);

@@ -29,7 +29,7 @@ describe("buildNovedades", () => {
     expect(n.alerts.map((a) => `${a.symbol}:${a.verb}`)).toEqual(["YPF:REVISAR"]);
     expect(n.enteredBuy.map((x) => x.symbol)).toEqual(["SEZL"]); // GGAL.BA es de otra familia: no cuenta
     expect(n.leftBuy).toEqual([{ symbol: "ALL", kind: "stock", now: "OBSERVAR" }]);
-    expect(n.watchResolved).toEqual([{ symbol: "MP", status: "invalidated", returnPct: -18.33 }]);
+    expect(n.watchResolved).toEqual([{ symbol: "MP", status: "invalidated", returnPct: -18.33, date: "2026-09-08" }]);
     expect(n.proposedTheses.map((t) => [t.ticker, t.direction, t.edge > 0])).toEqual([["YPF", "long", true]]);
     // Noticias de hoy y ayer solo de lo tuyo: posiciones y líneas del plan.
     expect(n.news.map((x) => `${x.symbol}:${x.headline}`).sort()).toEqual(["NVDA:no es tuya", "YPF:YPF recompra deuda"]);
