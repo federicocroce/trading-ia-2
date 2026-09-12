@@ -1,4 +1,4 @@
-import { atr } from "../cartera/stop.js";
+import { atr, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import { sma } from "./candidate.js";
 
@@ -62,6 +62,10 @@ export function entryTiming(candles: Candle[]): EntryTiming | null {
   const close = candles[candles.length - 1]?.close;
   if (s20 === null || a === null || a <= 0 || close === undefined) return null;
   const s50 = sma(candles, 50);
+  // El stop dinámico manda sobre el momento de entrada. COPX el 12/9 decía en verde "comprar ahora, es la
+  // mejor zona" y diez líneas más abajo, en rojo, "precio por debajo del stop": estar barato contra la
+  // media de 20 no es una oportunidad si el papel ya perforó la línea que anula la tesis.
+  const stopActual = computeTrailingStop(candles);
   const last60 = candles.slice(-60);
   const min60 = Math.min(...last60.map((c) => c.low));
   const max60 = Math.max(...last60.map((c) => c.high));
@@ -70,6 +74,10 @@ export function entryTiming(candles: Candle[]): EntryTiming | null {
   const t = ENTRY_THRESHOLDS;
   const base = { sma20: s20, sma50: s50, atr14: r2(a), extensionAtr, rangePct60, validSessions: t.validSessions };
 
+  if (stopActual !== null && close <= stopActual) {
+    const level = r2(stopActual);
+    return { ...base, state: "esperar_confirmacion", level, levelLabel: "su stop dinámico", low: level, high: r2(level * 1.02), why: `cerró en ${close} y su stop dinámico está en ${level}: la tesis técnica ya se anuló, no se compra hasta que lo recupere` };
+  }
   if (s50 !== null && close < s50) {
     // Se compra la confirmación, no la caída: el disparador es el máximo reciente y recién ahí se paga hasta 2% más.
     const level = r2(Math.max(...candles.slice(-10).map((c) => c.high)));

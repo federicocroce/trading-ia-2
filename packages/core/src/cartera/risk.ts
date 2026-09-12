@@ -66,7 +66,29 @@ export function hhi(shares: Record<string, number>): number {
   return Math.round(Object.values(shares).reduce((s, p) => s + p * p, 0));
 }
 
-const countryOf = (p: Position, prof: SymbolProfile | null) => prof?.country ?? (p.market === "adr" || p.market === "ar" ? "AR" : "US");
+/**
+ * Nombres de país que llegan mezclados de las fuentes: Finnhub manda "AR" para PAM e YPF y "Argentina"
+ * para GGAL, "US" para HUT y "United States" para NEM. Sin normalizar, la exposición argentina quedaba
+ * partida en dos claves de 39% y 25%, y como el aviso de concentración se evalúa por clave, el aviso de
+ * país NUNCA se encendía pese a tener 64% en Argentina.
+ */
+const PAIS_CANONICO: Record<string, string> = {
+  argentina: "AR", ar: "AR", arg: "AR",
+  "united states": "US", "united states of america": "US", usa: "US", us: "US",
+  brazil: "BR", brasil: "BR", br: "BR",
+  taiwan: "TW", tw: "TW",
+  mexico: "MX", méxico: "MX", mx: "MX",
+  canada: "CA", ca: "CA",
+  china: "CN", cn: "CN",
+  "united kingdom": "GB", gb: "GB", uk: "GB",
+};
+export function canonicalCountry(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const k = raw.trim().toLowerCase();
+  return PAIS_CANONICO[k] ?? (k.length <= 3 ? raw.trim().toUpperCase() : raw.trim());
+}
+const countryOf = (p: Position, prof: SymbolProfile | null) =>
+  canonicalCountry(prof?.country) ?? (p.market === "adr" || p.market === "ar" ? "AR" : "US");
 
 export function buildRiskReport(i: RiskInput): RiskReport {
   const notes: string[] = [];

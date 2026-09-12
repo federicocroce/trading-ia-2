@@ -35,7 +35,9 @@ describe("entryTiming", () => {
 
   it("retroceso sobre tendencia: por debajo de su media de 20 pero arriba de la de 50 → es la mejor zona", () => {
     // Tendencia alcista de 60 ruedas (80 → 109,5) y un retroceso de cinco ruedas que no rompe la media de 50.
-    const e = entryTiming(serie([...Array.from({ length: 60 }, (_, i) => 80 + i * 0.5), 108, 106, 104, 103, 102], 2))!;
+    // El retroceso tiene que ser MENOR a 3 ATR desde el máximo, o el papel ya perforó su stop y entonces
+    // no es la mejor zona: es una tesis anulada. Con rango 2 el ATR es ~2, así que la caída queda en 5.
+    const e = entryTiming(serie([...Array.from({ length: 60 }, (_, i) => 80 + i * 0.5), 108.5, 107.5, 106.5, 105.5, 105], 2))!;
     expect(e.sma50).not.toBeNull();
     expect(102).toBeGreaterThan(e.sma50!);
     expect(e.state).toBe("retroceso");
@@ -45,10 +47,12 @@ describe("entryTiming", () => {
   });
 
   it("bajo la media de 50: no se compra a la baja, se espera el máximo de las últimas 10 ruedas", () => {
-    const e = entryTiming(serie([...Array(50).fill(120), ...Array(20).fill(100)], 2))!;
+    // Cae bajo su media de 50 pero SIN perforar el stop: con rango 4 el ATR es ~4 y 3 ATR cubren la caída.
+    const e = entryTiming(serie([...Array.from({ length: 60 }, (_, i) => 100 + i * 0.5), ...Array.from({ length: 20 }, (_, i) => 129 - i * 0.37)], 4))!;
+    expect(e.sma50).not.toBeNull();
+    expect(e.sma50!).toBeGreaterThan(122);
     expect(e.state).toBe("esperar_confirmacion");
     expect(e.levelLabel).toBe("máximo de las últimas 10 ruedas");
-    expect(e.level).toBe(101);
     expect(e.why).toContain("media de 50");
     expect(entryIsNow(e)).toBe(false);
   });
@@ -75,6 +79,17 @@ describe("entryTiming", () => {
       if (e.state === "esperar_confirmacion") expect(e.low, nombre).toBeGreaterThan(close);
       if (entryIsNow(e)) expect(e.low, nombre).toBe(close);
     }
+  });
+
+  it("COPX del 12/9: bajo su stop no dice comprar, aunque esté barato contra su media de 20", () => {
+    // La ficha decía en verde "comprar ahora, es la mejor zona" y en rojo "precio por debajo del stop",
+    // sobre el mismo papel y el mismo precio. El stop manda: la tesis técnica ya se anuló.
+    const cae = serie([...Array.from({ length: 60 }, (_, i) => 80 + i * 0.5), 108, 106, 104, 103, 100], 2);
+    const e = entryTiming(cae)!;
+    expect(e.state).toBe("esperar_confirmacion");
+    expect(e.levelLabel).toBe("su stop dinámico");
+    expect(e.why).toContain("ya se anuló");
+    expect(entryIsNow(e)).toBe(false);
   });
 
   it("META del 2026-09-11: 3,4 ATR arriba de su media de 20 y 74% del rango → esperar", () => {

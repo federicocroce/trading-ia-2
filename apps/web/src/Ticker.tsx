@@ -158,6 +158,18 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           <div style={{ marginTop: 6 }}>Dólar implícito <b className="mono">{f2(t.candidate.axes["impliedCcl"])}</b> · contra el CCL <b className={`mono ${(t.candidate.axes["gapPct"] ?? 0) > 2 ? "bad" : (t.candidate.axes["gapPct"] ?? 0) < -2 ? "ok" : ""}`}>{pct(t.candidate.axes["gapPct"])}</b> · {t.candidate.flags.join(", ")}</div>
         </div>
       )}
+      {/* La verificación web, los estados de la SEC y los eventos vivían DENTRO de la tarjeta del Radar, que
+          solo se dibuja si el símbolo es candidata de hoy. Resultado: en NEM, GGAL, YPF y TSM, donde hay
+          plata puesta, la app tenía la verificación con reservas y seis recortes de precio objetivo, y la
+          ficha no mostraba nada mientras Cartera decía SUMAR. La evidencia que contradice al veredicto es
+          justo la que no puede depender de estar en el ranking del día. */}
+      {(t.verification || t.statements || t.events.length > 0 || t.analystActions.length > 0) && (
+        <div className="card">
+          <b>Verificación y estados</b>
+          {!t.candidate && <span className="muted"> · no es candidata del Radar hoy, pero esto es lo que la app sabe del negocio</span>}
+          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} />
+        </div>
+      )}
       {t.candidate && (t.candidate.kind === "stock" || t.candidate.kind === "etf") && (
         <div className="card">
           <b>Radar</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">score {f2(t.candidate.score)} · rank {t.candidate.rankInGroup}/{t.candidate.groupSize} entre pares · riesgo {t.candidate.riskScore}/10 · {t.candidate.candidateDate}</span>
@@ -168,7 +180,6 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
           <EntryLine e={t.candidate.entry} />
           <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)})</div>
-          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate.close} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} />
           {t.peers.length > 0 && (
             <table style={{ marginTop: 8 }}>
               <thead><tr><th>par</th><th>P/E</th><th>EV/EBITDA</th><th>P/S</th><th>ROE</th><th>margen op.</th><th>crec. ingresos</th><th>deuda/patr.</th></tr></thead>

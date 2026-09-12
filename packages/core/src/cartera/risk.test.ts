@@ -88,3 +88,30 @@ describe("concentración por sector y tema", () => {
     expect(r.concentration.bySector).toEqual({});
   });
 });
+
+/**
+ * Hallazgo de la auditoría del 2026-09-12. Finnhub manda "AR" para PAM e YPF y "Argentina" para GGAL,
+ * "US" para HUT y "United States" para NEM. La exposición argentina quedaba partida en dos claves de 39%
+ * y 25%, y como el aviso de concentración se evalúa por clave, nunca se encendía teniendo 64% en un país.
+ */
+describe("concentración por país con nombres mezclados", () => {
+  it("junta AR con Argentina y enciende el aviso", () => {
+    const pos: Position[] = [
+      { symbol: "GGAL", quantity: 100, avgCost: 10, currency: "USD", market: "adr", layer: "riesgo", notes: null },
+      { symbol: "PAM", quantity: 100, avgCost: 10, currency: "USD", market: "adr", layer: "riesgo", notes: null },
+      { symbol: "HUT", quantity: 10, avgCost: 10, currency: "USD", market: "us", layer: "riesgo", notes: null },
+    ];
+    const velas = (c: number): Candle[] => [{ date: "2026-09-12", open: c, high: c, low: c, close: c, volume: 1 }];
+    const perfil = (symbol: string, country: string) => ({ symbol, name: symbol, country, industry: null, exchange: null, currency: "USD", shareOutstanding: null, marketCap: null });
+    const r = buildRiskReport({
+      positions: pos,
+      candles: { GGAL: velas(10), PAM: velas(10), HUT: velas(10) },
+      spy: velas(100),
+      profiles: { GGAL: perfil("GGAL", "Argentina"), PAM: perfil("PAM", "AR"), HUT: perfil("HUT", "US") },
+      tags: {},
+    });
+    expect(Object.keys(r.concentration.byCountry).sort()).toEqual(["AR", "US"]);
+    expect(r.concentration.byCountry["AR"]).toBeGreaterThan(90);
+    expect(r.concentration.warnings.some((w) => w.includes("AR"))).toBe(true);
+  });
+});
