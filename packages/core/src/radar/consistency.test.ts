@@ -33,12 +33,31 @@ describe("checkConsistency", () => {
   it("APH del 11/9: la fila guardó el piso de la franja en la columna del precio", () => {
     const f = solo("precio_guardado", checkConsistency({
       rows: [fila({ symbol: "APH", close: 84, entryLow: 84, entryHigh: 85.68 })],
-      candles: { APH: [vela("2026-09-10", 80.25)] },
+      candles: { APH: [vela("2026-09-11", 80.25)] },
       plan: null,
     }));
     expect(f).toHaveLength(1);
     expect(f[0]!.severity).toBe("grave");
     expect(f[0]!.detail).toContain("80.25");
+  });
+
+  it("una fila de ayer que sigue vigente se compara contra la vela de ayer, no contra la de hoy", () => {
+    // Las 14 filas de seguimiento del 11/9 salían como error grave solo por ser del día anterior.
+    const f = solo("precio_guardado", checkConsistency({
+      rows: [fila({ symbol: "GOOGL", candidateDate: "2026-09-10", close: 332.6 })],
+      candles: { GOOGL: [vela("2026-09-10", 332.6), vela("2026-09-11", 338.5)] },
+      plan: null,
+    }));
+    expect(f).toEqual([]);
+  });
+
+  it("JANX: una empresa con pérdida no dispara ganancia no operativa", () => {
+    // Margen neto -294% contra operativo -421%: menos negativo por intereses de la caja, no ganancia de afuera.
+    const f = solo("ganancia_no_operativa", checkConsistency({
+      rows: [fila({ symbol: "JANX" })], candles: {}, plan: null,
+      metrics: { JANX: { operatingMarginTTM: -421.47, netProfitMarginTTM: -294.36 } },
+    }));
+    expect(f).toEqual([]);
   });
 
   it("META del 11/9: la verificación dice con reservas y las banderas no la muestran", () => {

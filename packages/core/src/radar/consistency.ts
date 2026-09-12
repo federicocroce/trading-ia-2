@@ -75,12 +75,13 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
   const add = (check: string, symbol: string | null, severity: FindingSeverity, detail: string) => out.push({ check, symbol, severity, detail });
 
   for (const row of i.rows) {
+    // 1. El precio guardado tiene que ser el cierre DE SU PROPIA FECHA. Comparar contra la última vela
+    //    marcaba como error toda fila de un día anterior que sigue vigente, que es lo normal en la lista
+    //    de seguimiento cuando el ranking no la reescribe.
     const velas = i.candles[row.symbol];
-    const ultima = velas && velas.length ? velas[velas.length - 1]! : null;
-
-    // 1. El precio guardado tiene que ser el cierre. Si no, todo lo que se calcula con él miente.
-    if (ultima && Math.abs(row.close - ultima.close) > CONSISTENCY_THRESHOLDS.priceEpsilon) {
-      add("precio_guardado", row.symbol, "grave", `la fila dice ${r2(row.close)} y la última vela (${ultima.date}) cerró en ${r2(ultima.close)}`);
+    const suya = velas?.filter((c) => c.date <= row.candidateDate).at(-1) ?? null;
+    if (suya && Math.abs(row.close - suya.close) > CONSISTENCY_THRESHOLDS.priceEpsilon) {
+      add("precio_guardado", row.symbol, "grave", `la fila del ${row.candidateDate} dice ${r2(row.close)} y la vela de ${suya.date} cerró en ${r2(suya.close)}`);
     }
 
     // 2. La verificación web y las banderas tienen que contar la misma historia. Si el dictamen está guardado
@@ -124,7 +125,9 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       const neta = m["netProfitMarginTTM"];
       // Ganancia que no viene de la operación: GOOGL 54,8% neto contra 33,1% operativo por 99.000 M de
       // revalorización no realizada de SpaceX. El múltiplo calculado sobre eso no mide el negocio.
-      if (op !== null && op !== undefined && neta !== null && neta !== undefined && neta > op + FUNDAMENTAL_THRESHOLDS.marginGapPct) {
+      // Solo tiene sentido con ganancia: en una empresa con pérdida, un neto menos negativo que el
+      //    operativo es lo normal (intereses ganados sobre la caja) y no es una ganancia de afuera.
+      if (op !== null && op !== undefined && neta !== null && neta !== undefined && neta > 0 && neta > op + FUNDAMENTAL_THRESHOLDS.marginGapPct) {
         add("ganancia_no_operativa", row.symbol, "aviso", `margen neto ${r2(neta)}% arriba del operativo ${r2(op)}%: la ganancia no viene de la operación, el P/E sobre eso no mide el negocio`);
       }
       // Patrimonio borrado por recompras o por pérdidas: ROE y deuda/patrimonio dejan de significar algo.
