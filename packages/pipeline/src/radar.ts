@@ -4,6 +4,7 @@ import {
   AXIS_METRICS,
   alphaPct,
   applyCoreMetrics,
+  sanitizeMetrics,
   assetClassFor,
   decideCandidate,
   decideEtf,
@@ -330,7 +331,13 @@ export async function withStatements(deps: RadarDeps, all: Map<string, Fundament
       const core = st?.core ?? null;
       cores.set(sym, core);
       const f = all.get(sym)!;
-      const updated = applyCoreMetrics(f, core, f.priceUsd);
+      const conCore = applyCoreMetrics(f, core, f.priceUsd);
+      // Saneo antes de puntuar: se anulan los números que harían parecer mejor a la empresa sin medir el
+      // negocio (ROE con patrimonio borrado, margen neto inflado por ganancia no operativa). Nunca se
+      // anula un castigo. `metricsRaw` conserva lo que vino de la fuente.
+      const limpio = sanitizeMetrics(conCore.metrics);
+      if (limpio.removed.length) deps.log?.(`[radar] ${sym}: ${limpio.removed.length} métrica(s) fuera del puntaje`, { removed: limpio.removed });
+      const updated = { ...conCore, metrics: limpio.metrics };
       all.set(sym, updated);
       await store.saveFundamentals(updated);
     }));

@@ -17,3 +17,4 @@ export * from "./entry.js";
 export * from "./consistency.js";
 export * from "./chronic.js";
 export * from "./indicators.js";
+export * from "./sanitize.js";
