@@ -13,6 +13,7 @@ function WebVerification({ v, close }: { v: CandidateVerification | null | undef
   if (!v) return <div className="muted">sin verificación web: se verifica solo lo que queda COMPRAR por reglas, una vez por semana</div>;
   const cls = v.verdict === "apto" ? "verb COMPRAR" : v.verdict === "con_reservas" ? "verb OBSERVAR" : "bad";
   const lq = v.lastQuarter;
+
   return (
     <>
       <div><span className={cls}>{VERDICT_LABEL[v.verdict]}</span> <span className="muted mono">{v.date}</span> · {v.reason}</div>
@@ -32,10 +33,20 @@ function WebVerification({ v, close }: { v: CandidateVerification | null | undef
   );
 }
 
+/**
+ * Banda de escala del consenso, la misma que usa el núcleo en CONSENSUS_SCALE. Un objetivo fuera de esto no
+ * es una opinión audaz: es un precio de otra serie. APH tenía nueve objetivos de julio entre 175 y 215 con la
+ * acción en 84 tras un split 2:1, y la ficha los mostraba como potenciales de +109% a +156%. El único de
+ * septiembre, de 90, es el que estaba en escala.
+ */
+const enEscala = (objetivo: number, precio: number) => precio > 0 && objetivo <= precio * 2 && objetivo >= precio * 0.5;
+
 export function VerificationSections({ statements, events, analystActions, analystTargets, close, metricsRaw, verification }: { statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[]; analystTargets?: AnalystTargets | null; close: number | null; metricsRaw?: Record<string, number | null> | null; verification?: CandidateVerification | null }) {
   const core = statements?.core ?? null;
   const last4 = statements?.quarters.slice(-4) ?? [];
   const corePe = core?.coreEpsTTM && core.coreEpsTTM > 0 && close ? (close / core.coreEpsTTM).toFixed(1) : "—";
+  // Cuántos objetivos de analistas están en otra escala que el precio: el aviso de abajo lo explica.
+  const fueraDeEscala = close ? analystActions.filter((a) => a.target !== null && !enEscala(a.target, close)).length : 0;
   return (
     <>
       <div style={{ marginTop: 10 }}>
@@ -83,11 +94,25 @@ export function VerificationSections({ statements, events, analystActions, analy
         <b>Analistas (90 días)</b>
         {analystTargets && analystTargets.n > 0 && (
           <div className="muted mono">
-            objetivo mediano {analystTargets.median ?? "—"}{analystTargets.median !== null && close ? ` (${signedPct(((analystTargets.median - close) / close) * 100)} vs precio)` : ""} · {analystTargets.n} acciones en 90 días · última {analystTargets.latestDate ?? "—"}
+            objetivo mediano {analystTargets.median ?? "—"}
+            {analystTargets.median !== null && close ? (enEscala(analystTargets.median, close)
+              ? ` (${signedPct(((analystTargets.median - close) / close) * 100)} vs precio)`
+              : ` (${(analystTargets.median / close).toFixed(1)}× el precio)`) : ""} · {analystTargets.n} acciones en 90 días · última {analystTargets.latestDate ?? "—"}
+          </div>
+        )}
+        {fueraDeEscala > 0 && (
+          <div className="warn" style={{ fontSize: 12 }}>
+            {fueraDeEscala} de {analystActions.length} objetivos están en otra escala que el precio, casi siempre porque la
+            fuente no ajustó un split. No se les calcula potencial y el sistema no los usa para decidir: mirá la fecha de cada uno
+            y comparalo con el más reciente, que sí está en escala.
           </div>
         )}
         {analystActions.length === 0 ? <div className="muted">sin acciones reconocidas en titulares</div> : analystActions.map((a) => (
-          <div key={a.url} className="mono"><span>{a.date}</span> · {a.firm} · {a.action}{a.rating ? ` ${a.rating}` : ""}{a.target !== null ? ` · objetivo ${a.target}` : ""}{a.target !== null && close ? <span className={a.target > close ? "ok" : "bad"}> ({(((a.target - close) / close) * 100).toFixed(0)}%)</span> : null}</div>
+          <div key={a.url} className="mono"><span>{a.date}</span> · {a.firm} · {a.action}{a.rating ? ` ${a.rating}` : ""}{a.target !== null ? ` · objetivo ${a.target}` : ""}
+            {a.target !== null && close ? (enEscala(a.target, close)
+              ? <span className={a.target > close ? "ok" : "bad"}> ({(((a.target - close) / close) * 100).toFixed(0)}%)</span>
+              : <span className="warn" title={`Objetivo ${(a.target / close).toFixed(1)} veces el precio de hoy. Eso no es una opinión audaz: es un precio de otra serie, casi siempre de antes de un split que la fuente no ajustó.`}> fuera de escala</span>) : null}
+          </div>
         ))}
       </div>
     </>
