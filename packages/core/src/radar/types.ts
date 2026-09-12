@@ -281,6 +281,16 @@ export interface ChartBar {
   low: number;
   close: number;
   volume: number;
+  /**
+   * Indicadores calculados en el servidor con las mismas funciones que deciden el veredicto, para que el
+   * gráfico no dibuje una media distinta de la que excluye o habilita a la candidata. Solo en diario;
+   * `undefined` cuando no hay historia suficiente para esa ventana.
+   */
+  sma20?: number | null;
+  sma50?: number | null;
+  sma200?: number | null;
+  /** Stop dinámico (chandelier 22 ruedas, 3 ATR): la línea que, si la rompe, anula la tesis. */
+  stop?: number | null;
 }
 export interface LiveQuote {
   symbol: string;
