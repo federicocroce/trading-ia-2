@@ -285,6 +285,10 @@ function Calibration() {
   if (err) return <div className="err">{err}</div>;
   if (!r) return <div className="card muted">Cargando…</div>;
   const f = (x: number, d = 3) => (Number.isFinite(x) ? x.toFixed(d) : "—");
+  // Sin tesis cerradas no hay tasa de acierto, ni PnL, ni drawdown: hay cero datos. Mostrar "0%" se lee como
+  // "el sistema erró todo" y "drawdown 0%" como "nunca perdió". Un número sin muestras no es un resultado.
+  const sinDatos = r.closed === 0;
+  const conMuestras = (nodo: React.ReactNode) => (sinDatos ? <b className="muted">sin datos</b> : nodo);
   const crit: Array<[string, string]> = [
     ["enoughSamples", "≥ 30 tesis cerradas"],
     ["calibratesBetterThanMarket", "Brier sistema < Brier mercado"],
@@ -304,12 +308,12 @@ function Calibration() {
       )}
       <div className="card kpis">
         <div className="kpi"><b>{r.closed}</b><span>tesis cerradas</span></div>
-        <div className="kpi"><b>{(r.hitRate * 100).toFixed(0)}%</b><span>tasa de acierto</span></div>
+        <div className="kpi">{conMuestras(<b>{(r.hitRate * 100).toFixed(0)}%</b>)}<span>tasa de acierto</span></div>
         <div className="kpi"><b>{f(r.brierSystem)}</b><span>Brier sistema (menor = mejor)</span></div>
         <div className="kpi"><b>{f(r.brierMarket)}</b><span>Brier mercado</span></div>
-        <div className="kpi"><b className={r.avgPnlPct >= 0 ? "ok" : "bad"}>{f(r.avgPnlPct, 2)}%</b><span>PnL medio por tesis</span></div>
-        <div className="kpi"><b className={r.totalPnlUsd >= 0 ? "ok" : "bad"}>${r.totalPnlUsd.toFixed(0)}</b><span>PnL total</span></div>
-        <div className="kpi"><b>{f(r.maxDrawdownPct, 1)}%</b><span>drawdown máx</span></div>
+        <div className="kpi">{conMuestras(<b className={r.avgPnlPct >= 0 ? "ok" : "bad"}>{f(r.avgPnlPct, 2)}%</b>)}<span>PnL medio por tesis</span></div>
+        <div className="kpi">{conMuestras(<b className={r.totalPnlUsd >= 0 ? "ok" : "bad"}>${r.totalPnlUsd.toFixed(0)}</b>)}<span>PnL total</span></div>
+        <div className="kpi">{conMuestras(<b>{f(r.maxDrawdownPct, 1)}%</b>)}<span>drawdown máx</span></div>
         <div className="kpi"><b>{r.humanRejected}</b><span>rechazadas por vos</span></div>
       </div>
       <div className="card">

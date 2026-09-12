@@ -74,7 +74,9 @@ export function calibrationReport(
   const enoughSamples = n >= criteria.minClosed;
   const calibratesBetterThanMarket = n > 0 && brierSystem < brierMarket;
   const positiveExpectancy = n > 0 && avgPnlPct > 0;
-  const drawdownOk = maxDd < criteria.maxDrawdownPct;
+  // Sin tesis cerradas el drawdown es 0 por falta de datos, no por buen desempeño. Antes este criterio no
+  // exigía muestras (los otros dos sí) y la pantalla certificaba "cumple" con cero evidencia.
+  const drawdownOk = n > 0 && maxDd < criteria.maxDrawdownPct;
   return {
     closed: n,
     brierSystem,
