@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { CloseReason } from "@thesis/core";
+import { todayLocal, CloseReason } from "@thesis/core";
 import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders, buildNovedades, withUsageStep, STEPS, type StepId } from "@thesis/pipeline";
 import { dailyUsage, summarizeUsage } from "@thesis/core";
 import { z } from "zod";
@@ -65,7 +65,7 @@ export function buildApp(c: Container) {
   /** Ponerse al día: qué pasos quedaron sin correr y correrlos (solo esos). */
   app.get("/catchup", async (ctx) => ctx.json(await catchUpStatus(c)));
   /** Novedades del día: qué cambió contra la corrida anterior (lo que se lee a la mañana). */
-  app.get("/novedades", async (ctx) => ctx.json(await buildNovedades(c.store, { today: ctx.req.query("today") ?? new Date().toISOString().slice(0, 10), at: ctx.req.query("date") ?? null })));
+  app.get("/novedades", async (ctx) => ctx.json(await buildNovedades(c.store, { today: ctx.req.query("today") ?? todayLocal(), at: ctx.req.query("date") ?? null })));
   /** Fechas con corrida guardada, para el selector de histórico. */
   app.get("/runs/dates", async (ctx) => ctx.json(await c.store.runDates(90)));
   app.post("/catchup", async (ctx) => ctx.json(await runCatchUp(c)));
@@ -118,7 +118,7 @@ export function buildApp(c: Container) {
 
   // ---- pipeline ----
   app.post("/run", async (ctx) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocal();
     const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
     const summary = await dailyRun(c.runDeps, { since, today });
     state.lastRun = { at: new Date().toISOString(), summary: { ...summary, proposed: summary.proposed.length, rejected: summary.rejected.length } };

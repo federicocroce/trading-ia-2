@@ -1,3 +1,4 @@
+import { todayLocal } from "@thesis/core";
 import { buildContributionPlan, checkRun, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse, withUsageStep } from "@thesis/pipeline";
 import { loadConfig } from "./config.js";
 import { buildContainer } from "./container.js";
@@ -6,7 +7,7 @@ import { buildContainer } from "./container.js";
 const cmd = process.argv[2];
 const cfg = await loadConfig();
 const c = buildContainer(cfg);
-const today = new Date().toISOString().slice(0, 10);
+const today = todayLocal();
 const portfolioUsd = (await c.store.latestRisk())?.report.totalValue ?? null;
 let stop = false;
 process.on("SIGINT", () => { stop = true; console.log("\n[radar] deteniendo al terminar el símbolo actual…"); });

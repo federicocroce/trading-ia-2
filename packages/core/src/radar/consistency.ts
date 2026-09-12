@@ -33,11 +33,29 @@ export interface ConsistencyInput {
   /** Velas por símbolo, la fuente contra la que se contrasta lo guardado. Sin velas, el chequeo de precio se saltea. */
   candles: Record<string, Candle[]>;
   plan: ContributionPlan | null;
+  /** Métricas de Finnhub por símbolo. Sin esto, los chequeos de fundamentales se saltean. */
+  metrics?: Record<string, Record<string, number | null | undefined>>;
+  /** Fecha de la corrida. Una fila fechada más adelante que hoy es una corrida con el reloj mal. */
+  today?: string;
 }
 
 export const CONSISTENCY_THRESHOLDS = {
   /** Diferencia tolerada entre el precio guardado y el cierre de la última vela, en dólares. */
   priceEpsilon: 0.01,
+};
+
+/**
+ * Umbrales de fundamentales que se contradicen solos. Salieron de contrastar la corrida del 11/9 contra
+ * balances y comunicados: GOOGL con 99.000 M de revalorización no realizada, DVA con patrimonio de −765 M
+ * declarando deuda/patrimonio 78 y ROE 181%, STNG con 260 M de venta de buques dentro del margen operativo.
+ */
+export const FUNDAMENTAL_THRESHOLDS = {
+  /** Cuánto puede superar el margen neto al operativo antes de que sea evidente que la ganancia es de afuera. */
+  marginGapPct: 5,
+  /** Deuda/patrimonio por encima de esto no mide apalancamiento: mide un patrimonio que ya no existe. */
+  debtToEquityAbsurd: 20,
+  /** ROE por encima de esto mide el denominador, no el negocio. */
+  roeAbsurdPct: 100,
 };
 // La banda de escala del consenso vive en candidate.ts (CONSENSUS_SCALE): una sola fuente para la regla
 // que niega el potencial y para el chequeo que lo reporta, así no pueden discrepar.
@@ -93,7 +111,35 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       }
     }
 
-    // 5. Un COMPRAR sin momento de entrada no puede decir cuándo comprar. El núcleo no cuenta: va por calendario.
+    // 5. Fila fechada en el futuro: la corrida tomó la fecha en UTC y en Argentina eso pasa todas las noches
+    //    a partir de las 21:00. El 11/9 una corrida de las 22:17 escribió 130 filas con fecha del 12.
+    if (i.today && row.candidateDate > i.today) {
+      add("fila_en_el_futuro", row.symbol, "grave", `la fila está fechada ${row.candidateDate} y hoy es ${i.today}: la corrida tomó la fecha en UTC`);
+    }
+
+    // 6. Fundamentales que se contradicen solos. No juzgan a la empresa: dicen que el número no se puede usar.
+    const m = i.metrics?.[row.symbol];
+    if (m) {
+      const op = m["operatingMarginTTM"];
+      const neta = m["netProfitMarginTTM"];
+      // Ganancia que no viene de la operación: GOOGL 54,8% neto contra 33,1% operativo por 99.000 M de
+      // revalorización no realizada de SpaceX. El múltiplo calculado sobre eso no mide el negocio.
+      if (op !== null && op !== undefined && neta !== null && neta !== undefined && neta > op + FUNDAMENTAL_THRESHOLDS.marginGapPct) {
+        add("ganancia_no_operativa", row.symbol, "aviso", `margen neto ${r2(neta)}% arriba del operativo ${r2(op)}%: la ganancia no viene de la operación, el P/E sobre eso no mide el negocio`);
+      }
+      // Patrimonio borrado por recompras o por pérdidas: ROE y deuda/patrimonio dejan de significar algo.
+      // DVA declaraba deuda/patrimonio 78 y ROE 181% con patrimonio de −765 M.
+      const de = m["totalDebt/totalEquityAnnual"];
+      if (de !== null && de !== undefined && Math.abs(de) > FUNDAMENTAL_THRESHOLDS.debtToEquityAbsurd) {
+        add("patrimonio_sin_sentido", row.symbol, "aviso", `deuda/patrimonio ${r2(de)}: el patrimonio quedó cerca de cero o negativo, así que ese ratio y el ROE son artefactos`);
+      }
+      const roe = m["roeTTM"];
+      if (roe !== null && roe !== undefined && roe > FUNDAMENTAL_THRESHOLDS.roeAbsurdPct) {
+        add("roe_sin_sentido", row.symbol, "aviso", `ROE ${r2(roe)}%: a ese nivel mide un patrimonio casi borrado, no rentabilidad, y el eje de calidad lo premia igual`);
+      }
+    }
+
+    // 7. Un COMPRAR sin momento de entrada no puede decir cuándo comprar. El núcleo no cuenta: va por calendario.
     if (row.verdict === "COMPRAR" && (row.kind === "stock" || row.kind === "etf" || row.kind === "watch") && !row.entry) {
       add("compra_sin_momento", row.symbol, "aviso", "queda COMPRAR pero no tiene momento de entrada: la app no puede decir cuándo entrar");
     }

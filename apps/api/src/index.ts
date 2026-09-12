@@ -1,3 +1,4 @@
+import { todayLocal } from "@thesis/core";
 import { serve } from "@hono/node-server";
 import cron from "node-cron";
 import { buildContributionPlan, dailyRun, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, syncOrders, withUsageStep } from "@thesis/pipeline";
@@ -16,7 +17,7 @@ const app = buildApp(c);
 
 // Corrida diaria (lun-vie) + sync de órdenes cada 15 min en horario de mercado.
 cron.schedule(cfg.dailyCron, () => withUsageStep({ step: "tesis" }, async () => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   const since = new Date(Date.now() - 3 * 86_400_000).toISOString();
   try {
     const summary = await dailyRun(c.runDeps, { since, today });
@@ -30,7 +31,7 @@ cron.schedule("*/15 9-17 * * 1-5", () => withUsageStep({ step: "ordenes" }, () =
 
 // Veredicto diario de la cartera real + medición de los veredictos viejos contra SPY.
 cron.schedule(cfg.carteraCron, () => withUsageStep({ step: "cartera" }, async () => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   try {
     const s = await runCartera(c.carteraDeps, { today });
     const m = await measureVerdicts(c.carteraDeps, { today });
@@ -41,7 +42,7 @@ cron.schedule(cfg.carteraCron, () => withUsageStep({ step: "cartera" }, async ()
 }));
 
 // Radar: barrido + ranking semanal, refresco + medición diarios, plan mensual.
-const isoToday = () => new Date().toISOString().slice(0, 10);
+const isoToday = () => todayLocal();
 cron.schedule(cfg.radarScanCron, () => withUsageStep({ step: "scan" }, async () => {
   if (state.scan.running) return;
   state.scan = { running: true, stopRequested: false, startedAt: new Date().toISOString(), progress: null, last: null };

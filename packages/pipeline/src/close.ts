@@ -1,3 +1,4 @@
+import { todayLocal } from "@thesis/core";
 import type { Broker, CloseReason, MarketData, Outcome, Thesis } from "@thesis/core";
 import type { Store } from "./store.js";
 
@@ -57,7 +58,7 @@ async function exitPriceFor(t: Thesis, symbol: string, md: MarketData): Promise<
     if (!q) throw new Error(`sin quote para ${t.ticker}`);
     return Number((q.price * 0.995).toFixed(2)); // límite levemente bajo el spot para asegurar fill en paper
   }
-  const after = new Date().toISOString().slice(0, 10);
+  const after = todayLocal();
   const c = await md.findOption(t.ticker, t.instrument, after, t.target);
   if (!c || c.symbol !== symbol) {
     // fallback: usar bid del contrato que tenemos si findOption devolvió otro

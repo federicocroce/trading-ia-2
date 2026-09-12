@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { summarizeMeasurement } from "@thesis/core";
+import { todayLocal, summarizeMeasurement } from "@thesis/core";
 import { carteraCurve, liveQuotes, measureVerdicts, runCartera, type CurveResponse } from "@thesis/pipeline";
 import { randomUUID } from "node:crypto";
 import type { Container } from "../container.js";
@@ -68,7 +68,7 @@ export function carteraRoutes(c: Container) {
   });
 
   app.post("/cartera/run", async (ctx) => {
-    const today = ctx.req.query("today") ?? new Date().toISOString().slice(0, 10);
+    const today = ctx.req.query("today") ?? todayLocal();
     const s = await runCartera(c.carteraDeps, { today });
     const measured = await measureVerdicts(c.carteraDeps, { today });
     bustCurve();

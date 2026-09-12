@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { AXES, AXIS_METRICS, assessRegime, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
+import { todayLocal, AXES, AXIS_METRICS, assessRegime, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
 import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
@@ -9,7 +9,7 @@ export function radarRoutes(c: Container) {
   const app = new Hono();
   const deps = c.radarDeps;
   const store = deps.store;
-  const today = (ctx: { req: { query: (k: string) => string | undefined } }) => ctx.req.query("today") ?? new Date().toISOString().slice(0, 10);
+  const today = (ctx: { req: { query: (k: string) => string | undefined } }) => ctx.req.query("today") ?? todayLocal();
   const portfolioUsd = async () => (await store.latestRisk())?.report.totalValue ?? null;
   /** Candidatos vigentes, o los de una corrida anterior con ?date=. */
   const candidatesAt = async (ctx: { req: { query: (k: string) => string | undefined } }) => { const d = ctx.req.query("date"); return d ? store.candidatesForDate(d) : store.latestCandidates(); };

@@ -1,3 +1,4 @@
+import { todayLocal } from "@thesis/core";
 import { Hono } from "hono";
 import type { ChartBar } from "@thesis/core";
 import { buildTicker, withTimeout } from "@thesis/pipeline";
@@ -19,7 +20,7 @@ const CHART_TIMEOUT_MS = 8_000;
 export function tickerRoutes(c: Container) {
   const app = new Hono();
   const deps = c.tickerDeps;
-  const today = (q: string | undefined) => q ?? new Date().toISOString().slice(0, 10);
+  const today = (q: string | undefined) => q ?? todayLocal();
 
   app.get("/ticker/:symbol", async (ctx) => {
     const symbol = ctx.req.param("symbol").toUpperCase();

@@ -1,3 +1,4 @@
+import { todayLocal } from "@thesis/core";
 import type { Broker, MarketData, Order, PortfolioSnapshot, RiskDecision, RiskEngine, Thesis } from "@thesis/core";
 import type { Store } from "./store.js";
 
@@ -26,7 +27,7 @@ export async function approveAndExecute(thesisId: string, deps: ExecDeps): Promi
   if (thesis.instrument === "stock") {
     price = (await deps.marketData.getQuote(thesis.ticker))?.price ?? null;
   } else {
-    const after = thesis.eventDate ?? new Date().toISOString().slice(0, 10);
+    const after = thesis.eventDate ?? todayLocal();
     const c = await deps.marketData.findOption(thesis.ticker, thesis.instrument, after, thesis.target);
     if (c) {
       price = c.ask;

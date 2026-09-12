@@ -125,6 +125,53 @@ describe("checkConsistency", () => {
     expect(f[0]!.severity).toBe("aviso");
   });
 
+  it("corrida del 11/9 a las 22:17: filas fechadas mañana porque la fecha se tomaba en UTC", () => {
+    const f = solo("fila_en_el_futuro", checkConsistency({
+      rows: [fila({ symbol: "NVDA", candidateDate: "2026-09-12" })],
+      candles: {}, plan: null, today: "2026-09-11",
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("UTC");
+  });
+
+  it("GOOGL: margen neto muy arriba del operativo es ganancia que no viene de la operación", () => {
+    // 99.000 M de revalorización no realizada de SpaceX en el Q2 2026 llevaron el margen neto a 54,8%.
+    const f = solo("ganancia_no_operativa", checkConsistency({
+      rows: [fila({ symbol: "GOOGL" })], candles: {}, plan: null,
+      metrics: { GOOGL: { operatingMarginTTM: 33.11, netProfitMarginTTM: 54.75 } },
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.detail).toContain("no viene de la operación");
+  });
+
+  it("un margen neto apenas menor que el operativo es normal y no se reporta", () => {
+    const f = solo("ganancia_no_operativa", checkConsistency({
+      rows: [fila({ symbol: "NVDA" })], candles: {}, plan: null,
+      metrics: { NVDA: { operatingMarginTTM: 65.2, netProfitMarginTTM: 63.7 } },
+    }));
+    expect(f).toEqual([]);
+  });
+
+  it("DVA: deuda/patrimonio 78 y ROE 181% con el patrimonio borrado por recompras", () => {
+    const r = checkConsistency({
+      rows: [fila({ symbol: "DVA" })], candles: {}, plan: null,
+      metrics: { DVA: { "totalDebt/totalEquityAnnual": 77.99, roeTTM: 181.2, operatingMarginTTM: 15.1, netProfitMarginTTM: 6.1 } },
+    });
+    expect(solo("patrimonio_sin_sentido", r)).toHaveLength(1);
+    expect(solo("roe_sin_sentido", r)).toHaveLength(1);
+    expect(solo("roe_sin_sentido", r)[0]!.detail).toContain("eje de calidad lo premia");
+  });
+
+  it("una empresa apalancada pero con patrimonio real no se reporta", () => {
+    const r = checkConsistency({
+      rows: [fila({ symbol: "HSBC" })], candles: {}, plan: null,
+      metrics: { HSBC: { "totalDebt/totalEquityAnnual": 2.55, roeTTM: 19.5, operatingMarginTTM: 40.4, netProfitMarginTTM: 34.2 } },
+    });
+    expect(solo("patrimonio_sin_sentido", r)).toEqual([]);
+    expect(solo("roe_sin_sentido", r)).toEqual([]);
+  });
+
   it("cuenta graves y avisos por separado", () => {
     const f = checkConsistency({
       rows: [fila({ symbol: "A", entryLow: 110, entryHigh: 100 }), fila({ symbol: "B", entry: null })],
