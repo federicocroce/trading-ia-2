@@ -645,8 +645,10 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   const verdicts = await store.latestVerdicts();
   const candidates = await store.latestCandidates();
   const closes: Record<string, number> = {};
-  for (const c of candidates) closes[c.symbol] = c.close;
+  // El veredicto de Cartera se calcula en otro momento que el Radar, así que su cierre puede ser de otra
+  // rueda. Manda el del Radar cuando existe: dos pantallas no pueden mostrar dos precios del mismo símbolo.
   for (const v of verdicts) closes[v.symbol] = v.close;
+  for (const c of candidates) closes[c.symbol] = c.close;
   const portfolioValueUsd = opts.portfolioUsd ?? risk?.report.totalValue ?? policy.sizing.fallbackPortfolioUsd;
   const etfOf = (s: string) => deps.etfs.find((e) => e.symbol === s);
   const overweight = Object.fromEntries(Object.entries(risk?.report.concentration.byTheme ?? {}).filter(([, pct]) => pct > 40));
@@ -664,12 +666,16 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     const hit = etfObserved.find((e) => (deps.etfs.find((cfg) => cfg.symbol === e.symbol)?.themes ?? []).some((t) => themes.has(t)));
     return hit ? `el ETF de su tema (${hit.symbol}) está en OBSERVAR: ${hit.flags.join(", ") || "sin fuerza"}` : null;
   };
+  const candidatePorSimbolo = new Map(candidates.map((c) => [c.symbol, c]));
   const plan = planContribution(
     {
       month: opts.month,
       portfolioValueUsd,
       positions: positions.map((p) => ({ symbol: p.symbol, valueUsd: weights.get(p.symbol)?.value ?? (closes[p.symbol] ?? p.avgCost) * p.quantity, assetClass: tags[p.symbol]?.assetClass ?? (etfOf(p.symbol) ? "etf" : p.market === "adr" ? "adr" : p.market === "ar" ? "accion_ar" : "accion_us"), ...(etfOf(p.symbol) || p.layer === "nucleo" ? { role: (etfOf(p.symbol)?.role ?? "nucleo") as EtfConfig["role"] } : {}) })),
-      sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: v.stop, target: v.target, caution: sumarCaution(v.symbol) })),
+      // El stop y el precio salen de la fila del Radar cuando el símbolo está en la corrida de hoy. Antes
+      // el plan usaba los del veredicto de Cartera, calculados en otro momento: TSM mostraba 428,03 en el
+      // plan y 433,24 en el Radar, con dos stops distintos, o sea dos órdenes para la misma posición.
+      sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: candidatePorSimbolo.get(v.symbol)?.stop ?? v.stop, target: v.target, caution: sumarCaution(v.symbol) })),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
       // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
       buyCandidates: candidates
