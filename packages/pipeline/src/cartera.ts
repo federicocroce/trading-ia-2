@@ -1,4 +1,4 @@
-import { alphaPct, applyDegrade, buildRiskReport, decideVerb, type Candle, type NarratorInput, type Position, type PositionNarrator, type PositionVerdict, type PriceHistory, type Profiles, type RiskReport, type SymbolProfile, type VerdictRow } from "@thesis/core";
+import { type TesisInput, alphaPct, applyDegrade, buildRiskReport, decideVerb, type Candle, type NarratorInput, type Position, type PositionNarrator, type PositionVerdict, type PriceHistory, type Profiles, type RiskReport, type SymbolProfile, type VerdictRow } from "@thesis/core";
 import type { CarteraStore } from "./store.js";
 
 /**
@@ -12,6 +12,12 @@ export interface CarteraDeps {
   narrator: PositionNarrator | null;
   /** Precio vivo; null si no hay. Informa, no decide. */
   spot: (symbol: string) => Promise<number | null>;
+  /**
+   * Lo que la app ya sabe del negocio de ese símbolo: verificación web, eventos materiales, salvedades de
+   * calidad de la ganancia y consenso. Opcional a propósito: sin esto el veredicto sale como siempre, solo
+   * por precio, y los tests que no la pasan siguen valiendo.
+   */
+  tesis?: (symbol: string) => Promise<TesisInput | null>;
   log?: (msg: string, extra?: unknown) => void;
 }
 export interface CarteraSummary {
@@ -84,7 +90,8 @@ export async function runCartera(deps: CarteraDeps, opts: { today: string }): Pr
   for (const p of positions) {
     const weightPct = risk.weights.find((w) => w.symbol === p.symbol)?.weightPct ?? 0;
     const spot = await deps.spot(p.symbol).catch(() => null);
-    let v = decideVerb({ candles: candles[p.symbol]!, spot, avgCost: p.avgCost, layer: p.layer, weightPct, positionsCount: positions.length, today: opts.today });
+    const tesis = deps.tesis ? await deps.tesis(p.symbol).catch(() => null) : null;
+    let v = decideVerb({ candles: candles[p.symbol]!, spot, avgCost: p.avgCost, layer: p.layer, weightPct, positionsCount: positions.length, today: opts.today, ...(tesis ? { tesis } : {}) });
     let narrative: string | null = null;
     let degradedBy: string | null = null;
     if (deps.narrator && candles[p.symbol]!.length) {

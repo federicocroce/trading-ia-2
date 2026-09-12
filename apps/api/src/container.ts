@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, SecStatements, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
-import { DEFAULT_FILTER_CONFIG, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
+import { DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, eventUniverse, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
 import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
@@ -159,6 +159,26 @@ export function buildContainer(cfg: Config): Container {
     profiles: cfg.finnhubToken ? new FinnhubProfiles(http, cfg.finnhubToken) : NO_PROFILES,
     narrator: buildNarrator(cfg.reasoner, gemini),
     spot: async (symbol) => (await marketData.getQuote(symbol))?.price ?? null,
+    // Lo que la app ya sabe del negocio, reusado para decidir si mantener: verificación web, eventos
+    // materiales de 90 días, salvedades de calidad de la ganancia (las que el Radar ya calculó en la fila)
+    // y consenso de analistas. Nada de esto vende solo: como mucho pasa la posición a REVISAR.
+    tesis: async (symbol) => {
+      const sym = symbol.toUpperCase();
+      const desde = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
+      const [verification, eventos, filas, f] = await Promise.all([
+        store.verification(sym).catch(() => null),
+        store.eventsFor(sym, desde).catch(() => []),
+        store.candidateHistory(sym, 1).catch(() => []),
+        store.fundamentals(sym).catch(() => null),
+      ]);
+      const fila = filas[0];
+      return {
+        verification: verification ? { date: verification.date, verdict: verification.verdict, reason: verification.reason } : null,
+        events: eventos.filter((e) => e.severity !== "ruido").map((e) => ({ date: e.date, kind: e.kind, severity: e.severity, headline: e.headline })),
+        qualityFlags: (fila?.flags ?? []).filter((x) => QUALITY_FLAGS.has(x)),
+        analyst: f?.analyst ?? null,
+      };
+    },
     log: (msg, extra) => console.log(msg, extra ?? ""),
   };
 

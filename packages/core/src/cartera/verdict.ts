@@ -1,4 +1,5 @@
 import { computeTarget, computeTrailingStop } from "./stop.js";
+import { tesisAlerts, type TesisInput } from "./tesis.js";
 import type { Candle, Layer, Verb } from "./types.js";
 
 export interface VerdictInput {
@@ -12,6 +13,11 @@ export interface VerdictInput {
   positionsCount: number;
   /** YYYY-MM-DD */
   today: string;
+  /**
+   * Lo que la app ya sabe del negocio: verificación web, eventos materiales, calidad de la ganancia y
+   * consenso. Si falta, el veredicto sale igual que siempre, solo por precio.
+   */
+  tesis?: TesisInput;
 }
 export interface PositionVerdict {
   verb: Verb;
@@ -22,6 +28,8 @@ export interface PositionVerdict {
   target: number | null;
   gainPct: number;
   stale: boolean;
+  /** Qué cambió en el negocio, si cambió algo. Vacío o ausente = la tesis sigue en pie. */
+  tesisAlerts?: Array<{ kind: string; detail: string }>;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -72,6 +80,21 @@ export function decideVerb(i: VerdictInput): PositionVerdict {
   }
   const return21dPct = i.candles.length >= 22 ? round2((close / i.candles[i.candles.length - 22]!.close - 1) * 100) : null;
   const sumar = sumarCriteria({ weightPct: i.weightPct, positionsCount: i.positionsCount, close, stop, return21dPct });
+
+  // La tesis no vende sola: el stop sigue siendo la única regla dura de salida. Pero si el negocio cambió,
+  // no se puede seguir diciendo "dejá correr" ni proponer poner más plata como si nada hubiera pasado.
+  const alerts = i.tesis ? tesisAlerts(i.tesis) : [];
+  if (alerts.length) {
+    const motivos = alerts.map((a) => a.detail).join("; ");
+    return {
+      ...base,
+      tesisAlerts: alerts,
+      verb: "REVISAR",
+      reason: `El precio aguanta (stop $${stop}), pero cambió algo del negocio: ${motivos}. Revisá si la tesis con la que compraste sigue en pie.`,
+      warning: sumar.ok ? "Por precio calificaba para sumar. No sumes hasta resolver esto." : null,
+    };
+  }
+
   if (sumar.ok) {
     return { ...base, verb: "SUMAR", reason: `Candidata a aporte: ${sumar.why}. Stop $${stop}, objetivo $${target}.`, warning: null };
   }
