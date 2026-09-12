@@ -6,6 +6,7 @@ import {
   applyCoreMetrics,
   sanitizeMetrics,
   assetClassFor,
+  computeTrailingStop,
   decideCandidate,
   decideEtf,
   holdingsOverlap,
@@ -518,7 +519,10 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       }
     }
     if ("excluded" in d) {
-      rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, entry: null, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
+      // El stop se recalcula con las velas de hoy. Antes se arrastraba el de `prev` mientras el cierre sí se
+      // actualizaba: BEAM quedó con el stop congelado en 27,13 desde el 7/9 mientras el precio caía a 24,37,
+      // así que la fila mostraba un nivel de salida que ya no correspondía a ninguna vela.
+      rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, stop: computeTrailingStop(c), entry: null, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
       continue;
     }
     let degraded = prev.degradedBy === "narrator";

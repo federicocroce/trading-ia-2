@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { checkConsistency, summarizeFindings, type Candle, type CandidateRow, type ContributionPlan } from "../index.js";
+import { checkConsistency, computeTrailingStop, summarizeFindings, type Candle, type CandidateRow, type ContributionPlan } from "../index.js";
 
 /**
  * Cada caso de acá abajo es un error que de verdad pasó y que ni los tests ni el typecheck atraparon.
  * Si alguno deja de fallar sin que se haya arreglado la causa, el chequeo dejó de servir.
  */
-const vela = (date: string, close: number): Candle => ({ date, open: close, high: close, low: close, close, volume: 1_000 });
+const vela = (date: string, close: number): Candle => ({ date, open: close, high: close + 0.5, low: close - 0.5, close, volume: 1_000 });
 
 const fila = (over: Partial<CandidateRow> & { symbol: string }): CandidateRow => ({
   candidateDate: "2026-09-11", kind: "stock", verdict: "COMPRAR", score: 1, axes: {}, peerGroup: [], rankInGroup: null, groupSize: null,
@@ -39,6 +39,28 @@ describe("checkConsistency", () => {
     expect(f).toHaveLength(1);
     expect(f[0]!.severity).toBe("grave");
     expect(f[0]!.detail).toContain("80.25");
+  });
+
+  it("BEAM del 10/9: el stop guardado quedó congelado y no sale de sus propias velas", () => {
+    // El refresco arrastraba el stop del día anterior mientras sí actualizaba el cierre. BEAM quedó con
+    // 27,13 desde el 7/9 con el precio en 24,37: un nivel de salida que ya no correspondía a ninguna vela.
+    const velas = Array.from({ length: 30 }, (_, i) => vela(`2026-08-${String(i + 12).padStart(2, "0")}`, 30 - i * 0.2));
+    const f = solo("stop_guardado", checkConsistency({
+      rows: [fila({ symbol: "BEAM", candidateDate: "2026-09-10", close: velas[velas.length - 1]!.close, stop: 27.13, entry: null })],
+      candles: { BEAM: velas }, plan: null,
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+  });
+
+  it("un stop que sí sale de sus velas no se reporta", () => {
+    const velas = Array.from({ length: 30 }, (_, i) => vela(`2026-08-${String(i + 12).padStart(2, "0")}`, 30 - i * 0.2));
+    const esperado = computeTrailingStop(velas)!;
+    const f = solo("stop_guardado", checkConsistency({
+      rows: [fila({ symbol: "BEAM", candidateDate: "2026-09-10", close: velas[velas.length - 1]!.close, stop: esperado, entry: null })],
+      candles: { BEAM: velas }, plan: null,
+    }));
+    expect(f).toEqual([]);
   });
 
   it("una fila de ayer que sigue vigente se compara contra la vela de ayer, no contra la de hoy", () => {

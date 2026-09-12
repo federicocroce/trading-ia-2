@@ -1,4 +1,5 @@
 import type { Candle } from "../cartera/types.js";
+import { computeTrailingStop } from "../cartera/stop.js";
 import { CONSENSUS_SCALE } from "./candidate.js";
 import { lineHasExit, type ContributionPlan } from "./plan.js";
 import type { CandidateRow } from "./types.js";
@@ -42,6 +43,8 @@ export interface ConsistencyInput {
 export const CONSISTENCY_THRESHOLDS = {
   /** Diferencia tolerada entre el precio guardado y el cierre de la última vela, en dólares. */
   priceEpsilon: 0.01,
+  /** Tolerancia del stop: el cálculo redondea a dos decimales en un lado y no en el otro. */
+  stopEpsilon: 0.02,
 };
 
 /**
@@ -82,6 +85,17 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     const suya = velas?.filter((c) => c.date <= row.candidateDate).at(-1) ?? null;
     if (suya && Math.abs(row.close - suya.close) > CONSISTENCY_THRESHOLDS.priceEpsilon) {
       add("precio_guardado", row.symbol, "grave", `la fila del ${row.candidateDate} dice ${r2(row.close)} y la vela de ${suya.date} cerró en ${r2(suya.close)}`);
+    }
+
+    // 1b. El stop guardado tiene que ser el que sale de esas mismas velas. El refresco arrastraba el del día
+    //     anterior en las filas excluidas mientras sí actualizaba el cierre: BEAM quedó con el stop congelado
+    //     en 27,13 desde el 7/9 con el precio en 24,37, mostrando una salida que ya no correspondía a nada.
+    if (row.stop !== null && velas && velas.length) {
+      const hasta = velas.filter((c) => c.date <= row.candidateDate);
+      const esperado = hasta.length ? computeTrailingStop(hasta) : null;
+      if (esperado !== null && Math.abs(row.stop - esperado) > CONSISTENCY_THRESHOLDS.stopEpsilon) {
+        add("stop_guardado", row.symbol, "grave", `la fila dice stop ${r2(row.stop)} y con sus propias velas da ${r2(esperado)}`);
+      }
     }
 
     // 2. La verificación web y las banderas tienen que contar la misma historia. Si el dictamen está guardado
