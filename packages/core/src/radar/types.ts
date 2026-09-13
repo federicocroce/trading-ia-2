@@ -131,6 +131,12 @@ export interface VerificationSummary {
   reason: string;
   /** Objetivo de consenso que encontró la verificación (para la salvedad "consenso en el precio" cuando no hay titulares de analistas). */
   consensusTarget?: number | null;
+  /**
+   * Versión del cuestionario con el que se verificó. El plan solo acepta una acción verificada con el vigente
+   * (13/9): NBN salió "apto" con un cuestionario que no preguntaba si la sorpresa sobrevivía sin extraordinarios.
+   * Las filas guardadas antes no la tienen, y eso cuenta como cuestionario anterior.
+   */
+  promptVersion?: string | null;
 }
 export interface CandidateVerification extends VerificationSummary {
   symbol: string;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UsageCallInput, UsageRecorder, UsageResult } from "@thesis/core";
-import { GeminiCandidateVerifier, GeminiToolCaller, VERIFY_TOOL, VERIFY_VERSION, buildResearchMessage, parseVerification } from "../src/index.js";
+import { GeminiCandidateVerifier, GeminiToolCaller, RESEARCH_SYSTEM, VERIFY_TOOL, VERIFY_VERSION, buildResearchMessage, parseVerification } from "../src/index.js";
 
 function memRecorder() {
   const rows: Array<UsageCallInput & { id: string }> = [];
@@ -35,6 +35,20 @@ const args = {
 };
 
 describe("verificador: prompts y parseo", () => {
+  /*
+   * Enmienda del 13/9. NBN salió "apto" porque la verificación tomó la sorpresa del trimestre tal como venía: salía de
+   * un crédito fiscal comprado y de reservas liberadas, y limpia quedaba en línea con el consenso; además cotizaba en
+   * su máximo de 5 años contra el valor libro y dependía de fondeo mayorista con inmobiliario comercial al 485% del
+   * capital. Y APH, NVDA y LNC tenían salvedades que yo no consideré motivo para no comprar: el criterio las nombra.
+   */
+  it("el cuestionario pide lo que dio vuelta a NBN, y el criterio separa lo que no es reserva", () => {
+    expect(RESEARCH_SYSTEM).toContain("ganancia por acción LIMPIA");
+    expect(RESEARCH_SYSTEM).toContain("historia propia de 5 años");
+    expect(RESEARCH_SYSTEM).toContain("300% del capital");
+    expect(RESEARCH_SYSTEM).toContain("ejercicio de opciones");
+    expect(RESEARCH_SYSTEM).toContain("antimonopolio");
+    expect(RESEARCH_SYSTEM).toContain("revisión anual de supuestos");
+  });
   it("versión estable con hash; el mensaje lleva empresa, fecha y contexto", () => {
     expect(VERIFY_VERSION).toMatch(/^v1-[0-9a-f]{12}$/);
     const m = buildResearchMessage({ symbol: "NVDA", name: "NVIDIA", today: "2026-09-10", context: "banderas: consenso_compra" });
