@@ -185,7 +185,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.candidate.mainRisk && <div><b>Riesgo principal:</b> {t.candidate.mainRisk}</div>}
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
           <EntryLine e={t.candidate.entry} />
-          <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)})</div>
+          <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)} pagando hasta {f2(t.candidate.entryHigh)})</div>
           {t.peers.length > 0 && (
             <table style={{ marginTop: 8 }}>
               <thead><tr><th>par</th><th>P/E</th><th>EV/EBITDA</th><th>P/S</th><th>ROE</th><th>margen op.</th><th>crec. ingresos</th><th>deuda/patr.</th></tr></thead>
@@ -222,13 +222,20 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
         <div className="kpis" style={{ marginTop: 8 }}>
           <div className="kpi"><b>{money(t.transactionSummary.buys.total)}</b><span>compras ({t.transactionSummary.buys.count})</span></div>
           <div className="kpi"><b>{money(t.transactionSummary.sells.total)}</b><span>ventas ({t.transactionSummary.sells.count})</span></div>
-          <div className="kpi"><b>{money(t.transactionSummary.dividends.total, 2)}</b><span>dividendos ({t.transactionSummary.dividends.count})</span></div>
+          {/* Los cinco DIVIDEND de GGAL no son plata: son acciones (dividendo reinvertido). La pantalla
+              mostraba "dividendos US$ 382,71" entre "compras" y "total invertido", donde todo lo demás es
+              efectivo, así que se leía como plata cobrada. Nunca entró un dólar: entraron 7,845 acciones. */}
+          {t.transactionSummary.dividends.count > 0 && (
+            t.transactionSummary.dividendShares
+              ? <div className="kpi" title={`${t.transactionSummary.dividendShares} acciones recibidas en ${t.transactionSummary.dividends.count} pagos, que valían ${money(t.transactionSummary.dividends.total, 2)} al precio de cada uno. No entró efectivo: ya están dentro de tu posición.`}><b>{f2(t.transactionSummary.dividendShares, 3)}</b><span>acciones por dividendo ({t.transactionSummary.dividends.count} pagos, no es efectivo)</span></div>
+              : <div className="kpi"><b>{money(t.transactionSummary.dividends.total, 2)}</b><span>dividendos ({t.transactionSummary.dividends.count})</span></div>
+          )}
           <div className="kpi"><b>{money(t.transactionSummary.invested)}</b><span>total invertido</span></div>
         </div>
         {t.transactions.length ? (
           <table style={{ marginTop: 8 }}>
             <thead><tr><th>fecha</th><th>tipo</th><th>cantidad</th><th>precio</th><th>total</th><th>plataforma</th><th>notas</th></tr></thead>
-            <tbody>{t.transactions.map((x) => <tr key={x.id}><td>{x.date}</td><td><span className="chip">{x.type}</span></td><td className="mono">{f2(x.quantity, 4)}</td><td className="mono">{f2(x.price)}</td><td className="mono">{money(x.quantity * x.price, 2)}</td><td>{x.platform ?? "—"}</td><td className="muted">{x.notes ?? ""}</td></tr>)}</tbody>
+            <tbody>{t.transactions.map((x) => <tr key={x.id}><td>{x.date}</td><td><span className="chip" title={x.type === "DIVIDEND" ? "Dividendo reinvertido: recibiste acciones, no efectivo." : x.type === "TRANSFER" ? "Movimiento entre plataformas: no es plata nueva y no entra en el total invertido." : undefined}>{x.type === "DIVIDEND" ? "DIVIDENDO EN ACCIONES" : x.type}</span></td><td className="mono">{f2(x.quantity, 4)}</td><td className="mono">{f2(x.price)}</td><td className="mono">{money(x.quantity * x.price, 2)}</td><td>{x.platform ?? "—"}</td><td className="muted">{x.notes ?? ""}</td></tr>)}</tbody>
           </table>
         ) : <div className="muted" style={{ marginTop: 8 }}>Sin operaciones cargadas.</div>}
       </div>

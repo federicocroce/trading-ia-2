@@ -93,4 +93,44 @@ describe("checkPantallas", () => {
     const f = solo("novedad_desfasada", checkPantallas({ ...base, candidatos: [cand("GLW", { verdict: "COMPRAR" })], novedades: { verdictChanges: [{ symbol: "GLW", from: "COMPRAR", to: "OBSERVAR" }] } }));
     expect(f).toHaveLength(1);
   });
+
+  /**
+   * GGAL el 13/9: Cartera mostraba 920,77 acciones y los movimientos cargados sumaban 909,12 (901,28
+   * compradas más 7,84 recibidas por dividendo reinvertido). Once acciones y media, unos 500 dólares, que
+   * ninguna de las dos pantallas podía explicar. Son el mismo dato en dos lugares y nadie los comparaba.
+   */
+  it("la cantidad de Cartera tiene que salir de los movimientos de Operaciones", () => {
+    const f = solo("cantidad_sin_respaldo", checkPantallas({
+      ...base,
+      posiciones: [{ symbol: "GGAL", quantity: 920.77279309 }],
+      movimientos: [
+        { symbol: "GGAL", type: "BUY", quantity: 901.27643196 },
+        { symbol: "GGAL", type: "DIVIDEND", quantity: 7.84498722 },
+      ],
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.detail).toContain("11.651");
+  });
+
+  it("con los movimientos completos no se reporta nada, y una venta resta", () => {
+    const f = solo("cantidad_sin_respaldo", checkPantallas({
+      ...base,
+      posiciones: [{ symbol: "TSM", quantity: 8 }],
+      movimientos: [
+        { symbol: "TSM", type: "BUY", quantity: 10 },
+        { symbol: "TSM", type: "SELL", quantity: 2 },
+        { symbol: "TSM", type: "TRANSFER", quantity: 999 },
+      ],
+    }));
+    expect(f).toEqual([]);
+  });
+
+  it("un símbolo sin ningún movimiento cargado no se reporta: es una carga pendiente, no una contradicción", () => {
+    const f = solo("cantidad_sin_respaldo", checkPantallas({
+      ...base,
+      posiciones: [{ symbol: "NEM", quantity: 100 }],
+      movimientos: [{ symbol: "TSM", type: "BUY", quantity: 10 }],
+    }));
+    expect(f).toEqual([]);
+  });
 });

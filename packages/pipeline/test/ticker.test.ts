@@ -42,7 +42,7 @@ describe("buildTicker", () => {
     expect(t.verdict?.verb).toBe("MANTENER");
     expect(t.tags?.themes).toEqual(["argentina", "bancos"]);
     expect(t.transactions).toHaveLength(2);
-    expect(t.transactionSummary).toEqual({ buys: { count: 1, total: 3000 }, sells: { count: 0, total: 0 }, dividends: { count: 0, total: 0 }, invested: 3000 });
+    expect(t.transactionSummary).toEqual({ buys: { count: 1, total: 3000 }, sells: { count: 0, total: 0 }, dividends: { count: 0, total: 0 }, dividendShares: 0, invested: 3000 });
     expect(t.candles.length).toBe(99);
     expect(t.news[0]?.headline).toBe("Noticia");
     expect(t.candidate).toBeNull();

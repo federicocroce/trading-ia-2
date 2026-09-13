@@ -118,7 +118,7 @@ export interface TickerPage {
   verification?: CandidateVerification | null;
   theses: Thesis[];
   transactions: Transaction[];
-  transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; invested: number };
+  transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; dividendShares?: number; invested: number };
   candles: Candle[];
   news: NewsItem[];
   filings: string[];

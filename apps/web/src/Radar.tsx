@@ -197,7 +197,7 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
         <td><EntryCell e={c.entry} fallback={<span className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</span>} /></td>
         <td className="mono">{f2(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
         <td className="mono">{f2(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
-        <td className="mono">{c.sizeQty ?? "—"} · {money(c.sizeUsd)}</td>
+        <td className="mono" title={c.sizeQty && c.entryHigh ? `${c.sizeQty} acciones × ${f2(c.entryHigh)} (el techo de la franja de compra, que es lo que vas a pagar) = ${money(c.sizeUsd)}. Con el precio de hoy la cuenta no cierra, y por eso el precio va acá al lado.` : undefined}>{c.sizeQty ?? "—"} · {money(c.sizeUsd)}{c.sizeQty !== null && c.entryHigh !== null && <span className="muted"> a {f2(c.entryHigh)}</span>}</td>
         <td className="mono">{c.riskScore ?? "—"}/10</td>
         <td><TagChips tags={c.tags} /></td>
         <td style={{ whiteSpace: "nowrap" }}><button className="ghost" onClick={onToggle}>{open ? "Cerrar" : "Ver"}</button> <button className="ghost" onClick={onEdit}>Etiquetas</button></td>
@@ -324,7 +324,7 @@ function WatchCard({ w, setWatch, editing, setEditing, reload }: { w: Watchlist;
               <td><EntryCell e={c.entry} fallback={c.entryLow !== null ? <span className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</span> : <span className="muted">—</span>} /></td>
               <td className="mono">{f2(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
               <td className="mono">{f2(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
-              <td className="mono">{c.sizeQty ?? "—"}{c.sizeUsd !== null && <span className="muted"> · {money(c.sizeUsd)}</span>}</td>
+              <td className="mono">{c.sizeQty ?? "—"}{c.sizeUsd !== null && <span className="muted"> · {money(c.sizeUsd)}{c.entryHigh !== null && ` a ${f2(c.entryHigh)}`}</span>}</td>
               <td className="mono">{c.riskScore !== null ? `${c.riskScore}/10` : "—"}</td>
               <td><TagChips tags={c.tags} /></td>
               <td className="row" style={{ gap: 4 }}>

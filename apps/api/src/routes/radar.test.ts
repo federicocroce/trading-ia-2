@@ -110,7 +110,7 @@ describe("/radar/top", () => {
       { ...base, symbol: "OBS", score: 2, verdict: "OBSERVAR", flags: [] },
     ]);
     await store.saveTags("ARG", { assetClass: "adr", sector: "Financiero", industry: "Banking", themes: ["argentina"], themesSource: "regla" });
-    await store.saveRisk(today, { totalValue: 100, weights: [], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: { argentina: 75.6, IA: 7 }, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, liquidity: [], notes: [] });
+    await store.saveRisk(today, { totalValue: 100, weights: [], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: { argentina: 75.6, IA: 7 }, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, risk: { portfolioVolPct: null, spyVolPct: null, r2VsSpy: null, worstDayPct: null, sessions: 0 }, liquidity: [], notes: [] });
     const top = await (await a.request("/radar/top?n=5")).json();
     expect(top.overweight).toEqual({ argentina: 75.6 });
     expect(top.picks.map((p: { symbol: string }) => p.symbol)).toEqual(["TOP", "ARG"]);

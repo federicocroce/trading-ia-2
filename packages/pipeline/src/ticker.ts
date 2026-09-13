@@ -41,7 +41,14 @@ export interface TickerPage {
   verification: CandidateVerification | null;
   theses: Thesis[];
   transactions: Transaction[];
-  transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; invested: number };
+  transactionSummary: {
+    buys: { count: number; total: number };
+    sells: { count: number; total: number };
+    dividends: { count: number; total: number };
+    /** Acciones recibidas por dividendo reinvertido (DRIP). Si es > 0, `dividends.total` NO es plata cobrada. */
+    dividendShares: number;
+    invested: number;
+  };
   candles: Candle[];
   news: NewsItem[];
   filings: string[];
@@ -56,6 +63,7 @@ export interface TickerPage {
 const DAY = 86_400_000;
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * DAY).toISOString().slice(0, 10);
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
 const DESCRIPTION_TTL_DAYS = 30;
 const CANDLES_STALE_DAYS = 4;
 const NEWS_TTL_HOURS = 24;
@@ -239,6 +247,11 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
   const buys = sum("BUY");
   const sells = sum("SELL");
   const dividends = sum("DIVIDEND");
+  // Los cinco DIVIDEND de GGAL no son plata: son acciones. Cada uno trae una cantidad fraccionaria (2,298 ·
+  // 2,508 · 1,455 · 1,133 · 0,451) a un precio, o sea dividendo reinvertido (DRIP). La pantalla mostraba
+  // "dividendos US$ 382,71" al lado de "compras" y "total invertido", donde todo lo demás es plata, así que
+  // se leía como efectivo cobrado. Nunca entró un dólar a la cuenta: entraron 7,845 acciones de GGAL.
+  const dividendShares = round4(mine.filter((t) => t.type === "DIVIDEND").reduce((s, t) => s + t.quantity, 0));
   // TRANSFER es un movimiento entre plataformas (Buenbit → Nexo), no plata nueva: no entra en "invertido".
   const arNews = description?.longName ? await store.recentNewsTitles(description.longName.split(" ")[0] ?? symbol, 5) : [];
 
@@ -259,7 +272,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     verification,
     theses,
     transactions: mine,
-    transactionSummary: { buys, sells, dividends, invested: round2(buys.total - sells.total) },
+    transactionSummary: { buys, sells, dividends, dividendShares, invested: round2(buys.total - sells.total) },
     candles,
     news,
     filings,

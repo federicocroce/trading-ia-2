@@ -28,21 +28,25 @@ async function pedir<T>(ruta: string, porDefecto: T): Promise<T> {
   }
 }
 
-const [candidatos, plan, veredictos, novedades] = await Promise.all([
+const [candidatos, plan, veredictos, novedades, posiciones, movimientos] = await Promise.all([
   pedir<Pantallas["candidatos"]>("/radar/candidates", []),
   pedir<Pantallas["plan"]>("/radar/plan", null),
   pedir<Pantallas["veredictos"]>("/cartera/verdicts", []),
   pedir<Pantallas["novedades"]>("/novedades", null),
+  pedir<NonNullable<Pantallas["posiciones"]>>("/cartera/positions", []),
+  pedir<NonNullable<Pantallas["movimientos"]>>("/cartera/transactions", []),
 ]);
 
 const pantallas: Pantallas = {
   candidatos: candidatos ?? [],
   plan: plan ?? null,
   veredictos: veredictos ?? [],
+  posiciones: posiciones ?? [],
+  movimientos: movimientos ?? [],
   ...(novedades ? { novedades } : {}),
 };
 
-console.log(`[auditar] Radar ${pantallas.candidatos.length} candidatos · plan ${pantallas.plan?.lines.length ?? 0} líneas · Cartera ${pantallas.veredictos.length} posiciones`);
+console.log(`[auditar] Radar ${pantallas.candidatos.length} candidatos · plan ${pantallas.plan?.lines.length ?? 0} líneas · Cartera ${pantallas.veredictos.length} posiciones · ${pantallas.movimientos?.length ?? 0} movimientos`);
 
 const findings = checkPantallas(pantallas);
 const { graves, avisos } = summarizeFindings(findings);
