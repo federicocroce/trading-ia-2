@@ -95,41 +95,68 @@ describe("checkPantallas", () => {
   });
 
   /**
-   * GGAL el 13/9: Cartera mostraba 920,77 acciones y los movimientos cargados sumaban 909,12 (901,28
-   * compradas más 7,84 recibidas por dividendo reinvertido). Once acciones y media, unos 500 dólares, que
-   * ninguna de las dos pantallas podía explicar. Son el mismo dato en dos lugares y nadie los comparaba.
+   * GGAL, caso real del 13/9 y la razón por la que este chequeo se reescribió. El 18/4/2026 se traspasaron
+   * siete posiciones enteras de Buenbit a Nexo. Ese TRANSFER es la FOTO de lo que ya se tenía, así que las
+   * compras de 2025 que aparecen antes YA ESTÁN adentro: sumarlas da 1.830 acciones cuando hay 920,77.
+   *
+   * La primera versión del chequeo hacía justo eso al revés (sumaba compras y dividendos ignorando el
+   * traspaso) y reportaba 11,65 acciones "sin explicación" que estaban perfectamente explicadas. Lo detecté
+   * corriendo la auditoría contra la base, no en un test: el test pasaba porque codificaba mi suposición.
    */
-  it("la cantidad de Cartera tiene que salir de los movimientos de Operaciones", () => {
+  it("un traspaso es una foto: lo anterior ya está adentro y no se suma dos veces", () => {
     const f = solo("cantidad_sin_respaldo", checkPantallas({
       ...base,
       posiciones: [{ symbol: "GGAL", quantity: 920.77279309 }],
       movimientos: [
-        { symbol: "GGAL", type: "BUY", quantity: 901.27643196 },
-        { symbol: "GGAL", type: "DIVIDEND", quantity: 7.84498722 },
-      ],
-    }));
-    expect(f).toHaveLength(1);
-    expect(f[0]!.detail).toContain("11.651");
-  });
-
-  it("con los movimientos completos no se reporta nada, y una venta resta", () => {
-    const f = solo("cantidad_sin_respaldo", checkPantallas({
-      ...base,
-      posiciones: [{ symbol: "TSM", quantity: 8 }],
-      movimientos: [
-        { symbol: "TSM", type: "BUY", quantity: 10 },
-        { symbol: "TSM", type: "SELL", quantity: 2 },
-        { symbol: "TSM", type: "TRANSFER", quantity: 999 },
+        { symbol: "GGAL", type: "BUY", quantity: 42.0487106, date: "2025-07-17" },
+        { symbol: "GGAL", type: "BUY", quantity: 859.22772136, date: "2025-10-07" },
+        { symbol: "GGAL", type: "DIVIDEND", quantity: 7.84498722, date: "2026-01-22" },
+        { symbol: "GGAL", type: "TRANSFER", quantity: 920.77279309, date: "2026-04-18" },
       ],
     }));
     expect(f).toEqual([]);
+  });
+
+  it("después del traspaso sí suma: una compra posterior tiene que verse en la posición", () => {
+    const f = solo("cantidad_sin_respaldo", checkPantallas({
+      ...base,
+      posiciones: [{ symbol: "GGAL", quantity: 920.77279309 }],
+      movimientos: [
+        { symbol: "GGAL", type: "TRANSFER", quantity: 920.77279309, date: "2026-04-18" },
+        { symbol: "GGAL", type: "BUY", quantity: 100, date: "2026-05-02" },
+      ],
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.detail).toContain("traspaso del 2026-04-18");
+  });
+
+  it("NEM sin traspaso: se suma todo desde el principio", () => {
+    const f = solo("cantidad_sin_respaldo", checkPantallas({
+      ...base,
+      posiciones: [{ symbol: "NEM", quantity: 44.49726912 }],
+      movimientos: [{ symbol: "NEM", type: "BUY", quantity: 44.49726912, date: "2026-06-10" }],
+    }));
+    expect(f).toEqual([]);
+  });
+
+  it("una venta resta, y la diferencia real se reporta", () => {
+    const f = solo("cantidad_sin_respaldo", checkPantallas({
+      ...base,
+      posiciones: [{ symbol: "TSM", quantity: 20 }],
+      movimientos: [
+        { symbol: "TSM", type: "BUY", quantity: 10, date: "2026-01-05" },
+        { symbol: "TSM", type: "SELL", quantity: 2, date: "2026-02-05" },
+      ],
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.detail).toContain("12");
   });
 
   it("un símbolo sin ningún movimiento cargado no se reporta: es una carga pendiente, no una contradicción", () => {
     const f = solo("cantidad_sin_respaldo", checkPantallas({
       ...base,
       posiciones: [{ symbol: "NEM", quantity: 100 }],
-      movimientos: [{ symbol: "TSM", type: "BUY", quantity: 10 }],
+      movimientos: [{ symbol: "TSM", type: "BUY", quantity: 10, date: "2026-01-05" }],
     }));
     expect(f).toEqual([]);
   });

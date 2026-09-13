@@ -222,12 +222,12 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               ? <div className="kpi" title={`${t.transactionSummary.dividendShares} acciones recibidas en ${t.transactionSummary.dividends.count} pagos, que valían ${money(t.transactionSummary.dividends.total, 2)} al precio de cada uno. No entró efectivo: ya están dentro de tu posición.`}><b>{f2(t.transactionSummary.dividendShares, 3)}</b><span>acciones por dividendo ({t.transactionSummary.dividends.count} pagos, no es efectivo)</span></div>
               : <div className="kpi"><b>{money(t.transactionSummary.dividends.total, 2)}</b><span>dividendos ({t.transactionSummary.dividends.count})</span></div>
           )}
-          <div className="kpi"><b>{money(t.transactionSummary.invested)}</b><span>total invertido</span></div>
+          <div className="kpi" title="Compras menos ventas. Los traspasos entre plataformas no entran: no son plata nueva, son la misma posición cambiando de lugar."><b>{money(t.transactionSummary.invested)}</b><span>total invertido (sin traspasos)</span></div>
         </div>
         {t.transactions.length ? (
           <table style={{ marginTop: 8 }}>
             <thead><tr><th>fecha</th><th>tipo</th><th>cantidad</th><th>precio</th><th>total</th><th>plataforma</th><th>notas</th></tr></thead>
-            <tbody>{t.transactions.map((x) => <tr key={x.id}><td>{x.date}</td><td><span className="chip" title={x.type === "DIVIDEND" ? "Dividendo reinvertido: recibiste acciones, no efectivo." : x.type === "TRANSFER" ? "Movimiento entre plataformas: no es plata nueva y no entra en el total invertido." : undefined}>{x.type === "DIVIDEND" ? "DIVIDENDO EN ACCIONES" : x.type}</span></td><td className="mono">{f2(x.quantity, 4)}</td><td className="mono">{f2(x.price)}</td><td className="mono">{money(x.quantity * x.price, 2)}</td><td>{x.platform ?? "—"}</td><td className="muted">{x.notes ?? ""}</td></tr>)}</tbody>
+            <tbody>{t.transactions.map((x) => <tr key={x.id}><td>{x.date}</td><td><span className="chip" title={x.type === "DIVIDEND" ? "Dividendo reinvertido: recibiste acciones, no efectivo." : x.type === "TRANSFER" ? "Traspaso entre plataformas: es la FOTO de lo que ya tenías ese día, no una compra. Por eso el monto puede superar al total invertido y por eso las compras anteriores ya están adentro de esta cantidad." : undefined}>{x.type === "DIVIDEND" ? "DIVIDENDO EN ACCIONES" : x.type === "TRANSFER" ? "TRASPASO (saldo)" : x.type}</span></td><td className="mono">{f2(x.quantity, 4)}</td><td className="mono">{f2(x.price)}</td><td className="mono">{money(x.quantity * x.price, 2)}</td><td>{x.platform ?? "—"}</td><td className="muted">{x.notes ?? ""}</td></tr>)}</tbody>
           </table>
         ) : <div className="muted" style={{ marginTop: 8 }}>Sin operaciones cargadas.</div>}
       </div>

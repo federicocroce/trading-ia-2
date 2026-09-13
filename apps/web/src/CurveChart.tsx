@@ -19,8 +19,14 @@ export function CurveChart({ points }: { points: CurvePoint[] }) {
       height: 260,
       crosshair: { mode: 0 },
     });
+    // Verde o rojo según si GANASTE plata (el índice arranca en 100), no según si le ganaste al SPY. Hasta
+    // el 13/9 se pintaba comparando contra el SPY: una cartera que perdió 15% mientras el SPY perdía 20%
+    // salía verde, y una que ganó 8% mientras el SPY ganaba 12% salía roja. El color decía lo contrario de
+    // lo que el usuario lee en un color. Ganarle o no al SPY ya está dicho, con números, en la tabla de
+    // arriba y en la línea gris del propio gráfico.
     const last = points[points.length - 1]!;
-    const mine = chart.addSeries(LineSeries, { color: last.index >= last.spyIndex ? COLORS.up : COLORS.down, lineWidth: 2, title: "cartera" });
+    const base = points[0]!.index;
+    const mine = chart.addSeries(LineSeries, { color: last.index >= base ? COLORS.up : COLORS.down, lineWidth: 2, title: "cartera" });
     mine.setData(points.map((p) => ({ time: p.date, value: p.index })));
     const spy = chart.addSeries(LineSeries, { color: COLORS.spy, lineWidth: 1, title: "SPY" });
     spy.setData(points.map((p) => ({ time: p.date, value: p.spyIndex })));

@@ -135,7 +135,10 @@ export function Cartera() {
       {positions.length > 0 && (
         <div className="card">
           <div className="kpis">
-            <div className="kpi"><b>{usd(tot.value)}</b><span>valor total{totNote ? ` (sin ${totNote})` : ""}</span></div>
+            {/* Dos valores de cartera conviven en esta pantalla y hasta el 13/9 ninguno decía de cuándo era:
+                éste, al precio vivo de ahora, y el "valor a cierre" de la tarjeta de riesgo, que es el del
+                cierre de la última corrida. Que no coincidan es correcto; que no se sepa cuál es cuál, no. */}
+            <div className="kpi"><b>{usd(tot.value)}</b><span>valor ahora{quotesAt ? `, ${hhmm(quotesAt)}` : ""}{totNote ? ` (sin ${totNote})` : ""}</span></div>
             <div className="kpi"><b>{usd(tot.cost)}</b><span>costo total</span></div>
             <div className="kpi"><b className={cls(tot.pnl)}>{signed(tot.pnl)}</b><span>P&amp;L</span></div>
             <div className="kpi"><b className={cls(tot.pnlPct)}>{pct(tot.pnlPct)}</b><span>P&amp;L %</span></div>
@@ -243,6 +246,7 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
  * explica realmente el SPY. Con un R² bajo ese −12,5% no es un techo de pérdida y hay que decirlo ahí mismo.
  */
 function Risk({ r, date }: { r: RiskReport; date: string }) {
+  // `date` es la fecha de la corrida que produjo este informe: todo lo de esta tarjeta es de ese cierre.
   const top = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(0)}%`).join(" · ");
   const o = r.risk;
   const explicaPoco = o?.r2VsSpy !== null && o?.r2VsSpy !== undefined && o.r2VsSpy < 0.5;
@@ -251,7 +255,7 @@ function Risk({ r, date }: { r: RiskReport; date: string }) {
     <div className="card">
       <b>Riesgo de cartera</b> <span className="muted">({date})</span>
       <div className="kpis" style={{ marginTop: 8 }}>
-        <div className="kpi"><b>${money(r.totalValue)}</b><span>valor a cierre</span></div>
+        <div className="kpi"><b>${money(r.totalValue)}</b><span>valor al cierre del {date}</span></div>
         <div className="kpi"><b>{f2(r.portfolioBeta)}</b><span>beta vs SPY (63 ruedas)</span></div>
         {o?.portfolioVolPct !== null && o?.portfolioVolPct !== undefined && (
           <div className="kpi"><b className={vecesSpy !== null && vecesSpy > 2 ? "bad" : ""}>{o.portfolioVolPct.toFixed(0)}%</b><span>volatilidad propia{o.spyVolPct !== null && <> · SPY {o.spyVolPct.toFixed(0)}%{vecesSpy !== null && ` (${vecesSpy.toFixed(1)}×)`}</>}</span></div>

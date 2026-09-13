@@ -24,8 +24,12 @@ export interface Pantallas {
   novedades?: { verdictChanges?: Array<{ symbol: string; from: string; to: string }> } | null;
   /** Cartera → posiciones, tal como se muestran. */
   posiciones?: Array<{ symbol: string; quantity: number }>;
-  /** Operaciones → los movimientos cargados, que son la única explicación posible de esas cantidades. */
-  movimientos?: Array<{ symbol: string; type: string; quantity: number }>;
+  /**
+   * Operaciones → los movimientos cargados, que son la única explicación posible de esas cantidades.
+   * La fecha importa: un TRANSFER es una FOTO de lo que ya tenías al mudar de plataforma, no una compra, así
+   * que todo lo anterior a él ya está adentro y sumarlo sería contarlo dos veces.
+   */
+  movimientos?: Array<{ symbol: string; type: string; quantity: number; date: string }>;
 }
 
 /** Diferencia tolerada de precio entre dos pantallas del mismo día, en dólares. */
@@ -125,22 +129,34 @@ export function checkPantallas(p: Pantallas): Finding[] {
   }
 
   // 9. La cantidad que muestra Cartera tiene que salir de los movimientos que muestra Operaciones. Son dos
-  //    pantallas con el mismo dato y hasta el 13/9 no se comparaban: GGAL figuraba con 920,77 acciones y los
-  //    movimientos sumaban 909,12 (901,28 compradas más 7,84 recibidas por dividendo reinvertido). Once
-  //    acciones y media, unos 500 dólares, que ninguna pantalla podía explicar de dónde salieron.
+  //    pantallas con el mismo dato y hasta el 13/9 no se comparaban.
+  //
+  //    La reconciliación no es una suma: un TRANSFER es la FOTO de la posición al mudar de plataforma. El
+  //    18/4/2026 se traspasaron siete posiciones enteras de Buenbit a Nexo, y las compras de 2025 que
+  //    aparecen antes ya están adentro de esa foto. Sumarlas sería contarlas dos veces: GGAL daría 1.830
+  //    acciones cuando tiene 920,77. Por eso el saldo arranca en el último traspaso y solo cuenta lo
+  //    posterior. (Primera versión de este chequeo: ignoraba los traspasos y reportaba a GGAL con 11,65
+  //    acciones "sin explicación" que en realidad estaban perfectamente explicadas.)
   if (p.movimientos) {
-    const sumado = new Map<string, number>();
-    for (const m of p.movimientos) {
-      const signo = m.type === "SELL" ? -1 : m.type === "BUY" || m.type === "DIVIDEND" ? 1 : 0;
-      if (signo === 0) continue;
-      sumado.set(m.symbol, (sumado.get(m.symbol) ?? 0) + signo * m.quantity);
-    }
+    const porSimbolo = new Map<string, NonNullable<Pantallas["movimientos"]>>();
+    for (const m of p.movimientos) porSimbolo.set(m.symbol, [...(porSimbolo.get(m.symbol) ?? []), m]);
     for (const pos of p.posiciones ?? []) {
-      const desdeMovimientos = sumado.get(pos.symbol);
-      if (desdeMovimientos === undefined) continue;
-      const dif = pos.quantity - desdeMovimientos;
+      const movs = porSimbolo.get(pos.symbol);
+      if (!movs?.length) continue;
+      const traspasos = movs.filter((m) => m.type === "TRANSFER").sort((a, b) => a.date.localeCompare(b.date));
+      const foto = traspasos.at(-1) ?? null;
+      const desde = foto?.date ?? null;
+      let saldo = foto?.quantity ?? 0;
+      for (const m of movs) {
+        if (desde !== null && m.date <= desde) continue;
+        if (m.type === "BUY" || m.type === "DIVIDEND") saldo += m.quantity;
+        else if (m.type === "SELL") saldo -= m.quantity;
+        else if (m.type === "TRANSFER" && m !== foto) saldo = m.quantity;
+      }
+      const dif = pos.quantity - saldo;
       if (Math.abs(dif) > CANTIDAD_EPSILON && Math.abs(dif) / Math.max(1, pos.quantity) > CANTIDAD_EPSILON_PCT) {
-        add("cantidad_sin_respaldo", pos.symbol, "aviso", `Cartera muestra ${r4(pos.quantity)} y los movimientos cargados suman ${r4(desdeMovimientos)}: faltan ${r4(dif)} sin explicación`);
+        const base = foto ? ` (desde el traspaso del ${foto.date}, de ${r4(foto.quantity)})` : "";
+        add("cantidad_sin_respaldo", pos.symbol, "aviso", `Cartera muestra ${r4(pos.quantity)} y los movimientos dan ${r4(saldo)}${base}: sobran o faltan ${r4(dif)} sin explicación`);
       }
     }
   }
