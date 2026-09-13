@@ -195,8 +195,9 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
 
     // 9. La app no puede afirmar que no hubo eventos en un símbolo cuyas noticias nunca leyó. El 12/9 esto
     //    valía para 47 de 91 filas y para cinco de las ocho posiciones con plata puesta, y las tres
-    //    pantallas mostraban "ninguno detectado en noticias" igual que en las verificadas.
-    if (i.newsScannedTo && row.kind === "stock" && i.newsScannedTo[row.symbol] === null) {
+    //    pantallas mostraban "ninguno detectado en noticias" igual que en las verificadas. Los ETFs quedan
+    //    afuera a propósito: no tienen hechos de una empresa que leer.
+    if (i.newsScannedTo && (row.kind === "stock" || row.kind === "watch") && i.newsScannedTo[row.symbol] === null) {
       add("noticias_sin_leer", row.symbol, "aviso", "es candidata y nunca se leyó una noticia suya: sus eventos vacíos no prueban nada");
     }
   }

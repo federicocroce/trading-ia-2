@@ -163,14 +163,16 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           plata puesta, la app tenía la verificación con reservas y seis recortes de precio objetivo, y la
           ficha no mostraba nada mientras Cartera decía SUMAR. La evidencia que contradice al veredicto es
           justo la que no puede depender de estar en el ranking del día. */}
-      {/* También se dibuja cuando NO hay nada que mostrar, si el símbolo es una posición o una candidata: ahí el
-          hueco es la información. Con la condición vieja, un símbolo sin estados y sin noticias leídas no
-          dibujaba la tarjeta y la pantalla quedaba idéntica a la de uno verificado y limpio. */}
-      {(t.verification || t.statements || t.events.length > 0 || t.analystActions.length > 0 || t.position || t.candidate) && (
+      {/* También se dibuja cuando NO hay nada que mostrar, si el símbolo es una posición o una candidata de
+          acciones: ahí el hueco es la información. Con la condición vieja, un símbolo sin estados y sin
+          noticias leídas no dibujaba la tarjeta y la pantalla quedaba idéntica a la de uno verificado y
+          limpio. Los ETFs no entran: no tienen estados de la SEC ni hechos de una empresa que leer, así que
+          ahí el vacío no esconde nada. */}
+      {(t.verification || t.statements || t.events.length > 0 || t.analystActions.length > 0 || t.position || (t.candidate && t.candidate.kind !== "etf")) && (
         <div className="card">
           <b>Verificación y estados</b>
           {!t.candidate && <span className="muted"> · no es candidata del Radar hoy, pero esto es lo que la app sabe del negocio</span>}
-          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} newsScannedTo={t.newsScannedTo} />
+          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} newsScannedTo={t.candidate?.kind === "etf" ? undefined : t.newsScannedTo} />
         </div>
       )}
       {t.candidate && t.candidate.kind === "etf" && <EtfCard c={t.candidate} />}

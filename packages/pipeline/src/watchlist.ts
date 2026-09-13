@@ -1,6 +1,7 @@
 import type { Candle, CandidateRow, Fundamentals, VerificationSummary, WatchItem } from "@thesis/core";
 import { computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
 import { tagSymbol, type RadarDeps } from "./radar.js";
+import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-verify.js";
 
 /**
@@ -74,10 +75,14 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       const f = all.get(sym) ?? stubFundamentals(sym, close);
       const prev = previous.find((p) => p.symbol === sym);
       const nth = prev ? (prev.candidateDate === opts.today ? prev.nthAppearance : prev.nthAppearance + 1) : 1;
+      // Noticias y analistas, igual que una candidata del ranking. Faltaban: los 15 símbolos de seguimiento
+      // son los que el dueño eligió a mano y el 12/9 ninguno tenía una noticia leída nunca, así que sus
+      // banderas de evento nunca podían encenderse y la ficha decía "ninguno detectado" sin haber mirado.
+      const ev = deps.news ? await scanEventsFor({ store, news: deps.news, classifier: deps.eventClassifier ?? null, ...(deps.log ? { log: deps.log } : {}) }, sym, { today: opts.today, name: (await store.profile(sym).catch(() => null))?.profile.name ?? null }).catch((e): EventScan | null => { deps.log?.(`[seguimiento] noticias de ${sym} fallaron`, { error: errText(e) }); return null; }) : null;
       // El dictamen guardado entra desde la primera decisión: si solo se pasara cuando queda COMPRAR, un
       // OBSERVAR conservaría la verificación en su columna y la perdería en las banderas.
       let verification: VerificationSummary | null | undefined = prev?.verification;
-      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today };
+      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate({ ...base, ...(verification ? { verification } : {}) }, policy);
       // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
       if (!("excluded" in d) && d.verdict === "COMPRAR" && deps.verifier) {
@@ -97,7 +102,7 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
         // Tendencia de fondo bajista: se sigue igual, con el stop dinámico como referencia y sin objetivo.
         rows.push({ ...row, verdict: "OBSERVAR", flags: d.reasons, stop: computeTrailingStop(candles) });
       } else {
-        rows.push({ ...row, verification: verification ?? null, entry: d.entry, verdict: d.verdict, flags: d.flags, entryLow: d.entryLow, entryHigh: round2(d.entryHigh), stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore });
+        rows.push({ ...row, verification: verification ?? null, analystTargets: ev?.analystTargets ?? null, entry: d.entry, verdict: d.verdict, flags: d.flags, entryLow: d.entryLow, entryHigh: round2(d.entryHigh), stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore });
       }
       // Reglas de taxonomía cada día (barato): un tema nuevo en config llega solo. Lo manual no se pisa.
       await tagSymbol(deps, sym, { industry: f.industry, country: null }).catch(() => null);
