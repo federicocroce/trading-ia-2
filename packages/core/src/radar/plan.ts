@@ -175,7 +175,9 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       // Un símbolo que ya recibió plata como SUMAR no puede recibirla otra vez como compra nueva: TSM el
       // 12/9 salía dos veces en el mismo plan, con dos montos, para una sola posición.
       if (yaEnSumar.has(b.symbol)) {
-        leftOut.push({ symbol: b.symbol, reason: `${place}: ya recibe aporte como SUMAR, no se duplica la línea` });
+        // No va a `leftOut`: NO quedó afuera, ya está en el plan como SUMAR. Ponerlo en las dos listas era
+        // otra contradicción, y el chequeo entre pantallas la cazó apenas se hizo este arreglo.
+        notes.push(`${b.symbol} entró como SUMAR y no se duplica: el Radar también lo tiene en COMPRAR (${place}).`);
         return;
       }
       // La verificación web con reservas no compra: queda en la fila con su motivo (evitar ya es OBSERVAR y no llega acá).
