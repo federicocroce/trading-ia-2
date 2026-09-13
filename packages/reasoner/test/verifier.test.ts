@@ -49,6 +49,13 @@ describe("verificador: prompts y parseo", () => {
     expect(RESEARCH_SYSTEM).toContain("antimonopolio");
     expect(RESEARCH_SYSTEM).toContain("revisión anual de supuestos");
   });
+  it("una reserva sin el número que la sostiene no cuenta (LNC, HIPO y DEC del 13/9)", () => {
+    // La primera versión del criterio hizo que el modelo repitiera casi textual "valuación en su máximo de 5 años sin
+    // aceleración" para LNC, HIPO y DEC. En LNC era falso: 0,57 veces el valor libro contra 0,83–0,87 en 2019–2021.
+    // Y le atribuyó a LNC un beneficio fiscal de 0,35 que el comunicado no tiene.
+    expect(RESEARCH_SYSTEM).toContain("sin esos números no es reserva");
+    expect(RESEARCH_SYSTEM).toContain("nombrás el ítem, su monto y la fuente");
+  });
   it("versión estable con hash; el mensaje lleva empresa, fecha y contexto", () => {
     expect(VERIFY_VERSION).toMatch(/^v1-[0-9a-f]{12}$/);
     const m = buildResearchMessage({ symbol: "NVDA", name: "NVIDIA", today: "2026-09-10", context: "banderas: consenso_compra" });
