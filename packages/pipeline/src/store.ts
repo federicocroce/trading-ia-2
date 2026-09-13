@@ -1,5 +1,5 @@
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
-import { computeEdge } from "@thesis/core";
+import { computeEdge, familyOf } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
 /**
@@ -526,7 +526,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   /** Última fecha por familia: las filas argentinas (corren otro día) no esconden el último ranking US ni al revés. */
   async candidatesForDate(date: string) {
     const all = [...this.candidates.values()].filter((c) => c.candidateDate <= date);
-    const family = (c: CandidateRow) => (c.kind === "ar" || c.kind === "cedear" ? "ar" : c.kind === "watch" ? "watch" : "us");
+    const family = (c: CandidateRow) => familyOf(c.kind);
     const last: Record<string, string | undefined> = {};
     for (const c of all) if (!last[family(c)] || c.candidateDate > last[family(c)]!) last[family(c)] = c.candidateDate;
     return all.filter((c) => c.candidateDate === last[family(c)]).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
@@ -542,7 +542,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async latestCandidates() {
     const all = [...this.candidates.values()];
-    const family = (c: CandidateRow) => (c.kind === "ar" || c.kind === "cedear" ? "ar" : c.kind === "watch" ? "watch" : "us");
+    const family = (c: CandidateRow) => familyOf(c.kind);
     const last: Record<string, string | undefined> = {};
     for (const c of all) if (!last[family(c)] || c.candidateDate > last[family(c)]!) last[family(c)] = c.candidateDate;
     return all.filter((c) => c.candidateDate === last[family(c)]).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));

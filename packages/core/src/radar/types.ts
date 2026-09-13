@@ -1,4 +1,24 @@
 /** Radar (etapa 2): tipos y puertos. Sin I/O. */
+/**
+ * Familias de filas del Radar: cada una tiene su propia "última fecha", porque las producen corridas
+ * distintas que no siempre corren el mismo día. Si las filas argentinas compartieran fecha con el ranking de
+ * EE.UU., una corrida de Argentina un día sin ranking escondería las acciones del día anterior.
+ *
+ * Una sola definición para los dos almacenes (13/9/2026). Hasta hoy la base real tenía la lista escrita a
+ * mano y DESCARTABA cualquier tipo que no estuviera; la de memoria de los tests lo metía en la familia de
+ * EE.UU. Al agregar `adr`, la base real no mostraba ninguno y los tests pasaban igual.
+ */
+export const CANDIDATE_FAMILIES = {
+  us: ["stock", "etf"],
+  // `adr` va con Argentina: lo produce la misma corrida y comparte su fecha.
+  ar: ["ar", "cedear", "adr"],
+  watch: ["watch"],
+} as const satisfies Record<string, ReadonlyArray<CandidateKind>>;
+export type CandidateFamily = keyof typeof CANDIDATE_FAMILIES;
+export type CandidateKind = "stock" | "etf" | "ar" | "cedear" | "watch" | "adr";
+export const familyOf = (kind: CandidateKind): CandidateFamily =>
+  (Object.keys(CANDIDATE_FAMILIES) as CandidateFamily[]).find((f) => (CANDIDATE_FAMILIES[f] as ReadonlyArray<string>).includes(kind))!;
+
 export type AssetClass = "accion_us" | "adr" | "accion_ar" | "cedear" | "etf" | "bono" | "commodity" | "cripto" | "efectivo";
 export type EtfRole = "nucleo" | "satelite" | "cobertura";
 export type EtfExposure = "rv_us" | "rv_internacional" | "emergentes" | "sector" | "commodity" | "bonos" | "cripto" | "argentina";
@@ -61,7 +81,7 @@ export interface CandidateRow {
   symbol: string;
   /** stock/etf del Radar US; ar = acción de BYMA (precio en pesos, contra el Merval); cedear = chequeo de dólar implícito. */
   /** `adr`: empresa argentina con ADR en Nueva York, medida en dólares contra el SPY (pestaña Argentina). */
-  kind: "stock" | "etf" | "ar" | "cedear" | "watch" | "adr";
+  kind: CandidateKind;
   verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO";
   score: number | null;
   axes: Record<string, number | null>;

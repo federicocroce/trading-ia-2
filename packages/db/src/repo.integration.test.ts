@@ -155,6 +155,16 @@ d("Repo (Postgres real)", () => {
     const latest = (await repo.latestCandidates()).filter((c) => c.symbol === sym);
     expect(latest.map((c) => `${c.kind}:${c.candidateDate}`).sort()).toEqual(["ar:2099-01-02", "stock:2099-01-01"]);
     await db.delete(schema.radarCandidates).where(and(eq(schema.radarCandidates.symbol, sym), eq(schema.radarCandidates.candidateDate, "2099-01-02")));
+    // 13/9/2026: una fila `adr` la devuelve la base real, en la familia de Argentina. Antes la base tenía
+    // las familias escritas a mano y descartaba este tipo: la pestaña mostraba 1 ADR de 12 y la suite, que
+    // usa el almacén en memoria, pasaba igual.
+    const adrSym = `${sym}A`;
+    await repo.upsertCandidates([{ ...cand, symbol: adrSym, candidateDate: "2099-01-03", kind: "adr", verdict: "OBSERVAR", score: null }]);
+    const conAdr = await repo.latestCandidates();
+    expect(conAdr.find((c) => c.symbol === adrSym)?.kind).toBe("adr");
+    // Y no esconde el último ranking de EE.UU. aunque sea más nueva: va con Argentina, no con las acciones.
+    expect(conAdr.some((c) => c.symbol === sym && c.kind === "stock")).toBe(true);
+    await db.delete(schema.radarCandidates).where(eq(schema.radarCandidates.symbol, adrSym));
     expect((await repo.candidateHistory(sym, 4)).length).toBe(1);
     expect((await repo.candidatesToMeasure("2099-01-08", 7)).some((c) => c.symbol === sym)).toBe(true);
     await repo.setCandidateMeasurement("2099-01-01", sym, { close7d: 11, spy7d: 505, alpha7dPct: 9 });

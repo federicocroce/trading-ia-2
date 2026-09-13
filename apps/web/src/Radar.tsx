@@ -384,8 +384,12 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
             <tr key={c.symbol}>
               <td><SymbolLink symbol={c.symbol} /></td>
               <td>{c.peerGroup[0] ? <SymbolLink symbol={c.peerGroup[0]} /> : <span className="muted">—</span>}</td>
-              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}{c.kind === "stock" && <span className="muted" title="Este ADR también está en el ranking de acciones de EE.UU., que lo evalúa con fundamentals contra pares además de la tendencia. Se muestra esa evaluación, que es más completa."> · del Radar</span>}</td>
-              <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
+              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
+              {c.kind === "stock"
+                // Este ADR ya lo evalúa el ranking de acciones de EE.UU., que guarda puntajes contra pares y no
+                // fuerza relativa. Las cuatro columnas salían vacías sin explicación: se dice qué hay en su lugar.
+                ? <td colSpan={4} className="muted" style={{ fontSize: 12 }} title="Este ADR también está en el ranking de acciones de EE.UU., que lo evalúa con fundamentals contra pares además de la tendencia. Esa evaluación es más completa y es la que se muestra.">del ranking de acciones: score {f2(c.score)} · {c.rankInGroup ?? "—"} de {c.groupSize ?? "—"} entre pares</td>
+                : <><td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td></>}
               <td className="mono">{f2(c.close)}</td>
               <td><EntryCell e={c.entry} fallback={<span className="muted">—</span>} /></td>
               <td className="mono">{f2(c.stop)}</td>

@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, lt, notInArray, sql } from "drizzle-orm";
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
-import { computeEdge } from "@thesis/core";
+import { CANDIDATE_FAMILIES, computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
 
@@ -416,7 +416,7 @@ export class Repo {
   /** Última fecha por familia: las filas argentinas (corren otro día) no esconden el último ranking US ni al revés. */
   async latestCandidates(): Promise<CandidateRow[]> {
     const out: CandidateRow[] = [];
-    for (const kinds of [["stock", "etf"], ["ar", "cedear"], ["watch"]]) {
+    for (const kinds of Object.values(CANDIDATE_FAMILIES).map((k) => [...k])) {
       const last = (await this.db.select({ d: sql<string | null>`max(${s.radarCandidates.candidateDate})` }).from(s.radarCandidates).where(inArray(s.radarCandidates.kind, kinds)))[0]?.d;
       if (!last) continue;
       const rows = await this.db.select().from(s.radarCandidates).where(and(eq(s.radarCandidates.candidateDate, last), inArray(s.radarCandidates.kind, kinds))).orderBy(desc(s.radarCandidates.score));
@@ -439,7 +439,7 @@ export class Repo {
   /** Histórico: por familia, las filas de la última fecha ≤ la pedida. */
   async candidatesForDate(date: string): Promise<CandidateRow[]> {
     const out: CandidateRow[] = [];
-    for (const kinds of [["stock", "etf"], ["ar", "cedear"], ["watch"]]) {
+    for (const kinds of Object.values(CANDIDATE_FAMILIES).map((k) => [...k])) {
       const last = (await this.db.select({ d: sql<string | null>`max(${s.radarCandidates.candidateDate})` }).from(s.radarCandidates).where(and(inArray(s.radarCandidates.kind, kinds), sql`${s.radarCandidates.candidateDate} <= ${date}`)))[0]?.d;
       if (!last) continue;
       const rows = await this.db.select().from(s.radarCandidates).where(and(eq(s.radarCandidates.candidateDate, last), inArray(s.radarCandidates.kind, kinds))).orderBy(desc(s.radarCandidates.score));
