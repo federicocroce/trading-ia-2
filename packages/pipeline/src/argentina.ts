@@ -35,6 +35,10 @@ function baseRow(date: string, symbol: string, kind: CandidateRow["kind"], close
   };
 }
 
+/** Cuántas ruedas de calendario separan la vela usada de la fecha de la corrida. null si no hay vela. */
+const diasEntre = (velaDate: string | null, today: string): number | null =>
+  velaDate === null ? null : Math.round((Date.parse(today) - Date.parse(velaDate)) / 86_400_000);
+
 /** Etiqueta por regla; lo manual nunca se pisa. */
 async function ensureTags(store: RadarStore, symbol: string, t: Tags): Promise<void> {
   const cur = await store.tags(symbol);
@@ -50,6 +54,9 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
   const merval = await deps.history.candles(config.benchmark, HISTORY_DAYS).catch((e) => { errors.push({ symbol: config.benchmark, error: errText(e) }); return [] as Candle[]; });
   if (merval.length) await store.upsertCandles(config.benchmark, merval);
   const mervalClose = merval[merval.length - 1]?.close ?? null;
+  // De qué rueda es ese cierre. Los dólares son de hoy; el índice puede ser de ayer, y el Merval en dólares
+  // es el cociente de los dos. Guardarlo es lo que permite que la pantalla no los presente como un solo día.
+  const mervalDate = merval[merval.length - 1]?.date ?? null;
 
   // 2. Macro del día. Si una fuente falla, se guarda lo que hay.
   let dolares: Awaited<ReturnType<ArgentinaDeps["macro"]["dolares"]>> = {};
@@ -64,7 +71,7 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
   } catch (e) {
     errors.push({ symbol: "macro", error: `riesgo país: ${errText(e)}` });
   }
-  const macro = macroAr({ date: opts.today, dolares, riesgoPais, merval: mervalClose });
+  const macro = macroAr({ date: opts.today, dolares, riesgoPais, merval: mervalClose, mervalDate });
   await store.saveMacroAr(macro);
 
   // 3. Acciones de BYMA contra el Merval.
@@ -86,7 +93,10 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
       rows.push({
         ...baseRow(opts.today, a.symbol, "ar", d.close),
         verdict: d.verdict,
-        axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct, closeUsd: d.closeUsd },
+        // `ccl` y `velaDias` van en los ejes para que la columna "precio USD" pueda decir a qué dólar se
+        // convirtió y de qué rueda es el precio de BYMA. Antes la pantalla mostraba el CCL del encabezado,
+        // que es el de hoy, al lado de un precio convertido con el CCL de la corrida que lo calculó.
+        axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct, closeUsd: d.closeUsd, ccl: macro.ccl, velaDias: diasEntre(candles[candles.length - 1]?.date ?? null, opts.today) },
         peerGroup: a.adr ? [a.adr] : [],
         entryLow: d.close, entryHigh: round2(d.close * 1.02), stop: d.stop, target: d.target,
         flags: d.reasons, nthAppearance: nth, spyClose: mervalClose,
@@ -116,7 +126,7 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
           const usClose = us[c.us];
           if (!usClose) throw new Error(`sin precio de ${c.us} en EE.UU.`);
           const chk = cedearCheck(c, baClose, usClose, ccl);
-          rows.push({ ...baseRow(opts.today, c.symbol, "cedear", baClose), axes: { ratio: c.ratio, impliedCcl: chk.impliedCcl, gapPct: chk.gapPct, priceUsd: chk.priceUsd, usClose }, peerGroup: [c.us], flags: [chk.flag] });
+          rows.push({ ...baseRow(opts.today, c.symbol, "cedear", baClose), axes: { ratio: c.ratio, impliedCcl: chk.impliedCcl, gapPct: chk.gapPct, priceUsd: chk.priceUsd, usClose, ccl, velaDias: diasEntre(candles[candles.length - 1]?.date ?? null, opts.today) }, peerGroup: [c.us], flags: [chk.flag] });
           const usTags = await store.tags(c.us);
           await ensureTags(store, c.symbol, { assetClass: "cedear", sector: usTags?.sector ?? "Otros", industry: usTags?.industry ?? null, themes: usTags?.themes ?? [], themesSource: "regla" });
           cedears++;

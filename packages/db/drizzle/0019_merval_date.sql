@@ -1,0 +1,1 @@
+ALTER TABLE "macro_ar_daily" ADD COLUMN "merval_date" date;

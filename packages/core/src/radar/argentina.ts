@@ -43,9 +43,16 @@ export interface MacroAr {
   riesgoPais: number | null;
   merval: number | null;
   mervalUsd: number | null;
+  /**
+   * De qué rueda es el cierre del Merval que se dividió por el CCL. Los dólares se piden en vivo y valen el
+   * día de la corrida; el Merval sale de la última vela guardada, que puede ser de la rueda anterior. El
+   * 12/9 el Merval en dólares del encabezado mezclaba el índice del 10 con el CCL del 11 y la pantalla lo
+   * mostraba como un solo número del día. Opcional: si falta, la pantalla no afirma de cuándo es.
+   */
+  mervalDate?: string | null;
 }
 
-export function macroAr(i: { date: string; dolares: Partial<Record<"oficial" | "mep" | "ccl" | "blue" | "mayorista", number>>; riesgoPais: number | null; merval: number | null }): MacroAr {
+export function macroAr(i: { date: string; dolares: Partial<Record<"oficial" | "mep" | "ccl" | "blue" | "mayorista", number>>; riesgoPais: number | null; merval: number | null; mervalDate?: string | null }): MacroAr {
   const d = i.dolares;
   const ccl = d.ccl ?? null;
   const oficial = d.oficial ?? null;
@@ -58,6 +65,7 @@ export function macroAr(i: { date: string; dolares: Partial<Record<"oficial" | "
     mayorista: d.mayorista ?? null,
     brechaPct: ccl && oficial ? round2((ccl / oficial - 1) * 100) : null,
     riesgoPais: i.riesgoPais,
+    mervalDate: i.mervalDate ?? null,
     merval: i.merval,
     mervalUsd: ccl && i.merval ? round2(i.merval / ccl) : null,
   };
@@ -89,6 +97,13 @@ export function decideArStock(candles: Candle[], merval: Candle[], ccl: number |
   if (s200 !== null && close < s200) reasons.push("bajo SMA200");
   const r21 = returnPct(candles, 21);
   if (r21 !== null && r21 > p.maxReturn21dPct) reasons.push("no_perseguir");
+  // Cierre bajo el stop dinámico: la misma guarda que ya tenían las acciones US y los ETFs, y que acá
+  // faltaba. Sin ella `computeTarget(close, stop)` con el stop ARRIBA del precio devuelve un objetivo por
+  // DEBAJO del precio, y la pantalla publica un boleto imposible: comprar a 264 para vender a 261,90.
+  // El 12/9 pasaba en seis papeles argentinos (BBAR, BYMA, RICH, TGNO4, TRAN y VALO). Sin objetivo se
+  // sigue mostrando el precio y el stop, que es la referencia de cuándo volvería a tener sentido mirarlo.
+  const belowStop = stop !== null && close <= stop;
+  if (belowStop) reasons.push("bajo_stop");
   return {
     verdict: reasons.length ? "OBSERVAR" : "COMPRAR",
     rs3m: relativeStrength(candles, merval, 63),
@@ -100,7 +115,7 @@ export function decideArStock(candles: Candle[], merval: Candle[], ccl: number |
     close,
     closeUsd: ccl ? round4(close / ccl) : null,
     stop,
-    target: computeTarget(close, stop),
+    target: belowStop ? null : computeTarget(close, stop),
   };
 }
 

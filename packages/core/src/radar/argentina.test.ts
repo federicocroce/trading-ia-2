@@ -34,6 +34,28 @@ describe("decideArStock", () => {
     expect(d.closeUsd).toBeCloseTo(1.26, 2);
     expect(d.stop).not.toBeNull();
   });
+  /**
+   * BBAR, BYMA, RICH, TGNO4, TRAN y VALO el 12/9: los seis venían cayendo, quedaron con el cierre por
+   * debajo de su stop dinámico, y la pantalla publicaba igual un objetivo calculado como
+   * close + 2 × (close − stop), que con el stop ARRIBA del precio da un objetivo DEBAJO del precio.
+   * BYMA: comprar a 264 para vender a 261,90. Las acciones US y los ETFs ya tenían esta guarda.
+   */
+  it("bajo su propio stop no lleva objetivo: el 2 a 1 daría un objetivo debajo del precio", () => {
+    const d = decideArStock(series(260, 2000, 1000), series(260, 1000, 1500), 1583.2, technical);
+    if ("excluded" in d) throw new Error("excluida");
+    expect(d.stop).not.toBeNull();
+    expect(d.close).toBeLessThanOrEqual(d.stop!);
+    expect(d.target).toBeNull();
+    expect(d.reasons).toContain("bajo_stop");
+  });
+
+  it("arriba del stop sí lleva objetivo, y queda por encima del precio", () => {
+    const d = decideArStock(series(260, 1000, 2000), series(260, 1000, 1500), 1583.2, technical);
+    if ("excluded" in d) throw new Error("excluida");
+    expect(d.target).not.toBeNull();
+    expect(d.target!).toBeGreaterThan(d.close);
+  });
+
   it("OBSERVAR cuando pierde contra el Merval o está bajo la SMA200, con la razón", () => {
     const d = decideArStock(series(260, 2000, 1000), series(260, 1000, 1500), 1583.2, technical);
     if ("excluded" in d) throw new Error("excluida");

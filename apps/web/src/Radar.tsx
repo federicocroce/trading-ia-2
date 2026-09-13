@@ -348,9 +348,21 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
   const acciones = [...d.acciones].sort((a, b) => (a.verdict === b.verdict ? (b.axes["rs6m"] ?? -Infinity) - (a.axes["rs6m"] ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
   const dCcl = delta(m?.ccl ?? null, prev?.ccl);
   const dRp = delta(m?.riesgoPais ?? null, prev?.riesgoPais);
+  // Tres fechas distintas que la pantalla presentaba como una sola (12/9): el macro se pide en vivo y es de
+  // hoy; las filas de acciones y CEDEARs son de la última corrida de Argentina (ese día, del 10); y el
+  // precio de BYMA dentro de cada fila es el de su última rueda cerrada. El encabezado decía "macro del 11"
+  // y abajo mostraba una tabla del 10 sin decirlo, así que todo se leía como del mismo día.
+  const fechaFilas = [...d.acciones, ...d.cedears][0]?.candidateDate ?? null;
+  const desfasada = m !== null && fechaFilas !== null && fechaFilas !== m.date;
   return (
     <div className="card" style={{ overflowX: "auto" }}>
-      <b>Argentina</b> <span className="muted">{m ? `macro del ${m.date}` : "sin datos: apretá Refrescar Argentina"}</span>
+      <b>Argentina</b> <span className="muted">{m ? `macro del ${m.date}` : "sin datos: apretá Refrescar Argentina"}{fechaFilas && ` · acciones y CEDEARs de la corrida del ${fechaFilas}`}</span>
+      {desfasada && (
+        <div className="warn" style={{ fontSize: 12, marginTop: 4 }}>
+          El macro de arriba es del {m!.date} y las tablas de abajo son de la corrida del {fechaFilas}: no son del mismo día.
+          Los precios en dólares de las filas están convertidos al CCL de SU corrida, no al de arriba. Apretá Refrescar Argentina para igualarlas.
+        </div>
+      )}
       {m && (
         <div className="kpis" style={{ marginTop: 8 }}>
           <div className="kpi"><b>{ars(m.ccl)}</b><span>dólar CCL{dCcl !== null && <> · <span className={dCcl > 0 ? "bad" : "ok"}>{pct(dCcl)}</span></>}</span></div>
@@ -359,7 +371,7 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
           <div className="kpi"><b>{pct(m.brechaPct)}</b><span>brecha CCL / oficial</span></div>
           <div className="kpi"><b>{ars(m.blue)}</b><span>blue</span></div>
           <div className="kpi"><b>{m.riesgoPais ?? "—"}</b><span>riesgo país{dRp !== null && <> · <span className={dRp > 0 ? "bad" : "ok"}>{pct(dRp)}</span></>}</span></div>
-          <div className="kpi"><b>{m.mervalUsd !== null ? `US$ ${m.mervalUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—"}</b><span>Merval en dólares</span></div>
+          <div className="kpi"><b>{m.mervalUsd !== null ? `US$ ${m.mervalUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—"}</b><span>Merval en dólares{m.mervalDate && m.mervalDate !== m.date ? <> · <span className="warn">índice del {m.mervalDate}, CCL del {m.date}</span></> : ""}</span></div>
         </div>
       )}
       <div style={{ marginTop: 12 }}><b>Acciones de BYMA</b> <span className="muted">({acciones.length}) contra el Merval, en pesos</span></div>
@@ -372,7 +384,8 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
               <td>{c.peerGroup[0] ? <SymbolLink symbol={c.peerGroup[0]} /> : <span className="muted">—</span>}</td>
               <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
               <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
-              <td className="mono">{ars(c.close)}</td><td className="mono">{c.axes["closeUsd"] !== null && c.axes["closeUsd"] !== undefined ? `US$ ${c.axes["closeUsd"].toFixed(2)}` : "—"}</td>
+              <td className="mono" title={c.axes["velaDias"] ? `Cierre de una rueda ${c.axes["velaDias"]} día(s) anterior a la corrida del ${c.candidateDate}.` : undefined}>{ars(c.close)}{!!c.axes["velaDias"] && c.axes["velaDias"]! > 1 && <span className="muted"> ·{c.axes["velaDias"]}d</span>}</td>
+              <td className="mono" title={c.axes["ccl"] ? `Convertido al CCL ${c.axes["ccl"]!.toFixed(2)} de la corrida del ${c.candidateDate}, que puede no ser el CCL de arriba.` : undefined}>{c.axes["closeUsd"] !== null && c.axes["closeUsd"] !== undefined ? `US$ ${c.axes["closeUsd"].toFixed(2)}` : "—"}{c.axes["ccl"] ? <span className="muted"> @{c.axes["ccl"]!.toFixed(0)}</span> : null}</td>
               <td className="mono">{ars(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
               <td className="mono">{ars(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
               <td><TagChips tags={c.tags} /></td>

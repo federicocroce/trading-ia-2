@@ -496,11 +496,11 @@ export class Repo {
   // ---------- Argentina (etapa 3) ----------
   private macroToRow(m: MacroAr) {
     const n = (v: number | null) => (v === null ? null : str(v));
-    return { date: m.date, oficial: n(m.oficial), mep: n(m.mep), ccl: n(m.ccl), blue: n(m.blue), mayorista: n(m.mayorista), brechaPct: n(m.brechaPct), riesgoPais: m.riesgoPais, merval: n(m.merval), mervalUsd: n(m.mervalUsd) };
+    return { date: m.date, oficial: n(m.oficial), mep: n(m.mep), ccl: n(m.ccl), blue: n(m.blue), mayorista: n(m.mayorista), brechaPct: n(m.brechaPct), riesgoPais: m.riesgoPais, merval: n(m.merval), mervalUsd: n(m.mervalUsd), mervalDate: m.mervalDate ?? null };
   }
   private rowToMacro(r: typeof s.macroArDaily.$inferSelect): MacroAr {
     const n = (v: string | null) => (v === null ? null : Number(v));
-    return { date: r.date, oficial: n(r.oficial), mep: n(r.mep), ccl: n(r.ccl), blue: n(r.blue), mayorista: n(r.mayorista), brechaPct: n(r.brechaPct), riesgoPais: r.riesgoPais, merval: n(r.merval), mervalUsd: n(r.mervalUsd) };
+    return { date: r.date, oficial: n(r.oficial), mep: n(r.mep), ccl: n(r.ccl), blue: n(r.blue), mayorista: n(r.mayorista), brechaPct: n(r.brechaPct), riesgoPais: r.riesgoPais, merval: n(r.merval), mervalUsd: n(r.mervalUsd), mervalDate: r.mervalDate };
   }
   async saveMacroAr(m: MacroAr): Promise<void> {
     const row = this.macroToRow(m);

@@ -419,6 +419,8 @@ export const macroArDaily = pgTable("macro_ar_daily", {
   riesgoPais: integer("riesgo_pais"),
   merval: numeric("merval", { precision: 18, scale: 4 }),
   mervalUsd: numeric("merval_usd", { precision: 14, scale: 4 }),
+  /** Rueda del cierre del Merval que se dividió por el CCL: los dólares son de hoy, el índice puede ser de ayer. */
+  mervalDate: date("merval_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
