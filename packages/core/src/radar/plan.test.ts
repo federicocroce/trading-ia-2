@@ -113,6 +113,48 @@ describe("planContribution", () => {
     const p = planContribution(i, { ...c, maxNewPositionsPerMonth: 1 });
     expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).toMatch(/^1° por convicción de 1 COMPRAR del Radar, convicción 1\.8, score 2\.1 · ⚠ se mueve como TSM que ya tenés \(correlación 0\.81\)$/);
   });
+  describe("quién entra al plan (13/9)", () => {
+    // El dueño preguntó: "si antes estaba NBN, ¿qué me asegura que GFI esté correcto como siguiente?". Nada, si GFI
+    // pasó por la misma verificación que dejó pasar a NBN. La siguiente entra solo verificada con el cuestionario
+    // vigente; un lugar que ninguna llena va al núcleo, no a un ETF ni repartido entre las demás.
+    type Buy = PlanInput["buyCandidates"][number];
+    const apta = { verdict: "apto" as const, reason: "ok", current: true };
+    const stock = (symbol: string, priority: number, verification: Buy["verification"]): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close: 100, entryHigh: 102, stop: 90, target: 126, verification });
+    const cuarenta = (buys: Buy[], extra: Partial<PlanInput> = {}) => planContribution({ ...base, closes: { ...base.closes, APH: 84, NBN: 132, LNC: 44, GFI: 45, XLF: 57 }, buyCandidates: [...buys, { symbol: "XLF", kind: "etf", priority: 1.1, score: null, sizeUsd: 5_000, close: 57, entryHigh: 58, stop: 55, target: 64 }], ...extra }, c, { amountUsd: 40_000 });
+    const nucleo = (p: ReturnType<typeof planContribution>) => p.lines.filter((l) => l.kind === "nucleo").reduce((s, l) => s + l.amountUsd, 0);
+
+    it("verificada con el cuestionario anterior no entra, y la siguiente vigente la reemplaza", () => {
+      const p = cuarenta([stock("NBN", 1.63, { ...apta, current: false }), stock("APH", 1.58, apta), stock("NVDA", 1.44, apta), stock("LNC", 1.33, apta), stock("GFI", 0.9, apta)]);
+      expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/cuestionario anterior/);
+      expect(p.lines.map((l) => l.symbol)).toEqual(expect.arrayContaining(["APH", "NVDA", "LNC", "GFI"]));
+      expect(p.lines.some((l) => l.symbol === "XLF")).toBe(false);
+    });
+    it("si ninguna la reemplaza, el lugar no lo toma un ETF ni se reparte: va al núcleo y la nota lo dice", () => {
+      const lleno = cuarenta([stock("NBN", 1.63, apta), stock("APH", 1.58, apta), stock("NVDA", 1.44, apta), stock("LNC", 1.33, apta)]);
+      const vacio = cuarenta([stock("NBN", 1.63, { verdict: "con_reservas", reason: "sorpresa por impuestos", current: true }), stock("APH", 1.58, apta), stock("NVDA", 1.44, apta), stock("LNC", 1.33, apta), stock("GFI", 0.9, { ...apta, current: false })]);
+      expect(vacio.lines.some((l) => l.symbol === "XLF")).toBe(false);
+      expect(vacio.lines.some((l) => l.symbol === "GFI")).toBe(false);
+      // Las que entraron reciben lo mismo que con el lugar lleno: la parte de NBN no se reparte entre ellas.
+      for (const s of ["APH", "NVDA", "LNC"]) expect(vacio.lines.find((l) => l.symbol === s)!.amountUsd).toBeCloseTo(lleno.lines.find((l) => l.symbol === s)!.amountUsd, -1);
+      expect(nucleo(vacio)).toBeGreaterThan(nucleo(lleno));
+      expect(vacio.notes.join(" ")).toMatch(/lugar.*núcleo/i);
+      expect(vacio.lines.reduce((s, l) => s + l.amountUsd, 0)).toBe(40_000);
+    });
+    it("una acción con la verificación pendiente tampoco entra", () => {
+      const p = cuarenta([stock("NBN", 1.63, null), stock("APH", 1.58, apta)]);
+      expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/pendiente/);
+    });
+    it("un SUMAR cuya verificación no está apta no se suma: su parte va al núcleo", () => {
+      const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 413.63, target: 498.44 };
+      const sano = cuarenta([], { sumarCandidates: [{ ...tsm, verification: apta }] });
+      const conReservas = cuarenta([], { sumarCandidates: [{ ...tsm, verification: { verdict: "con_reservas", reason: "prima del ADR", current: true } }] });
+      expect(sano.lines.some((l) => l.symbol === "TSM" && l.kind === "sumar")).toBe(true);
+      expect(conReservas.lines.some((l) => l.symbol === "TSM")).toBe(false);
+      expect(conReservas.notes.join(" ")).toMatch(/No se sumó TSM/);
+      expect(nucleo(conReservas)).toBeGreaterThan(nucleo(sano));
+    });
+  });
+
   it("sin candidatos y núcleo lleno → todo al núcleo con nota", () => {
     const p = planContribution({ ...base, positions: [{ symbol: "VTI", valueUsd: 50_000, assetClass: "etf", role: "nucleo" }, { symbol: "YPF", valueUsd: 50_000, assetClass: "adr" }] }, c);
     expect(p.lines.every((l) => l.kind === "nucleo")).toBe(true);

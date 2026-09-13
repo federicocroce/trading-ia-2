@@ -245,6 +245,22 @@ describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
   });
 });
 
+describe("plan: verificación con el cuestionario vigente (13/9)", () => {
+  it("una acción verificada con el cuestionario anterior no entra; una con el vigente sí", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const compras = (await store.latestCandidates()).filter((r) => r.kind === "stock" && r.verdict === "COMPRAR");
+    if (compras.length < 2) expect.fail("el fixture necesita dos COMPRAR");
+    await store.upsertCandidates(compras.map((r, i) => ({ ...r, verification: { date: TODAY, verdict: "apto" as const, reason: "ok", consensusTarget: null, promptVersion: i === 0 ? "v1-viejo" : "v2-nuevo" } })));
+    // Solo se usa su versión: el plan no verifica nada, decide con lo guardado.
+    const verifier = { promptVersion: "v2-nuevo", verify: async () => { throw new Error("el plan no verifica"); } };
+    const plan = await buildContributionPlan({ ...d, verifier }, { month: "2026-05", portfolioUsd: 100_000 });
+    expect(plan.leftOut?.find((x) => x.symbol === compras[0]!.symbol)?.reason).toMatch(/cuestionario anterior/);
+    expect(plan.lines.some((l) => l.symbol === compras[1]!.symbol)).toBe(true);
+  });
+});
+
 describe("applyTaxonomy", () => {
   it("regla no pisa manual", async () => {
     const { store, d } = deps();

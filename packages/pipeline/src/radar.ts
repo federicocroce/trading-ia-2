@@ -27,6 +27,7 @@ import {
   type CardInput,
   type CardWriter,
   type ContributionPlan,
+  type PlanVerification,
   type CandidateVerifier,
   type CoreEarnings,
   type VerificationSummary,
@@ -689,6 +690,13 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     return hit ? `el ETF de su tema (${hit.symbol}) está en OBSERVAR: ${hit.flags.join(", ") || "sin fuerza"}` : null;
   };
   const candidatePorSimbolo = new Map(candidates.map((c) => [c.symbol, c]));
+  // Verificación tal como la usa el plan (13/9): vigente = hecha con el cuestionario actual. Sin verificador no se
+  // exige (undefined); con verificador y sin dictamen, pendiente (null), que no compra.
+  const planVerification = (v: VerificationSummary | null | undefined): PlanVerification | null | undefined => {
+    if (!deps.verifier) return undefined;
+    if (!v) return null;
+    return { verdict: v.verdict, reason: v.reason, current: v.promptVersion === deps.verifier.promptVersion };
+  };
   const plan = planContribution(
     {
       month: opts.month,
@@ -701,7 +709,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       // plan y 498,44 en el Radar. Los dos números de una orden salen de la misma fila.
       sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => {
         const c = candidatePorSimbolo.get(v.symbol);
-        return { symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: c ? c.stop : v.stop, target: c ? c.target : v.target, caution: sumarCaution(v.symbol) };
+        // Un SUMAR también es una compra: si el Radar lo verificó, el dictamen vale igual que para una nueva.
+        return { symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: c ? c.stop : v.stop, target: c ? c.target : v.target, caution: sumarCaution(v.symbol), verification: c ? planVerification(c.verification) : undefined };
       }),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
       // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
@@ -712,8 +721,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           priority: c.kind === "stock" ? (conviction.get(c.symbol) ?? null) : c.kind === "watch" ? -(c.riskScore ?? 10) : (c.axes["rs6m"] ?? null),
           // La salvedad que más pesa al comprar: si se mueve como algo tuyo, la línea del plan lo dice.
           cautions: overlap[c.symbol] ? [overlapCaution(overlap[c.symbol]!)] : [],
-          // Verificación web: "con reservas" no entra como posición nueva y la nota dice por qué.
-          verification: c.verification ? { verdict: c.verification.verdict, reason: c.verification.reason } : null,
+          // Verificación web: entra solo apta y con el cuestionario vigente; si no, la nota dice por qué.
+          verification: c.kind === "etf" ? undefined : planVerification(c.verification),
           // Salvedades de precio (consenso en el precio, subida de 12 meses): tampoco entran como nueva.
           flags: c.flags,
           // Cuándo comprarla: si está extendida, la línea del plan dice el nivel a esperar.

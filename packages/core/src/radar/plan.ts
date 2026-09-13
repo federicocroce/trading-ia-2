@@ -14,18 +14,40 @@ export interface PlanInput {
   month: string;
   portfolioValueUsd: number;
   positions: Array<{ symbol: string; valueUsd: number; assetClass: AssetClass; role?: EtfRole }>;
-  /** `caution`: si el ETF del tema está en OBSERVAR (oro bajo la media de 200 con NEM subponderada), no se suma y la nota lo dice. */
-  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null; caution?: string | null }>;
+  /** `caution`: si el ETF del tema está en OBSERVAR (oro bajo la media de 200 con NEM subponderada), no se suma y la nota lo dice.
+   *  `verification`: la del Radar si el símbolo está ahí. Un SUMAR es una compra: con reservas, evitar o con el cuestionario anterior no se suma. */
+  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null; caution?: string | null; verification?: PlanVerification | null }>;
   /** `cautions`: salvedades ya escritas (p. ej. "se mueve como YPF que ya tenés") que van a la razón de la línea.
-   *  `verification`: veredicto de la verificación web; "con_reservas" no entra como posición nueva y la nota dice por qué.
+   *  `verification`: veredicto de la verificación web. Una acción entra solo apta y con el cuestionario vigente;
+   *  `null` = pendiente (no entra); `undefined` = no hay verificador (no se exige).
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: { verdict: "apto" | "con_reservas" | "evitar"; reason: string } | null; flags?: string[]; entry?: PlanLine["entry"] }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null; flags?: string[]; entry?: PlanLine["entry"] }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   coreEtfs: EtfConfig[];
   spyClose: number | null;
   closes: Record<string, number>;
 }
+/**
+ * Dictamen de la verificación web tal como lo usa el plan. `current`: hecha con el cuestionario vigente. El 13/9
+ * NBN estaba "apta" con un cuestionario que no preguntaba si la sorpresa sobrevivía sin extraordinarios; con el
+ * nuevo, lo verificado antes vale como pendiente hasta repetirse. Sin el campo (llamadores viejos) cuenta como vigente.
+ */
+export interface PlanVerification {
+  verdict: "apto" | "con_reservas" | "evitar";
+  reason: string;
+  current?: boolean;
+}
+
+/** Motivo por el que una verificación no deja comprar, o null si deja. `undefined` = no hay verificador: no se exige. */
+export function verificationBlock(v: PlanVerification | null | undefined): string | null {
+  if (v === undefined) return null;
+  if (v === null) return "verificación web pendiente: no entra hasta que se verifique";
+  if (v.verdict !== "apto") return `verificación web ${v.verdict === "evitar" ? "dice evitar" : "con reservas"}: ${v.reason}`;
+  if (v.current === false) return "verificación hecha con el cuestionario anterior: se repite antes de comprarla";
+  return null;
+}
+
 export interface PlanLine {
   symbol: string;
   kind: "nucleo" | "sumar" | "comprar" | "seguimiento";
@@ -152,6 +174,13 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     }
     const amt = Math.floor(Math.min(remaining, sumarPool, maxLine, Math.max(0, equalTarget - s.valueUsd), capFor(s.symbol)));
     if (amt < MIN_LINE_USD) continue;
+    // Un SUMAR es una compra: la misma vara que una nueva (13/9). Pendiente en el Radar (null) no frena: lo decide Cartera.
+    const bloqueo = s.verification ? verificationBlock(s.verification) : null;
+    if (bloqueo) {
+      notes.push(`No se sumó ${s.symbol}: ${bloqueo}. Su parte (USD ${amt}) va al núcleo.`);
+      if (allocateCore(amt, `lo que iba a ${s.symbol}, que no pasó la verificación`)) sumarPool -= amt;
+      continue;
+    }
     lines.push({ ...line(s.symbol, "sumar", amt, `subponderada (${s.weightPct}% vs ${Math.round((equalTarget / total) * 100)}% igualitario)`), stop: s.stop ?? null, target: s.target ?? null });
     remaining -= amt;
     sumarPool -= amt;
@@ -173,6 +202,10 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   const leftOut: Array<{ symbol: string; reason: string }> = [];
   const POOL_LABEL: Record<"stock" | "watch" | "etf", string> = { stock: "posiciones nuevas", watch: "de seguimiento", etf: "ETF satélite" };
   let newCount = 0;
+  /** Lugares de acciones que quedaron vacíos porque la que los ocupaba no pasó la verificación y ninguna la reemplazó. */
+  let vacantes = 0;
+  /** Prioridad de cada acción que cayó por la verificación, en orden: el lugar vacío pesa lo que pesaba ella. */
+  const caidas: Array<number | null> = [];
   for (const pool of pools) {
     let taken = 0;
     const queue = i.buyCandidates.filter((x) => x.kind === pool.kind).sort(byPriority);
@@ -187,9 +220,12 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         notes.push(`${b.symbol} entró como SUMAR y no se duplica: el Radar también lo tiene en COMPRAR (${place}).`);
         return;
       }
-      // La verificación web con reservas no compra: queda en la fila con su motivo (evitar ya es OBSERVAR y no llega acá).
-      if (b.verification && b.verification.verdict !== "apto") {
-        leftOut.push({ symbol: b.symbol, reason: `${place}: verificación web ${b.verification.verdict === "evitar" ? "dice evitar" : "con reservas"}: ${b.verification.reason}` });
+      // Una acción entra solo verificada, apta y con el cuestionario vigente (13/9). Con reservas, pendiente o con el
+      // cuestionario anterior queda en la fila con su motivo. Los ETFs no se verifican en la web.
+      const bloqueo = pool.kind === "etf" ? null : verificationBlock(b.verification);
+      if (bloqueo) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${bloqueo}` });
+        if (pool.kind === "stock") caidas.push(b.priority);
         return;
       }
       // Salvedades de precio (pieza 3): tampoco entra como nueva, con el motivo.
@@ -208,7 +244,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         return;
       }
       if (pool.countsAsNew && isNew && newCount >= maxNew) {
-        leftOut.push({ symbol: b.symbol, reason: `${place}: tope de ${maxNew} posiciones nuevas` });
+        leftOut.push({ symbol: b.symbol, reason: vacantes > 0 ? `${place}: el lugar libre era de una acción que no pasó la verificación, y esa parte va al núcleo` : `${place}: tope de ${maxNew} posiciones nuevas` });
         return;
       }
       chosen.push(b);
@@ -216,6 +252,13 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       taken++;
       if (pool.countsAsNew && isNew) newCount++;
     });
+    // Un lugar que dejó una acción que no pasó la verificación, y que ninguna verificada llenó, no lo toma un ETF ni
+    // se reparte entre las demás: cuenta como ocupado y su parte va al núcleo. "¿Qué me asegura que la siguiente esté
+    // bien?", preguntó el dueño el 13/9: solo la misma verificación.
+    if (pool.kind === "stock") {
+      vacantes = Math.min(caidas.length, Math.max(0, pool.max - taken));
+      newCount += vacantes;
+    }
   }
   if (chosen.length && remaining >= MIN_LINE_USD) {
     // Reparto por convicción (pieza 5): cada acción pesa 1 + su convicción (más convicción, más plata, sin extremos: 1,5 contra 0,6
@@ -223,10 +266,15 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     const stockWeights = chosen.filter((b) => b.kind === "stock" && b.priority !== null).map((b) => 1 + Math.max(0, b.priority!));
     const avg = stockWeights.length ? stockWeights.reduce((s, x) => s + x, 0) / stockWeights.length : 1;
     const weightOf = (b: PlanInput["buyCandidates"][number]) => (b.kind === "stock" && b.priority !== null ? 1 + Math.max(0, b.priority) : avg);
-    const wsum = chosen.reduce((s, b) => s + weightOf(b), 0);
+    // Cada lugar vacío pesa lo que pesaba la acción que se fue (así las demás reciben lo mismo que con el lugar
+    // lleno) y su parte queda sin repartir: va al núcleo en el paso 4.
+    const pesoVacante = caidas.slice(0, vacantes).reduce<number>((s, pr) => s + (pr !== null ? 1 + Math.max(0, pr) : avg), 0);
+    const wsum = chosen.reduce((s, b) => s + weightOf(b), 0) + pesoVacante;
+    const vacanteUsd = vacantes > 0 ? Math.floor((remaining * pesoVacante) / wsum) : 0;
+    if (vacantes > 0) notes.push(`${vacantes === 1 ? "Un lugar" : `${vacantes} lugares`} de posiciones nuevas ${vacantes === 1 ? "quedó vacío" : "quedaron vacíos"}: la acción que lo ocupaba no pasó la verificación y ninguna verificada la reemplazó. Esa parte (USD ${vacanteUsd}) va al núcleo; no se reparte entre las demás ni la toma un ETF.`);
     let used = 0;
     chosen.forEach((b, idx) => {
-      const share = idx === chosen.length - 1 ? remaining - used : Math.floor((remaining * weightOf(b)) / wsum);
+      const share = idx === chosen.length - 1 && vacantes === 0 ? remaining - used : Math.floor((remaining * weightOf(b)) / wsum);
       const amt = Math.floor(Math.min(share, maxLine, b.sizeUsd ?? share, capFor(b.symbol)));
       if (amt < MIN_LINE_USD) {
         leftOut.push({ symbol: b.symbol, reason: `quedaría con menos de USD ${MIN_LINE_USD} (tope por posición o monto chico)` });
