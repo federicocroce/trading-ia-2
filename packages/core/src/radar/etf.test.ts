@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideEtf, relativeStrength, type Candle, type EtfConfig } from "../index.js";
+import { decideEtf, relativeStrength, relativeStrengthDetail, type Candle, type EtfConfig } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01"): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1_000_000 }));
@@ -10,12 +10,43 @@ const weak = series(ramp(100, 100));
 const tech = { maxReturn21dPct: 15, earningsWithinDays: 10 };
 const cfg = (role: EtfConfig["role"]): EtfConfig => ({ symbol: "X", name: "X", role, exposure: "rv_us", ter: 0.1, themes: [] });
 
+/** Serie con dividendos: `adjClose` crece más que `close`, que es lo que pasa con un ETF que paga cupón. */
+const conDividendos = (closes: number[], rendimientoTotal: number[], start = "2025-09-01"): Candle[] =>
+  closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, adjClose: rendimientoTotal[i]!, volume: 1_000_000 }));
+
 describe("relativeStrength", () => {
   it("(1+r_etf)/(1+r_spy) − 1 en %", () => {
     const etf = series([100, 110]);
     const s = series([100, 105]);
     expect(relativeStrength(etf, s, 1)).toBeCloseTo(4.7619, 3);
     expect(relativeStrength(etf, s, 5)).toBeNull();
+  });
+
+  /**
+   * El caso SGOV: un ETF de letras cuyo precio no se mueve pero que rinde por cupón. Medido solo por precio
+   * daba 0,0% a doce meses y parecía perderle al SPY por todo lo que el SPY subió. La fuerza relativa es el
+   * ÚNICO criterio con el que se decide un ETF satélite, así que el sesgo cambiaba el veredicto.
+   */
+  it("cuenta los dividendos cuando las dos series los traen", () => {
+    const letras = conDividendos([100, 100], [100, 103.4]);
+    const indice = conDividendos([100, 105], [100, 106]);
+    const d = relativeStrengthDetail(letras, indice, 1)!;
+    expect(d.partial).toBe(false);
+    // 3,4% contra 6%: pierde, pero mucho menos que el 0% contra 5% que daba antes.
+    expect(d.pct).toBeCloseTo(((1.034 / 1.06) - 1) * 100, 2);
+  });
+
+  /**
+   * Y la otra mitad: si UNA de las dos no trae dividendos, se miden las dos por precio. Comparar retorno
+   * total contra retorno de precio es peor que comparar precio contra precio, porque el sesgo queda de un
+   * solo lado y no se ve. `partial` es lo que la pantalla usa para decirlo.
+   */
+  it("si una serie no trae dividendos, las dos se miden por precio y queda marcado", () => {
+    const sinAdj = series([100, 100]);
+    const indice = conDividendos([100, 105], [100, 106]);
+    const d = relativeStrengthDetail(sinAdj, indice, 1)!;
+    expect(d.partial).toBe(true);
+    expect(d.pct).toBeCloseTo(((1 / 1.05) - 1) * 100, 2);
   });
 });
 

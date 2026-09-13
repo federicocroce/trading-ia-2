@@ -452,7 +452,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       continue;
     }
     await tagSymbol(deps, cfg.symbol, { industry: null, country: "US" });
-    rows.push({ ...emptyRow(opts.today, cfg.symbol, "etf", d.verdict, d.close), axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: d.reasons, spyClose });
+    rows.push({ ...emptyRow(opts.today, cfg.symbol, "etf", d.verdict, d.close), axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: [...d.reasons, ...d.limitations], spyClose });
   }
   await store.upsertCandidates(rows);
   // Lo que hoy quedó excluido no puede seguir en pantalla con los números de la corrida anterior del mismo
@@ -492,7 +492,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       if (!cfg) continue;
       const d = decideEtf(cfg, c, spy, policy.technical);
       if ("excluded" in d) continue;
-      rows.push({ ...prev, candidateDate: opts.today, verdict: d.verdict, close: d.close, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: d.reasons, axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
+      rows.push({ ...prev, candidateDate: opts.today, verdict: d.verdict, close: d.close, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: [...d.reasons, ...d.limitations], axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
       continue;
     }
     const f = await store.fundamentals(prev.symbol);

@@ -36,6 +36,7 @@ const FLAG_LABEL: Record<string, string> = {
   consenso_en_precio: "objetivo de consenso a < 10% del precio",
   subio_mucho_12m: "subió > 100% en 12 meses",
   nucleo_por_calendario: "del núcleo: se compra por calendario, sin timing",
+  fr_sin_dividendos: "fuerza relativa medida solo por precio: esta serie no trae dividendos, así que el número la subestima",
   stop_dentro_de_la_entrada: "el stop cae dentro de la franja de compra: no hay operación posible",
   en_linea: "el CEDEAR cotiza en línea con el CCL",
   caro_vs_ccl: "el CEDEAR está caro contra el CCL",
@@ -93,7 +94,7 @@ const BUENAS = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiv
  */
 const NEUTRAS = new Set(["nucleo_por_calendario", "en_linea"]);
 /** Ni a favor ni en contra: falta un dato. No es un defecto de la empresa, es un límite de la fuente. */
-const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente"]);
+const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente", "fr_sin_dividendos"]);
 /** Las que llevan un dato adentro y también son límites de la fuente, no defectos de la empresa. */
 const LIMITACIONES_CON_DATO = new Set(["serie_con_salto"]);
 
