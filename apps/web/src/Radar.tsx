@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, isHistorical, type ArgentinaData, type Candidate, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
+import { api, isHistorical, type ArgentinaData, type Candidate, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type GrupoMedicion, type Horizonte, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { EntryCell } from "./Entry";
@@ -511,19 +511,61 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
   );
 }
 
-function MeasCard({ m }: { m: RadarMeasurement }) {
+const HORIZONTES: Horizonte[] = ["h7", "h30", "h90"];
+const DIAS: Record<Horizonte, number> = { h7: 7, h30: 30, h90: 90 };
+
+/** Tabla de un grupo medido contra un índice. Los dos grupos no se pueden promediar entre sí. */
+function TablaMedicion({ g, indice }: { g: GrupoMedicion; indice: string }) {
   const cell = (b: { n: number; avgAlpha: number | null; hitRate: number | null }) => (b.n ? `${b.n} · ${pct(b.avgAlpha)}${b.hitRate === null ? "" : ` · ${(b.hitRate * 100).toFixed(0)}%`}` : "—");
-  const diff = (h: "h7" | "h30" | "h90") => { const d = m.comprarVsObservar[h]; return d.diff === null ? "—" : `${pct(d.diff)} (n ${d.nComprar}/${d.nObservar})`; };
+  const diff = (h: Horizonte) => { const d = g.comprarVsObservar[h]; return d.diff === null ? "—" : `${pct(d.diff)} (n ${d.nComprar}/${d.nObservar})`; };
+  return (
+    <table style={{ marginTop: 8 }}>
+      <thead><tr><th>veredicto (vs {indice})</th><th>7 días (n · alpha · acierto)</th><th>30 días</th><th>90 días</th></tr></thead>
+      <tbody>
+        {Object.entries(g.byVerdict).map(([v, b]) => <tr key={v}><td><span className={`verb ${v}`}>{v}</span></td><td className="mono">{cell(b.h7)}</td><td className="mono">{cell(b.h30)}</td><td className="mono">{cell(b.h90)}</td></tr>)}
+        <tr><td><b>COMPRAR − OBSERVAR</b></td><td className="mono">{diff("h7")}</td><td className="mono">{diff("h30")}</td><td className="mono">{diff("h90")}</td></tr>
+      </tbody>
+    </table>
+  );
+}
+
+/**
+ * Medición. Dos cosas que esta tarjeta decía mal hasta el 13/9:
+ *
+ * "756 apariciones, 756 pendientes de medir" se leía como una deuda de la app, y era imposible que fuera
+ * otra cosa: el Radar empezó el 7 de septiembre y una medición a 7 días no puede existir antes del 14. Un
+ * contador que no puede llegar a cero no informa nada. Ahora se separa lo que espera a que pase el tiempo
+ * (con la fecha en que llega) de lo que está vencido, que es lo único que sí es un problema.
+ *
+ * Y las filas argentinas miden su alpha contra el MERVAL, porque es contra el Merval que se rankean. Iban a
+ * caer en esta misma tabla rotulada "contra SPY" a partir del 14, promediando dos cosas distintas.
+ */
+function MeasCard({ m }: { m: RadarMeasurement }) {
+  const e = m.estado;
   return (
     <div className="card">
-      <b>Medición contra SPY</b> <span className="muted">{m.total} apariciones, {m.pending} pendientes de medir</span>
-      <table style={{ marginTop: 8 }}>
-        <thead><tr><th>veredicto</th><th>7 días (n · alpha · acierto)</th><th>30 días</th><th>90 días</th></tr></thead>
-        <tbody>
-          {Object.entries(m.byVerdict).map(([v, b]) => <tr key={v}><td><span className={`verb ${v}`}>{v}</span></td><td className="mono">{cell(b.h7)}</td><td className="mono">{cell(b.h30)}</td><td className="mono">{cell(b.h90)}</td></tr>)}
-          <tr><td><b>COMPRAR − OBSERVAR</b></td><td className="mono">{diff("h7")}</td><td className="mono">{diff("h30")}</td><td className="mono">{diff("h90")}</td></tr>
-        </tbody>
-      </table>
+      <b>Medición</b> <span className="muted">{m.total} apariciones guardadas</span>
+      {e && (
+        <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+          {HORIZONTES.map((h) => {
+            const x = e[h];
+            return (
+              <div key={h}>
+                <b>{DIAS[h]} días:</b> {x.medidas} medidas
+                {x.esperando > 0 && <> · {x.esperando} esperando a que pasen los {DIAS[h]} días{x.primera && <> (la primera llega el {x.primera})</>}</>}
+                {x.vencidas > 0 && <span className="warn"> · {x.vencidas} vencidas sin medir</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <TablaMedicion g={{ byVerdict: m.byVerdict, comprarVsObservar: m.comprarVsObservar, filas: 0 }} indice="SPY" />
+      {m.merval && m.merval.filas > 0 && (
+        <>
+          <div style={{ marginTop: 10 }}><b>Argentina</b> <span className="muted">({m.merval.filas} apariciones) se miden contra el Merval, que es el índice contra el que se rankean. No se pueden promediar con las de arriba.</span></div>
+          <TablaMedicion g={m.merval} indice="Merval" />
+        </>
+      )}
       <div className="muted" style={{ marginTop: 6 }}>OBSERVAR es el grupo de control: si COMPRAR no le gana, los filtros no agregan valor. Los NUCLEO no se eligen; se compran por calendario.</div>
     </div>
   );

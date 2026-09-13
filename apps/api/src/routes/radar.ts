@@ -140,7 +140,7 @@ export function radarRoutes(c: Container) {
   });
   app.get("/radar/measurement", async (ctx) => {
     const all = await store.allCandidates();
-    return ctx.json({ total: all.length, ...summarizeRadar(all) });
+    return ctx.json({ total: all.length, ...summarizeRadar(all, today(ctx)) });
   });
   return app;
 }
