@@ -196,6 +196,7 @@ export function buildContainer(cfg: Config): Container {
     taxonomy: cfg.radar.taxonomy,
     etfs: cfg.radar.etfs,
     policy: cfg.radar.policy,
+    fomc: cfg.radar.fomc,
     filings: (symbol) => store.recentFilingTitles(symbol, 8),
     log: (msg, extra) => console.log(msg, extra ?? ""),
     onProgress: (p) => { state.scan.progress = p; },

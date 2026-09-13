@@ -1,4 +1,5 @@
 import type { EntryTiming } from "./entry.js";
+import { firstTrancheFrom } from "./fomc.js";
 import type { MacroRegime } from "./regime.js";
 import type { AssetClass, EtfConfig, EtfRole, RadarPolicy } from "./types.js";
 
@@ -24,6 +25,8 @@ export interface PlanInput {
   buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null; flags?: string[]; entry?: PlanLine["entry"] }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
+  /** Fecha del plan y decisiones de la Fed (`config/fomc.json`): con una dentro de 3 días hábiles, el primer tramo va después. */
+  fomc?: { today: string; decisions: string[] } | null;
   coreEtfs: EtfConfig[];
   spyClose: number | null;
   closes: Record<string, number>;
@@ -112,6 +115,8 @@ export function lineHasExit(l: Pick<PlanLine, "kind" | "stop">): boolean {
 }
 
 const MIN_LINE_USD = 100;
+/** "2026-09-16" → "16/9". */
+const dm = (isoDate: string) => `${Number(isoDate.slice(8, 10))}/${Number(isoDate.slice(5, 7))}`;
 
 export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o: PlanOptions = {}): ContributionPlan {
   const cfg = { ...DEFAULTS, coreSharePctWhileBelowTarget: c.coreSharePctWhileBelowTarget ?? DEFAULTS.coreSharePctWhileBelowTarget, sumarSharePctOfRest: c.sumarSharePctOfRest ?? DEFAULTS.sumarSharePctOfRest, watchLinesMax: c.watchLinesMax ?? DEFAULTS.watchLinesMax, etfLinesMax: c.etfLinesMax ?? DEFAULTS.etfLinesMax };
@@ -149,6 +154,9 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   // esperando una corrección (eso es plata muerta), es el mismo plan ejecutado en dos o tres compras.
   const tranches = aporte >= TRANCHE_AT_MONTHS * c.monthlyUsd ? Math.min(3, Math.floor(aporte / (TRANCHE_AT_MONTHS * c.monthlyUsd)) + 1) : 1;
   if (tranches > 1) notes.push(`Monto de ${Math.round(aporte / c.monthlyUsd)} aportes: conviene ejecutarlo en ${tranches} tramos de USD ${Math.round(aporte / tranches)}, con dos o tres semanas entre cada uno. Mismas líneas y mismas proporciones en cada tramo.`);
+  // Reunión de la Fed (13/9): con una decisión a 3 días hábiles o menos, se compra después del anuncio.
+  const fed = i.fomc ? firstTrancheFrom(i.fomc.today, i.fomc.decisions) : null;
+  if (fed) notes.push(`La Fed decide el ${dm(fed.decision)}: ${tranches > 1 ? "el primer tramo" : "la compra"} va desde el ${dm(fed.from)}, después del anuncio. Esperar hasta 3 días hábiles cuesta poco y evita comprar justo antes de una decisión que mueve todo el mercado.`);
 
   // 1. Núcleo: mientras esté bajo el objetivo, una parte fija del monto (el resto sigue bajando a lo demás).
   const coreValue = i.positions.filter(isCore).reduce((s, p) => s + p.valueUsd, 0);

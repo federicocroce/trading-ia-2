@@ -245,6 +245,16 @@ describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
   });
 });
 
+describe("plan: calendario de la Fed (13/9)", () => {
+  it("con config/fomc.json cargado, el plan del 13/9 dice que el primer tramo va desde el 17/9", async () => {
+    const { d } = deps();
+    const plan = await buildContributionPlan({ ...d, fomc: ["2026-09-16"] }, { month: "2026-09", portfolioUsd: 100_000, amountUsd: 40_000, today: "2026-09-13" });
+    expect(plan.notes.join(" ")).toMatch(/La Fed decide el 16\/9/);
+    const sin = await buildContributionPlan(d, { month: "2026-09", portfolioUsd: 100_000, amountUsd: 40_000, today: "2026-09-13" });
+    expect(sin.notes.join(" ")).not.toMatch(/La Fed/);
+  });
+});
+
 describe("plan: verificación con el cuestionario vigente (13/9)", () => {
   it("una acción verificada con el cuestionario anterior no entra; una con el vigente sí", async () => {
     const { store, d } = deps();

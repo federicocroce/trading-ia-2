@@ -82,8 +82,10 @@ de las veces. NBN: Finnhub da ingresos +124% TTM y +133% trimestral; el comunica
 
 ### 8. Reunión de la Fed
 - `config/fomc.json` con las fechas publicadas por la Fed (2026 y 2027). Si hay una decisión dentro de los
-  próximos 3 días hábiles, el plan dice que el primer tramo va después (`firstTrancheFrom`). Sin probabilidad
-  de mercado: la app no tiene una fuente gratuita confiable, y esperar ≤ 3 días cuesta poco con o sin cambio.
+  próximos 3 días hábiles (o es hoy), el plan lo dice en una nota: el primer tramo va desde el día hábil
+  siguiente a la decisión (`firstTrancheFrom`, puro). Va como nota y no como campo del plan: las notas ya se
+  guardan y se muestran, y un campo nuevo pedía una migración. Sin probabilidad de mercado: la app no tiene una
+  fuente gratuita confiable, y esperar ≤ 3 días hábiles cuesta poco con o sin cambio de tasa.
 
 ## Aceptación
 Con los datos del 13/9: NVDA stop ≈ 199,07 y V ≈ 356,28; TSM stop 413,63 y objetivo 498,44 en Radar, plan y

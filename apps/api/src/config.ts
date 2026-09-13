@@ -82,9 +82,13 @@ export interface RadarConfig {
   etfs: EtfConfig[];
   policy: RadarPolicy;
   argentina: ArgentinaConfig;
+  /** Días de decisión de la Fed (config/fomc.json): con una a 3 días hábiles o menos, el primer tramo va después. */
+  fomc: string[];
 }
 
-/** Lee y valida config/taxonomia.json, config/etfs.json y config/radar-policy.json. */
+const FomcSchema = z.object({ decisiones: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)) });
+
+/** Lee y valida config/taxonomia.json, config/etfs.json, config/radar-policy.json, config/argentina.json y config/fomc.json. */
 export async function loadRadarConfig(root: string): Promise<RadarConfig> {
   const read = async (name: string) => JSON.parse(await readFile(path.join(root, "config", name), "utf8")) as unknown;
   return {
@@ -92,6 +96,7 @@ export async function loadRadarConfig(root: string): Promise<RadarConfig> {
     etfs: z.array(EtfConfigSchema).parse(await read("etfs.json")),
     policy: RadarPolicySchema.parse(await read("radar-policy.json")),
     argentina: ArgentinaConfigSchema.parse(await read("argentina.json")),
+    fomc: FomcSchema.parse(await read("fomc.json")).decisiones,
   };
 }
 

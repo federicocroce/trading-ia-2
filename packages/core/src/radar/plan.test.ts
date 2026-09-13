@@ -155,6 +155,12 @@ describe("planContribution", () => {
     });
   });
 
+  it("reunión de la Fed dentro de 3 días hábiles: el plan dice desde cuándo va el primer tramo (13/9)", () => {
+    const fomc = (today: string) => planContribution({ ...base, fomc: { today, decisions: ["2026-09-16", "2026-10-28"] } }, c, { amountUsd: 40_000 });
+    expect(fomc("2026-09-13").notes.join(" ")).toMatch(/La Fed decide el 16\/9: el primer tramo va desde el 17\/9/);
+    expect(fomc("2026-09-01").notes.join(" ")).not.toMatch(/La Fed/);
+  });
+
   it("sin candidatos y núcleo lleno → todo al núcleo con nota", () => {
     const p = planContribution({ ...base, positions: [{ symbol: "VTI", valueUsd: 50_000, assetClass: "etf", role: "nucleo" }, { symbol: "YPF", valueUsd: 50_000, assetClass: "adr" }] }, c);
     expect(p.lines.every((l) => l.kind === "nucleo")).toBe(true);

@@ -78,6 +78,8 @@ export interface RadarDeps {
   taxonomy: TaxonomyConfig;
   etfs: EtfConfig[];
   policy: RadarPolicy;
+  /** Días de decisión de la Fed (config/fomc.json). Sin esto el plan no mira el calendario. */
+  fomc?: string[];
   /** Títulos de filings recientes del símbolo (contexto de la ficha). */
   filings: (symbol: string) => Promise<string[]>;
   /** Estados de la SEC (spec verificación §4). Sin él, el ranking usa solo Finnhub. */
@@ -659,7 +661,7 @@ export async function candidateOverlap(store: Pick<CarteraStore, "positions"> & 
 
 // ---------- plan del aporte ----------
 
-export async function buildContributionPlan(deps: RadarDeps, opts: { month: string; portfolioUsd: number | null; amountUsd?: number }): Promise<ContributionPlan> {
+export async function buildContributionPlan(deps: RadarDeps, opts: { month: string; portfolioUsd: number | null; amountUsd?: number; today?: string }): Promise<ContributionPlan> {
   const { store, policy } = deps;
   const positions = await store.positions();
   const risk = await store.latestRisk();
@@ -732,6 +734,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,
       closes,
       regime,
+      // Reunión de la Fed a 3 días hábiles o menos: el plan dice que el primer tramo va después (13/9).
+      fomc: deps.fomc?.length ? { today: opts.today ?? new Date().toISOString().slice(0, 10), decisions: deps.fomc } : null,
     },
     policy.contribution,
     opts.amountUsd ? { amountUsd: opts.amountUsd } : {},

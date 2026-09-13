@@ -13,6 +13,7 @@ export * from "./overlap.js";
 export * from "./statements.js";
 export * from "./news.js";
 export * from "./regime.js";
+export * from "./fomc.js";
 export * from "./entry.js";
 export * from "./consistency.js";
 export * from "./chronic.js";
