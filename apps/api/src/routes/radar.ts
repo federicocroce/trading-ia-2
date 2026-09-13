@@ -49,15 +49,32 @@ export function radarRoutes(c: Container) {
     });
     return ctx.json({ date: rows[0]?.candidateDate ?? null, overweight, regime, picks });
   });
-  /** Argentina (etapa 3): macro del día y su serie, acciones de BYMA contra el Merval, CEDEARs contra el CCL. */
+  /**
+   * Argentina (etapa 3): macro del día y su serie; las empresas con ADR en Nueva York, en dólares contra el
+   * SPY (lo que el dueño puede comprar); y aparte, lo que solo se compra en pesos (BYMA sin ADR y CEDEARs).
+   */
   app.get("/radar/argentina", async (ctx) => {
     const d = ctx.req.query("date");
     const [macro, series, rows] = await Promise.all([d ? store.macroArForDate(d) : store.latestMacroAr(), store.macroArSeries(60), withTags(await candidatesAt(ctx))]);
-    return ctx.json({ macro, series, acciones: rows.filter((r) => r.kind === "ar"), cedears: rows.filter((r) => r.kind === "cedear") });
+    const config = c.argentinaDeps.config.acciones;
+    // Los ADR que el Radar de acciones ya evalúa (con fundamentals contra pares) no tienen fila "adr": se
+    // muestra la del Radar, que es la misma empresa medida con un motor más completo. Sin esto, PAM
+    // desaparecía de la tabla de Argentina justo por estar en la otra.
+    const adrDe = new Map(config.filter((a) => a.adr).map((a) => [a.adr!, a.symbol]));
+    const propias = rows.filter((r) => r.kind === "adr");
+    const conFila = new Set(propias.map((r) => r.symbol));
+    const delRadar = rows.filter((r) => r.kind === "stock" && adrDe.has(r.symbol) && !conFila.has(r.symbol)).map((r) => ({ ...r, peerGroup: [adrDe.get(r.symbol)!] }));
+    const sinAdr = new Set(config.filter((a) => !a.adr).map((a) => a.symbol));
+    return ctx.json({
+      macro, series,
+      adrs: [...propias, ...delRadar],
+      acciones: rows.filter((r) => r.kind === "ar" && sinAdr.has(r.symbol)),
+      cedears: rows.filter((r) => r.kind === "cedear"),
+    });
   });
   app.post("/radar/argentina", async (ctx) => {
     const r = await refreshArgentina(c.argentinaDeps, { today: today(ctx) });
-    return ctx.json({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors });
+    return ctx.json({ macro: r.macro, acciones: r.acciones, adrs: r.adrs, cedears: r.cedears, errors: r.errors });
   });
   /** Lista de seguimiento: tickers elegidos a mano con veredicto diario aunque el ranking no los elija. */
   const watchPayload = async (date?: string) => {

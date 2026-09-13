@@ -88,7 +88,7 @@ export function defaultRunners(): Runners {
     },
     argentina: async (c, today) => {
       const r = await refreshArgentina(c.argentinaDeps, { today });
-      return `${r.acciones} acciones, ${r.cedears} CEDEARs, ${r.errors.length} errores`;
+      return `${r.adrs} ADRs en dólares, ${r.acciones} acciones en pesos, ${r.cedears} CEDEARs, ${r.errors.length} errores`;
     },
     plan: async (c, today) => {
       const p = await buildContributionPlan(c.radarDeps, { month: today.slice(0, 7), portfolioUsd: await portfolioUsd(c) });

@@ -26,7 +26,7 @@ function app() {
   };
   const argentinaDeps = {
     store,
-    history: { candles: async (sym: string) => (sym === "^MERV" ? series(260, 1000, 1500) : sym === "GGAL.BA" ? series(260, 1000, 2000) : sym === "AAPL.BA" ? series(10, 25000, 25320) : []) },
+    history: { candles: async (sym: string) => (sym === "^MERV" ? series(260, 1000, 1500) : sym === "GGAL.BA" ? series(260, 1000, 2000) : sym === "AAPL.BA" ? series(10, 25000, 25320) : sym === "SPY" ? series(260, 400, 440) : sym === "GGAL" ? series(260, 20, 44) : []) },
     macro: { dolares: async () => ({ oficial: 1530, mep: 1533.7, ccl: 1583.2, blue: 1545, mayorista: 1511.5 }), riesgoPais: async () => ({ value: 490, date: today }) },
     usPrices: async () => ({ AAPL: 319.8 }),
     config: { benchmark: "^MERV", acciones: [{ symbol: "GGAL.BA", name: "Galicia", adr: "GGAL", sector: "Financiero", themes: ["bancos"] }], cedears: [{ symbol: "AAPL.BA", us: "AAPL", ratio: 20 }] },
@@ -122,24 +122,30 @@ describe("/radar/top", () => {
 });
 
 describe("/radar/argentina", () => {
-  it("refresca y devuelve macro, acciones contra el Merval y CEDEARs contra el CCL", async () => {
+  /**
+   * 13/9/2026: el dueño compra en dólares. Una acción con ADR (GGAL.BA → GGAL) se muestra por su ADR, en
+   * dólares contra el SPY; la lista en pesos queda solo para las que NO tienen versión en Nueva York.
+   */
+  it("refresca y devuelve el macro, los ADR en dólares, lo que solo se compra en pesos y los CEDEARs", async () => {
     const { a } = app();
     const r = await (await post(a, `/radar/argentina?today=${today}`)).json();
     expect(r.acciones).toBe(1);
+    expect(r.adrs).toBe(1);
     expect(r.cedears).toBe(1);
     expect(r.errors).toEqual([]);
     const g = await (await a.request("/radar/argentina")).json();
     expect(g.macro.ccl).toBe(1583.2);
     expect(g.macro.riesgoPais).toBe(490);
     expect(g.series).toHaveLength(1);
-    expect(g.acciones[0].symbol).toBe("GGAL.BA");
-    expect(g.acciones[0].verdict).toBe("COMPRAR");
-    expect(g.acciones[0].tags.assetClass).toBe("accion_ar");
+    expect(g.adrs).toHaveLength(1);
+    expect(g.adrs[0]).toMatchObject({ symbol: "GGAL", kind: "adr", close: 44, peerGroup: ["GGAL.BA"] });
+    // GGAL.BA tiene ADR: no va en la lista de "solo en pesos".
+    expect(g.acciones).toEqual([]);
     expect(g.cedears[0].symbol).toBe("AAPL.BA");
     expect(g.cedears[0].flags).toEqual(["en_linea"]);
-    // Las filas argentinas no se mezclan con las de acciones US en el top de convicción ni en el plan.
+    // Las filas argentinas, en pesos o en dólares, no se mezclan con las de acciones US en el top de convicción.
     const top = await (await a.request("/radar/top")).json();
-    expect(top.picks.some((p: { symbol: string }) => p.symbol.endsWith(".BA"))).toBe(false);
+    expect(top.picks.some((p: { symbol: string }) => p.symbol.endsWith(".BA") || p.symbol === "GGAL")).toBe(false);
   });
 });
 

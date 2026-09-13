@@ -176,7 +176,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} newsScannedTo={t.candidate?.kind === "etf" ? undefined : t.newsScannedTo} />
         </div>
       )}
-      {t.candidate && t.candidate.kind === "etf" && <EtfCard c={t.candidate} />}
+      {t.candidate && (t.candidate.kind === "etf" || t.candidate.kind === "adr") && <EtfCard c={t.candidate} />}
       {t.candidate && t.candidate.kind === "stock" && (
         <div className="card">
           <b>Radar</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">score {f2(t.candidate.score)} · rank {t.candidate.rankInGroup}/{t.candidate.groupSize} entre pares · riesgo {t.candidate.riskScore}/10 · {t.candidate.candidateDate}</span>
@@ -256,13 +256,18 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
  */
 function EtfCard({ c }: { c: Candidate }) {
   const nucleo = c.verdict === "NUCLEO";
+  // Un ADR argentino se decide con las mismas reglas de tendencia que un ETF satélite (ver `decideAdr`): la
+  // tarjeta es la misma, pero tiene que decir qué es y de qué acción local sale.
+  const adr = c.kind === "adr";
   return (
     <div className="card">
-      <b>Radar · ETF</b> <span className={`verb ${c.verdict}`}>{c.verdict}</span> <span className="muted">{c.candidateDate}</span>
+      <b>{adr ? "Radar · ADR argentino" : "Radar · ETF"}</b> <span className={`verb ${c.verdict}`}>{c.verdict}</span> <span className="muted">{c.candidateDate}</span>
       <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-        {nucleo
-          ? "Del núcleo: se compra por calendario con el aporte del mes y se mantiene. No se le busca el momento, no lleva stop ni objetivo."
-          : "Satélite: se decide por fuerza relativa contra el SPY, no por fundamentals. No se puntúa contra pares ni se le calcula riesgo, por eso acá no hay score ni ranking."}
+        {adr
+          ? <>Empresa argentina en Nueva York, en dólares{c.peerGroup[0] && <> (su acción local es <SymbolLink symbol={c.peerGroup[0]} />)</>}. Se decide por tendencia contra el SPY, igual que un ETF satélite: no está en el ranking de fundamentals contra pares, por eso acá no hay score ni ranking.</>
+          : nucleo
+            ? "Del núcleo: se compra por calendario con el aporte del mes y se mantiene. No se le busca el momento, no lleva stop ni objetivo."
+            : "Satélite: se decide por fuerza relativa contra el SPY, no por fundamentals. No se puntúa contra pares ni se le calcula riesgo, por eso acá no hay score ni ranking."}
       </div>
       {c.flags.length > 0 && <div style={{ marginTop: 6 }}><Flags flags={c.flags} /></div>}
       {!nucleo && <EntryLine e={c.entry} />}

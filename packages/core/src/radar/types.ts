@@ -60,7 +60,8 @@ export interface CandidateRow {
   candidateDate: string;
   symbol: string;
   /** stock/etf del Radar US; ar = acción de BYMA (precio en pesos, contra el Merval); cedear = chequeo de dólar implícito. */
-  kind: "stock" | "etf" | "ar" | "cedear" | "watch";
+  /** `adr`: empresa argentina con ADR en Nueva York, medida en dólares contra el SPY (pestaña Argentina). */
+  kind: "stock" | "etf" | "ar" | "cedear" | "watch" | "adr";
   verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO";
   score: number | null;
   axes: Record<string, number | null>;

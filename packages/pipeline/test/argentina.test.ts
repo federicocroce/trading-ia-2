@@ -140,3 +140,59 @@ describe("refreshArgentina", () => {
     expect(rows.find((x) => x.symbol === "AAPL.BA")?.close7d).toBeNull();
   });
 });
+
+/**
+ * 13/9/2026: el dueño compra en dólares y puede ir directo al ADR, pero la pestaña mostraba solo las
+ * acciones locales en pesos contra el Merval. Ahora las que tienen ADR se evalúan en dólares contra el SPY.
+ */
+describe("refreshArgentina: ADRs en dólares", () => {
+  const conAdr = () => {
+    const { store, deps } = setup();
+    const base = deps.history.candles;
+    // GGAL (el ADR) le gana al SPY; ALUA.BA no tiene ADR.
+    deps.history = { candles: async (s, n) => (s === "SPY" ? series(260, 400, 440) : s === "GGAL" ? series(260, 20, 44) : base(s, n)) };
+    return { store, deps };
+  };
+
+  it("el ADR sale en dólares, contra el SPY, apuntando a su acción local", async () => {
+    const { store, deps } = conAdr();
+    const r = await refreshArgentina(deps, { today });
+    expect(r.adrs).toBe(1);
+    const ggal = (await store.latestCandidates()).find((x) => x.symbol === "GGAL" && x.kind === "adr")!;
+    expect(ggal.close).toBe(44);
+    expect(ggal.peerGroup).toEqual(["GGAL.BA"]);
+    expect(ggal.spyClose).toBe(440);
+    expect(ggal.verdict).toBe("COMPRAR");
+    expect(ggal.axes["rs6m"]).toBeGreaterThan(0);
+  });
+
+  it("la acción sin ADR no genera fila en dólares: solo se compra en pesos", async () => {
+    const { store, deps } = conAdr();
+    await refreshArgentina(deps, { today });
+    expect((await store.latestCandidates()).some((x) => x.kind === "adr" && x.peerGroup[0] === "ALUA.BA")).toBe(false);
+  });
+
+  /**
+   * La clave de la tabla es (fecha, símbolo). Si el Radar de acciones ya evalúa a GGAL hoy, una fila "adr"
+   * pisaría a la del Radar, que es más completa (fundamentals contra pares además de tendencia).
+   */
+  it("si el Radar de acciones ya tiene el ADR hoy, no lo pisa", async () => {
+    const { store, deps } = conAdr();
+    const delRadar = { candidateDate: today, symbol: "GGAL", kind: "stock" as const, verdict: "OBSERVAR" as const, score: 0.4, axes: {}, peerGroup: ["BMA"], rankInGroup: 3, groupSize: 9, close: 44, entryLow: 44, entryHigh: 44.88, stop: 40, target: 53.76, sizeUsd: null, sizeQty: null, riskScore: 5, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: 440, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null };
+    await store.upsertCandidates([delRadar]);
+    const r = await refreshArgentina(deps, { today });
+    expect(r.adrs).toBe(0);
+    const ggal = (await store.allCandidates()).filter((x) => x.symbol === "GGAL" && x.candidateDate === today);
+    expect(ggal).toHaveLength(1);
+    expect(ggal[0]!.kind).toBe("stock");
+    expect(ggal[0]!.score).toBe(0.4);
+  });
+
+  it("no pisa las etiquetas que el ADR ya tenía: son posiciones y el riesgo por tema depende de ellas", async () => {
+    const { store, deps } = conAdr();
+    await store.saveTags("GGAL", { assetClass: "adr", sector: "Financiero", industry: "Banks", themes: ["bancos", "a_mano"], themesSource: "regla" });
+    await refreshArgentina(deps, { today });
+    expect((await store.tags("GGAL"))?.themes).toEqual(["bancos", "a_mano"]);
+  });
+});
+

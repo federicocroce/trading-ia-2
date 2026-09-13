@@ -1,7 +1,7 @@
 import { computeTarget, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import { atrPct, returnPct, sma } from "./candidate.js";
-import { relativeStrength } from "./etf.js";
+import { decideEtf, relativeStrength } from "./etf.js";
 import { crossesSplit } from "./split.js";
 import type { RadarPolicy } from "./types.js";
 
@@ -125,6 +125,23 @@ export function decideArStock(candles: Candle[], merval: Candle[], ccl: number |
     stop,
     target: belowStop ? null : computeTarget(close, stop),
   };
+}
+
+/**
+ * Empresa argentina con ADR en Nueva York, juzgada como la compra el dueño: en DÓLARES y contra el SPY.
+ *
+ * Por qué existe (13/9/2026). La pestaña Argentina mostraba solo las acciones locales (`.BA`), en pesos y
+ * contra el Merval. El dueño compra en dólares y puede comprar el ADR directo, así que la tabla contestaba
+ * una pregunta que él no tiene ("¿qué acción local le gana al Merval en pesos?") y no la que sí tiene
+ * ("¿qué empresa argentina me conviene comprar en dólares?"). Y el retorno en pesos contra el Merval no es
+ * el que se lleva quien tiene el ADR: sus GGAL, YPF y PAM son ADRs.
+ *
+ * Usa exactamente las reglas de un ETF satélite (fuerza relativa contra el SPY con retorno total, media de
+ * 200, no perseguir, stop, franja de entrada, guarda de splits): un solo motor de tendencia para todo lo
+ * que se decide por tendencia, en vez de uno más con reglas propias que se puedan desincronizar.
+ */
+export function decideAdr(symbol: string, candles: Candle[], spy: Candle[], p: RadarPolicy["technical"]) {
+  return decideEtf({ symbol, name: symbol, role: "satelite", exposure: "rv_us", ter: 0, themes: [] }, candles, spy, p);
 }
 
 export type CedearFlag = "en_linea" | "caro_vs_ccl" | "barato_vs_ccl" | "ratio_dudoso";

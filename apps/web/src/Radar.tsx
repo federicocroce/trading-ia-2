@@ -108,7 +108,7 @@ export function Radar() {
       <div className="card row" style={{ gap: 8 }}>
         <div className="seg">
           {SUBS.map(([k, label]) => {
-            const n = k === "acciones" ? stocks.length : k === "seguimiento" ? watch?.items.length : k === "etfs" ? etfs.length : k === "argentina" ? ar?.acciones.length : undefined;
+            const n = k === "acciones" ? stocks.length : k === "seguimiento" ? watch?.items.length : k === "etfs" ? etfs.length : k === "argentina" ? (ar?.adrs?.length ?? ar?.acciones.length) : undefined;
             return <button key={k} className={sub === k ? "active" : ""} onClick={() => goSub(k)}>{label}{n !== undefined ? ` (${n})` : ""}</button>;
           })}
         </div>
@@ -348,11 +348,12 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
   // hoy; las filas de acciones y CEDEARs son de la última corrida de Argentina (ese día, del 10); y el
   // precio de BYMA dentro de cada fila es el de su última rueda cerrada. El encabezado decía "macro del 11"
   // y abajo mostraba una tabla del 10 sin decirlo, así que todo se leía como del mismo día.
-  const fechaFilas = [...d.acciones, ...d.cedears][0]?.candidateDate ?? null;
+  const adrs = [...(d.adrs ?? [])].sort((a, b) => (a.verdict === b.verdict ? (b.axes["rs6m"] ?? -Infinity) - (a.axes["rs6m"] ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
+  const fechaFilas = [...adrs, ...d.acciones, ...d.cedears][0]?.candidateDate ?? null;
   const desfasada = m !== null && fechaFilas !== null && fechaFilas !== m.date;
   return (
     <div className="card" style={{ overflowX: "auto" }}>
-      <b>Argentina</b> <span className="muted">{m ? `macro del ${m.date}` : "sin datos: apretá Refrescar Argentina"}{fechaFilas && ` · acciones y CEDEARs de la corrida del ${fechaFilas}`}</span>
+      <b>Argentina</b> <span className="muted">{m ? `macro del ${m.date}` : "sin datos: apretá Refrescar Argentina"}{fechaFilas && ` · tablas de la corrida del ${fechaFilas}`}</span>
       {desfasada && (
         <div className="warn" style={{ fontSize: 12, marginTop: 4 }}>
           El macro de arriba es del {m!.date} y las tablas de abajo son de la corrida del {fechaFilas}: no son del mismo día.
@@ -370,14 +371,41 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
           <div className="kpi"><b>{m.mervalUsd !== null ? `US$ ${m.mervalUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—"}</b><span>Merval en dólares{m.mervalDate && m.mervalDate !== m.date ? <> · <span className="warn">índice del {m.mervalDate}, CCL del {m.date}</span></> : ""}</span></div>
         </div>
       )}
-      <div style={{ marginTop: 12 }}><b>Acciones de BYMA</b> <span className="muted">({acciones.length}) contra el Merval, en pesos</span></div>
+      {/* Lo que el dueño puede comprar. Hasta el 13/9 la pestaña mostraba solo las acciones locales, en pesos
+          y contra el Merval: una pregunta que él no tiene, porque compra en dólares y puede ir directo al
+          ADR. Y el retorno en pesos contra el Merval no es el que se lleva quien tiene el ADR. */}
+      <div style={{ marginTop: 12 }}>
+        <b>Empresas argentinas que podés comprar en dólares</b> <span className="muted">({adrs.length}) su ADR en Nueva York, medido contra el SPY igual que el resto del Radar</span>
+      </div>
       <table style={{ marginTop: 6 }}>
-        <thead><tr><Th k="simbolo" /><Th k="adr" /><Th k="veredicto" /><Th k="fr3m">FR 3m</Th><Th k="frMerval">FR 6m</Th><Th k="fr12m">FR 12m</Th><Th k="sma200" /><Th k="precioArs" /><Th k="precioUsd" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
+        <thead><tr><Th k="simbolo">ADR</Th><th>acción local</th><Th k="veredicto" /><Th k="fr3m" /><Th k="fr6m" /><Th k="fr12m" /><Th k="sma200" /><Th k="precio">precio US$</Th><Th k="entrada" /><Th k="stop" /><Th k="objetivoEtf" /><th></th></tr></thead>
+        <tbody>
+          {adrs.map((c) => (
+            <tr key={c.symbol}>
+              <td><SymbolLink symbol={c.symbol} /></td>
+              <td>{c.peerGroup[0] ? <SymbolLink symbol={c.peerGroup[0]} /> : <span className="muted">—</span>}</td>
+              <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}{c.kind === "stock" && <span className="muted" title="Este ADR también está en el ranking de acciones de EE.UU., que lo evalúa con fundamentals contra pares además de la tendencia. Se muestra esa evaluación, que es más completa."> · del Radar</span>}</td>
+              <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
+              <td className="mono">{f2(c.close)}</td>
+              <td><EntryCell e={c.entry} fallback={<span className="muted">—</span>} /></td>
+              <td className="mono">{f2(c.stop)}</td>
+              <td className="mono">{f2(c.target)}</td>
+              <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void reload(); }} onCancel={() => setEditing(null)} />}</td>
+            </tr>
+          ))}
+          {!adrs.length && <tr><td colSpan={12} className="muted">Sin ADRs todavía: apretá Refrescar Argentina.</td></tr>}
+        </tbody>
+      </table>
+
+      <details style={{ marginTop: 14 }}>
+        <summary style={{ cursor: "pointer" }}><b>Solo en pesos</b> <span className="muted">({acciones.length} acciones de BYMA sin ADR y {d.cedears.length} CEDEARs): para comprarlas necesitás pesos y un broker argentino</span></summary>
+      <div style={{ marginTop: 12 }}><b>Acciones de BYMA sin ADR</b> <span className="muted">({acciones.length}) contra el Merval, en pesos: no tienen versión en Nueva York</span></div>
+      <table style={{ marginTop: 6 }}>
+        <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3m">FR 3m</Th><Th k="frMerval">FR 6m</Th><Th k="fr12m">FR 12m</Th><Th k="sma200" /><Th k="precioArs" /><Th k="precioUsd" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
         <tbody>
           {acciones.map((c) => (
             <tr key={c.symbol}>
               <td><SymbolLink symbol={c.symbol} /></td>
-              <td>{c.peerGroup[0] ? <SymbolLink symbol={c.peerGroup[0]} /> : <span className="muted">—</span>}</td>
               <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
               <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
               <td className="mono" title={c.axes["velaDias"] ? `Cierre de una rueda ${c.axes["velaDias"]} día(s) anterior a la corrida del ${c.candidateDate}.` : undefined}>{ars(c.close)}{!!c.axes["velaDias"] && c.axes["velaDias"]! > 1 && <span className="muted"> ·{c.axes["velaDias"]}d</span>}</td>
@@ -388,7 +416,7 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
               <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void reload(); }} onCancel={() => setEditing(null)} />}</td>
             </tr>
           ))}
-          {!acciones.length && <tr><td colSpan={13} className="muted">Sin acciones argentinas todavía.</td></tr>}
+          {!acciones.length && <tr><td colSpan={12} className="muted">Sin acciones argentinas todavía.</td></tr>}
         </tbody>
       </table>
       <div style={{ marginTop: 12 }}><b>CEDEARs</b> <span className="muted">({d.cedears.length}) a qué dólar comprás la acción de EE.UU. si la comprás en pesos</span></div>
@@ -415,6 +443,7 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
           {!d.cedears.length && <tr><td colSpan={9} className="muted">Sin CEDEARs todavía.</td></tr>}
         </tbody>
       </table>
+      </details>
     </div>
   );
 }

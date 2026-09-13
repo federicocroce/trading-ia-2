@@ -1,5 +1,5 @@
 import type { ArgentinaConfig, Candle, CandidateRow, MacroAr, PriceHistory, RadarPolicy, Tags } from "@thesis/core";
-import { cedearCheck, decideArStock, macroAr } from "@thesis/core";
+import { cedearCheck, decideAdr, decideArStock, macroAr } from "@thesis/core";
 import { pruneFamilias } from "./radar.js";
 import type { CarteraStore, RadarStore } from "./store.js";
 
@@ -47,7 +47,7 @@ async function ensureTags(store: RadarStore, symbol: string, t: Tags): Promise<v
   await store.saveTags(symbol, t);
 }
 
-export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: string }): Promise<{ macro: MacroAr; acciones: number; cedears: number; errors: Array<{ symbol: string; error: string }> }> {
+export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: string }): Promise<{ macro: MacroAr; acciones: number; adrs: number; cedears: number; errors: Array<{ symbol: string; error: string }> }> {
   const errors: Array<{ symbol: string; error: string }> = [];
   const { store, config } = deps;
 
@@ -110,6 +110,51 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
     }
   }
 
+  // 3b. Las que tienen ADR en Nueva York, en dólares y contra el SPY: como las compra el dueño. Si el
+  //     Radar de acciones ya evalúa ese ADR hoy (con fundamentals contra pares, que es más completo), no se
+  //     escribe una segunda fila: la clave es (fecha, símbolo) y una pisaría a la otra. La pantalla usa la
+  //     del Radar en ese caso. Ver `adrsParaPantalla`.
+  let adrs = 0;
+  const conAdr = config.acciones.filter((a) => a.adr);
+  if (conAdr.length) {
+    const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch((e) => { errors.push({ symbol: "SPY", error: errText(e) }); return [] as Candle[]; });
+    const spyClose = spy[spy.length - 1]?.close ?? null;
+    const ocupados = new Set(previous.filter((r) => r.candidateDate === opts.today && r.kind !== "adr").map((r) => r.symbol));
+    if (spy.length) {
+      for (const a of conAdr) {
+        const adr = a.adr!;
+        if (ocupados.has(adr)) continue;
+        try {
+          const candles = await deps.history.candles(adr, HISTORY_DAYS);
+          if (!candles.length) throw new Error("sin velas");
+          await store.upsertCandles(adr, candles);
+          const d = decideAdr(adr, candles, spy, deps.policy.technical);
+          if ("excluded" in d) {
+            deps.log?.(`[argentina] ${adr} excluida: ${d.reasons.join(", ")}`);
+            continue;
+          }
+          const prev = previous.find((p) => p.symbol === adr && p.kind === "adr");
+          const nth = prev ? (prev.candidateDate === opts.today ? prev.nthAppearance : prev.nthAppearance + 1) : 1;
+          rows.push({
+            ...baseRow(opts.today, adr, "adr", d.close),
+            verdict: d.verdict === "NUCLEO" ? "OBSERVAR" : d.verdict,
+            axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct },
+            // La acción local, para poder mostrar de qué papel de BYMA es el ADR.
+            peerGroup: [a.symbol],
+            entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? round2(d.close * 1.02), stop: d.stop, target: d.target,
+            flags: [...d.reasons, ...d.limitations], nthAppearance: nth, spyClose,
+          });
+          // Solo si no tiene: GGAL, YPF y PAM son posiciones y el riesgo por tema de Cartera se calcula con
+          // sus etiquetas. Esta tabla no puede cambiar ese número de rebote.
+          if (!(await store.tags(adr))) await store.saveTags(adr, { assetClass: "adr", sector: a.sector, industry: null, themes: [...new Set(["argentina", ...(a.themes ?? [])])], themesSource: "regla" });
+          adrs++;
+        } catch (e) {
+          errors.push({ symbol: adr, error: errText(e) });
+        }
+      }
+    }
+  }
+
   // 4. CEDEARs: dólar implícito contra el CCL. Sin CCL no hay chequeo.
   let cedears = 0;
   if (config.cedears.length) {
@@ -144,5 +189,5 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
     // los números de la corrida anterior del mismo día.
     await pruneFamilias(store, opts.today, rows);
   }
-  return { macro, acciones, cedears, errors };
+  return { macro, acciones, adrs, cedears, errors };
 }

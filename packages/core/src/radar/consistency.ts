@@ -178,7 +178,7 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     }
 
     // 7. Un COMPRAR sin momento de entrada no puede decir cuándo comprar. El núcleo no cuenta: va por calendario.
-    if (row.verdict === "COMPRAR" && (row.kind === "stock" || row.kind === "etf" || row.kind === "watch") && !row.entry) {
+    if (row.verdict === "COMPRAR" && (row.kind === "stock" || row.kind === "etf" || row.kind === "watch" || row.kind === "adr") && !row.entry) {
       add("compra_sin_momento", row.symbol, "aviso", "queda COMPRAR pero no tiene momento de entrada: la app no puede decir cuándo entrar");
     }
 

@@ -58,7 +58,7 @@ export interface EntryTiming { state: "retroceso" | "en_zona" | "esperar_retroce
 export interface CandidateEvent { date: string; kind: string; severity: "grave" | "moderado" | "ruido"; headline: string }
 export interface AnalystTargets { n: number; median: number | null; min: number | null; max: number | null; latestDate: string | null }
 export interface Candidate {
-  candidateDate: string; symbol: string; kind: "stock" | "etf" | "ar" | "cedear" | "watch"; verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO"; score: number | null; axes: Record<string, number | null>; peerGroup: string[]; rankInGroup: number | null; groupSize: number | null;
+  candidateDate: string; symbol: string; kind: "stock" | "etf" | "ar" | "cedear" | "watch" | "adr"; verdict: "COMPRAR" | "OBSERVAR" | "NUCLEO"; score: number | null; axes: Record<string, number | null>; peerGroup: string[]; rankInGroup: number | null; groupSize: number | null;
   close: number; entryLow: number | null; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; flags: string[]; nthAppearance: number;
   summary: string | null; whyRanks: string | null; mainRisk: string | null; moat: string | null; degradedBy: string | null; spyClose: number | null; alpha7dPct: number | null; alpha30dPct: number | null; alpha90dPct: number | null; tags: Tags | null;
   events?: CandidateEvent[]; analystTargets?: AnalystTargets | null; verification?: VerificationSummary | null; entry?: EntryTiming | null;
@@ -71,7 +71,11 @@ export interface Watchlist { items: WatchItem[]; rows: Candidate[] }
 export interface PriceRow { symbol: string; price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; stale: boolean; currency: string | null }
 export interface SymbolHit { symbol: string; name: string; exchange: string; type: "accion_us" | "accion_ar" | "cedear" | "etf" | "cripto"; flag: string }
 export interface Tape { at: string; tracked: number; gainers: PriceRow[]; losers: PriceRow[] }
-export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; acciones: Candidate[]; cedears: Candidate[] }
+/**
+ * `adrs`: empresas argentinas con ADR en Nueva York, en dólares contra el SPY (lo que el dueño compra).
+ * `acciones`: solo las de BYMA que NO tienen ADR, en pesos contra el Merval. `cedears`: en pesos.
+ */
+export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; adrs?: Candidate[]; acciones: Candidate[]; cedears: Candidate[] }
 export interface Novedades { date: string | null; previousDate: string | null; verdictChanges: Array<{ symbol: string; from: string; to: string; reason: string }>; alerts: Array<{ symbol: string; verb: string; reason: string }>; enteredBuy: Array<{ symbol: string; kind: string; score: number | null }>; leftBuy: Array<{ symbol: string; kind: string; now: string }>; watchResolved: Array<{ symbol: string; status: string; returnPct: number | null; date?: string }>; proposedTheses: Array<{ id: string; ticker: string; eventType: string; direction: string; edge: number; pMarketFromOptions?: boolean; summary: string }>; news: NewsItem[]; empty: boolean }
 export interface CatchUpResult { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }
 export interface StepStatus { id: string; label: string; schedule: string; lastDate: string | null; ranAt: string | null; detail: string | null; lastError: string | null; lastErrorAt: string | null; expected: string; due: boolean; running: boolean }
