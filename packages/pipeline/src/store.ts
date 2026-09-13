@@ -97,6 +97,13 @@ export interface RadarStore {
   scanSymbols(scanDate: string, stage: ScanStage): Promise<string[]>;
   latestScanDate(): Promise<string | null>;
   upsertCandidates(rows: CandidateRow[]): Promise<void>;
+  /**
+   * Borra las filas de esa fecha y esa familia que la corrida NO volvió a escribir. Existe porque un símbolo
+   * que pasa a estar excluido deja de escribirse y su fila vieja del mismo día sobrevive: MIRG.BA el 13/9
+   * quedó con su fuerza relativa de −92,68% (la del split sin ajustar) después de que el motor empezara a
+   * excluirla, y la pantalla la seguía mostrando. Vale para cualquier exclusión, no solo para los splits.
+   */
+  pruneCandidates(date: string, kind: CandidateRow["kind"], keep: string[]): Promise<number>;
   latestCandidates(): Promise<CandidateRow[]>;
   /** Histórico: por familia, las filas de la última fecha ≤ la pedida. Fechas de corrida disponibles (desc). */
   candidatesForDate(date: string): Promise<CandidateRow[]>;
@@ -491,6 +498,17 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async jobRuns() {
     return Object.fromEntries(this.jobs);
+  }
+  async pruneCandidates(date: string, kind: CandidateRow["kind"], keep: string[]) {
+    const vivos = new Set(keep);
+    let n = 0;
+    for (const [k, c] of [...this.candidates]) {
+      if (c.candidateDate === date && c.kind === kind && !vivos.has(c.symbol)) {
+        this.candidates.delete(k);
+        n++;
+      }
+    }
+    return n;
   }
   async upsertCandidates(rows: CandidateRow[]) {
     for (const c of rows) {

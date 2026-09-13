@@ -73,6 +73,25 @@ describe("refreshArgentina", () => {
     expect(calls.filter((c) => c.startsWith("us:"))).toEqual(["us:AAPL"]);
   });
 
+  /**
+   * MIRG.BA el 13/9. El motor empezó a excluirla (split 10 a 1 sin ajustar) y su fila de la corrida de la
+   * mañana sobrevivió en la base, con la fuerza relativa de −92,68% que el arreglo venía a sacar. La
+   * pantalla la seguía mostrando como cualquier otra. Vale para cualquier exclusión, no solo para splits.
+   */
+  it("un papel que hoy pasó a estar excluido no sobrevive con la fila de la corrida anterior", async () => {
+    const { store, deps } = setup();
+    await refreshArgentina(deps, { today });
+    expect((await store.latestCandidates()).some((x) => x.symbol === "ALUA.BA")).toBe(true);
+
+    // Segunda corrida del mismo día en la que ALUA.BA ya no se puede evaluar.
+    const sinAlua: ArgentinaDeps = { ...deps, history: { candles: async (s, days) => (s === "ALUA.BA" ? [] : deps.history.candles(s, days)) } };
+    await refreshArgentina(sinAlua, { today });
+    const rows = await store.latestCandidates();
+    expect(rows.some((x) => x.symbol === "ALUA.BA")).toBe(false);
+    expect(rows.some((x) => x.symbol === "GGAL.BA")).toBe(true);
+    expect(rows.some((x) => x.symbol === "AAPL.BA")).toBe(true);
+  });
+
   it("las filas argentinas de hoy no esconden las acciones US del último ranking: latestCandidates es por familia", async () => {
     const { store, deps } = setup();
     const us = { candidateDate: "2026-09-07", symbol: "NVDA", kind: "stock" as const, verdict: "COMPRAR" as const, score: 1.2, axes: {}, peerGroup: [], rankInGroup: 1, groupSize: 10, close: 230, entryLow: 230, entryHigh: 234.6, stop: 214, target: 262, sizeUsd: 15_000, sizeQty: 66, riskScore: 4, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: 770, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null };

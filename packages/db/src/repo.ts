@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, notInArray, sql } from "drizzle-orm";
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
@@ -394,6 +394,19 @@ export class Repo {
       const { candidateDate: _d, symbol: _s, close7d: _a, spy7d: _b, alpha7dPct: _c, close30d: _e, spy30d: _f, alpha30dPct: _g, close90d: _h, spy90d: _i, alpha90dPct: _j, measuredAt: _k, ...set } = row;
       await this.db.insert(s.radarCandidates).values(row).onConflictDoUpdate({ target: [s.radarCandidates.candidateDate, s.radarCandidates.symbol], set });
     }
+  }
+  /**
+   * Borra las filas de esa fecha y esa familia que la corrida no volvió a escribir. Un símbolo que pasa a
+   * estar excluido deja de escribirse, y sin esto su fila vieja del mismo día sobrevive: MIRG.BA el 13/9
+   * quedó mostrando la fuerza relativa de −92,68% que venía de su split sin ajustar, después de que el
+   * motor ya la excluyera. Vale para cualquier exclusión, no solo para los splits.
+   */
+  async pruneCandidates(date: string, kind: CandidateRow["kind"], keep: string[]): Promise<number> {
+    const cond = keep.length
+      ? and(eq(s.radarCandidates.candidateDate, date), eq(s.radarCandidates.kind, kind), notInArray(s.radarCandidates.symbol, keep))
+      : and(eq(s.radarCandidates.candidateDate, date), eq(s.radarCandidates.kind, kind));
+    const borradas = await this.db.delete(s.radarCandidates).where(cond).returning({ symbol: s.radarCandidates.symbol });
+    return borradas.length;
   }
   /** Última fecha por familia: las filas argentinas (corren otro día) no esconden el último ranking US ni al revés. */
   async latestCandidates(): Promise<CandidateRow[]> {

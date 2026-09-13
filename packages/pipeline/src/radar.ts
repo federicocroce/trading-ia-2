@@ -455,7 +455,19 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
     rows.push({ ...emptyRow(opts.today, cfg.symbol, "etf", d.verdict, d.close), axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: d.reasons, spyClose });
   }
   await store.upsertCandidates(rows);
+  // Lo que hoy quedó excluido no puede seguir en pantalla con los números de la corrida anterior del mismo
+  // día. MIRG.BA el 13/9: el motor empezó a excluirla por el split sin ajustar y su fila de la mañana
+  // sobrevivió, mostrando la fuerza relativa de −92,68% que el arreglo venía justamente a sacar.
+  // Solo se poda si la corrida produjo filas de esa familia: un barrido que falló entero no borra nada.
+  await pruneFamilias(store, opts.today, rows);
   return { candidates: rows, skipped, errors };
+}
+
+/** Borra, por familia, las filas de hoy que esta corrida no volvió a escribir. */
+export async function pruneFamilias(store: Pick<RadarStore, "pruneCandidates">, today: string, rows: CandidateRow[]): Promise<void> {
+  const porTipo = new Map<CandidateRow["kind"], string[]>();
+  for (const r of rows) porTipo.set(r.kind, [...(porTipo.get(r.kind) ?? []), r.symbol]);
+  for (const [kind, symbols] of porTipo) await store.pruneCandidates(today, kind, symbols).catch(() => 0);
 }
 
 /** Refresco diario: velas nuevas → cierre, stop, objetivo, filtros y verdict. Conserva score, ficha y aparición. */

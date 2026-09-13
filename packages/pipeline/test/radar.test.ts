@@ -185,7 +185,7 @@ describe("plan y medición", () => {
     const { store, d } = deps();
     await store.upsertPosition({ symbol: "SL", quantity: 10, avgCost: 50, currency: "USD", market: "us", layer: "riesgo", notes: null });
     await store.upsertPosition({ symbol: "VTI", quantity: 150, avgCost: 280, currency: "USD", market: "us", layer: "nucleo", notes: null });
-    await store.saveRisk(TODAY, { totalValue: 100_000, weights: [{ symbol: "SL", value: 1000, weightPct: 1 }, { symbol: "VTI", value: 45_000, weightPct: 45 }], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, liquidity: [], notes: [] });
+    await store.saveRisk(TODAY, { totalValue: 100_000, weights: [{ symbol: "SL", value: 1000, weightPct: 1 }, { symbol: "VTI", value: 45_000, weightPct: 45 }], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, risk: { portfolioVolPct: null, spyVolPct: null, r2VsSpy: null, worstDayPct: null, sessions: 0 }, liquidity: [], notes: [] });
     await store.upsertVerdicts([{ verdictDate: TODAY, symbol: "SL", verb: "SUMAR", reason: "r", narrative: null, warning: null, close: 100, spot: null, stop: 90, target: 120, gainPct: 0, weightPct: 1, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null }]);
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });

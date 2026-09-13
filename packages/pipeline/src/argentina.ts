@@ -1,5 +1,6 @@
 import type { ArgentinaConfig, Candle, CandidateRow, MacroAr, PriceHistory, RadarPolicy, Tags } from "@thesis/core";
 import { cedearCheck, decideArStock, macroAr } from "@thesis/core";
+import { pruneFamilias } from "./radar.js";
 import type { CarteraStore, RadarStore } from "./store.js";
 
 /**
@@ -137,6 +138,11 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
     }
   }
 
-  if (rows.length) await store.upsertCandidates(rows);
+  if (rows.length) {
+    await store.upsertCandidates(rows);
+    // Un papel que hoy quedó excluido (MIRG.BA por su split sin ajustar) no puede seguir en la tabla con
+    // los números de la corrida anterior del mismo día.
+    await pruneFamilias(store, opts.today, rows);
+  }
   return { macro, acciones, cedears, errors };
 }

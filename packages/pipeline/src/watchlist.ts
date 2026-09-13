@@ -1,6 +1,6 @@
 import type { Candle, CandidateRow, Fundamentals, VerificationSummary, WatchItem } from "@thesis/core";
 import { computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
-import { tagSymbol, type RadarDeps } from "./radar.js";
+import { pruneFamilias, tagSymbol, type RadarDeps } from "./radar.js";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-verify.js";
 
@@ -111,6 +111,10 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       errors.push({ symbol: sym, error: errText(e) });
     }
   }
-  if (rows.length) await store.upsertCandidates(rows);
+  if (rows.length) {
+    await store.upsertCandidates(rows);
+    // Un símbolo que sacaste de la lista no puede seguir apareciendo con la fila de la corrida de la mañana.
+    await pruneFamilias(store, opts.today, rows);
+  }
   return { symbols: items.length, rows: rows.length, errors };
 }
