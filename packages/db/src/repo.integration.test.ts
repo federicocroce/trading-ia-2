@@ -104,7 +104,7 @@ d("Repo (Postgres real)", () => {
     expect((await repo.verdictsToMeasure("2099-01-08", 7)).some((v) => v.symbol === sym)).toBe(false);
     expect((await repo.allVerdicts()).find((v) => v.symbol === sym)?.alpha7dPct).toBe(9);
 
-    const report = { totalValue: 1, weights: [], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, liquidity: [], notes: [] };
+    const report = { totalValue: 1, weights: [], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, risk: { portfolioVolPct: null, spyVolPct: null, r2VsSpy: null, worstDayPct: null, sessions: 0 }, liquidity: [], notes: [] };
     await repo.saveRisk("2099-01-01", report);
     await repo.saveRisk("2099-01-01", { ...report, totalValue: 2 });
     expect((await repo.latestRisk())?.report.totalValue).toBe(2);

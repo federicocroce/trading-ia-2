@@ -2,6 +2,7 @@ import { computeTarget, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import { atrPct, returnPct, sma } from "./candidate.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
+import { crossesSplit } from "./split.js";
 import type { EtfConfig, RadarPolicy } from "./types.js";
 
 /** Motor de ETFs (spec etapa 2 §7): fuerza relativa contra SPY; el núcleo no se "timea". Puro. */
@@ -36,6 +37,9 @@ export interface EtfDecision {
 
 export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: RadarPolicy["technical"]): EtfDecision | { excluded: true; reasons: string[] } {
   if (candles.length < 200) return { excluded: true, reasons: ["sin_historial"] };
+  // Un ETF también se divide: el mismo salto de escala rompe la fuerza relativa y la media de 200.
+  const salto = crossesSplit(candles, 252);
+  if (salto !== null) return { excluded: true, reasons: [`serie_con_salto:${salto.date}`] };
   const close = candles[candles.length - 1]!.close;
   const s200 = sma(candles, 200);
   const base = {

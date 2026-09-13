@@ -3,6 +3,7 @@ import type { Candle } from "../cartera/types.js";
 import type { Fundamentals } from "./ranking.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
 import { earningsQualityFlags, hasExtraordinary } from "./statements.js";
+import { crossesSplit } from "./split.js";
 import type { AnalystTargets, CandidateEvent, CoreEarnings, RadarPolicy, VerificationSummary } from "./types.js";
 
 /** Reglas de candidato (spec etapa 2 §6): lo técnico filtra, no rankea. Puro. */
@@ -96,6 +97,12 @@ export function technicalGate(candles: Candle[], p: RadarPolicy["technical"], ne
   const r21 = returnPct(candles, 21);
   const a = atrPct(candles);
   if (candles.length < 200 || s200 === null) return { status: "excluido", reasons: ["sin_historial"], close, sma200: s200, return21dPct: r21, atrPct: a };
+  // Split sin ajustar dentro de la ventana de la media de 200: la media mezcla dos escalas de precio, el
+  // stop se calcula contra máximos de la escala vieja y el retorno de 21 ruedas puede ser un −90% que nunca
+  // pasó. MIRG.BA el 12/9 traía 16.350 → 1.640 el 3 de agosto y la fila se mostraba como cualquier otra.
+  // No se adivina el ajuste: se deja de calcular encima y se dice por qué.
+  const salto = crossesSplit(candles, 200);
+  if (salto !== null) return { status: "excluido", reasons: [`serie_con_salto:${salto.date}`], close, sma200: s200, return21dPct: r21, atrPct: a };
   if (close < s200) return { status: "excluido", reasons: ["bajo_sma200"], close, sma200: s200, return21dPct: r21, atrPct: a };
   const reasons: string[] = [];
   if (r21 !== null && r21 > p.maxReturn21dPct) reasons.push("no_perseguir");

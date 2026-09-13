@@ -2,6 +2,7 @@ import { computeTarget, computeTrailingStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import { atrPct, returnPct, sma } from "./candidate.js";
 import { relativeStrength } from "./etf.js";
+import { crossesSplit } from "./split.js";
 import type { RadarPolicy } from "./types.js";
 
 /**
@@ -88,6 +89,10 @@ export interface ArStockDecision {
 /** Misma regla que los ETFs satélite, con el Merval de referencia: fuerza relativa 6m > 0 y sobre la SMA200. */
 export function decideArStock(candles: Candle[], merval: Candle[], ccl: number | null, p: RadarPolicy["technical"]): ArStockDecision | { excluded: true; reasons: string[] } {
   if (candles.length < 200) return { excluded: true, reasons: ["sin_historial"] };
+  // MIRG.BA el 12/9: 16.350 el 1 de agosto y 1.640 el 3, un split 10 a 1 que Yahoo no ajustó hacia atrás.
+  // La fila mostraba fuerza relativa de −93% a doce meses como si la empresa se hubiera derrumbado.
+  const salto = crossesSplit(candles, 252);
+  if (salto !== null) return { excluded: true, reasons: [`serie_con_salto:${salto.date}`] };
   const close = candles[candles.length - 1]!.close;
   const s200 = sma(candles, 200);
   const stop = computeTrailingStop(candles);

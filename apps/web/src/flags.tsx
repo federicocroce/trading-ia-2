@@ -36,7 +36,21 @@ const FLAG_LABEL: Record<string, string> = {
   consenso_en_precio: "objetivo de consenso a < 10% del precio",
   subio_mucho_12m: "subió > 100% en 12 meses",
 };
-export const flagLabel = (flag: string): string => FLAG_LABEL[flag] ?? flag;
+/**
+ * Banderas con un dato adentro, en la forma `nombre:dato`. Se traducen aparte porque el dato cambia por
+ * símbolo y no puede vivir en el mapa de arriba.
+ */
+const FLAG_CON_DATO: Record<string, (dato: string) => string> = {
+  serie_con_salto: (fecha) => `la serie de precios da un salto de escala el ${fecha}: un split que la fuente no ajustó`,
+};
+export const flagLabel = (flag: string): string => {
+  const i = flag.indexOf(":");
+  if (i > 0) {
+    const f = FLAG_CON_DATO[flag.slice(0, i)];
+    if (f) return f(flag.slice(i + 1));
+  }
+  return FLAG_LABEL[flag] ?? flag;
+};
 
 export type FlagTone = "bueno" | "salvedad" | "limitacion";
 
@@ -44,11 +58,15 @@ export type FlagTone = "bueno" | "salvedad" | "limitacion";
 const BUENAS = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiva", "dividendo", "verificacion_apta"]);
 /** Ni a favor ni en contra: falta un dato. No es un defecto de la empresa, es un límite de la fuente. */
 const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente"]);
+/** Las que llevan un dato adentro y también son límites de la fuente, no defectos de la empresa. */
+const LIMITACIONES_CON_DATO = new Set(["serie_con_salto"]);
 
 /** Todo lo que no está declarado como bueno o como límite cuenta como salvedad: el default seguro. */
 export function flagTone(flag: string): FlagTone {
   if (BUENAS.has(flag)) return "bueno";
   if (LIMITACIONES.has(flag)) return "limitacion";
+  const i = flag.indexOf(":");
+  if (i > 0 && LIMITACIONES_CON_DATO.has(flag.slice(0, i))) return "limitacion";
   return "salvedad";
 }
 

@@ -19,3 +19,4 @@ export * from "./chronic.js";
 export * from "./indicators.js";
 export * from "./sanitize.js";
 export * from "./pantallas.js";
+export * from "./split.js";
