@@ -71,6 +71,13 @@ export interface ContributionPlan {
   leftOut?: Array<{ symbol: string; reason: string }>;
   /** En cuántas compras conviene ejecutarlo (1 = de una vez). */
   tranches?: number;
+  /**
+   * Cuándo se armó este plan, en ISO. El plan es una FOTO: no se rehace solo cuando cambian los precios ni
+   * cuando se arregla el motor, así que el encabezado tiene que decir de cuándo es. El 13/9 el dueño
+   * preguntó "¿sigo viendo el mismo plan que antes?" y no había forma de contestarle desde la pantalla.
+   * Lo pone la persistencia al leerlo; al construirlo va sin esto.
+   */
+  builtAt?: string;
 }
 
 /**

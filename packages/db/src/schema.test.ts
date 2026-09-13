@@ -29,9 +29,11 @@ describe("enum parity core <-> db", () => {
  */
 describe("paridad ContributionPlan <-> contribution_plans", () => {
   it("todo campo del plan tiene su columna", () => {
-    const plan: Required<ContributionPlan> = { month: "2026-09", totalUsd: 0, lines: [], notes: [], leftOut: [], tranches: 1 };
+    const plan: Required<ContributionPlan> = { month: "2026-09", totalUsd: 0, lines: [], notes: [], leftOut: [], tranches: 1, builtAt: "2026-09-13T00:00:00.000Z" };
     const columnas = new Set(Object.keys(s.contributionPlans));
-    const columnaDe = (k: string) => (k === "month" ? "planMonth" : k);
+    // `builtAt` es la cara pública de `created_at`: el plan es una foto y la pantalla tiene que poder decir
+    // de cuándo es. Lo vuelca `rowToPlan`; `savePlan` lo actualiza en cada rearmado.
+    const columnaDe = (k: string) => (k === "month" ? "planMonth" : k === "builtAt" ? "createdAt" : k);
     for (const k of Object.keys(plan)) {
       expect(columnas.has(columnaDe(k)), `ContributionPlan.${k} no tiene columna en contribution_plans`).toBe(true);
     }

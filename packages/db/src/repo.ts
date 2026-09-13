@@ -452,11 +452,14 @@ export class Repo {
     return (await this.db.select().from(s.radarCandidates).orderBy(desc(s.radarCandidates.candidateDate), s.radarCandidates.symbol)).map((r) => this.rowToCandidate(r));
   }
   private rowToPlan(r: typeof s.contributionPlans.$inferSelect): ContributionPlan {
-    return { month: r.planMonth, totalUsd: num(r.totalUsd), lines: (r.lines as PlanLine[]) ?? [], notes: (r.notes as string[]) ?? [], leftOut: (r.leftOut as ContributionPlan["leftOut"]) ?? [], ...(r.tranches === null ? {} : { tranches: r.tranches }) };
+    return { month: r.planMonth, totalUsd: num(r.totalUsd), lines: (r.lines as PlanLine[]) ?? [], notes: (r.notes as string[]) ?? [], leftOut: (r.leftOut as ContributionPlan["leftOut"]) ?? [], builtAt: r.createdAt.toISOString(), ...(r.tranches === null ? {} : { tranches: r.tranches }) };
   }
   async savePlan(p: ContributionPlan): Promise<void> {
     const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes, leftOut: p.leftOut ?? [], tranches: p.tranches ?? null };
-    await this.db.insert(s.contributionPlans).values(v).onConflictDoUpdate({ target: s.contributionPlans.planMonth, set: v });
+    // `createdAt` va en el set a propósito: sin él, el timestamp quedaba congelado en el PRIMER guardado del
+    // mes y el plan podía rearmarse diez veces sin que nada lo dijera. El 13/9 la base decía que el plan era
+    // del 7 mientras sus precios eran de hoy, y no había forma de saber cuándo se había armado de verdad.
+    await this.db.insert(s.contributionPlans).values(v).onConflictDoUpdate({ target: s.contributionPlans.planMonth, set: { ...v, createdAt: new Date() } });
   }
   async latestPlan(): Promise<ContributionPlan | null> {
     const r = (await this.db.select().from(s.contributionPlans).orderBy(desc(s.contributionPlans.planMonth)).limit(1))[0];

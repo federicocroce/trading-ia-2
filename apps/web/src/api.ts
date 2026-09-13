@@ -87,7 +87,7 @@ export interface TopPick { symbol: string; conviction: number; gainPct: number; 
 export interface MacroRegime { state: "restrictivo" | "neutral" | "expansivo"; asOf: string; tenYearPct: number; change3mBp: number | null; why: string }
 export interface RadarTop { date: string | null; overweight: Record<string, number>; regime?: MacroRegime | null; picks: TopPick[] }
 export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar" | "seguimiento"; amountUsd: number; rationale: string; close: number | null; alpha30dPct: number | null; alpha90dPct: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; ret12mPct?: number | null; ret12mPartial?: boolean | null; priority?: number | null; entry?: EntryTiming | null }
-export interface ContributionPlan { month: string; totalUsd: number; lines: PlanLine[]; notes: string[]; leftOut?: Array<{ symbol: string; reason: string }> }
+export interface ContributionPlan { month: string; totalUsd: number; lines: PlanLine[]; notes: string[]; leftOut?: Array<{ symbol: string; reason: string }>; builtAt?: string }
 export interface ScanStatus { running: boolean; stopRequested: boolean; startedAt: string | null; progress: { done: number; total: number; stage: string } | null; last: { listed: number; prefiltered: number; fundamentalsOk: number; excluded: number; errors: number; stopped: boolean } | null; scanDate: string | null; status: Record<string, number> | null }
 interface RBucket { n: number; avgAlpha: number | null; hitRate: number | null }
 export type Horizonte = "h7" | "h30" | "h90";

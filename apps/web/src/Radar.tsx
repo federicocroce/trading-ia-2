@@ -128,7 +128,7 @@ export function Radar() {
         </div>
       )}
       {sub === "resumen" && top && <TopPicks t={top} plan={plan} />}
-      {sub === "resumen" && plan && <PlanCard p={plan} busy={busy === "plan"} onBuild={async (amountUsd) => { await act("plan", async () => { const np = await api.radar.buildPlan(amountUsd); setPlan(np); return `Plan ${np.month} armado para ${money(np.totalUsd)}.`; }); }} />}
+      {sub === "resumen" && plan && <PlanCard p={plan} radarDate={cands[0]?.candidateDate ?? null} busy={busy === "plan"} onBuild={async (amountUsd) => { await act("plan", async () => { const np = await api.radar.buildPlan(amountUsd); setPlan(np); return `Plan ${np.month} armado para ${money(np.totalUsd)}.`; }); }} />}
       {sub === "acciones" && opts && (
         <div className="card form-row">
           <span className="muted">Filtrar:</span>
@@ -437,7 +437,7 @@ function sortPlanLines(lines: PlanLine[], sort: PlanSort): PlanLine[] {
   });
 }
 
-function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountUsd: number) => Promise<void>; busy: boolean }) {
+function PlanCard({ p, radarDate, onBuild, busy }: { p: ContributionPlan; radarDate: string | null; onBuild: (amountUsd: number) => Promise<void>; busy: boolean }) {
   const [amount, setAmount] = useState<string>(String(p.totalUsd));
   const [sort, setSort] = useState<PlanSort>(readPlanSort);
   const changeSort = (s: PlanSort) => { setSort(s); try { localStorage.setItem("plan.sort", s); } catch { /* sin almacenamiento: no pasa nada */ } };
@@ -445,10 +445,15 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
   const qty = (l: PlanLine) => (l.close ? Math.floor(l.amountUsd / l.close) : null);
   const KIND: Record<PlanLine["kind"], string> = { nucleo: "núcleo", sumar: "sumar", comprar: "comprar", seguimiento: "seguimiento" };
   const risk = p.lines.reduce((s, l) => s + (l.stop && l.close && l.stop < l.close ? (qty(l) ?? 0) * (l.close - l.stop) : 0), 0);
+  // El plan no se rehace solo: si el Radar ya corrió después, las líneas son de una selección anterior.
+  const viejo = p.builtAt && radarDate ? p.builtAt.slice(0, 10) < radarDate : false;
   return (
     <div className="card" style={{ overflowX: "auto" }}>
       <div className="row">
-        <b>Plan del aporte {p.month}</b> <span className="muted">{money(p.totalUsd)}</span>
+        {/* El plan es una FOTO: no se rehace solo cuando cambian los precios ni cuando se arregla el motor.
+            Sin la fecha de armado no había forma de contestar "¿es el mismo plan que ayer?", que fue
+            exactamente lo que el dueño preguntó el 13/9. */}
+        <b>Plan del aporte {p.month}</b> <span className="muted">{money(p.totalUsd)}{p.builtAt && ` · armado el ${p.builtAt.slice(0, 10)} ${p.builtAt.slice(11, 16)}`}</span>
         <div style={{ flex: 1 }} />
         <span className="muted">Ordenar por</span>
         <select value={sort} onChange={(e) => changeSort(e.target.value as PlanSort)} title="Prioridad de compra: el orden en que el sistema asigna la plata (núcleo, sumar, nuevas por convicción, seguimiento). % al objetivo: ojo, es dos veces la distancia al stop, así que ordena por volatilidad.">
@@ -493,6 +498,13 @@ function PlanCard({ p, onBuild, busy }: { p: ContributionPlan; onBuild: (amountU
           ))}
         </tbody>
       </table>
+      {viejo && (
+        <div className="warn" style={{ marginTop: 6 }}>
+          Este plan se armó el {p.builtAt!.slice(0, 10)} y el Radar ya tiene una corrida del {radarDate}. Las líneas son de la
+          selección de ese día: los precios y los stops pueden haber cambiado, y una candidata que hoy ya no es COMPRAR puede seguir acá.
+          Apretá "Armar plan" para rehacerlo con lo de hoy.
+        </div>
+      )}
       {sort === "objetivo" && <div className="warn" style={{ marginTop: 6 }}>Ordenado por distancia al stop. El objetivo es exactamente dos veces esa distancia: medido sobre los 26 COMPRAR de hoy, la correlación entre los dos números es 1,0000. Ordena por volatilidad, no por calidad, y no dice nada de cuánto puede ganar la empresa. El orden de compra del sistema es "prioridad de compra".</div>}
       {risk > 0 && <div className="muted" style={{ marginTop: 6 }}>Si todas las líneas con stop lo tocan, perdés {money(risk)}. Los ETFs de núcleo no llevan stop: se compran y se quedan.</div>}
       {p.notes.map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}
