@@ -60,6 +60,11 @@ export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: R
   // Cierre bajo el stop dinámico: viene cayendo desde un máximo reciente. Se observa; nunca un objetivo por debajo del precio.
   const belowStop = base.stop !== null && close <= base.stop;
   if (belowStop) reasons.push("bajo_stop");
-  base.target = belowStop ? null : computeTarget(close, base.stop);
+  // El objetivo sale del precio que se va a PAGAR, igual que en las acciones. Con "esperar_retroceso" la
+  // franja queda por debajo del cierre, y medir el 2 a 1 desde el cierre daba una relación que no era la
+  // de la operación (EWT el 12/9: objetivo 119,93 desde el cierre contra 110,69 desde la entrada real).
+  const techo = base.entry?.high ?? close;
+  const ejecutable = !belowStop && base.stop !== null && base.stop < (base.entry?.low ?? close);
+  base.target = ejecutable ? computeTarget(techo, base.stop) : null;
   return { ...base, verdict: reasons.length ? "OBSERVAR" : "COMPRAR", reasons };
 }

@@ -84,13 +84,21 @@ export function checkPantallas(p: Pantallas): Finding[] {
     }
   }
 
-  // 5. Un símbolo no puede estar comprado y excluido a la vez.
+  // 5. Un símbolo no puede recibir plata dos veces en el mismo plan. TSM el 12/9 salía como "sumar" por
+  //    ser tenencia y otra vez como "comprar" por estar en el ranking: dos líneas, dos montos, una posición.
+  const vistos = new Map<string, string[]>();
+  for (const l of p.plan?.lines ?? []) vistos.set(l.symbol, [...(vistos.get(l.symbol) ?? []), l.kind]);
+  for (const [sym, kinds] of vistos) {
+    if (kinds.length > 1) add("simbolo_duplicado", sym, "grave", `aparece ${kinds.length} veces en el plan (${kinds.join(", ")}): se le asigna plata dos veces`);
+  }
+
+  // 6. Un símbolo no puede estar comprado y excluido a la vez.
   const comprados = new Set((p.plan?.lines ?? []).map((l) => l.symbol));
   for (const x of p.plan?.leftOut ?? []) {
     if (comprados.has(x.symbol)) add("comprado_y_excluido", x.symbol, "grave", `está en el plan y en la lista de los que no entraron`);
   }
 
-  // 6. Un cambio de veredicto anunciado en Hoy tiene que coincidir con lo que muestra el Radar.
+  // 7. Un cambio de veredicto anunciado en Hoy tiene que coincidir con lo que muestra el Radar.
   for (const ch of p.novedades?.verdictChanges ?? []) {
     const c = cand.get(ch.symbol);
     if (c && ch.to !== c.verdict) {

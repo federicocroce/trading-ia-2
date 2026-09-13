@@ -57,6 +57,15 @@ describe("checkPantallas", () => {
     expect(f).toHaveLength(1);
   });
 
+  it("TSM del 12/9: un símbolo no puede recibir plata dos veces en el mismo plan", () => {
+    const f = solo("simbolo_duplicado", checkPantallas({
+      ...base, candidatos: [cand("TSM")],
+      plan: { lines: [linea("TSM", { kind: "sumar" }), linea("TSM", { kind: "comprar" })] },
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+  });
+
   it("no se puede estar comprado y excluido a la vez", () => {
     const f = solo("comprado_y_excluido", checkPantallas({ ...base, candidatos: [cand("LNC")], plan: { lines: [linea("LNC")], leftOut: [{ symbol: "LNC", reason: "tope de nuevas" }] } }));
     expect(f).toHaveLength(1);

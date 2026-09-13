@@ -159,6 +159,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     { kind: "watch", max: cfg.watchLinesMax, countsAsNew: false },
     { kind: "etf", max: cfg.etfLinesMax, countsAsNew: true },
   ];
+  const yaEnSumar = new Set(lines.filter((l) => l.kind === "sumar").map((l) => l.symbol));
   const chosen: PlanInput["buyCandidates"] = [];
   const placeOf = new Map<string, string>();
   /** Todo COMPRAR que no entró, con su lugar en la fila y el motivo: el plan tiene que poder explicarse solo. */
@@ -171,6 +172,12 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     queue.forEach((b, idx) => {
       const place = pool.kind === "stock" ? `${idx + 1}° por convicción` : pool.kind === "watch" ? "seguimiento" : "ETF";
       const isNew = valueOf(b.symbol) === 0;
+      // Un símbolo que ya recibió plata como SUMAR no puede recibirla otra vez como compra nueva: TSM el
+      // 12/9 salía dos veces en el mismo plan, con dos montos, para una sola posición.
+      if (yaEnSumar.has(b.symbol)) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ya recibe aporte como SUMAR, no se duplica la línea` });
+        return;
+      }
       // La verificación web con reservas no compra: queda en la fila con su motivo (evitar ya es OBSERVAR y no llega acá).
       if (b.verification && b.verification.verdict !== "apto") {
         leftOut.push({ symbol: b.symbol, reason: `${place}: verificación web ${b.verification.verdict === "evitar" ? "dice evitar" : "con reservas"}: ${b.verification.reason}` });
