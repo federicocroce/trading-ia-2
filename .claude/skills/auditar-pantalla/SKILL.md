@@ -129,3 +129,19 @@ dejó de servir.
 - Fila fechada mañana por calcular la fecha en UTC.
 - Contador de residente crónico que contaba corridas en vez de semanas.
 - Comparable sin ingresos corriendo la escala del grupo.
+- Tarjeta que dice "2 a 1" al lado de porcentajes medidos desde otro precio (NVDA +9,1% / −1,6%, HIPO 97 a 1;
+  13/9). Chequeo `dos_a_uno_falso`.
+- Dos objetivos para la misma compra: el plan tomaba el stop del Radar y el objetivo de Cartera (TSM 472,46
+  contra 498,44; 13/9). Chequeo `objetivo_distinto`.
+- Stop de una compra nueva pegado al precio: el de seguimiento usado como stop inicial después de un retroceso
+  (NVDA a 0,44 ATR, STNG a 0,00; 13/9). Chequeo `stop_dentro_del_ruido`.
+- Crecimiento de ingresos de Finnhub inflado en bancos (NBN +124% contra +4% del comunicado; 13/9). Chequeo
+  `crecimiento_sin_bandera`. La primera regla (umbral de 100% sin estados) marcaba crecimientos reales: correr
+  cada regla contra la base antes de adoptarla.
+- Prefiltro de noticias sin patrón para antimonopolio: los titulares del DOJ sobre NVDA estaban guardados y
+  NVDA figuraba sin eventos (13/9).
+
+**Y el que más importa:** la app se había calibrado a una respuesta mía de un día (la cartera del 10/9) y al
+volver a verificar le cambié líneas. Empatar una salida no empata los chequeos. Cada diferencia entre lo que yo
+concluyo verificando y lo que la app muestra se convierte en una regla con su test, antes de que el dueño
+ejecute; si no se puede escribir como regla, se dice que es criterio mío.
