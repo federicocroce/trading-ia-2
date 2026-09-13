@@ -13,6 +13,11 @@ export class Repo {
 
   // ---------- raw_events ----------
   /** Inserta ignorando duplicados (índice único de dedupe). Devuelve los realmente nuevos. */
+  async knownSourceRefs(source: RawEvent["source"], refs: string[]): Promise<Set<string>> {
+    if (!refs.length) return new Set();
+    const rows = await this.db.select({ ref: s.rawEvents.sourceRef }).from(s.rawEvents).where(and(eq(s.rawEvents.source, source), inArray(s.rawEvents.sourceRef, refs)));
+    return new Set(rows.map((r) => r.ref));
+  }
   async insertRawEvents(events: RawEvent[]): Promise<RawEvent[]> {
     if (!events.length) return [];
     const rows = await this.db

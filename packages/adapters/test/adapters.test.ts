@@ -30,7 +30,12 @@ describe("EdgarIngestor", () => {
     const ing = new EdgarIngestor({ http, universe: async () => ["XXXX"] });
     expect((await ing.fetch("2026-08-01T00:00:00Z")).length).toBe(2);
   });
-  it("Form 4: lee el XML y se queda con compras y ventas de insiders; el vesting rutinario no genera evento", async () => {
+  /**
+   * Hasta el 13/9/2026 el vesting rutinario se salteaba sin guardarse. Ahora se guarda marcado como rutina y
+   * lo descarta el filtro con su motivo: raw_events registra todo lo ingerido, y sin guardarlo la corrida
+   * siguiente no podía saber que ya lo había visto y volvía a bajar su XML. Nunca llega al modelo.
+   */
+  it("Form 4: lee el XML, distingue compra y venta, y guarda el vesting rutinario marcado como rutina", async () => {
     const h = fixtureHttpClient({
       "https://www.sec.gov/files/company_tickers.json": E.companyTickers,
       "https://data.sec.gov/submissions/CIK0001234567.json": E.submissionsForm4,
@@ -39,12 +44,31 @@ describe("EdgarIngestor", () => {
       "https://www.sec.gov/Archives/edgar/data/1234567/000123456726000103/wk-form4_3.xml": E.form4Sale,
     });
     const evs = await new EdgarIngestor({ http: h, universe: ["XXXX"] }).fetch("2026-09-01T00:00:00Z");
-    expect(evs.map((e) => [e.payload["insider"], e.title])).toEqual([
-      ["compra", "4 compra de insider: Marin Horacio Daniel, 352,433 acciones — Xxxx Therapeutics Inc"],
-      ["venta", "4 venta de insider: Toth Peter, 3,000 acciones — Xxxx Therapeutics Inc"],
-    ]);
+    expect(evs.map((e) => e.payload["insider"])).toEqual(["compra", "rutina", "venta"]);
+    expect(evs[0]?.title).toBe("4 compra de insider: Marin Horacio Daniel, 352,433 acciones — Xxxx Therapeutics Inc");
+    expect(evs[1]?.title).toMatch(/^4 rutina de insider/);
+    expect(evs[2]?.title).toBe("4 venta de insider: Toth Peter, 3,000 acciones — Xxxx Therapeutics Inc");
     expect(evs[0]?.payload["insiderBuyShares"]).toBe(352433);
-    expect(evs[1]?.payload["insiderSellShares"]).toBe(3000);
+    expect(evs[2]?.payload["insiderSellShares"]).toBe(3000);
+  });
+
+  /**
+   * Lo que hace posible mirar 30 días hacia atrás sin costo: una presentación ya guardada se saltea ANTES de
+   * bajar su XML. El cliente de prueba falla ante cualquier URL que no tenga cargada, así que si el ingestor
+   * intentara bajar el XML de las conocidas, este test rompería.
+   */
+  it("saltea las presentaciones que ya conoce sin bajar su XML", async () => {
+    const h = fixtureHttpClient({
+      "https://www.sec.gov/files/company_tickers.json": E.companyTickers,
+      "https://data.sec.gov/submissions/CIK0001234567.json": E.submissionsForm4,
+      // Solo el XML de la venta: las otras dos son conocidas y no se pueden pedir.
+      "https://www.sec.gov/Archives/edgar/data/1234567/000123456726000103/wk-form4_3.xml": E.form4Sale,
+    });
+    const conocidas = new Set(["0001234567-26-000101", "0001234567-26-000102"]);
+    const pedidas: string[][] = [];
+    const evs = await new EdgarIngestor({ http: h, universe: ["XXXX"], knownRefs: async (refs) => { pedidas.push(refs); return new Set(refs.filter((r) => conocidas.has(r))); } }).fetch("2026-09-01T00:00:00Z");
+    expect(evs.map((e) => e.payload["insider"])).toEqual(["venta"]);
+    expect(pedidas).toHaveLength(1);
   });
   it("filingUrl quita guiones y ceros del cik", () => {
     expect(filingUrl("0001234567", "0001234567-26-000010", "a.htm")).toContain("/1234567/000123456726000010/a.htm");

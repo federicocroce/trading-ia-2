@@ -38,6 +38,13 @@ export interface EdgarOptions {
   http: HttpClient;
   /** Lista fija o función: así el universo sigue solo a posiciones, seguimiento y plan. */
   universe: Universe;
+  /**
+   * Cuáles de estas presentaciones ya están guardadas. Se saltean antes de bajar nada más. Existe para que
+   * la ventana pueda ser de 30 días sin costo: sin esto cada corrida volvía a bajar y parsear el XML de
+   * cada Form 4 del mes para descubrir lo que ya sabía. Opcional: sin él, todo se trae como antes y la
+   * deduplicación la hace la base.
+   */
+  knownRefs?: (refs: string[]) => Promise<Set<string>>;
 }
 
 /**
@@ -96,12 +103,16 @@ export class EdgarIngestor implements Ingestor {
       if (!cik) continue;
       const sub = await this.opts.http.getJson<Submissions>(submissionsUrl(cik));
       const r = sub.filings.recent;
+      // Una sola consulta por ticker: cuáles de las de la ventana ya se vieron.
+      const enVentana = r.accessionNumber.filter((_, i) => r.filingDate[i]! >= sinceDate && INTERESTING_FORMS.has(r.form[i]!));
+      const conocidas = this.opts.knownRefs && enVentana.length ? await this.opts.knownRefs(enVentana) : new Set<string>();
       for (let i = 0; i < r.accessionNumber.length; i++) {
         const form = r.form[i]!;
         const filingDate = r.filingDate[i]!;
         if (filingDate < sinceDate) continue;
         if (!INTERESTING_FORMS.has(form)) continue;
         const acc = r.accessionNumber[i]!;
+        if (conocidas.has(acc)) continue;
         const primaryDoc = r.primaryDocument[i]!;
         const items = r.items?.[i] ?? "";
         let title = `${form}${items ? ` (items ${items})` : ""} — ${sub.name}`;
@@ -114,8 +125,14 @@ export class EdgarIngestor implements Ingestor {
           } catch {
             f4 = null;
           }
-          if (f4?.insider === "rutina") continue;
-          if (f4) {
+          // Una Form 4 de rutina (vesting, ejercicio, retención de impuestos) ya no se saltea en silencio: se
+          // guarda marcada y la descarta el filtro con su motivo. Dos razones. El diseño dice que raw_events
+          // guarda todo lo ingerido aunque se descarte, y esto era la excepción. Y sin guardarla, la próxima
+          // corrida no podía saber que ya la había visto y volvía a bajar su XML, una y otra vez.
+          if (f4?.insider === "rutina") {
+            title = `4 rutina de insider (${f4.codes.join(", ") || "sin código"}): ${f4.owner ?? "insider"} — ${sub.name}`;
+            extra = { insider: "rutina", insiderOwner: f4.owner, insiderCodes: f4.codes };
+          } else if (f4) {
             const shares = f4.insider === "compra" ? f4.buyShares : f4.sellShares;
             title = `4 ${f4.insider} de insider: ${f4.owner ?? "insider"}, ${fmtShares(shares)} acciones — ${sub.name}`;
             extra = { insider: f4.insider, insiderOwner: f4.owner, insiderBuyShares: f4.buyShares, insiderSellShares: f4.sellShares, insiderCodes: f4.codes };

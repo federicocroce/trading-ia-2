@@ -129,7 +129,7 @@ export function buildContainer(cfg: Config): Container {
   };
 
   const ingestors: Ingestor[] = [
-    new EdgarIngestor({ http, universe: allTickers }),
+    new EdgarIngestor({ http, universe: allTickers, knownRefs: (refs) => store.knownSourceRefs("edgar", refs) }),
     new NasdaqEarningsIngestor({ http, universe: allTickers }),
     new ArRssIngestor({ http }),
     new ManualCsvIngestor({ read: () => readFile(cfg.csvPath, "utf8").catch(() => "ticker,event_type,event_date,title,ref\n") }),

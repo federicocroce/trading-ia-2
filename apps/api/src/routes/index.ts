@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { todayLocal, CloseReason } from "@thesis/core";
-import { approveAndExecute, calibrationReport, closeThesis, dailyRun, rejectByHuman, syncOrders, buildNovedades, withUsageStep, STEPS, type StepId } from "@thesis/pipeline";
+import { approveAndExecute, calibrationReport, closeThesis, dailyRun, tesisSince, rejectByHuman, syncOrders, buildNovedades, withUsageStep, STEPS, type StepId } from "@thesis/pipeline";
 import { dailyUsage, summarizeUsage } from "@thesis/core";
 import { z } from "zod";
 import type { Container } from "../container.js";
@@ -119,7 +119,7 @@ export function buildApp(c: Container) {
   // ---- pipeline ----
   app.post("/run", async (ctx) => {
     const today = todayLocal();
-    const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const since = tesisSince();
     const summary = await dailyRun(c.runDeps, { since, today });
     state.lastRun = { at: new Date().toISOString(), summary: { ...summary, proposed: summary.proposed.length, rejected: summary.rejected.length } };
     return ctx.json(summary);

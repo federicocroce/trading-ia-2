@@ -8,6 +8,8 @@ import { randomUUID } from "node:crypto";
  */
 export interface Store {
   insertRawEvents(events: RawEvent[]): Promise<RawEvent[]>;
+  /** Cuáles de estas referencias de una fuente ya están guardadas. Para no volver a bajar lo que ya se vio. */
+  knownSourceRefs(source: RawEvent["source"], refs: string[]): Promise<Set<string>>;
   markFilter(results: Array<{ id: string; passed: boolean; reason: string | null }>): Promise<void>;
   unfilteredEvents(limit?: number): Promise<RawEvent[]>;
   rawEvent(id: string): Promise<RawEvent | null>;
@@ -176,6 +178,10 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   prompts = new Map<string, string>();
   private keys = new Set<string>();
 
+  async knownSourceRefs(source: RawEvent["source"], refs: string[]) {
+    const pedidas = new Set(refs);
+    return new Set([...this.events.values()].filter((e) => e.source === source && pedidas.has(e.sourceRef)).map((e) => e.sourceRef));
+  }
   async insertRawEvents(events: RawEvent[]) {
     const fresh: RawEvent[] = [];
     for (const e of events) {

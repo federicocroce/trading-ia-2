@@ -20,6 +20,13 @@ export interface FilterConfig {
   priority: Record<RawEvent["eventType"], number>;
   /** Form 4 (insiders) por ticker por corrida: queda la compra más grande, el resto se descarta. Frena el ruido de planes de compra rutinarios. */
   maxForm4PerTicker: number;
+  /**
+   * Cuántos insiders DISTINTOS comprando el mismo papel el mismo día convierten la compra en un plan de la
+   * empresa y no en una señal. TSM el 9/9/2026: doce ejecutivos compraron entre 32 y 149 acciones cada uno
+   * el mismo día. Eso no es convicción de nadie, es un programa de compensación, y el tope de una Form 4 por
+   * corrida igual dejaba pasar la más grande a Gemini cada vez que el plan se ejecutaba.
+   */
+  programmedBuyers: number;
 }
 
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
@@ -30,6 +37,7 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   allowlist: [],
   priority: { fda: 5, earnings: 4, legal: 3, macro_ar: 2, operational: 1 },
   maxForm4PerTicker: 1,
+  programmedBuyers: 5,
 };
 
 export type QuoteLookup = (ticker: string) => Promise<Quote | null>;
@@ -87,7 +95,7 @@ export class DefaultFilter implements Filter {
       candidates.push(event);
     }
 
-    const capped = this.capForm4(candidates, dropped);
+    const capped = this.capForm4(this.dropProgrammedBuys(this.dropRoutineForm4(candidates, dropped), dropped), dropped);
 
     capped.sort((a, b) => {
       const p = this.cfg.priority[b.eventType] - this.cfg.priority[a.eventType];
@@ -97,6 +105,48 @@ export class DefaultFilter implements Filter {
     const passed = capped.slice(0, ctx.maxCandidates);
     for (const event of capped.slice(ctx.maxCandidates)) dropped.push({ event, reason: "budget exceeded" });
     return { passed, dropped };
+  }
+
+  /**
+   * Form 4 de rutina: vesting de acciones, ejercicio de opciones, retención de impuestos. Antes el ingestor
+   * las salteaba sin guardarlas; ahora se guardan (raw_events registra todo lo ingerido) y se descartan acá,
+   * con su motivo, sin llegar nunca al modelo.
+   */
+  private dropRoutineForm4(candidates: RawEvent[], dropped: FilterResult["dropped"]): RawEvent[] {
+    const out: RawEvent[] = [];
+    for (const e of candidates) {
+      if (e.source === "edgar" && e.payload["form"] === "4" && e.payload["insider"] === "rutina") dropped.push({ event: e, reason: "form4 rutina" });
+      else out.push(e);
+    }
+    return out;
+  }
+
+  /**
+   * Compras de insiders que son un plan de la empresa y no una decisión de nadie: `programmedBuyers` o más
+   * insiders distintos comprando el mismo papel con fecha de presentación igual. Se descartan TODAS, no se
+   * deja pasar la más grande, porque la más grande de un plan sigue siendo un plan.
+   *
+   * Por qué importa en plata: antes del tope del 11/9, 98 Form 4 de TSM llegaron al modelo y ninguna dio una
+   * propuesta. Son 98 pedidos de la cuota gratuita de Gemini, que es la que se agota y deja otras cosas sin
+   * leer. Los eventos quedan guardados con su motivo: no se borra el dato, se deja de gastar en él.
+   */
+  private dropProgrammedBuys(candidates: RawEvent[], dropped: FilterResult["dropped"]): RawEvent[] {
+    const isBuy = (e: RawEvent) => e.source === "edgar" && e.payload["form"] === "4" && e.payload["insider"] === "compra";
+    const key = (e: RawEvent) => `${e.ticker.toUpperCase()}|${String(e.payload["filingDate"] ?? "")}`;
+    const compradores = new Map<string, Set<string>>();
+    for (const e of candidates) {
+      if (!isBuy(e)) continue;
+      const quien = String(e.payload["insiderOwner"] ?? e.id);
+      compradores.set(key(e), (compradores.get(key(e)) ?? new Set()).add(quien));
+    }
+    const plan = new Set([...compradores].filter(([, q]) => q.size >= this.cfg.programmedBuyers).map(([k]) => k));
+    if (!plan.size) return candidates;
+    const out: RawEvent[] = [];
+    for (const e of candidates) {
+      if (isBuy(e) && plan.has(key(e))) dropped.push({ event: e, reason: `compra programada: ${compradores.get(key(e))!.size} insiders el mismo día` });
+      else out.push(e);
+    }
+    return out;
   }
 
   /** Deja a lo sumo `maxForm4PerTicker` Form 4 por ticker (los de más acciones compradas); el resto va a `dropped`. */

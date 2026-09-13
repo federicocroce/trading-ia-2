@@ -1,4 +1,4 @@
-import { STEPS, buildContributionPlan, dailyRun, dueSteps, expectedDate, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, stepById, withUsageStep, type DueStep, type StepId } from "@thesis/pipeline";
+import { STEPS, buildContributionPlan, dailyRun, tesisSince, dueSteps, expectedDate, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, stepById, withUsageStep, type DueStep, type StepId } from "@thesis/pipeline";
 import { state, type Container } from "./container.js";
 
 /** El registro de uso de fuentes externas se guarda este tiempo; lo viejo se borra en cada chequeo de "ponerme al día". */
@@ -95,7 +95,7 @@ export function defaultRunners(): Runners {
       return `plan ${p.month}: ${p.lines.length} líneas`;
     },
     tesis: async (c, today) => {
-      const since = new Date(Date.now() - 3 * 86_400_000).toISOString();
+      const since = tesisSince();
       const summary = await dailyRun(c.runDeps, { since, today });
       state.lastRun = { at: new Date().toISOString(), summary: { ...summary, proposed: summary.proposed.length, rejected: summary.rejected.length } };
       return `${summary.proposed.length} propuestas, ${summary.rejected.length} rechazadas, ${summary.errors.length} errores`;

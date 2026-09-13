@@ -76,3 +76,53 @@ describe("DefaultFilter: tope de Form 4 por ticker", () => {
     expect(r.dropped).toEqual([]);
   });
 });
+
+/**
+ * TSM el 9/9/2026: treinta ejecutivos presentaron Form 4 de compra el mismo día, cada uno entre 32 y 149
+ * acciones. Es el plan de compensación de la empresa, no la convicción de nadie. El tope de una Form 4 por
+ * corrida igual dejaba pasar la más grande al modelo, y la más grande de un plan sigue siendo un plan.
+ * Antes de ese tope, 98 Form 4 de TSM llegaron a Gemini y ninguna produjo una propuesta.
+ */
+describe("DefaultFilter: compras programadas", () => {
+  const compra = (ticker: string, ref: string, quien: string, dia: string, acciones = 50) =>
+    ev({ ticker, eventType: "operational", eventDate: null, source: "edgar", sourceRef: ref, payload: { form: "4", insider: "compra", insiderOwner: quien, insiderBuyShares: acciones, filingDate: dia } });
+  const wide = { today: "2026-09-10", maxCandidates: 50 };
+
+  it("cinco o más insiders comprando el mismo día es un plan: se descartan TODAS, también la más grande", async () => {
+    const tsm = ["Lee", "Tien", "Wei", "Zhang", "Lin", "Wu"].map((q, i) => compra("TSM", `t${i}`, q, "2026-09-09", 40 + i * 20));
+    const r = await new DefaultFilter(quotes).apply(tsm, wide);
+    expect(r.passed).toEqual([]);
+    expect(r.dropped).toHaveLength(6);
+    expect(r.dropped.every((d) => d.reason.startsWith("compra programada: 6 insiders"))).toBe(true);
+  });
+
+  it("una compra suelta sigue siendo señal y pasa", async () => {
+    const r = await new DefaultFilter(quotes).apply([compra("NBN", "n1", "Director", "2026-09-09", 20_000)], wide);
+    expect(r.passed.map((e) => e.sourceRef)).toEqual(["n1"]);
+  });
+
+  it("cuatro insiders no alcanzan: por debajo del umbral decide el tope de siempre", async () => {
+    const r = await new DefaultFilter(quotes).apply(["A", "B", "C", "D"].map((q, i) => compra("GLW", `g${i}`, q, "2026-09-09", 10 + i)), wide);
+    expect(r.passed).toHaveLength(1);
+    expect(r.dropped.every((d) => d.reason === "form4 cap")).toBe(true);
+  });
+
+  it("el mismo insider presentando cinco veces no es un plan: cuenta insiders distintos, no presentaciones", async () => {
+    const r = await new DefaultFilter(quotes).apply([1, 2, 3, 4, 5].map((i) => compra("APH", `a${i}`, "El mismo", "2026-09-09", i * 100)), wide);
+    expect(r.passed).toHaveLength(1);
+    expect(r.dropped.some((d) => d.reason.startsWith("compra programada"))).toBe(false);
+  });
+
+  it("una Form 4 de rutina (vesting, impuestos) se descarta con su motivo y nunca llega al modelo", async () => {
+    const rutina = ev({ ticker: "NVDA", eventType: "operational", eventDate: null, source: "edgar", sourceRef: "r1", payload: { form: "4", insider: "rutina", insiderCodes: ["M", "F"] } });
+    const r = await new DefaultFilter(quotes).apply([rutina], wide);
+    expect(r.passed).toEqual([]);
+    expect(r.dropped.map((d) => d.reason)).toEqual(["form4 rutina"]);
+  });
+
+  it("días distintos no se juntan: cada fecha se cuenta aparte", async () => {
+    const r = await new DefaultFilter(quotes).apply(["A", "B", "C", "D", "E"].map((q, i) => compra("MU", `m${i}`, q, `2026-09-0${i + 1}`)), wide);
+    expect(r.dropped.some((d) => d.reason.startsWith("compra programada"))).toBe(false);
+  });
+});
+

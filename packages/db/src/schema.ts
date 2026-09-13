@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, date } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid, date } from "drizzle-orm/pg-core";
 
 /** Enums espejo de @thesis/core. Si cambian ahí, cambian acá (test de paridad en schema.test.ts). */
 export const eventTypeEnum = pgEnum("event_type", ["fda", "earnings", "legal", "macro_ar", "operational"]);
@@ -31,7 +31,9 @@ export const rawEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("raw_events_dedupe").on(t.ticker, t.eventType, t.eventDate, t.sourceRef),
+    // NULLS NOT DISTINCT: los eventos de la SEC no tienen fecha, y sin esto dos NULL contaban como distintos
+    // y el mismo filing se guardaba en cada corrida (345 copias de 452 al 13/9/2026). Ver migración 0020.
+    unique("raw_events_dedupe").on(t.ticker, t.eventType, t.eventDate, t.sourceRef).nullsNotDistinct(),
     index("raw_events_event_date").on(t.eventDate),
   ],
 );

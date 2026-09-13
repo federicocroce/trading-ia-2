@@ -1,7 +1,7 @@
 import { todayLocal } from "@thesis/core";
 import { serve } from "@hono/node-server";
 import cron from "node-cron";
-import { buildContributionPlan, dailyRun, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, syncOrders, withUsageStep } from "@thesis/pipeline";
+import { buildContributionPlan, dailyRun, tesisSince, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, syncOrders, withUsageStep } from "@thesis/pipeline";
 import { loadConfig } from "./config.js";
 import { buildContainer, state } from "./container.js";
 import { buildApp } from "./routes/index.js";
@@ -18,7 +18,7 @@ const app = buildApp(c);
 // Corrida diaria (lun-vie) + sync de órdenes cada 15 min en horario de mercado.
 cron.schedule(cfg.dailyCron, () => withUsageStep({ step: "tesis" }, async () => {
   const today = todayLocal();
-  const since = new Date(Date.now() - 3 * 86_400_000).toISOString();
+  const since = tesisSince();
   try {
     const summary = await dailyRun(c.runDeps, { since, today });
     state.lastRun = { at: new Date().toISOString(), summary: { ...summary, proposed: summary.proposed.length, rejected: summary.rejected.length } };

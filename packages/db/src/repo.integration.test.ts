@@ -53,6 +53,21 @@ d("Repo (Postgres real)", () => {
     expect((await repo.unfilteredEvents()).some((e) => e.id === ev.id)).toBe(false);
   });
 
+  /**
+   * El caso que el test de arriba no cubría, porque usa una fecha. Los eventos de la SEC llegan SIN fecha, y
+   * en Postgres dos NULL no eran iguales para el índice único: el mismo filing se guardaba en cada corrida.
+   * Al 13/9/2026 había 345 copias de 452 filas de la SEC, y 168 de 206 tesis eran llamadas a Gemini sobre
+   * presentaciones ya evaluadas. El almacén en memoria de los tests arma la clave con "-" para la fecha
+   * vacía y SÍ deduplicaba, así que ningún test de la suite podía verlo: solo fallaba la base real.
+   */
+  it("raw_events: un evento SIN fecha tampoco se guarda dos veces", async () => {
+    const ev = { id: randomUUID(), ticker, eventType: "operational" as const, source: "edgar" as const, eventDate: null, sourceRef: `acc-${randomUUID()}`, title: "4 compra de insider", payload: { form: "4" }, observedAt: new Date().toISOString() };
+    expect(await repo.insertRawEvents([ev])).toHaveLength(1);
+    expect(await repo.insertRawEvents([{ ...ev, id: randomUUID() }])).toHaveLength(0);
+    const guardadas = await db.select({ id: schema.rawEvents.id }).from(schema.rawEvents).where(and(eq(schema.rawEvents.ticker, ticker), eq(schema.rawEvents.sourceRef, ev.sourceRef)));
+    expect(guardadas).toHaveLength(1);
+  });
+
   it("theses/orders/outcomes: ciclo completo con numéricos correctos", async () => {
     const ev = { id: randomUUID(), ticker, eventType: "fda" as const, source: "manual" as const, eventDate: "2026-11-20", sourceRef: `ref-${randomUUID()}`, title: "pdufa", payload: {}, observedAt: new Date().toISOString() };
     await repo.insertRawEvents([ev]);

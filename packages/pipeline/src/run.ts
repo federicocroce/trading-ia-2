@@ -25,6 +25,20 @@ export interface RunSummary {
   errors: Array<{ eventId: string; error: string }>;
 }
 
+/**
+ * Cuántos días hacia atrás mira la corrida de tesis (13/9/2026). Una sola constante: hasta hoy el cron y
+ * "ponerse al día" miraban 3 días y el botón manual y la línea de comandos 7, así que el mismo trabajo cubría
+ * distinto según quién lo disparara.
+ *
+ * Por qué 30. Los COMPRAR del Radar entraron al universo de tesis el 11/9, y con 3 días nunca se miró hacia
+ * atrás: APH, NBN, LNC y V tenían cero eventos. Ampliar solo es seguro porque (a) la base ya deduplica los
+ * eventos sin fecha (migración 0020; antes cada corrida re-guardaba todo lo de su ventana) y (b) el ingestor
+ * de la SEC saltea lo que ya conoce antes de bajar nada. En régimen, 30 días cuestan lo mismo que 3: solo lo
+ * nuevo llega al filtro y al modelo.
+ */
+export const TESIS_VENTANA_DIAS = 30;
+export const tesisSince = (now = Date.now()) => new Date(now - TESIS_VENTANA_DIAS * 86_400_000).toISOString();
+
 /** Ingesta → filtro → razonamiento → persistencia. Una corrida = un día. */
 export async function dailyRun(deps: RunDeps, opts: { since: string; today: string }): Promise<RunSummary> {
   const log = deps.log ?? (() => {});
