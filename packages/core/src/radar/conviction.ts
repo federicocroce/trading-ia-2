@@ -150,6 +150,17 @@ export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: 
   return { symbol: row.symbol, conviction: r4(conviction), gainPct: r4(gainPct), lossPct: r4(lossPct), base, consensus, reasons, cautions, allAligned: cautions.length === 0 };
 }
 
+/**
+ * Orden en que el refresco procesa las filas: primero las COMPRAR por convicción (lo que el plan va a comprar),
+ * después el resto por score. El presupuesto de verificación web se gasta en ese orden. El 13/9 se gastaba por
+ * score: TSM (2ª por convicción, 10ª por score) y GFI quedaron sin verificar con el cuestionario nuevo mientras
+ * STNG, SMCI, DEC y HIPO, que no iban a entrar, se llevaban las búsquedas.
+ */
+export function verificationOrder(rows: CandidateRow[], tags: Record<string, Tags>): CandidateRow[] {
+  const conv = new Map(topPicks(rows, tags, {}, Number.MAX_SAFE_INTEGER).map((p) => [p.symbol, p.conviction]));
+  return [...rows].sort((a, b) => (conv.get(b.symbol) ?? -Infinity) - (conv.get(a.symbol) ?? -Infinity) || (b.score ?? -Infinity) - (a.score ?? -Infinity));
+}
+
 export function topPicks(rows: CandidateRow[], tags: Record<string, Tags>, overweight: Record<string, number>, n = 5, overlap: Record<string, Overlap> = {}, regime: MacroRegime | null = null): TopPick[] {
   return rows
     .map((r) => convictionFor(r, tags[r.symbol] ?? null, overweight, overlap, regime))

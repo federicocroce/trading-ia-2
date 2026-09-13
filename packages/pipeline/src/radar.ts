@@ -49,6 +49,7 @@ import {
   type Tags,
   type TaxonomyConfig,
   topPicks,
+  verificationOrder,
   returnPct,
   totalReturnPct,
 } from "@thesis/core";
@@ -495,7 +496,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   const ranked = needCards ? new Map(rankStocks(await rankableFundamentals(deps, opts.today), policy.weights).ranked.map((r) => [r.symbol, r])) : null;
   const rows: CandidateRow[] = [];
   const verifyBudget: VerifyBudget = { left: policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT };
-  for (const prev of latest) {
+  // Por convicción: el presupuesto de verificación va primero a lo que el plan va a comprar (ver `verificationOrder`).
+  for (const prev of verificationOrder(latest, await store.allTags())) {
     // Solo la familia US: Argentina y seguimiento tienen su propio refresco.
     if (prev.kind !== "stock" && prev.kind !== "etf") continue;
     const c = candles[prev.symbol];

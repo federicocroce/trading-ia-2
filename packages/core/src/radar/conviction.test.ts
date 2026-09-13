@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convictionFor, topPicks } from "./conviction.js";
+import { convictionFor, topPicks, verificationOrder } from "./conviction.js";
 import type { CandidateRow, Tags } from "./types.js";
 
 const base: CandidateRow = {
@@ -108,6 +108,18 @@ describe("convicción: eventos y estados", () => {
     expect(x.conviction).toBeCloseTo(base.conviction, 4);
     expect(x.cautions.some((c) => c.includes("extraordinarios"))).toBe(true);
     expect(x.allAligned).toBe(false);
+  });
+});
+
+describe("verificationOrder (13/9)", () => {
+  it("TSM es 2ª por convicción y 10ª por score: se verifica antes que STNG, que tiene más score y menos convicción", () => {
+    // El 13/9 el presupuesto de 8 verificaciones se gastó por score (APH, NVDA, NBN, STNG, LNC, SMCI, DEC, HIPO) y TSM
+    // y GFI, que el plan necesita, quedaron sin verificar con el cuestionario nuevo.
+    const tsm = row({ symbol: "TSM", score: 0.88, flags: ["insiders_compran", "consenso_compra", "sorpresa_positiva"] });
+    const stng = row({ symbol: "STNG", score: 1.0, flags: ["sorpresa_negativa", "verificacion_reservas"] });
+    const etf = row({ symbol: "XLF", kind: "etf", score: null });
+    const observar = row({ symbol: "OBS", verdict: "OBSERVAR", score: 2 });
+    expect(verificationOrder([stng, etf, observar, tsm], {}).map((r) => r.symbol)).toEqual(["TSM", "STNG", "OBS", "XLF"]);
   });
 });
 

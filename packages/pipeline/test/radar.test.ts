@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { computeTrailingStop, coreEarnings, entryStop, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
+import { computeTrailingStop, coreEarnings, entryStop, verificationOrder, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
 import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
@@ -245,14 +245,13 @@ describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
   });
 });
 
-describe("refresco: el presupuesto de verificación va primero a lo mejor rankeado (13/9)", () => {
-  it("con una sola verificación por corrida, la usa la COMPRAR de mejor score, no la primera guardada", async () => {
-    // El cuestionario cambió el 13/9 y hay que volver a verificar todo con 8 búsquedas por corrida. Si se gastan en
-    // el orden en que están guardadas las filas, NVDA o TSM pueden quedar sin verificar y afuera del plan.
+describe("refresco: el presupuesto de verificación va primero a lo de más convicción (13/9)", () => {
+  it("con una sola verificación por corrida, la usa la COMPRAR de más convicción, no la de más score ni la primera guardada", async () => {
+    // El 13/9 las 8 búsquedas se gastaron por score y TSM (2ª por convicción, 10ª por score) quedó sin verificar.
     const { store, d } = deps();
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     await rankRadar(d, { today: TODAY, portfolioUsd: null });
-    const compras = (await store.latestCandidates()).filter((c) => c.kind === "stock" && c.verdict === "COMPRAR").sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const compras = verificationOrder(await store.latestCandidates(), await store.allTags()).filter((c) => c.kind === "stock" && c.verdict === "COMPRAR");
     if (compras.length < 2) expect.fail("el fixture necesita dos COMPRAR");
     const llamadas: string[] = [];
     const verifier = { promptVersion: "v-test", verify: async (i: { symbol: string }) => { llamadas.push(i.symbol); return { verdict: "apto" as const, reason: "ok", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [{ title: "x", url: "https://x" }], researchText: "DICTAMEN: APTO", model: "m" }; } };
