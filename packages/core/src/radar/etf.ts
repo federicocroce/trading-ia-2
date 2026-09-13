@@ -1,4 +1,4 @@
-import { computeTarget, computeTrailingStop } from "../cartera/stop.js";
+import { computeTarget, computeTrailingStop, entryStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import { atrPct, returnPct, sma, totalReturnPct } from "./candidate.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
@@ -63,7 +63,12 @@ export interface EtfDecision {
   limitations: string[];
 }
 
-export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: RadarPolicy["technical"]): EtfDecision | { excluded: true; reasons: string[] } {
+/**
+ * `newEntry`: la fila es para una compra nueva y el stop de la orden tiene que tener aire (ver `entryStop`). Lo
+ * piden los ETFs del Radar. Los ADR argentinos usan este mismo motor y no lo piden: varios son posiciones que ya
+ * tenés, y una posición tiene un solo stop, el de seguimiento que muestra Cartera.
+ */
+export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: RadarPolicy["technical"], opts: { newEntry?: boolean } = {}): EtfDecision | { excluded: true; reasons: string[] } {
   if (candles.length < 200) return { excluded: true, reasons: ["sin_historial"] };
   // Un ETF también se divide: el mismo salto de escala rompe la fuerza relativa y la media de 200.
   const salto = crossesSplit(candles, 252);
@@ -106,7 +111,10 @@ export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: R
   // franja queda por debajo del cierre, y medir el 2 a 1 desde el cierre daba una relación que no era la
   // de la operación (EWT el 12/9: objetivo 119,93 desde el cierre contra 110,69 desde la entrada real).
   const techo = base.entry?.high ?? close;
-  const ejecutable = !belowStop && base.stop !== null && base.stop < (base.entry?.low ?? close);
+  const piso = base.entry?.low ?? close;
+  const ejecutable = !belowStop && base.stop !== null && base.stop < piso;
+  // El de seguimiento decidió si se puede ejecutar; el de la orden, en una compra nueva, lleva el aire mínimo.
+  if (ejecutable && opts.newEntry) base.stop = entryStop(candles, piso);
   base.target = ejecutable ? computeTarget(techo, base.stop) : null;
   // Stop DENTRO de la franja de compra: si esperás el retroceso que la propia app te pide, te salta el stop.
   // No hay operación posible, así que no puede quedar en COMPRAR. El motor de acciones ya lo hacía (PAM el

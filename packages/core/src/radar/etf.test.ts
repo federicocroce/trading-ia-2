@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideEtf, relativeStrength, relativeStrengthDetail, type Candle, type EtfConfig } from "../index.js";
+import { atr, computeTrailingStop, decideEtf, ENTRY_STOP_ATR, relativeStrength, relativeStrengthDetail, type Candle, type EtfConfig } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01"): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1_000_000 }));
@@ -85,6 +85,26 @@ describe("decideEtf", () => {
   });
   it("sin velas suficientes → excluido", () => {
     expect(decideEtf(cfg("satelite"), strong.slice(-50), spy, tech)).toEqual({ excluded: true, reasons: ["sin_historial"] });
+  });
+
+  /**
+   * Compra nueva (2026-09-13): un ETF satélite del Radar después de un retroceso tiene el stop de seguimiento
+   * pegado al precio, igual que NVDA. El llamador lo pide con `newEntry`; los ADR argentinos, que usan este
+   * mismo motor, no lo piden y quedan como estaban.
+   */
+  describe("stop de compra nueva", () => {
+    const pullback = series([...ramp(100, 135, 240), ...[1, 2, 3].map((i) => 135 + (4 * i) / 3), ...[1, 2, 3].map((i) => 139 - (5 * i) / 3), ...Array(14).fill(134)]);
+    it("con newEntry: 2,5 ATR debajo del piso de la franja; sin él, el de seguimiento como antes", () => {
+      const nuevo = decideEtf(cfg("satelite"), pullback, spy, tech, { newEntry: true });
+      const viejo = decideEtf(cfg("satelite"), pullback, spy, tech);
+      if ("excluded" in nuevo || "excluded" in viejo) throw new Error("no");
+      if (nuevo.verdict !== "COMPRAR") expect.fail(`la serie no reprodujo un COMPRAR: ${nuevo.reasons.join(",")}`);
+      expect((nuevo.close - computeTrailingStop(pullback)!) / atr(pullback, 14)!).toBeLessThan(1);
+      expect(nuevo.stop).toBeCloseTo((nuevo.entry?.low ?? nuevo.close) - ENTRY_STOP_ATR * atr(pullback, 14)!, 2);
+      expect(nuevo.target! - nuevo.entry!.high).toBeCloseTo(2 * (nuevo.entry!.high - nuevo.stop!), 1);
+      expect(viejo.stop).toBe(computeTrailingStop(pullback));
+      expect(viejo.verdict).toBe(nuevo.verdict);
+    });
   });
 
   /**

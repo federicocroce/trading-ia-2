@@ -27,6 +27,26 @@ export function computeTrailingStop(candles: Candle[], opts: { period?: number; 
   return round2(highest - mult * a);
 }
 
+/** Distancia mínima, en ATR de 14 ruedas, entre el piso de la franja de compra y el stop de una compra nueva. */
+export const ENTRY_STOP_ATR = 2.5;
+
+/**
+ * Stop de una COMPRA NUEVA (2026-09-13). El de seguimiento sirve para una posición que ya tenés: sube con
+ * los máximos y te saca cuando el precio se da vuelta. Usado como stop inicial, después de un retroceso queda
+ * pegado al precio: NVDA el 13/9 compraba a 218,29 con el stop en 214,89, a 0,44 ATR, y con dos años de velas
+ * un stop a esa distancia se tocó en las 5 ruedas siguientes el 71% de las veces. Era un boleto que el ruido
+ * ejecutaba solo, y el "2 a 1" que se mostraba al lado no tenía nada que ver con lo que iba a pasar.
+ *
+ * Por eso: el más bajo entre el de seguimiento y el piso de la franja menos 2,5 ATR. Nunca sube el stop por
+ * encima del de seguimiento (no agrega riesgo de salida); solo le da el aire mínimo que necesita para existir.
+ */
+export function entryStop(candles: Candle[], entryLow: number): number | null {
+  const trailing = computeTrailingStop(candles);
+  const a = atr(candles, 14);
+  if (trailing === null || a === null) return null;
+  return round2(Math.min(trailing, entryLow - ENTRY_STOP_ATR * a));
+}
+
 /** Objetivo con riesgo/beneficio 2:1 respecto del stop. */
 export function computeTarget(close: number, stop: number | null): number | null {
   if (stop === null) return null;

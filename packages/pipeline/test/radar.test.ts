@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { coreEarnings, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
+import { computeTrailingStop, coreEarnings, entryStop, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
 import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
@@ -148,6 +148,27 @@ describe("rankRadar solo con el último barrido", () => {
     const r = await rankRadar(d, { today: TODAY, portfolioUsd: null });
     expect(r.candidates.some((c) => c.symbol === "SA")).toBe(false);
     expect(r.candidates.filter((c) => c.kind === "stock").length).toBeGreaterThan(0);
+  });
+});
+
+describe("stop de cada fila (13/9)", () => {
+  // TSM estaba en cartera y en el Radar: una posición tiene un solo stop, el que muestra Cartera. Lo que no
+  // tenés es una compra nueva y su stop lleva el aire de `entryStop`.
+  it("lo que ya tenés usa el de seguimiento; lo demás, el de compra nueva, en el ranking y en el refresco", async () => {
+    const { store, d } = deps();
+    await store.upsertPosition({ symbol: "SA", quantity: 10, avgCost: 50, currency: "USD", market: "us", layer: "riesgo", notes: null });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const velas = series(ramp(80, 100));
+    for (const run of [() => rankRadar(d, { today: TODAY, portfolioUsd: null }), () => refreshRadar(d, { today: "2026-05-20", portfolioUsd: null })]) {
+      await run();
+      const rows = await store.latestCandidates();
+      const sa = rows.find((c) => c.symbol === "SA" && c.verdict === "COMPRAR");
+      const otra = rows.find((c) => c.kind === "stock" && c.symbol !== "SA" && c.verdict === "COMPRAR");
+      if (!sa || !otra) expect.fail(`el fixture no dejó a SA y a otra en COMPRAR: ${rows.map((r) => `${r.symbol}:${r.verdict}`).join(" ")}`);
+      expect(sa.stop).toBe(computeTrailingStop(velas));
+      expect(otra.stop).toBe(entryStop(velas, otra.entryLow!));
+      expect(otra.stop).not.toBe(sa.stop);
+    }
   });
 });
 

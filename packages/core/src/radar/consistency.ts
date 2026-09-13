@@ -1,5 +1,5 @@
 import type { Candle } from "../cartera/types.js";
-import { computeTrailingStop } from "../cartera/stop.js";
+import { atr, computeTrailingStop, ENTRY_STOP_ATR, entryStop } from "../cartera/stop.js";
 import { CONSENSUS_SCALE } from "./candidate.js";
 import { lineHasExit, type ContributionPlan } from "./plan.js";
 import type { CandidateRow } from "./types.js";
@@ -45,6 +45,8 @@ export interface ConsistencyInput {
    * con esto se puede distinguir "no hubo eventos" de "nadie miró", que hasta el 12/9 eran el mismo vacío.
    */
   newsScannedTo?: Record<string, string | null>;
+  /** Símbolos en cartera. Una posición usa su stop de seguimiento; sin esto no corre `stop_dentro_del_ruido`. */
+  held?: string[];
 }
 
 export const CONSISTENCY_THRESHOLDS = {
@@ -80,9 +82,13 @@ const VERIFICATION_FLAGS = new Set([...Object.values(FLAG_FOR_VERDICT), "verific
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
+/** Tipos de fila que van al plan como compra nueva. Los ADR argentinos usan el motor de ETFs sin el stop de compra nueva. */
+const NEW_ENTRY_KINDS = new Set(["stock", "watch", "etf"]);
+
 export function checkConsistency(i: ConsistencyInput): Finding[] {
   const out: Finding[] = [];
   const add = (check: string, symbol: string | null, severity: FindingSeverity, detail: string) => out.push({ check, symbol, severity, detail });
+  const held = i.held ? new Set(i.held.map((s) => s.toUpperCase())) : null;
 
   for (const row of i.rows) {
     // 1. El precio guardado tiene que ser el cierre DE SU PROPIA FECHA. Comparar contra la última vela
@@ -97,11 +103,26 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     // 1b. El stop guardado tiene que ser el que sale de esas mismas velas. El refresco arrastraba el del día
     //     anterior en las filas excluidas mientras sí actualizaba el cierre: BEAM quedó con el stop congelado
     //     en 27,13 desde el 7/9 con el precio en 24,37, mostrando una salida que ya no correspondía a nada.
+    //     Desde el 13/9 hay dos stops válidos: el de seguimiento y el de compra nueva (con aire de 2,5 ATR). Los dos
+    //     salen de las mismas velas; uno congelado no coincide con ninguno.
     if (row.stop !== null && velas && velas.length) {
       const hasta = velas.filter((c) => c.date <= row.candidateDate);
       const esperado = hasta.length ? computeTrailingStop(hasta) : null;
-      if (esperado !== null && Math.abs(row.stop - esperado) > CONSISTENCY_THRESHOLDS.stopEpsilon) {
-        add("stop_guardado", row.symbol, "grave", `la fila dice stop ${r2(row.stop)} y con sus propias velas da ${r2(esperado)}`);
+      const deCompra = hasta.length && row.entryLow !== null ? entryStop(hasta, row.entryLow) : null;
+      const coincide = (x: number | null) => x !== null && Math.abs(row.stop! - x) <= CONSISTENCY_THRESHOLDS.stopEpsilon;
+      if (esperado !== null && !coincide(esperado) && !coincide(deCompra)) {
+        add("stop_guardado", row.symbol, "grave", `la fila dice stop ${r2(row.stop)} y con sus propias velas da ${r2(esperado)}${deCompra !== null ? ` (o ${r2(deCompra)} como compra nueva)` : ""}`);
+      }
+    }
+
+    // 1c. Una compra nueva con el stop dentro del ruido (13/9). NVDA compraba a 218,29 con stop en 214,89, a 0,44
+    //     ATR, y V a 0,41: con dos años de velas, ese stop se tocaba en 5 ruedas el 71% y el 76% de las veces. Una
+    //     posición que ya tenés usa su stop de seguimiento, y los ADR argentinos todavía no cambiaron: se saltean.
+    //     Sin la lista de lo que está en cartera no se puede distinguir, y el chequeo no corre.
+    if (held && row.verdict === "COMPRAR" && NEW_ENTRY_KINDS.has(row.kind) && !held.has(row.symbol) && row.stop !== null && row.entryLow !== null && velas?.length) {
+      const a = atr(velas.filter((c) => c.date <= row.candidateDate), 14);
+      if (a !== null && a > 0 && row.entryLow - row.stop < ENTRY_STOP_ATR * a - CONSISTENCY_THRESHOLDS.stopEpsilon) {
+        add("stop_dentro_del_ruido", row.symbol, "grave", `compra hasta ${r2(row.entryLow)} con el stop en ${r2(row.stop)}, a ${r2((row.entryLow - row.stop) / a)} ATR: el ruido de un día lo ejecuta`);
       }
     }
 

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { checkConsistency, computeTrailingStop, summarizeFindings, type Candle, type CandidateRow, type ContributionPlan } from "../index.js";
+import { atr, checkConsistency, computeTrailingStop, entryStop, summarizeFindings, type Candle, type CandidateRow, type ContributionPlan } from "../index.js";
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Cada caso de acá abajo es un error que de verdad pasó y que ni los tests ni el typecheck atraparon.
@@ -51,6 +53,40 @@ describe("checkConsistency", () => {
     }));
     expect(f).toHaveLength(1);
     expect(f[0]!.severity).toBe("grave");
+  });
+
+  describe("stop de una compra nueva (13/9)", () => {
+    // Plana en 100 con un pico de 103 dentro de las últimas 22 ruedas: el de seguimiento queda pegado al precio.
+    const velas = Array.from({ length: 30 }, (_, i) => vela(`2026-08-${String(i + 12).padStart(2, "0")}`, 100));
+    velas[22] = { ...velas[22]!, high: 103 };
+    const trailing = computeTrailingStop(velas)!;
+    const a = atr(velas, 14)!;
+    const piso = r2(trailing + 0.4 * a);
+    const fecha = velas[velas.length - 1]!.date;
+
+    it("el stop de compra nueva sale de sus velas: no es un stop congelado", () => {
+      const f = solo("stop_guardado", checkConsistency({
+        rows: [fila({ symbol: "NVDA", candidateDate: fecha, close: piso, entryLow: piso, stop: entryStop(velas, piso), entry: null })],
+        candles: { NVDA: velas }, plan: null, held: [],
+      }));
+      expect(f).toEqual([]);
+    });
+
+    it("NVDA y V del 13/9: COMPRAR que no está en cartera con el stop a 0,4 ATR es grave", () => {
+      const f = solo("stop_dentro_del_ruido", checkConsistency({
+        rows: [fila({ symbol: "NVDA", candidateDate: fecha, close: piso, entryLow: piso, stop: trailing, entry: null })],
+        candles: { NVDA: velas }, plan: null, held: [],
+      }));
+      expect(f).toHaveLength(1);
+      expect(f[0]!.severity).toBe("grave");
+    });
+
+    it("una posición que ya tenés usa su stop de seguimiento, y un ADR argentino todavía no cambió: no se reportan", () => {
+      const fila1 = fila({ symbol: "TSM", candidateDate: fecha, close: piso, entryLow: piso, stop: trailing, entry: null });
+      const fila2 = fila({ symbol: "BMA", kind: "adr", candidateDate: fecha, close: piso, entryLow: piso, stop: trailing, entry: null });
+      const f = solo("stop_dentro_del_ruido", checkConsistency({ rows: [fila1, fila2], candles: { TSM: velas, BMA: velas }, plan: null, held: ["TSM"] }));
+      expect(f).toEqual([]);
+    });
   });
 
   it("un stop que sí sale de sus velas no se reporta", () => {

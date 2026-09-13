@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildFlags, buildQuarters, consensusUpsidePct, coreEarnings, decideCandidate, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
+import { atr, buildFlags, buildQuarters, computeTrailingStop, consensusUpsidePct, coreEarnings, decideCandidate, ENTRY_STOP_ATR, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01", volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume }));
@@ -162,6 +162,40 @@ describe("decideCandidate", () => {
     expect(d.size).toBeNull();
     expect(d.flags).toContain("stop_dentro_de_la_entrada");
     expect(d.verdict).toBe("OBSERVAR");
+  });
+
+  describe("stop de una compra nueva (NVDA y V del 13/9)", () => {
+    // Sube a 114 en 3 ruedas, vuelve a 109 y queda plana: COMPRAR "en zona" con el stop de seguimiento a 0,35 ATR,
+    // el mismo cuadro que NVDA (214,89 contra 218,29, 0,44 ATR) y V (0,41 ATR) el 13/9.
+    const pullback = series([
+      ...Array.from({ length: 240 }, (_, i) => 80 + (30 * i) / 239),
+      ...[1, 2, 3].map((i) => 110 + (4 * i) / 3),
+      ...[1, 2, 3].map((i) => 114 - (5 * i) / 3),
+      ...Array(14).fill(109),
+    ]);
+    it("el stop queda a 2,5 ATR del piso de la franja, no pegado al precio", () => {
+      const d = decideCandidate({ f: f(), candles: pullback, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+      if ("excluded" in d) throw new Error("no debía excluir");
+      expect(d.verdict).toBe("COMPRAR");
+      const trailing = computeTrailingStop(pullback)!;
+      expect((d.close - trailing) / atr(pullback, 14)!).toBeLessThan(0.5);
+      expect(d.stop).toBeCloseTo(d.entryLow - ENTRY_STOP_ATR * atr(pullback, 14)!, 2);
+      expect(d.target! - d.entryHigh).toBeCloseTo(2 * (d.entryHigh - d.stop!), 1);
+    });
+    it("si ya está en cartera, el stop es el de la posición: una posición tiene un solo stop", () => {
+      const d = decideCandidate({ f: f(), candles: pullback, nthAppearance: 1, portfolioUsd: 150_000, today, held: true }, policy);
+      if ("excluded" in d) throw new Error("no debía excluir");
+      expect(d.stop).toBe(computeTrailingStop(pullback));
+      expect(d.target! - d.entryHigh).toBeCloseTo(2 * (d.entryHigh - d.stop!), 1);
+    });
+    it("no cambia ningún veredicto: el filtro sigue siendo el stop de seguimiento", () => {
+      const cayendo = series([...Array.from({ length: 255 }, (_, i) => 80 + (30 * i) / 254), 108, 105, 103, 101, 100]);
+      const d = decideCandidate({ f: f(), candles: cayendo, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+      if ("excluded" in d) throw new Error("no debía excluir");
+      expect(d.verdict).toBe("OBSERVAR");
+      expect(d.flags).toContain("bajo_stop");
+      expect(d.stop).toBe(computeTrailingStop(cayendo));
+    });
   });
 
   it("residente crónico → OBSERVAR", () => {

@@ -353,9 +353,18 @@ async function scanCandidateEvents(deps: RadarDeps, sym: string, today: string, 
   return scanEventsFor({ store: deps.store, news: deps.news, classifier: deps.eventClassifier ?? null, ...(deps.log ? { log: deps.log } : {}) }, sym, { today, name: profile?.profile.name ?? null, full });
 }
 
+/**
+ * Símbolos en cartera, en mayúsculas. Una posición tiene un solo stop, el de seguimiento que muestra Cartera;
+ * lo que no está en cartera es una compra nueva y su stop lleva el aire mínimo de `entryStop` (2026-09-13).
+ */
+export async function heldSymbols(store: Pick<RadarStore, "positions">): Promise<Set<string>> {
+  return new Set((await store.positions()).map((p) => p.symbol.toUpperCase()));
+}
+
 export async function rankRadar(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null }): Promise<RankSummary> {
   const log = deps.log ?? (() => {});
   const { store, policy } = deps;
+  const held = await heldSymbols(store);
   const all = await rankableFundamentals(deps, opts.today);
   // Dos pasadas (spec verificación §4): la primera con Finnhub elige a quién pedirle estados; la segunda rankea con la ganancia núcleo.
   const first = rankStocks(all, policy.weights).ranked.slice(0, policy.candidates.preselect);
@@ -402,7 +411,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       const nth = await nthAppearanceFor(deps, sym, opts.today);
       const symCore = coreOf(sym);
       const ev = await scanCandidateEvents(deps, sym, opts.today, true);
-      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate(input, policy);
       if ("excluded" in d) {
         skipped.push({ symbol: sym, reason: d.reasons.join(",") });
@@ -446,7 +455,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   for (const cfg of deps.etfs) {
     const c = etfCandles[cfg.symbol];
     if (!c) continue;
-    const d = decideEtf(cfg, c, spy, policy.technical);
+    const d = decideEtf(cfg, c, spy, policy.technical, { newEntry: !held.has(cfg.symbol) });
     if ("excluded" in d) {
       skipped.push({ symbol: cfg.symbol, reason: d.reasons.join(",") });
       continue;
@@ -475,6 +484,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   const { store, policy } = deps;
   const latest = await store.latestCandidates();
   if (!latest.length) return { refreshed: 0, errors: [] };
+  const held = await heldSymbols(store);
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const { candles, errors } = await candlesFor(deps, latest.map((c) => c.symbol));
@@ -490,7 +500,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     if (prev.kind === "etf") {
       const cfg = deps.etfs.find((e) => e.symbol === prev.symbol);
       if (!cfg) continue;
-      const d = decideEtf(cfg, c, spy, policy.technical);
+      const d = decideEtf(cfg, c, spy, policy.technical, { newEntry: !held.has(cfg.symbol) });
       if ("excluded" in d) continue;
       rows.push({ ...prev, candidateDate: opts.today, verdict: d.verdict, close: d.close, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: [...d.reasons, ...d.limitations], axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
       continue;
@@ -519,7 +529,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     // La verificación guardada entra desde la PRIMERA decisión. Si se pasaba solo cuando el símbolo quedaba
     // COMPRAR, un OBSERVAR conservaba su dictamen en la columna y lo perdía en las banderas: la fila decía
     // "con reservas" en la ficha y no lo mostraba, y esa salvedad dejaba de contar (SOLV, TER y VIST el 11/9).
-    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(prev.verification ? { verification: prev.verification } : {}) };
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(prev.verification ? { verification: prev.verification } : {}) };
     let d = decideCandidate(input, policy);
     let verification: VerificationSummary | null | undefined = prev.verification;
     if (!("excluded" in d)) {

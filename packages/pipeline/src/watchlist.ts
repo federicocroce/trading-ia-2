@@ -61,6 +61,8 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
   if (spy.length) await store.upsertCandles("SPY", spy).catch(() => {});
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const previous = (await store.latestCandidates()).filter((r) => r.kind === "watch");
+  // Lo tuyo que ya está en cartera usa el stop de la posición; lo demás es una compra nueva (ver `heldSymbols`).
+  const held = new Set((await store.positions()).map((p) => p.symbol.toUpperCase()));
   // La lista de seguimiento comparte la cuota de búsqueda: la mitad del tope de una corrida.
   const verifyBudget: VerifyBudget = { left: Math.max(1, Math.floor((policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT) / 2)) };
 
@@ -82,7 +84,7 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       // El dictamen guardado entra desde la primera decisión: si solo se pasara cuando queda COMPRAR, un
       // OBSERVAR conservaría la verificación en su columna y la perdería en las banderas.
       let verification: VerificationSummary | null | undefined = prev?.verification;
-      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym.toUpperCase()), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate({ ...base, ...(verification ? { verification } : {}) }, policy);
       // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
       if (!("excluded" in d) && d.verdict === "COMPRAR" && deps.verifier) {

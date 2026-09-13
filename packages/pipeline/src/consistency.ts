@@ -40,7 +40,9 @@ export async function checkRun(deps: Pick<RadarDeps, "store" | "log">, opts: { t
   // Hasta qué fecha se leyeron las noticias de cada símbolo: es lo que separa "no hubo eventos" de "nadie miró".
   const newsScannedTo: Record<string, string | null> = {};
   for (const r of rows) newsScannedTo[r.symbol] = await deps.store.newsScannedTo(r.symbol).catch(() => null);
-  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, newsScannedTo, today: opts.today });
+  // Lo que está en cartera usa su stop de seguimiento: sin esta lista, `stop_dentro_del_ruido` no puede correr.
+  const held = (await deps.store.positions().catch(() => null))?.map((p) => p.symbol);
+  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, newsScannedTo, today: opts.today, ...(held ? { held } : {}) });
   const { graves, avisos } = summarizeFindings(findings);
   if (findings.length === 0) deps.log?.(`[consistencia] ${rows.length} filas revisadas: sin contradicciones`);
   else {

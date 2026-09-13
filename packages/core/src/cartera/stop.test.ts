@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTarget, computeTrailingStop, type Candle } from "./index.js";
+import { computeTarget, computeTrailingStop, ENTRY_STOP_ATR, entryStop, type Candle } from "./index.js";
 
 /** 30 velas planas en 100 con rango diario 2 (high 101, low 99): ATR = 2. */
 const flat = (n: number, close = 100): Candle[] =>
@@ -18,6 +18,32 @@ describe("computeTrailingStop (chandelier 22/3)", () => {
   });
   it("null con menos de 23 velas", () => {
     expect(computeTrailingStop(flat(22))).toBeNull();
+  });
+});
+
+describe("entryStop (stop de una compra nueva, 2026-09-13)", () => {
+  /*
+   * NVDA el 13/9: cierre 218,29, stop de seguimiento 214,89 (0,44 ATR). Con 2 años de velas, un stop a esa
+   * distancia se tocó en las 5 ruedas siguientes el 71% de las veces. Acá: un pico de 105 dentro de las
+   * últimas 22 ruedas deja el de seguimiento en ~98,45 con el precio en 100, o sea dentro del ruido.
+   */
+  const pullback = (): Candle[] => {
+    const c = flat(30);
+    c[20] = { ...c[20]!, high: 105 };
+    return c;
+  };
+  it("después de un retroceso, el piso de la franja menos 2,5 ATR14", () => {
+    const c = pullback();
+    expect(computeTrailingStop(c)).toBeGreaterThan(98);
+    const atr14 = (13 * 2 + 6) / 14;
+    expect(entryStop(c, 100)).toBeCloseTo(100 - ENTRY_STOP_ATR * atr14, 2);
+  });
+  it("si el de seguimiento ya está más abajo, queda el de seguimiento", () => {
+    // Plana: seguimiento 95; piso de franja 104 → 104 − 5 = 99. Manda el más bajo.
+    expect(entryStop(flat(30), 104)).toBe(95);
+  });
+  it("null con menos de 23 velas", () => {
+    expect(entryStop(flat(22), 100)).toBeNull();
   });
 });
 

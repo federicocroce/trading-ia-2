@@ -1,4 +1,4 @@
-import { atr, computeTarget, computeTrailingStop } from "../cartera/stop.js";
+import { atr, computeTarget, computeTrailingStop, entryStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import type { Fundamentals } from "./ranking.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
@@ -208,6 +208,8 @@ export function decideCandidate(
     verification?: VerificationSummary | null;
     /** Objetivos de analistas de titulares (90 días), para la salvedad "consenso en el precio". */
     analystTargets?: AnalystTargets | null;
+    /** Ya está en cartera: el stop es el de la posición (el de seguimiento), porque una posición tiene un solo stop. */
+    held?: boolean;
   },
   p: Pick<RadarPolicy, "technical" | "sizing" | "candidates">,
 ): CandidateDecision | { excluded: true; reasons: string[] } {
@@ -240,10 +242,11 @@ export function decideCandidate(
   const entry = entryTiming(i.candles);
   const entryLow = entry ? entry.low : close;
   const entryHigh = entry ? entry.high : round2(close * 1.02);
-  const stop = computeTrailingStop(i.candles);
+  // El stop de seguimiento es el FILTRO: decide si la tendencia sigue en pie (`bajo_stop`, `stop_dentro_de_la_entrada`).
+  const trailing = computeTrailingStop(i.candles);
   // Cierre bajo el stop dinámico: viene cayendo desde un máximo reciente. Para un candidato nuevo
   // no es una compra: se observa hasta que el stop vuelva a quedar por debajo del precio.
-  const belowStop = stop !== null && close <= stop;
+  const belowStop = trailing !== null && close <= trailing;
   if (belowStop) {
     flags.push("bajo_stop");
     reasons.push("bajo_stop");
@@ -259,12 +262,15 @@ export function decideCandidate(
    * en el piso ya estarías debajo del stop (PAM, FRO, TRMD, META, BE el 12/9). En ese caso no hay objetivo
    * ni tamaño, y queda dicho por qué.
    */
-  const stopSirve = stop !== null && stop < entryLow;
-  if (!belowStop && stop !== null && !stopSirve) {
+  const stopSirve = trailing !== null && trailing < entryLow;
+  if (!belowStop && trailing !== null && !stopSirve) {
     flags.push("stop_dentro_de_la_entrada");
     reasons.push("stop_dentro_de_la_entrada");
   }
   const ejecutable = !belowStop && stopSirve;
+  // El stop de la ORDEN, en cambio, es el de una compra nueva: con aire mínimo de 2,5 ATR (ver `entryStop`).
+  // Si ya está en cartera manda el de la posición. Una fila que no se puede ejecutar muestra el de seguimiento.
+  const stop = ejecutable && !i.held ? entryStop(i.candles, entryLow) : trailing;
   const target = ejecutable ? computeTarget(entryHigh, stop) : null;
   const size = ejecutable ? positionSize({ entryHigh, stop, portfolioUsd: i.portfolioUsd }, p.sizing) : null;
   const risk = riskScore({ beta: i.f.metrics["beta"] ?? null, atrPct: gate.atrPct, debtToEquity: i.f.metrics["totalDebt/totalEquityAnnual"] ?? null, dollarVolumeUsd: i.f.dollarVolumeUsd, mcapUsd: i.f.mcapUsd });
