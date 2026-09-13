@@ -194,6 +194,27 @@ describe("checkConsistency", () => {
     expect(f).toEqual([]);
   });
 
+  it("TSM del 12/9: la capitalización no coincide con la que implica su propio precio sobre ventas", () => {
+    // 11,1 billones guardados contra ~2,2 reales: precio del ADR por acciones locales, con ratio 5 a 1.
+    const f = solo("capitalizacion_inconsistente", checkConsistency({
+      rows: [fila({ symbol: "TSM" })], candles: {}, plan: null,
+      mcaps: { TSM: 11_115_521_414_950 },
+      metrics: { TSM: { psTTM: 13.87, revenuePerShareTTM: 61.8, shareOutstanding: 25_932 } },
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("ADR");
+  });
+
+  it("NVDA: la capitalización coincide con la implicada y no se reporta", () => {
+    const f = solo("capitalizacion_inconsistente", checkConsistency({
+      rows: [fila({ symbol: "NVDA" })], candles: {}, plan: null,
+      mcaps: { NVDA: 5_551_700_000_000 },
+      metrics: { NVDA: { psTTM: 18.32, revenuePerShareTTM: 12.52, shareOutstanding: 24_200 } },
+    }));
+    expect(f).toEqual([]);
+  });
+
   it("DVA: deuda/patrimonio 78 y ROE 181% con el patrimonio borrado por recompras", () => {
     const r = checkConsistency({
       rows: [fila({ symbol: "DVA" })], candles: {}, plan: null,

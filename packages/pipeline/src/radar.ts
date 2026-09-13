@@ -215,7 +215,7 @@ export async function scanUniverse(deps: RadarDeps, opts: { scanDate: string; to
         const last30 = c.slice(-30);
         if (last30.length >= 10) volumeOverrideUsd = (last30.reduce((a, x) => a + x.volume, 0) / last30.length) * priceUsd;
       }
-      const qb = qualityBar({ profile: { shareOutstanding: profile.shareOutstanding ?? null, currency: profile.currency ?? null, country: profile.country, industry: profile.industry, name: profile.name }, metrics, priceUsd }, policy.quality, { volumeOverrideUsd, allowUnknownMcap: foreign });
+      const qb = qualityBar({ profile: { shareOutstanding: profile.shareOutstanding ?? null, currency: profile.currency ?? null, country: profile.country, industry: profile.industry, name: profile.name, marketCap: profile.marketCap ?? null }, metrics, priceUsd }, policy.quality, { volumeOverrideUsd, allowUnknownMcap: foreign });
       await store.saveProfile(profile);
       if (!qb.ok) {
         await store.scanUpsert([{ scanDate: opts.scanDate, symbol: sym, stage: "excluded", reason: qb.reason ?? "quality bar" }]);

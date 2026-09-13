@@ -29,11 +29,15 @@ export async function checkRun(deps: Pick<RadarDeps, "store" | "log">, opts: { t
   }
   // Métricas de Finnhub por símbolo: sin esto no se pueden ver los fundamentales que se contradicen solos.
   const metrics: Record<string, Record<string, number | null | undefined>> = {};
+  const mcaps: Record<string, number | null> = {};
   for (const r of rows) {
     const f = await deps.store.fundamentals(r.symbol).catch(() => null);
-    if (f) metrics[r.symbol] = f.metrics;
+    if (f) {
+      metrics[r.symbol] = f.metrics;
+      mcaps[r.symbol] = f.mcapUsd;
+    }
   }
-  const findings = checkConsistency({ rows, candles, plan, metrics, today: opts.today });
+  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, today: opts.today });
   const { graves, avisos } = summarizeFindings(findings);
   if (findings.length === 0) deps.log?.(`[consistencia] ${rows.length} filas revisadas: sin contradicciones`);
   else {

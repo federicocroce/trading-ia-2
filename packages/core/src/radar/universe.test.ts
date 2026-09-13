@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEligibleAsset, passesPreFilter, qualityBar } from "./index.js";
+import { isEligibleAsset, mcapUsd, passesPreFilter, qualityBar } from "./index.js";
 
 const q = { minMcapUsd: 500e6, minDollarVolumeUsd: 5e6, minPrice: 5 };
 const pre = { minPrice: 5, minIexDollarVolume: 500_000 };
@@ -27,7 +27,7 @@ describe("universo", () => {
     expect(passesPreFilter({ symbol: "A", price: null, iexVolume: 1e6 }, pre).ok).toBe(false);
   });
   it("quality bar con capitalización y volumen en USD desde acciones en circulación y precio Alpaca", () => {
-    const f = { profile: { shareOutstanding: 1000, currency: "TWD", country: "TW", industry: "Semis", name: "TSM" }, metrics: { "3MonthAverageTradingVolume": 36.5, marketCapitalization: 61_978_364 }, priceUsd: 428 };
+    const f = { profile: { shareOutstanding: 1000, currency: "USD", country: "US", industry: "Semis", name: "AAA" }, metrics: { "3MonthAverageTradingVolume": 36.5 }, priceUsd: 428 };
     const r = qualityBar(f, q);
     expect(r.ok).toBe(true);
     expect(r.mcapUsd).toBe(428_000e6);
@@ -36,6 +36,27 @@ describe("universo", () => {
     expect(qualityBar({ ...f, metrics: {} }, q).reason).toMatch(/volumen/);
     expect(qualityBar({ ...f, profile: { ...f.profile, shareOutstanding: 0.5 } }, q).reason).toMatch(/capitalización/);
     expect(qualityBar({ ...f, priceUsd: 3 }, q).reason).toMatch(/precio/);
+  });
+
+  it("TSM: el precio del ADR por las acciones locales daba 11,1 billones; ahora manda la publicada o queda desconocida", () => {
+    // Un ADR de TSM son 5 ordinarias. 428,64 × 25.932 M daba 11,1 billones contra ~2,2 reales.
+    const tsm = { profile: { shareOutstanding: 25_932, currency: "TWD", country: "TW", industry: "Semis", name: "TSM", marketCap: 61_978_362_246_094 }, metrics: { "3MonthAverageTradingVolume": 36.5 }, priceUsd: 428.64 };
+    expect(mcapUsd(tsm.profile.shareOutstanding, tsm.priceUsd, tsm.profile)).toBeNull();
+    // Como extranjero, el universo ya permite capitalización desconocida: no se lo saca por esto.
+    expect(qualityBar(tsm, q, { allowUnknownMcap: true }).ok).toBe(true);
+    expect(qualityBar(tsm, q).reason).toMatch(/TWD/);
+  });
+
+  it("APH: con la capitalización publicada en dólares manda esa, no el producto con acciones pre-split", () => {
+    // 1.230,2 M de acciones (pre-split) × 82,80 daba 101,9 mil millones; la publicada es 204,1.
+    const aph = { marketCap: 204_132_750_897, currency: "USD" };
+    expect(mcapUsd(1230.23, 82.8, aph)).toBe(204_132_750_897);
+  });
+
+  it("NVDA: la publicada y el cálculo coinciden, así que el control tiene dientes", () => {
+    const nvda = { marketCap: 5_551_700_000_000, currency: "USD" };
+    const calculada = 24_200 * 1e6 * 229.83;
+    expect(Math.abs(mcapUsd(24_200, 229.83, nvda)! - calculada) / calculada).toBeLessThan(0.01);
   });
   it("ADR: volumen de Yahoo cuando Finnhub no lo tiene y capitalización desconocida permitida", () => {
     const adr = { profile: { shareOutstanding: 1325, currency: "ARS", country: "AR", industry: "Banking", name: "GGAL" }, metrics: {}, priceUsd: 44.36 };

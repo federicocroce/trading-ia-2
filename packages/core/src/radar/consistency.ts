@@ -31,6 +31,8 @@ export interface Finding {
 
 export interface ConsistencyInput {
   rows: CandidateRow[];
+  /** Capitalización guardada por símbolo, para contrastarla contra la que implica su propio P/S. */
+  mcaps?: Record<string, number | null>;
   /** Velas por símbolo, la fuente contra la que se contrasta lo guardado. Sin velas, el chequeo de precio se saltea. */
   candles: Record<string, Candle[]>;
   plan: ContributionPlan | null;
@@ -134,6 +136,7 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
 
     // 6. Fundamentales que se contradicen solos. No juzgan a la empresa: dicen que el número no se puede usar.
     const m = i.metrics?.[row.symbol];
+    const mcap = i.mcaps?.[row.symbol] ?? null;
     if (m) {
       const op = m["operatingMarginTTM"];
       const neta = m["netProfitMarginTTM"];
@@ -144,6 +147,20 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       if (op !== null && op !== undefined && neta !== null && neta !== undefined && neta > 0 && neta > op + FUNDAMENTAL_THRESHOLDS.marginGapPct) {
         add("ganancia_no_operativa", row.symbol, "aviso", `margen neto ${r2(neta)}% arriba del operativo ${r2(op)}%: la ganancia no viene de la operación, el P/E sobre eso no mide el negocio`);
       }
+      // La capitalización guardada contra la que implica su propio P/S y sus ingresos por acción. Es el
+      // control que destapó que TSM figuraba con 11,1 billones (precio del ADR por acciones locales) y APH
+      // con la mitad (acciones pre-split). Sobre NVDA el control da 0,2% de diferencia: tiene dientes.
+      const ps = m["psTTM"];
+      const rps = m["revenuePerShareTTM"];
+      const acciones = m["shareOutstanding"];
+      if (mcap !== null && typeof ps === "number" && ps > 0 && typeof rps === "number" && rps > 0 && typeof acciones === "number" && acciones > 0) {
+        const implicada = ps * rps * acciones * 1e6;
+        const ratio = implicada > 0 ? mcap / implicada : null;
+        if (ratio !== null && (ratio > 1.5 || ratio < 0.67)) {
+          add("capitalizacion_inconsistente", row.symbol, "grave", `capitalización ${Math.round(mcap / 1e9)} mil M contra ${Math.round(implicada / 1e9)} mil M que implica su propio P/S (${r2(ratio)}×): ratio de ADR o split sin ajustar`);
+        }
+      }
+
       // Patrimonio borrado por recompras o por pérdidas: ROE y deuda/patrimonio dejan de significar algo.
       // DVA declaraba deuda/patrimonio 78 y ROE 181% con patrimonio de −765 M.
       const de = m["totalDebt/totalEquityAnnual"];

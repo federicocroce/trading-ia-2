@@ -15,7 +15,7 @@ export interface SnapshotLite {
 }
 export type FinnhubMetrics = Record<string, number | null | undefined>;
 export interface FundamentalsInput {
-  profile: { shareOutstanding: number | null; currency: string | null; country: string | null; industry: string | null; name: string | null };
+  profile: { shareOutstanding: number | null; currency: string | null; country: string | null; industry: string | null; name: string | null; marketCap?: number | null };
   metrics: FinnhubMetrics;
   priceUsd: number;
 }
@@ -45,7 +45,32 @@ export function passesPreFilter(s: SnapshotLite, p: RadarPolicy["prefilter"]): {
 }
 
 /** Capitalización en USD desde acciones en circulación (millones) y precio USD. Nunca la de Finnhub (moneda local en ADRs). */
-export function mcapUsd(shareOutstandingMillions: number | null | undefined, priceUsd: number): number | null {
+/**
+ * Capitalización en dólares (2026-09-13). Antes era siempre acciones en circulación × precio, y eso es falso
+ * en cuanto el papel es un ADR o hubo un split que la fuente no reflejó en una de las dos puntas:
+ *
+ * - TSM mostraba 11,1 billones porque multiplicaba el precio del ADR (428,64) por las ordinarias taiwanesas
+ *   (25.932 M). Un ADR son 5 ordinarias: la real es ~2,2 billones.
+ * - HSBC mostraba 1,84 billones por lo mismo (un ADR son 5 ordinarias). La real es 268 mil millones.
+ * - APH mostraba la mitad, 101,9 mil millones contra 204,1, porque las acciones eran de antes del split y el
+ *   precio de después.
+ *
+ * El número manda decisiones: entra en el puntaje de riesgo y en el filtro de capitalización mínima del
+ * universo. Ahora manda la capitalización que publica la fuente cuando viene en dólares (en NVDA coincide
+ * con el cálculo al 0,2%, así que el control tiene dientes). Si la fuente la publica en otra moneda no se
+ * convierte ni se inventa: queda desconocida, que es lo que ya contemplan los extranjeros.
+ */
+export function mcapUsd(
+  shareOutstandingMillions: number | null | undefined,
+  priceUsd: number,
+  profile?: { marketCap?: number | null; currency?: string | null },
+): number | null {
+  const moneda = (profile?.currency ?? "USD").toUpperCase();
+  const publicada = profile?.marketCap ?? null;
+  if (publicada !== null && publicada > 0 && moneda === "USD") return Math.round(publicada);
+  // En otra moneda, el producto precio × acciones tampoco sirve: el precio es del ADR y las acciones son las
+  // ordinarias locales. Mejor sin dato que con uno inflado cinco veces.
+  if (moneda !== "USD") return null;
   if (!shareOutstandingMillions || shareOutstandingMillions <= 0) return null;
   return Math.round(shareOutstandingMillions * 1e6 * priceUsd);
 }
@@ -63,13 +88,17 @@ export interface QualityBarOptions {
   allowUnknownMcap?: boolean;
 }
 export function qualityBar(f: FundamentalsInput, q: RadarPolicy["quality"], o: QualityBarOptions = {}): { ok: boolean; reason?: string; mcapUsd: number | null; dollarVolumeUsd: number | null } {
-  const mcap = o.allowUnknownMcap ? null : mcapUsd(f.profile.shareOutstanding, f.priceUsd);
+  const mcap = o.allowUnknownMcap ? null : mcapUsd(f.profile.shareOutstanding, f.priceUsd, f.profile);
   const finnhubVol = dollarVolumeUsd(f.metrics["3MonthAverageTradingVolume"], f.priceUsd);
   const override = o.volumeOverrideUsd && o.volumeOverrideUsd > 0 ? Math.round(o.volumeOverrideUsd) : null;
   // Finnhub puede traer el volumen del listado local (ADR): se usa el mayor entre Finnhub y el consolidado US.
   const vol = finnhubVol === null ? override : override === null ? finnhubVol : Math.max(finnhubVol, override);
   if (f.priceUsd < q.minPrice) return { ok: false, reason: `precio ${f.priceUsd} < ${q.minPrice}`, mcapUsd: mcap, dollarVolumeUsd: vol };
-  if (mcap === null && !o.allowUnknownMcap) return { ok: false, reason: "sin acciones en circulación", mcapUsd: null, dollarVolumeUsd: vol };
+  if (mcap === null && !o.allowUnknownMcap) {
+    const moneda = (f.profile.currency ?? "USD").toUpperCase();
+    const motivo = moneda === "USD" ? "sin acciones en circulación" : `capitalización publicada en ${moneda}: no se convierte ni se estima con el precio del ADR`;
+    return { ok: false, reason: motivo, mcapUsd: null, dollarVolumeUsd: vol };
+  }
   if (vol === null) return { ok: false, reason: "sin volumen de 3 meses", mcapUsd: mcap, dollarVolumeUsd: null };
   if (mcap !== null && mcap < q.minMcapUsd) return { ok: false, reason: `capitalización ${Math.round(mcap / 1e6)}M < ${q.minMcapUsd / 1e6}M`, mcapUsd: mcap, dollarVolumeUsd: vol };
   if (vol < q.minDollarVolumeUsd) return { ok: false, reason: `volumen ${Math.round(vol / 1e6)}M/día < ${q.minDollarVolumeUsd / 1e6}M`, mcapUsd: mcap, dollarVolumeUsd: vol };
