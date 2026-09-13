@@ -245,6 +245,22 @@ describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
   });
 });
 
+describe("refresco: el presupuesto de verificación va primero a lo mejor rankeado (13/9)", () => {
+  it("con una sola verificación por corrida, la usa la COMPRAR de mejor score, no la primera guardada", async () => {
+    // El cuestionario cambió el 13/9 y hay que volver a verificar todo con 8 búsquedas por corrida. Si se gastan en
+    // el orden en que están guardadas las filas, NVDA o TSM pueden quedar sin verificar y afuera del plan.
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: null });
+    const compras = (await store.latestCandidates()).filter((c) => c.kind === "stock" && c.verdict === "COMPRAR").sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    if (compras.length < 2) expect.fail("el fixture necesita dos COMPRAR");
+    const llamadas: string[] = [];
+    const verifier = { promptVersion: "v-test", verify: async (i: { symbol: string }) => { llamadas.push(i.symbol); return { verdict: "apto" as const, reason: "ok", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [{ title: "x", url: "https://x" }], researchText: "DICTAMEN: APTO", model: "m" }; } };
+    await refreshRadar({ ...d, verifier, policy: { ...policy, candidates: { ...policy.candidates, verifyPerRun: 1 } } }, { today: "2026-05-20", portfolioUsd: null });
+    expect(llamadas).toEqual([compras[0]!.symbol]);
+  });
+});
+
 describe("plan: calendario de la Fed (13/9)", () => {
   it("con config/fomc.json cargado, el plan del 13/9 dice que el primer tramo va desde el 17/9", async () => {
     const { d } = deps();
