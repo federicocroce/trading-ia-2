@@ -86,4 +86,25 @@ describe("decideEtf", () => {
   it("sin velas suficientes → excluido", () => {
     expect(decideEtf(cfg("satelite"), strong.slice(-50), spy, tech)).toEqual({ excluded: true, reasons: ["sin_historial"] });
   });
+
+  /**
+   * YPF el 13/9 (evaluado con este motor como ADR): franja 51,49–52,01 y stop 51,51. Esperar la entrada que
+   * pide la app dispara el stop. El motor de acciones ya degradaba este caso; este lo dejaba en COMPRAR.
+   */
+  it("con el stop dentro de la franja de compra no queda en COMPRAR", () => {
+    // Subida firme con velas de rango muy chico: el ATR queda bajo, así que el stop (máximo de 22 menos 3
+    // ATR) termina por ENCIMA de la media de 20, que es donde la app manda esperar el retroceso. Sube 11,6%
+    // en 21 ruedas, debajo del 15% de "no perseguir", para que el único motivo posible sea el del test.
+    const closes = [...Array.from({ length: 238 }, (_, i) => 100 + i * 0.34), ...Array.from({ length: 22 }, (_, i) => 181 + i)];
+    const velas = closes.map((c, i) => ({ date: new Date(Date.parse("2025-09-01") + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c + 0.05, low: c - 0.05, close: c, volume: 1_000_000 }));
+    const d = decideEtf(cfg("satelite"), velas, spy, tech);
+    if ("excluded" in d) throw new Error("no");
+    if (d.target === null && d.stop !== null && !d.reasons.includes("bajo_stop")) {
+      expect(d.reasons).toContain("stop_dentro_de_la_entrada");
+      expect(d.verdict).toBe("OBSERVAR");
+    } else {
+      // Si la serie no reproduce el caso, el test tiene que decirlo en vez de pasar vacío.
+      expect.fail(`la serie no reprodujo el stop dentro de la franja: target ${d.target}, stop ${d.stop}, entrada ${JSON.stringify(d.entry)}`);
+    }
+  });
 });

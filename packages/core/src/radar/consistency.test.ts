@@ -294,4 +294,20 @@ describe("checkConsistency", () => {
     }));
     expect(f).toEqual([]);
   });
+
+  it("YPF del 13/9: un COMPRAR con el stop dentro de la franja de compra no se puede ejecutar", () => {
+    const f = solo("compra_sin_boleto", checkConsistency({
+      rows: [fila({ symbol: "YPF", kind: "adr", close: 55.55, entryLow: 51.49, entryHigh: 52.01, stop: 51.51, target: null,
+        entry: { state: "esperar_retroceso", level: 51.49, levelLabel: "su media de 20", low: 51.49, high: 52.01, validSessions: 15, sma20: 51.49, sma50: 48, atr14: 1.2, extensionAtr: 3.4, rangePct60: 95, why: "está 3,4 ATR sobre su media de 20" } })],
+      candles: { YPF: [vela("2026-09-11", 55.55)] },
+      plan: null,
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+  });
+
+  it("con el stop por debajo de la franja el COMPRAR es ejecutable y no se reporta", () => {
+    const f = solo("compra_sin_boleto", checkConsistency({ rows: [fila({ symbol: "NVDA" })], candles: { NVDA: [vela("2026-09-11", 100)] }, plan: null }));
+    expect(f).toEqual([]);
+  });
 });

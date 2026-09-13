@@ -108,5 +108,10 @@ export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: R
   const techo = base.entry?.high ?? close;
   const ejecutable = !belowStop && base.stop !== null && base.stop < (base.entry?.low ?? close);
   base.target = ejecutable ? computeTarget(techo, base.stop) : null;
+  // Stop DENTRO de la franja de compra: si esperás el retroceso que la propia app te pide, te salta el stop.
+  // No hay operación posible, así que no puede quedar en COMPRAR. El motor de acciones ya lo hacía (PAM el
+  // 13/9 salía OBSERVAR con esta bandera) y este no: YPF, evaluado con este motor como ADR, salía COMPRAR
+  // con franja 51,49–52,01 y stop 51,51, sin objetivo y sin decir por qué.
+  if (!belowStop && base.stop !== null && !ejecutable) reasons.push("stop_dentro_de_la_entrada");
   return { ...base, verdict: reasons.length ? "OBSERVAR" : "COMPRAR", reasons };
 }

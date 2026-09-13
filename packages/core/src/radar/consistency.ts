@@ -182,6 +182,16 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       add("compra_sin_momento", row.symbol, "aviso", "queda COMPRAR pero no tiene momento de entrada: la app no puede decir cuándo entrar");
     }
 
+    // 7b. Un COMPRAR tiene que poder ejecutarse: si el stop cae dentro de la franja de compra, esperar la
+    //     entrada que la app pide dispara el stop. YPF el 13/9: franja 51,49–52,01, stop 51,51, COMPRAR y sin
+    //     objetivo. El motor de acciones ya lo degradaba; el de ETFs (y los ADR, que lo usan) no.
+    if (row.verdict === "COMPRAR" && row.stop !== null) {
+      const piso = row.entry?.low ?? row.entryLow ?? null;
+      if (piso !== null && row.stop >= piso) {
+        add("compra_sin_boleto", row.symbol, "grave", `COMPRAR con el stop (${r2(row.stop)}) dentro de la franja de compra (desde ${r2(piso)}): esperar la entrada dispara el stop`);
+      }
+    }
+
     // 8. Un objetivo por debajo del precio de hoy solo se entiende si la entrada también está por debajo.
     //    EWT el 12/9: COMPRAR, precio 110,91, objetivo 110,69. No estaba mal calculado (el 2 a 1 se mide
     //    desde la franja 106,75–107,83, a la que hay que esperar), pero la tabla no mostraba la franja y la
