@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { todayLocal, AXES, AXIS_METRICS, assessRegime, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
+import { todayLocal, AXES, AXIS_METRICS, assessRegime, groupMedians, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
 import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
@@ -99,7 +99,10 @@ export function radarRoutes(c: Container) {
       if (f) peers.push({ symbol: p, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])) });
     }
     const verification = await store.verification(symbol).catch(() => null);
-    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions, newsScannedTo, verification });
+    // La mediana del grupo sale del mismo cálculo que el puntaje (propia incluida, mismas reglas), no se
+    // recalcula en el navegador: ver `groupMedians`.
+    const medians = fundamentals ? groupMedians([fundamentals, ...peers]) : null;
+    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, medians, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions, newsScannedTo, verification });
   });
   app.get("/radar/etfs", async (ctx) => ctx.json(await withTags((await candidatesAt(ctx)).filter((r) => r.kind === "etf"))));
 

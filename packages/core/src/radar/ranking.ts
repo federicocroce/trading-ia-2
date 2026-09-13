@@ -135,6 +135,25 @@ function scoreWithin(symbol: string, set: Fundamentals[], weights: RadarPolicy["
   return { score, axes };
 }
 
+/**
+ * Mediana de cada métrica sobre el grupo COMPLETO, la propia empresa incluida, con las mismas reglas que el
+ * puntaje (`positiveOnly` descarta un P/E negativo, que no es "barato": es no ganar plata).
+ *
+ * Es la única fuente de esa mediana. Existe porque el 13/9 la tabla de comparables la recalculaba por su
+ * cuenta en el navegador, EXCLUYENDO a la propia empresa y sin `positiveOnly`: mostraba "mediana del grupo
+ * (8)" y un P/E de 67,3× para APH, cuando el puntaje usaba 66,0× sobre nueve. Dos números distintos para lo
+ * mismo, en la tabla que existe justamente para justificar el puntaje.
+ */
+export function groupMedians(set: Array<Pick<Fundamentals, "metrics">>): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  for (const axis of AXES) {
+    for (const spec of AXIS_METRICS[axis]) {
+      out[spec.key] = median(set.map((m) => metricOf(m as Fundamentals, spec)).filter((v): v is number => v !== null));
+    }
+  }
+  return out;
+}
+
 export function rankStocks(all: Map<string, Fundamentals>, weights: RadarPolicy["weights"]): { ranked: RankedStock[]; skipped: Array<{ symbol: string; reason: string }> } {
   const ranked: RankedStock[] = [];
   const skipped: Array<{ symbol: string; reason: string }> = [];
@@ -152,9 +171,7 @@ export function rankStocks(all: Map<string, Fundamentals>, weights: RadarPolicy[
     }
     const scores = set.map((m) => ({ symbol: m.symbol, score: scoreWithin(m.symbol, set, weights)?.score ?? Number.NEGATIVE_INFINITY })).sort((a, b) => b.score - a.score);
     const rankInGroup = scores.findIndex((s) => s.symbol === f.symbol) + 1;
-    const medians: Record<string, number | null> = {};
-    for (const axis of AXES) for (const spec of AXIS_METRICS[axis]) medians[spec.key] = median(set.map((m) => metricOf(m, spec)).filter((v): v is number => v !== null));
-    ranked.push({ symbol: f.symbol, score: own.score, axes: own.axes, group: g.members, basis: g.basis, rankInGroup, groupSize: set.length, medians });
+    ranked.push({ symbol: f.symbol, score: own.score, axes: own.axes, group: g.members, basis: g.basis, rankInGroup, groupSize: set.length, medians: groupMedians(set) });
   }
   ranked.sort((a, b) => b.score - a.score);
   return { ranked, skipped };

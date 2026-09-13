@@ -1,5 +1,5 @@
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
-import { AXES, AXIS_METRICS } from "@thesis/core";
+import { AXES, AXIS_METRICS, groupMedians } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
 /**
@@ -27,6 +27,8 @@ export interface TickerPage {
   fundamentals: Fundamentals | null;
   candidate: CandidateRow | null;
   peers: Array<{ symbol: string; metrics: Record<string, number | null> }>;
+  /** Mediana de cada métrica en el grupo completo, la propia incluida: la referencia exacta del puntaje. */
+  medians: Record<string, number | null> | null;
   /** Verificación (spec verificación): estados de la SEC, eventos materiales de 90 días sin ruido, acciones de analistas de 90 días. */
   statements: Statements | null;
   events: RadarEvent[];
@@ -239,6 +241,8 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     const f = await store.fundamentals(p);
     if (f) peers.push({ symbol: p, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])) });
   }
+  // Misma mediana que el puntaje, calculada en un solo lugar (ver `groupMedians`).
+  const medians = fundamentals && peers.length ? groupMedians([fundamentals, ...peers]) : null;
   const mine = txs.filter((t) => t.symbol === symbol).sort((a, b) => b.date.localeCompare(a.date));
   const sum = (type: Transaction["type"]) => {
     const rows = mine.filter((t) => t.type === type);
@@ -265,6 +269,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     fundamentals,
     candidate,
     peers,
+    medians,
     statements,
     events,
     analystActions,

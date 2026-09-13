@@ -232,7 +232,7 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
                   </div>
                 )}
                 <VerificationSections statements={detail.statements} events={detail.events} analystActions={detail.analystActions} analystTargets={c.analystTargets} close={c.close} metricsRaw={detail.fundamentals?.metricsRaw} verification={detail.verification ?? null} newsScannedTo={detail.newsScannedTo ?? null} />
-                <PeersTable own={c.symbol} ownMetrics={detail.fundamentals?.metrics ?? {}} peers={detail.peers} asOf={detail.fundamentals?.statementsAsOf ?? null} />
+                <PeersTable own={c.symbol} ownMetrics={detail.fundamentals?.metrics ?? {}} peers={detail.peers} medians={detail.medians ?? null} asOf={detail.fundamentals?.statementsAsOf ?? null} />
               </>
             )}
           </td>

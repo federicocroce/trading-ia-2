@@ -187,7 +187,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
           <EntryLine e={t.candidate.entry} />
           <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)} pagando hasta {f2(t.candidate.entryHigh)})</div>
-          <PeersTable own={t.symbol} ownMetrics={m} peers={t.peers} asOf={t.fundamentals?.asOf ?? null} />
+          <PeersTable own={t.symbol} ownMetrics={m} peers={t.peers} medians={t.medians ?? null} asOf={t.fundamentals?.asOf ?? null} />
         </div>
       )}
 
