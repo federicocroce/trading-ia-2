@@ -459,7 +459,8 @@ type PlanSort = "prioridad" | "conviccion" | "objetivo";
 // "objetivo" ordena por el doble de la distancia al stop: el nombre lo dice para que nadie lo lea como ganancia.
 const PLAN_SORT_LABEL: Record<PlanSort, string> = { prioridad: "prioridad de compra", conviccion: "convicción", objetivo: "distancia al stop (no es ganancia)" };
 const readPlanSort = (): PlanSort => { try { const v = localStorage.getItem("plan.sort"); return v === "conviccion" || v === "objetivo" ? v : "prioridad"; } catch { return "prioridad"; } };
-const gainPct = (l: PlanLine) => (l.target && l.close ? (l.target / l.close - 1) * 100 : null);
+// Desde el techo de la franja, el mismo precio desde el que se calcula el objetivo (13/9); sin franja, desde el cierre.
+const gainPct = (l: PlanLine) => { const base = l.entryHigh ?? l.close; return l.target && base ? (l.target / base - 1) * 100 : null; };
 function sortPlanLines(lines: PlanLine[], sort: PlanSort): PlanLine[] {
   if (sort === "prioridad") return lines;
   const KIND_ORDER: Record<PlanLine["kind"], number> = { comprar: 0, seguimiento: 1, sumar: 2, nucleo: 3 };
@@ -542,7 +543,9 @@ function PlanCard({ p, radarDate, onBuild, busy }: { p: ContributionPlan; radarD
       )}
       {sort === "objetivo" && <div className="warn" style={{ marginTop: 6 }}>Ordenado por distancia al stop. El objetivo es exactamente dos veces esa distancia: medido sobre los 26 COMPRAR de hoy, la correlación entre los dos números es 1,0000. Ordena por volatilidad, no por calidad, y no dice nada de cuánto puede ganar la empresa. El orden de compra del sistema es "prioridad de compra".</div>}
       {risk > 0 && <div className="muted" style={{ marginTop: 6 }}>Si todas las líneas con stop lo tocan, perdés {money(risk)}. Los ETFs de núcleo no llevan stop: se compran y se quedan.</div>}
-      {p.notes.map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}
+      {/* Las notas que cambian QUÉ hacer o CUÁNDO (reunión de la Fed, un lugar que va al núcleo) no pueden verse
+          igual que las informativas: son instrucciones. */}
+      {p.notes.map((n) => <div key={n} className={/^La Fed decide|lugar(es)? de posiciones nuevas|^No se sumó/.test(n) ? "warn" : "muted"} style={{ marginTop: 4 }}>{n}</div>)}
       {p.leftOut && p.leftOut.length > 0 && (
         <details style={{ marginTop: 4 }}>
           <summary className="muted" style={{ cursor: "pointer" }}>Ver todos los que no entraron ({p.leftOut.length})</summary>
