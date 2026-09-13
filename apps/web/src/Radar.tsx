@@ -7,6 +7,7 @@ import { HELP, RadarHelpModal, Th } from "./RadarHelp";
 import { SymbolSearch } from "./SymbolSearch";
 import { Flags, countSalvedades } from "./flags";
 import { VerificationSections } from "./Verification";
+import { PeersTable } from "./Peers";
 
 const HELP_CONVICCION = HELP["conviccion"]!.short;
 
@@ -231,16 +232,7 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
                   </div>
                 )}
                 <VerificationSections statements={detail.statements} events={detail.events} analystActions={detail.analystActions} analystTargets={c.analystTargets} close={c.close} metricsRaw={detail.fundamentals?.metricsRaw} verification={detail.verification ?? null} newsScannedTo={detail.newsScannedTo ?? null} />
-                {detail.peers.length > 0 && (
-                  <table style={{ marginTop: 8 }}>
-                    <thead><tr><th>par</th><th>P/E</th><th>EV/EBITDA</th><th>P/S</th><th>ROE</th><th>margen op.</th><th>crec. ingresos</th><th>deuda/patr.</th></tr></thead>
-                    <tbody>
-                      {[{ symbol: `${c.symbol} (propia)`, metrics: detail.fundamentals?.metrics ?? {} }, ...detail.peers].map((p) => (
-                        <tr key={p.symbol}><td>{p.symbol}</td><td className="mono">{f2(p.metrics["peTTM"], 1)}</td><td className="mono">{f2(p.metrics["evEbitdaTTM"], 1)}</td><td className="mono">{f2(p.metrics["psTTM"], 1)}</td><td className="mono">{f2(p.metrics["roeTTM"], 1)}</td><td className="mono">{f2(p.metrics["operatingMarginTTM"], 1)}</td><td className="mono">{f2(p.metrics["revenueGrowthTTMYoy"], 1)}</td><td className="mono">{f2(p.metrics["totalDebt/totalEquityAnnual"])}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                <PeersTable own={c.symbol} ownMetrics={detail.fundamentals?.metrics ?? {}} peers={detail.peers} asOf={detail.fundamentals?.statementsAsOf ?? null} />
               </>
             )}
           </td>
@@ -344,7 +336,11 @@ function WatchCard({ w, setWatch, editing, setEditing, reload }: { w: Watchlist;
 /** Argentina (etapa 3): macro del día, acciones de BYMA contra el Merval y CEDEARs contra el CCL. */
 function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
   const m = d.macro;
-  const prev: MacroAr | undefined = d.series.length >= 2 ? d.series[d.series.length - 2] : undefined;
+  // El anterior es el más reciente ESTRICTAMENTE anterior a la fecha del macro que se está mirando, no "el
+  // penúltimo de la lista". En modo histórico el penúltimo podía ser posterior a la fecha vista, y aun en
+  // vivo hay huecos: el 13/9 la serie salta del 11 al 13 y la variación comparaba dos días, no uno. La
+  // fecha contra la que se compara ahora se muestra, que es lo que hacía falta para poder leer el número.
+  const prev: MacroAr | undefined = m ? [...d.series].filter((x) => x.date < m.date).sort((a, b) => a.date.localeCompare(b.date)).at(-1) : undefined;
   const acciones = [...d.acciones].sort((a, b) => (a.verdict === b.verdict ? (b.axes["rs6m"] ?? -Infinity) - (a.axes["rs6m"] ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
   const dCcl = delta(m?.ccl ?? null, prev?.ccl);
   const dRp = delta(m?.riesgoPais ?? null, prev?.riesgoPais);
@@ -365,12 +361,12 @@ function ArgentinaCard({ d, editing, setEditing, reload }: { d: ArgentinaData; e
       )}
       {m && (
         <div className="kpis" style={{ marginTop: 8 }}>
-          <div className="kpi"><b>{ars(m.ccl)}</b><span>dólar CCL{dCcl !== null && <> · <span className={dCcl > 0 ? "bad" : "ok"}>{pct(dCcl)}</span></>}</span></div>
+          <div className="kpi"><b>{ars(m.ccl)}</b><span>dólar CCL{dCcl !== null && prev && <> · <span className={dCcl > 0 ? "bad" : "ok"}>{pct(dCcl)}</span> vs {prev.date}</>}</span></div>
           <div className="kpi"><b>{ars(m.mep)}</b><span>MEP</span></div>
           <div className="kpi"><b>{ars(m.oficial)}</b><span>oficial</span></div>
           <div className="kpi"><b>{pct(m.brechaPct)}</b><span>brecha CCL / oficial</span></div>
           <div className="kpi"><b>{ars(m.blue)}</b><span>blue</span></div>
-          <div className="kpi"><b>{m.riesgoPais ?? "—"}</b><span>riesgo país{dRp !== null && <> · <span className={dRp > 0 ? "bad" : "ok"}>{pct(dRp)}</span></>}</span></div>
+          <div className="kpi"><b>{m.riesgoPais ?? "—"}</b><span>riesgo país{dRp !== null && prev && <> · <span className={dRp > 0 ? "bad" : "ok"}>{pct(dRp)}</span> vs {prev.date}</>}</span></div>
           <div className="kpi"><b>{m.mervalUsd !== null ? `US$ ${m.mervalUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—"}</b><span>Merval en dólares{m.mervalDate && m.mervalDate !== m.date ? <> · <span className="warn">índice del {m.mervalDate}, CCL del {m.date}</span></> : ""}</span></div>
         </div>
       )}

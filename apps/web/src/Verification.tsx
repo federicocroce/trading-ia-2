@@ -1,4 +1,5 @@
 import type { AnalystAction, AnalystTargets, CandidateVerification, RadarEvent, Statements } from "./api";
+import { EXTRAORDINARIOS_AYUDA, extraordinarioLabel } from "./extraordinarios";
 
 const M = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${(v / 1e6).toFixed(1)}M`);
 const f1 = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toFixed(1));
@@ -82,11 +83,12 @@ export function VerificationSections({ statements, events, analystActions, analy
           <div className="muted">sin estados: las métricas son de Finnhub y pueden incluir extraordinarios</div>
         ) : (
           <>
+            <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{EXTRAORDINARIOS_AYUDA}</div>
             <table style={{ marginTop: 4 }}>
-              <thead><tr><th>trimestre</th><th>ingresos</th><th>operativo</th><th>neto</th><th>flujo operativo</th><th>extraordinarios</th></tr></thead>
+              <thead><tr><th>trimestre</th><th>ingresos</th><th>operativo</th><th>neto</th><th>flujo operativo</th><th title={EXTRAORDINARIOS_AYUDA} style={{ cursor: "help" }}>extraordinarios</th></tr></thead>
               <tbody>
                 {last4.map((q) => (
-                  <tr key={q.end}><td className="mono">{q.end}</td><td className="mono">{M(q.revenue)}</td><td className="mono">{M(q.operatingIncome)}</td><td className="mono">{M(q.netIncome)}</td><td className="mono">{M(q.operatingCashFlow)}</td><td className="mono">{q.extraordinary.map((e) => `${e.tag} ${M(e.value)}`).join(", ") || "—"}</td></tr>
+                  <tr key={q.end}><td className="mono">{q.end}</td><td className="mono">{M(q.revenue)}</td><td className="mono">{M(q.operatingIncome)}</td><td className="mono">{M(q.netIncome)}</td><td className="mono">{M(q.operatingCashFlow)}</td><td className="mono">{q.extraordinary.length === 0 ? "—" : q.extraordinary.map((e) => <div key={e.tag} title={e.tag}><span className={e.value > 0 ? "warn" : ""}>{M(e.value)}</span> <span className="muted">{extraordinarioLabel(e.tag)}</span></div>)}</td></tr>
                 ))}
               </tbody>
             </table>

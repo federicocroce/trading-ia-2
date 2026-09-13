@@ -8,6 +8,7 @@ import { WatchlistButton } from "./WatchlistButton";
 import { usePrices } from "./prices";
 import { Flags } from "./flags";
 import { VerificationSections } from "./Verification";
+import { PeersTable } from "./Peers";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)}%`);
@@ -186,16 +187,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
           <EntryLine e={t.candidate.entry} />
           <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)} pagando hasta {f2(t.candidate.entryHigh)})</div>
-          {t.peers.length > 0 && (
-            <table style={{ marginTop: 8 }}>
-              <thead><tr><th>par</th><th>P/E</th><th>EV/EBITDA</th><th>P/S</th><th>ROE</th><th>margen op.</th><th>crec. ingresos</th><th>deuda/patr.</th></tr></thead>
-              <tbody>
-                {[{ symbol: `${t.symbol} (propia)`, metrics: m, own: true }, ...t.peers.map((p) => ({ ...p, own: false }))].map((p) => (
-                  <tr key={p.symbol}><td>{p.own ? <b>{p.symbol}</b> : <SymbolLink symbol={p.symbol} />}</td><td className="mono">{f2(p.metrics["peTTM"], 1)}</td><td className="mono">{f2(p.metrics["evEbitdaTTM"], 1)}</td><td className="mono">{f2(p.metrics["psTTM"], 1)}</td><td className="mono">{f2(p.metrics["roeTTM"], 1)}</td><td className="mono">{f2(p.metrics["operatingMarginTTM"], 1)}</td><td className="mono">{f2(p.metrics["revenueGrowthTTMYoy"], 1)}</td><td className="mono">{f2(p.metrics["totalDebt/totalEquityAnnual"])}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <PeersTable own={t.symbol} ownMetrics={m} peers={t.peers} asOf={t.fundamentals?.asOf ?? null} />
         </div>
       )}
 
