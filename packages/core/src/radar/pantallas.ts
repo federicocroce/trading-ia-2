@@ -15,11 +15,11 @@ import type { Finding } from "./consistency.js";
  */
 export interface Pantallas {
   /** Radar → tabla de candidatos y fichas. */
-  candidatos: Array<{ symbol: string; verdict: string; close: number; stop: number | null; flags: string[]; entry?: { state: string; low: number; high: number } | null }>;
+  candidatos: Array<{ symbol: string; verdict: string; close: number; stop: number | null; target?: number | null; flags: string[]; entry?: { state: string; low: number; high: number } | null }>;
   /** Radar → plan del aporte. */
   plan: { lines: Array<{ symbol: string; kind: string; close: number | null; stop?: number | null; target?: number | null; entryHigh?: number | null; entry?: { state: string } | null }>; leftOut?: Array<{ symbol: string; reason: string }> } | null;
   /** Cartera → veredicto por posición. */
-  veredictos: Array<{ symbol: string; verb: string; close: number; stop: number | null }>;
+  veredictos: Array<{ symbol: string; verb: string; close: number; stop: number | null; target?: number | null }>;
   /** Hoy → novedades. */
   novedades?: { verdictChanges?: Array<{ symbol: string; from: string; to: string }> } | null;
   /** Cartera → posiciones, tal como se muestran. */
@@ -82,6 +82,17 @@ export function checkPantallas(p: Pantallas): Finding[] {
       add("stop_distinto", l.symbol, "grave", `el plan dice stop ${r2(l.stop)} y el Radar ${r2(c.stop)}: son dos órdenes distintas para la misma posición`);
     }
   }
+
+  // 3b. Una compra tiene un solo objetivo. TSM el 13/9: el Radar decía 498,44 y la línea SUMAR del plan 472,46,
+  //     porque el plan tomaba el stop del Radar y el objetivo de Cartera. El SUMAR de Cartera también es una
+  //     compra; MANTENER no, y su objetivo (desde el cierre) es otra cosa, así que no se compara.
+  const objetivoDistinto = (sym: string, otro: number | null | undefined, donde: string) => {
+    const c = cand.get(sym);
+    if (!c || c.target === null || c.target === undefined || otro === null || otro === undefined) return;
+    if (Math.abs(c.target - otro) > PRECIO_EPSILON) add("objetivo_distinto", sym, "grave", `${donde} dice objetivo ${r2(otro)} y el Radar ${r2(c.target)}: dos objetivos para la misma compra`);
+  };
+  for (const l of p.plan?.lines ?? []) objetivoDistinto(l.symbol, l.target, "el plan");
+  for (const v of p.veredictos) if (v.verb === "SUMAR") objetivoDistinto(v.symbol, v.target, "Cartera (SUMAR)");
 
   // 4. El plan no puede comprar lo que el Radar no tiene en COMPRAR, ni contradecir su momento de entrada.
   for (const l of p.plan?.lines ?? []) {

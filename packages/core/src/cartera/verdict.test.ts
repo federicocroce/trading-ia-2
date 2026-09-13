@@ -64,6 +64,15 @@ describe("decideVerb", () => {
     const v = decideVerb({ ...base, candles: flat30, weightPct: 10 }); // igualitario 20, 80% = 16
     expect(v.verb).toBe("SUMAR");
   });
+  it("TSM del 13/9: SUMAR es una compra y su objetivo sale del techo de la franja, como en el Radar", () => {
+    // El plan mostraba 472,46 (desde el cierre) y el Radar 498,44 (desde el techo de la franja): dos objetivos
+    // para la misma compra. Plana en 100: franja "en zona" hasta 102, stop 95 → 102 + 2 × 7 = 116.
+    const v = decideVerb({ ...base, candles: flat30, weightPct: 10 });
+    expect(v.target).toBe(116);
+    expect(v.reason).toContain("116");
+    // MANTENER no es una compra: su objetivo sigue desde el cierre.
+    expect(decideVerb({ ...base, candles: flat30 }).target).toBe(110);
+  });
 });
 
 describe("sumarCriteria", () => {

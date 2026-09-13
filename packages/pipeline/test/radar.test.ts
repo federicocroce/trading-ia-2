@@ -226,6 +226,25 @@ describe("plan y medición", () => {
   });
 });
 
+describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
+  it("TSM del 13/9: stop y objetivo salen de la misma fila del Radar, no el stop de un lado y el objetivo del otro", async () => {
+    const { store, d } = deps();
+    await store.upsertPosition({ symbol: "SA", quantity: 10, avgCost: 50, currency: "USD", market: "us", layer: "riesgo", notes: null });
+    await store.saveRisk(TODAY, { totalValue: 100_000, weights: [{ symbol: "SA", value: 1000, weightPct: 1 }], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, risk: { portfolioVolPct: null, spyVolPct: null, r2VsSpy: null, worstDayPct: null, sessions: 0 }, liquidity: [], notes: [] });
+    // Cartera calculó su objetivo aparte (472,46 en el caso real); el Radar tiene otro.
+    await store.upsertVerdicts([{ verdictDate: TODAY, symbol: "SA", verb: "SUMAR", reason: "r", narrative: null, warning: null, close: 100, spot: null, stop: 95.05, target: 111.11, gainPct: 0, weightPct: 1, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null }]);
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const radar = (await store.latestCandidates()).find((c) => c.symbol === "SA")!;
+    const plan = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
+    const linea = plan.lines.find((l) => l.symbol === "SA" && l.kind === "sumar");
+    if (!linea) expect.fail(`SA no quedó como SUMAR: ${plan.lines.map((l) => `${l.symbol}:${l.kind}`).join(" ")}`);
+    expect(radar.target).not.toBe(111.11);
+    expect(linea.stop).toBe(radar.stop);
+    expect(linea.target).toBe(radar.target);
+  });
+});
+
 describe("applyTaxonomy", () => {
   it("regla no pisa manual", async () => {
     const { store, d } = deps();

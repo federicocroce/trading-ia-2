@@ -37,6 +37,27 @@ describe("checkPantallas", () => {
     expect(f[0]!.severity).toBe("grave");
   });
 
+  describe("dos objetivos para la misma compra (TSM, 13/9)", () => {
+    // El Radar decía 498,44 y la línea SUMAR del plan 472,46: el plan tomaba el stop del Radar y el objetivo de Cartera.
+    const radar = cand("TSM", { close: 433.24, stop: 413.63, target: 498.44 });
+    it("plan contra Radar", () => {
+      const f = solo("objetivo_distinto", checkPantallas({ ...base, candidatos: [radar], plan: { lines: [linea("TSM", { kind: "sumar", close: 433.24, stop: 413.63, target: 472.46 })] } }));
+      expect(f).toHaveLength(1);
+      expect(f[0]!.severity).toBe("grave");
+      expect(f[0]!.detail).toContain("472.46");
+    });
+    it("SUMAR de Cartera contra Radar; MANTENER no es una compra y no se compara", () => {
+      const sumar = solo("objetivo_distinto", checkPantallas({ ...base, candidatos: [radar], veredictos: [{ symbol: "TSM", verb: "SUMAR", close: 433.24, stop: 413.63, target: 472.46 }] }));
+      expect(sumar).toHaveLength(1);
+      const mantener = solo("objetivo_distinto", checkPantallas({ ...base, candidatos: [radar], veredictos: [{ symbol: "TSM", verb: "MANTENER", close: 433.24, stop: 413.63, target: 472.46 }] }));
+      expect(mantener).toEqual([]);
+    });
+    it("iguales, no se reporta", () => {
+      const f = solo("objetivo_distinto", checkPantallas({ ...base, candidatos: [radar], plan: { lines: [linea("TSM", { kind: "sumar", close: 433.24, stop: 413.63, target: 498.44 })] }, veredictos: [{ symbol: "TSM", verb: "SUMAR", close: 433.24, stop: 413.63, target: 498.44 }] }));
+      expect(f).toEqual([]);
+    });
+  });
+
   it("el plan compra algo que el Radar no tiene en COMPRAR", () => {
     const f = solo("plan_contra_radar", checkPantallas({ ...base, candidatos: [cand("DVA", { verdict: "OBSERVAR" })], plan: { lines: [linea("DVA")] } }));
     expect(f).toHaveLength(1);

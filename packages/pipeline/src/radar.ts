@@ -697,7 +697,12 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       // El stop y el precio salen de la fila del Radar cuando el símbolo está en la corrida de hoy. Antes
       // el plan usaba los del veredicto de Cartera, calculados en otro momento: TSM mostraba 428,03 en el
       // plan y 433,24 en el Radar, con dos stops distintos, o sea dos órdenes para la misma posición.
-      sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => ({ symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: candidatePorSimbolo.get(v.symbol)?.stop ?? v.stop, target: v.target, caution: sumarCaution(v.symbol) })),
+      // Y el objetivo también: con el stop de un lado y el objetivo del otro, TSM el 13/9 mostraba 472,46 en el
+      // plan y 498,44 en el Radar. Los dos números de una orden salen de la misma fila.
+      sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => {
+        const c = candidatePorSimbolo.get(v.symbol);
+        return { symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: c ? c.stop : v.stop, target: c ? c.target : v.target, caution: sumarCaution(v.symbol) };
+      }),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
       // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
       buyCandidates: candidates

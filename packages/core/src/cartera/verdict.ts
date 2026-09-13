@@ -1,3 +1,4 @@
+import { entryTiming } from "../radar/entry.js";
 import { computeTarget, computeTrailingStop } from "./stop.js";
 import { noticiasLeidas, tesisAlerts, type TesisInput } from "./tesis.js";
 import type { Candle, Layer, Verb } from "./types.js";
@@ -103,7 +104,12 @@ export function decideVerb(i: VerdictInput): PositionVerdict {
   }
 
   if (sumar.ok) {
-    return { ...base, verb: "SUMAR", reason: `Candidata a aporte: ${sumar.why}. Stop $${stop}, objetivo $${target}.`, warning: null };
+    // SUMAR es una COMPRA: su objetivo sale del techo de la franja de compra, igual que en el Radar. TSM el 13/9
+    // tenía 472,46 en el plan (desde el cierre) y 498,44 en el Radar (desde el techo de la franja): dos objetivos
+    // para la misma orden. MANTENER no compra nada, así que ahí el objetivo sigue midiéndose desde el cierre.
+    const techo = entryTiming(i.candles)?.high ?? close;
+    const objetivoCompra = computeTarget(techo, stop);
+    return { ...base, target: objetivoCompra, verb: "SUMAR", reason: `Candidata a aporte: ${sumar.why}. Stop $${stop}, objetivo $${objetivoCompra} (2 a 1 desde $${techo}, el techo de la franja de compra).`, warning: null };
   }
   return { ...base, verb: "MANTENER", reason: `Dejá correr. Tu stop sube solo a $${stop} y el objetivo es $${target}: salís solo si cierra abajo.`, warning: avisoNoticias };
 }
