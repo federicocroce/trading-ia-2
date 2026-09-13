@@ -57,6 +57,24 @@ describe("checkPantallas", () => {
     expect(f).toHaveLength(1);
   });
 
+  it("V del 12/9: el objetivo no puede quedar debajo del precio que la misma línea manda pagar", () => {
+    const f = solo("objetivo_bajo_la_entrada", checkPantallas({
+      ...base, candidatos: [cand("V")],
+      plan: { lines: [linea("V", { entryHigh: 377.86, target: 375.05, stop: 368.15 })] },
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("nace perdida");
+  });
+
+  it("una línea sana, con el objetivo arriba de la entrada, no se reporta", () => {
+    const f = solo("objetivo_bajo_la_entrada", checkPantallas({
+      ...base, candidatos: [cand("NBN")],
+      plan: { lines: [linea("NBN", { entryHigh: 135.29, target: 150.43, stop: 127.72 })] },
+    }));
+    expect(f).toEqual([]);
+  });
+
   it("TSM del 12/9: un símbolo no puede recibir plata dos veces en el mismo plan", () => {
     const f = solo("simbolo_duplicado", checkPantallas({
       ...base, candidatos: [cand("TSM")],
