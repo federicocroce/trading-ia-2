@@ -30,6 +30,22 @@ describe("materialHeadlines (patrones)", () => {
     expect(kind("X recorta la guía anual")).toBe("guidance");
     expect(kind("12 Health Care Stocks Moving In Friday's Session")).toBeNull();
   });
+  it("NVDA del 10/9: los cinco titulares de la investigación del DOJ al acuerdo con Groq pasan como regulatorios", () => {
+    // Estaban guardados y el prefiltro no los reconocía: el único patrón "regulatorio" era de la FDA. NVDA figuraba
+    // con cero eventos mientras el DOJ investigaba su operación más grande.
+    for (const h of [
+      "Market Chatter: Justice Department Probes Nvidia Licensing Deal With Groq",
+      "Nvidia Stock Falls. DOJ Probes $20 Billion Groq Deal",
+      "Nvidia's $17 Billion Groq License Draws a DOJ Investigation",
+      "No Acquisition, Same Prize? NVIDIA’s Groq Deal Faces DOJ Antitrust Probe",
+      "'Regulators Are Investigating Nvidia’s Licensing Deal With Groq' - The New York Times",
+    ]) expect(kind(h)).toBe("regulatorio");
+    expect(kind("FTC sues to block X's acquisition of Y")).toBe("regulatorio");
+    expect(kind("European Commission opens antitrust investigation into X")).toBe("regulatorio");
+    // Lo que no es: una nota de analista sigue siendo de analista y una investigación de la SEC sigue siendo contable.
+    expect(kind("Nvidia price target raised to $300 from $280 at UBS")).toBe("analista");
+    expect(kind("X discloses SEC investigation into revenue recognition")).toBe("contable");
+  });
 });
 
 describe("parseAnalystAction", () => {

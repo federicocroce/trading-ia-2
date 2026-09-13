@@ -36,6 +36,19 @@ describe("scanEventsFor", () => {
     expect(classified).toEqual([2]); // la segunda vez no hay titulares nuevos para el modelo
     expect(r.events).toHaveLength(1);
   });
+  it("un cambio de prefiltro alcanza a lo ya guardado: el titular del DOJ del 10/9 se clasifica en el próximo barrido", async () => {
+    // NVDA ya estaba barrida hasta el 12/9 cuando el prefiltro aprendió a reconocer antimonopolio. Como el barrido es
+    // incremental, sin esto los titulares del 10/9 no se volvían a mirar nunca.
+    const store = new MemoryStore();
+    const doj: NewsItem = { symbol: "NVDA", date: "2026-09-10", headline: "Nvidia Stock Falls. DOJ Probes $20 Billion Groq Deal", source: "Barron's", url: "https://n/doj", summary: null };
+    await store.upsertNews([doj]);
+    await store.setNewsScannedTo("NVDA", "2026-09-12");
+    const recibidos: string[] = [];
+    const classifier: EventClassifier = { promptVersion: "e", classify: async (i) => { recibidos.push(...i.items.map((x) => x.headline)); return i.items.map((x) => ({ date: x.date, kind: x.kind, severity: "moderado", headline: x.headline, url: x.url, source: x.source, why: "DOJ" })); } };
+    const r = await scanEventsFor({ store, news: { companyNews: async () => [] as NewsItem[] }, classifier }, "NVDA", { today: "2026-09-13", name: "NVIDIA" });
+    expect(recibidos).toEqual([doj.headline]);
+    expect(r.events).toEqual([{ date: "2026-09-10", kind: "regulatorio", severity: "moderado", headline: doj.headline }]);
+  });
   it("clasificador caído → unclassified, sin avanzar el barrido; sin clasificador → igual", async () => {
     const store = new MemoryStore();
     const news = { companyNews: async () => fixture };

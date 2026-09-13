@@ -12,7 +12,7 @@ import type { RadarStore, TickerStore } from "./store.js";
  * vez sale de `known` y no vuelve a pedirse.
  */
 export interface EventsDeps {
-  store: RadarStore & Pick<TickerStore, "upsertNews">;
+  store: RadarStore & Pick<TickerStore, "upsertNews" | "news">;
   news: { companyNews(symbol: string, from: string, to: string): Promise<NewsItem[]> };
   classifier: EventClassifier | null;
   log?: (msg: string, extra?: unknown) => void;
@@ -24,6 +24,8 @@ export interface EventScan {
 }
 export const EVENT_WINDOW_DAYS = 90;
 const MAX_ITEMS_PER_CALL = 15;
+/** Noticias guardadas que se vuelven a pasar por el prefiltro. NVDA tiene más de 100 por día: alcanza para varios días. */
+const STORED_NEWS_LIMIT = 2_000;
 const DAY = 86_400_000;
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * DAY).toISOString().slice(0, 10);
 
@@ -42,7 +44,12 @@ export async function scanEventsFor(deps: EventsDeps, symbol: string, opts: { to
     deps.log?.(`[radar] noticias de ${sym} fallaron`, { error: String(e).slice(0, 120) });
   }
   if (items.length) await store.upsertNews(items);
-  const matched = materialHeadlines(items);
+  // El prefiltro corre también sobre lo ya guardado de la ventana (13/9). El barrido es incremental: cuando el
+  // prefiltro aprendió a reconocer antimonopolio, los titulares del 10/9 sobre el DOJ y NVDA ya estaban leídos y
+  // no se volvían a mirar nunca. Lo ya clasificado sale de `known` más abajo y no se vuelve a pedir.
+  const guardadas = (await store.news(sym, STORED_NEWS_LIMIT).catch(() => [] as NewsItem[])).filter((n) => n.date >= since);
+  const nuevas = new Set(items.map((n) => n.url));
+  const matched = materialHeadlines([...items, ...guardadas.filter((n) => !nuevas.has(n.url))]);
   // parseAnalystAction corre sobre TODOS los ítems fetched, no solo los que el prefiltro marcó primero como
   // "analista": un titular puede matchear otro tipo primero (ej. "regulatorio") y seguir siendo una acción de analista.
   const actions = items.map((item) => parseAnalystAction(item)).filter((a): a is AnalystAction => a !== null);

@@ -8,6 +8,10 @@ export const EVENT_PATTERNS: Array<{ kind: EventKind; re: RegExp }> = [
   { kind: "regulatorio", re: /negative opinion|\bCHMP\b|complete response letter|\bCRL\b|refus(?:e|es|ed|al) to (?:file|approve)|\breject(?:s|ed)?\b|declin(?:e|es|ed) to approve|clinical hold|withdr(?:aw|aws|ew|awn) (?:its |the )?(?:application|NDA|BLA|MAA)|FDA (?:rejects|declines)|opini[oó]n negativa|rechaz(?:a|o|ó)\b/i },
   { kind: "continuidad", re: /going concern|bankruptcy|chapter 11|\bdefault(?:s|ed)?\b|concurso de acreedores|quiebra/i },
   { kind: "contable", re: /\brestate(?:s|d|ment)?\b|material weakness|SEC (?:investigation|subpoena|probe)|accounting (?:irregularit|probe|investigation)|reexpres/i },
+  // Antimonopolio y reguladores de competencia (13/9). El patrón "regulatorio" de arriba es de la FDA: los cinco
+  // titulares del 10/9 sobre el DOJ investigando el acuerdo NVDA–Groq estaban guardados y nunca llegaron al
+  // clasificador. Va después de "contable" para que una investigación de la SEC siga siendo contable.
+  { kind: "regulatorio", re: /anti-?trust|antimonopolio|\bDOJ\b|Justice Department|Department of Justice|\bFTC\b|Federal Trade Commission|European Commission|\bSAMR\b|competition (?:authority|regulator|watchdog|probe)|regulators? (?:are |is )?(?:prob|investigat)/i },
   { kind: "listado", re: /delist|non-?compliance notice|nasdaq (?:notice|deficiency)|minimum bid price/i },
   { kind: "guidance", re: /(?:cuts?|lowers?|slashes|trims|withdraws?|reduces?) (?:its |full[- ]year |fy ?\d* |annual )?(?:guidance|outlook|forecast)|guidance cut|recorta (?:la )?(?:gu[ií]a|previsiones)/i },
   { kind: "dilucion", re: /public offering|registered direct|at-the-market|convertible (?:senior )?notes|private placement|priced (?:its |an? )?(?:public |underwritten )?offering|shelf registration|ampliaci[oó]n de capital/i },

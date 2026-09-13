@@ -24,6 +24,10 @@ function fakeFetch(args: unknown) {
 }
 
 describe("clasificador de titulares", () => {
+  it("sabe qué hacer con una investigación antimonopolio (NVDA–Groq, 10/9): moderado, no ruido ni grave", () => {
+    // El prefiltro ahora la deja pasar; sin criterio, el modelo no tenía dónde ponerla.
+    expect(EVENTS_SYSTEM).toMatch(/moderado:[^\n]*antimonopolio/);
+  });
   it("el mensaje lleva el id, símbolo, nombre, fecha, fuente, tipo del prefiltro y titular de cada ítem", () => {
     const m = buildEventsMessage(input);
     for (const s of ["ZVRA", "Zevra Therapeutics", "[id 0]", "[id 1]", "2026-07-24", "Benzinga", "regulatorio", "EMA CHMP", "litigio", "law firm"]) expect(m).toContain(s);
