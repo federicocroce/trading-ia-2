@@ -38,10 +38,13 @@ export const CONSENSUS_SCALE = { maxRatio: 2, minRatio: 0.5 };
  * web. null si no hay o si no está en escala contra el precio (split sin ajustar, ver `CONSENSUS_SCALE`).
  */
 export function consensusTargetOf(close: number, analystTargets: AnalystTargets | null | undefined, consensusTarget: number | null | undefined): number | null {
-  const median = analystTargets && analystTargets.n >= 2 && analystTargets.median !== null ? analystTargets.median : (consensusTarget ?? null);
-  if (median === null || !(close > 0)) return null;
-  const ratio = median / close;
-  return ratio > CONSENSUS_SCALE.maxRatio || ratio < CONSENSUS_SCALE.minRatio ? null : median;
+  if (!(close > 0)) return null;
+  const enEscala = (x: number | null | undefined) => x !== null && x !== undefined && x / close <= CONSENSUS_SCALE.maxRatio && x / close >= CONSENSUS_SCALE.minRatio;
+  const titulares = analystTargets && analystTargets.n >= 2 ? analystTargets.median : null;
+  // Si la mediana de titulares es de otra escala (APH el 13/9: 196 de antes del split, con la acción en 83,92),
+  // vale el consenso de la verificación web, que sí está ajustado (100,6).
+  if (enEscala(titulares)) return titulares;
+  return enEscala(consensusTarget) ? consensusTarget! : null;
 }
 
 /** `consenso_en_precio`: potencial del consenso contra el cierre, en %. */

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { atr, buildFlags, buildQuarters, computeTrailingStop, consensusUpsidePct, coreEarnings, decideCandidate, ENTRY_STOP_ATR, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
+import { atr, buildFlags, buildQuarters, computeTrailingStop, consensusTargetOf, consensusUpsidePct, coreEarnings, decideCandidate, ENTRY_STOP_ATR, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01", volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume }));
@@ -88,6 +88,11 @@ describe("consensusUpsidePct", () => {
     // 196 con la acción en 80,25 tras un split 2:1 daba +144%. Ahora no da nada y el chequeo lo reporta.
     expect(consensusUpsidePct(80.25, t(196), null)).toBeNull();
     expect(consensusUpsidePct(100, t(40), null)).toBeNull();
+  });
+  it("APH del 13/9: si la mediana de titulares está fuera de escala (split), vale el consenso de la verificación web", () => {
+    // Los titulares tenían 196 (antes del 2 por 1) y la verificación 100,6. La tarjeta decía "sin consenso".
+    expect(consensusTargetOf(83.92, t(196), 100.6)).toBe(100.6);
+    expect(consensusTargetOf(83.92, t(196), null)).toBeNull();
   });
   it("el consenso de la verificación web pasa por la misma banda", () => {
     expect(consensusUpsidePct(80.25, null, 196)).toBeNull();
