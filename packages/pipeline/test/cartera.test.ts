@@ -44,6 +44,29 @@ describe("runCartera", () => {
     expect((await store.latestRisk())!.report.concentration.byCountry).toEqual({ AR: 50, US: 50 });
     expect(s.errors).toEqual([]);
   });
+  /**
+   * 12/9: el barrido de noticias corría solo sobre las candidatas del ranking. GGAL, HUT, MARA, NEM e YPF
+   * —cinco de las ocho posiciones con plata puesta— no tenían una sola noticia leída nunca, y el veredicto
+   * de mantener se calculaba con la misma lista vacía que devuelve un símbolo verificado y limpio.
+   */
+  it("lee las noticias de cada posición antes de decidir", async () => {
+    const { store, deps } = setup(null);
+    await store.upsertPosition(pos("YPF", 100, 30, "adr"));
+    await store.upsertPosition(pos("TSM", 10, 300));
+    const leidos: string[] = [];
+    await runCartera({ ...deps, scanEvents: async (sym) => { leidos.push(sym); } }, { today });
+    expect(leidos.sort()).toEqual(["TSM", "YPF"]);
+  });
+
+  it("si las noticias de una posición fallan, queda registrado y las demás siguen", async () => {
+    const { store, deps } = setup(null);
+    await store.upsertPosition(pos("YPF", 100, 30, "adr"));
+    await store.upsertPosition(pos("TSM", 10, 300));
+    const s = await runCartera({ ...deps, scanEvents: async (sym) => { if (sym === "YPF") throw new Error("Finnhub 429"); } }, { today });
+    expect(s.verdicts).toHaveLength(2);
+    expect(s.errors).toEqual([{ symbol: "YPF", error: expect.stringContaining("Finnhub 429") }]);
+  });
+
   it("el panel de riesgo usa las etiquetas: concentración por sector y tema", async () => {
     const { store, deps } = setup(null);
     await store.upsertPosition(pos("YPF", 100, 30, "adr"));

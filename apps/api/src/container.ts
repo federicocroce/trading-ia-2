@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, SecStatements, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
-import { DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
+import { DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, todayLocal, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
-import { EdgarDocumentProvider, buildSnapshot, eventUniverse, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
+import { EdgarDocumentProvider, buildSnapshot, eventUniverse, scanEventsFor, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
 import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
 import { KeyedRateLimiter, recordingFetch } from "@thesis/core";
 import { StoreUsageRecorder } from "@thesis/pipeline";
@@ -165,11 +165,12 @@ export function buildContainer(cfg: Config): Container {
     tesis: async (symbol) => {
       const sym = symbol.toUpperCase();
       const desde = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
-      const [verification, eventos, filas, f] = await Promise.all([
+      const [verification, eventos, filas, f, scannedTo] = await Promise.all([
         store.verification(sym).catch(() => null),
         store.eventsFor(sym, desde).catch(() => []),
         store.candidateHistory(sym, 1).catch(() => []),
         store.fundamentals(sym).catch(() => null),
+        store.newsScannedTo(sym).catch(() => null),
       ]);
       const fila = filas[0];
       return {
@@ -177,6 +178,8 @@ export function buildContainer(cfg: Config): Container {
         events: eventos.filter((e) => e.severity !== "ruido").map((e) => ({ date: e.date, kind: e.kind, severity: e.severity, headline: e.headline })),
         qualityFlags: (fila?.flags ?? []).filter((x) => QUALITY_FLAGS.has(x)),
         analyst: f?.analyst ?? null,
+        // Sin esto, "no hay eventos" y "nunca leí una noticia" eran el mismo `events: []`.
+        news: { scannedTo },
       };
     },
     log: (msg, extra) => console.log(msg, extra ?? ""),
@@ -203,6 +206,17 @@ export function buildContainer(cfg: Config): Container {
     eventClassifier: buildEventClassifier(cfg.reasoner, gemini),
     verifier: buildVerifier(cfg.reasoner, gemini),
   };
+
+  // Las noticias de las posiciones se leen con la misma cadena que las candidatas (Finnhub + clasificador):
+  // mismas reglas, mismos eventos, misma marca de hasta cuándo se leyó. Se ata acá porque `finnhub` recién
+  // existe a esta altura.
+  if (radarDeps.news) {
+    const eventsDeps = { store, news: radarDeps.news, classifier: radarDeps.eventClassifier ?? null, log: (m: string, extra?: unknown) => console.log(m, extra ?? "") };
+    carteraDeps.scanEvents = async (symbol) => {
+      const profile = await store.profile(symbol).catch(() => null);
+      await scanEventsFor(eventsDeps, symbol, { today: todayLocal(), name: profile?.profile.name ?? null });
+    };
+  }
 
   // Argentina: Yahoo para `.BA` y el Merval (en pesos), dolarapi + argentinadatos para el macro, Alpaca para el precio US de los CEDEARs.
   const argentinaDeps: ArgentinaDeps = {

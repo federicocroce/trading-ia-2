@@ -22,6 +22,22 @@ export interface TesisInput {
   qualityFlags?: string[];
   /** Recomendaciones de analistas del período más reciente. */
   analyst?: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number } | null;
+  /**
+   * Hasta qué fecha se leyeron las noticias de este símbolo (`radar_news_scans`). Tres estados a propósito:
+   * el campo ausente es "quien llama no sabe" (los tests viejos y cualquier uso sin barrido siguen igual),
+   * `scannedTo: null` es **nunca se leyeron**, y una fecha es hasta cuándo.
+   *
+   * Existe porque el 12/9 la app mostraba "ningún evento detectado" en GGAL, HUT, MARA, NEM e YPF, cinco de
+   * las ocho posiciones con plata, y en ninguna se había leído jamás una noticia. `events: []` significaba
+   * las dos cosas y la pantalla elegía la optimista.
+   */
+  news?: { scannedTo: string | null };
+}
+
+/** ¿La app puede afirmar que no hubo eventos? Solo si efectivamente leyó las noticias. */
+export function noticiasLeidas(i: TesisInput): boolean | null {
+  if (i.news === undefined) return null;
+  return i.news.scannedTo !== null;
 }
 
 /** A partir de cuántas salvedades de calidad se pide revisar. Igual que para comprar: dos. */

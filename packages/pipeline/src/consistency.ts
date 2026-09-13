@@ -37,7 +37,10 @@ export async function checkRun(deps: Pick<RadarDeps, "store" | "log">, opts: { t
       mcaps[r.symbol] = f.mcapUsd;
     }
   }
-  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, today: opts.today });
+  // Hasta qué fecha se leyeron las noticias de cada símbolo: es lo que separa "no hubo eventos" de "nadie miró".
+  const newsScannedTo: Record<string, string | null> = {};
+  for (const r of rows) newsScannedTo[r.symbol] = await deps.store.newsScannedTo(r.symbol).catch(() => null);
+  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, newsScannedTo, today: opts.today });
   const { graves, avisos } = summarizeFindings(findings);
   if (findings.length === 0) deps.log?.(`[consistencia] ${rows.length} filas revisadas: sin contradicciones`);
   else {

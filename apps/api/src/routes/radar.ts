@@ -91,7 +91,7 @@ export function radarRoutes(c: Container) {
     const cand = (await store.latestCandidates()).find((r) => r.symbol === symbol);
     if (!cand) return ctx.json({ error: "no es candidato vigente" }, 404);
     const since = new Date(Date.parse(today(ctx)) - 90 * 86_400_000).toISOString().slice(0, 10);
-    const [fundamentals, tags, profile, statements, events, analystActions] = await Promise.all([store.fundamentals(symbol), store.tags(symbol), store.profile(symbol), store.statements(symbol), store.eventsFor(symbol, since), store.analystActions(symbol, since)]);
+    const [fundamentals, tags, profile, statements, events, analystActions, newsScannedTo] = await Promise.all([store.fundamentals(symbol), store.tags(symbol), store.profile(symbol), store.statements(symbol), store.eventsFor(symbol, since), store.analystActions(symbol, since), store.newsScannedTo(symbol)]);
     const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
     const peers: Array<{ symbol: string; metrics: Record<string, number | null> }> = [];
     for (const p of cand.peerGroup) {
@@ -99,7 +99,7 @@ export function radarRoutes(c: Container) {
       if (f) peers.push({ symbol: p, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])) });
     }
     const verification = await store.verification(symbol).catch(() => null);
-    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions, verification });
+    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions, newsScannedTo, verification });
   });
   app.get("/radar/etfs", async (ctx) => ctx.json(await withTags((await candidatesAt(ctx)).filter((r) => r.kind === "etf"))));
 

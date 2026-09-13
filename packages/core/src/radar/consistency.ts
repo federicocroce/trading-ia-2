@@ -40,6 +40,11 @@ export interface ConsistencyInput {
   metrics?: Record<string, Record<string, number | null | undefined>>;
   /** Fecha de la corrida. Una fila fechada más adelante que hoy es una corrida con el reloj mal. */
   today?: string;
+  /**
+   * Hasta qué fecha se leyeron las noticias de cada símbolo (`null` = nunca). Sin esto el chequeo se saltea;
+   * con esto se puede distinguir "no hubo eventos" de "nadie miró", que hasta el 12/9 eran el mismo vacío.
+   */
+  newsScannedTo?: Record<string, string | null>;
 }
 
 export const CONSISTENCY_THRESHOLDS = {
@@ -175,6 +180,24 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     // 7. Un COMPRAR sin momento de entrada no puede decir cuándo comprar. El núcleo no cuenta: va por calendario.
     if (row.verdict === "COMPRAR" && (row.kind === "stock" || row.kind === "etf" || row.kind === "watch") && !row.entry) {
       add("compra_sin_momento", row.symbol, "aviso", "queda COMPRAR pero no tiene momento de entrada: la app no puede decir cuándo entrar");
+    }
+
+    // 8. Un objetivo por debajo del precio de hoy solo se entiende si la entrada también está por debajo.
+    //    EWT el 12/9: COMPRAR, precio 110,91, objetivo 110,69. No estaba mal calculado (el 2 a 1 se mide
+    //    desde la franja 106,75–107,83, a la que hay que esperar), pero la tabla no mostraba la franja y la
+    //    fila se leía como "comprá a 110,91 para vender a 110,69". El error era de la pantalla, no del número.
+    if (row.target !== null && row.close > 0 && row.target < row.close) {
+      const techo = row.entry?.high ?? row.entryHigh ?? null;
+      if (techo === null || techo >= row.close) {
+        add("objetivo_bajo_el_precio", row.symbol, "grave", `objetivo ${r2(row.target)} por debajo del precio ${r2(row.close)} sin una entrada más abajo que lo explique`);
+      }
+    }
+
+    // 9. La app no puede afirmar que no hubo eventos en un símbolo cuyas noticias nunca leyó. El 12/9 esto
+    //    valía para 47 de 91 filas y para cinco de las ocho posiciones con plata puesta, y las tres
+    //    pantallas mostraban "ninguno detectado en noticias" igual que en las verificadas.
+    if (i.newsScannedTo && row.kind === "stock" && i.newsScannedTo[row.symbol] === null) {
+      add("noticias_sin_leer", row.symbol, "aviso", "es candidata y nunca se leyó una noticia suya: sus eventos vacíos no prueban nada");
     }
   }
 

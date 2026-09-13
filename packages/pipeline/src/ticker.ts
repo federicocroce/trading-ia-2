@@ -31,6 +31,12 @@ export interface TickerPage {
   statements: Statements | null;
   events: RadarEvent[];
   analystActions: AnalystAction[];
+  /**
+   * Hasta qué fecha se leyeron las noticias de este símbolo. `null` = nunca se leyeron, y entonces una lista
+   * de eventos vacía no significa que no haya pasado nada: significa que nadie miró. La pantalla tiene que
+   * poder distinguir las dos cosas.
+   */
+  newsScannedTo: string | null;
   /** Verificación web del candidato (spec 2026-09-10), si existe. */
   verification: CandidateVerification | null;
   theses: Thesis[];
@@ -211,11 +217,12 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     : null;
   const candidate = candidates.find((c) => c.symbol === symbol) ?? null;
   const since90 = addDays(opts.today, -90);
-  const [statements, allEvents, analystActions, verification] = await Promise.all([
+  const [statements, allEvents, analystActions, verification, newsScannedTo] = await Promise.all([
     store.statements(symbol).catch(() => null),
     store.eventsFor(symbol, since90).catch(() => []),
     store.analystActions(symbol, since90).catch(() => []),
     store.verification(symbol).catch(() => null),
+    store.newsScannedTo(symbol).catch(() => null),
   ]);
   const events = allEvents.filter((e) => e.severity !== "ruido");
   const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
@@ -248,6 +255,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     statements,
     events,
     analystActions,
+    newsScannedTo,
     verification,
     theses,
     transactions: mine,

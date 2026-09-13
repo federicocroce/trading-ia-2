@@ -248,4 +248,50 @@ describe("checkConsistency", () => {
     });
     expect(summarizeFindings(f)).toEqual({ graves: 1, avisos: 1, total: 2 });
   });
+
+  it("EWT del 12/9: un objetivo por debajo del precio, sin entrada más abajo que lo explique", () => {
+    // El caso real era legítimo (entrada 106,75–107,83, objetivo 110,69 desde ahí) y la pantalla lo
+    // escondía. Acá se prueba la versión que sí es un error: el mismo objetivo bajo el precio pero
+    // mandando entrar AL precio de hoy.
+    const f = solo("objetivo_bajo_el_precio", checkConsistency({
+      rows: [fila({ symbol: "EWT", kind: "etf", close: 110.91, entryLow: 110.91, entryHigh: 113.13, stop: 106.4, target: 110.69, entry: null })],
+      candles: { EWT: [vela("2026-09-11", 110.91)] },
+      plan: null,
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+  });
+
+  it("el EWT real, con la franja de compra por debajo, no se reporta: el 2 a 1 se mide desde ahí", () => {
+    const f = solo("objetivo_bajo_el_precio", checkConsistency({
+      rows: [fila({
+        symbol: "EWT", kind: "etf", close: 110.91, entryLow: 106.75, entryHigh: 107.83, stop: 106.4, target: 110.69,
+        entry: { state: "esperar_retroceso", level: 106.75, levelLabel: "su media de 20", low: 106.75, high: 107.83, validSessions: 15, sma20: 106.75, sma50: 104, atr14: 1.5, extensionAtr: 2.8, rangePct60: 92, why: "está 2,8 ATR sobre su media de 20" },
+      })],
+      candles: { EWT: [vela("2026-09-11", 110.91)] },
+      plan: null,
+    }));
+    expect(f).toEqual([]);
+  });
+
+  it("12/9: una candidata cuyas noticias nunca se leyeron no puede pasar por verificada", () => {
+    const f = solo("noticias_sin_leer", checkConsistency({
+      rows: [fila({ symbol: "NEM" })],
+      candles: { NEM: [vela("2026-09-11", 100)] },
+      plan: null,
+      newsScannedTo: { NEM: null },
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.detail).toContain("nunca se leyó");
+  });
+
+  it("con las noticias leídas no se reporta nada", () => {
+    const f = solo("noticias_sin_leer", checkConsistency({
+      rows: [fila({ symbol: "NEM" })],
+      candles: { NEM: [vela("2026-09-11", 100)] },
+      plan: null,
+      newsScannedTo: { NEM: "2026-09-12" },
+    }));
+    expect(f).toEqual([]);
+  });
 });

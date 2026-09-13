@@ -41,7 +41,30 @@ function WebVerification({ v, close }: { v: CandidateVerification | null | undef
  */
 const enEscala = (objetivo: number, precio: number) => precio > 0 && objetivo <= precio * 2 && objetivo >= precio * 0.5;
 
-export function VerificationSections({ statements, events, analystActions, analystTargets, close, metricsRaw, verification }: { statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[]; analystTargets?: AnalystTargets | null; close: number | null; metricsRaw?: Record<string, number | null> | null; verification?: CandidateVerification | null }) {
+/**
+ * Ventana de noticias que la app dice mirar. Tiene que coincidir con EVENT_WINDOW_DAYS del barrido y con el
+ * `since` de los dos endpoints que alimentan esta pantalla.
+ */
+const VENTANA_DIAS = 90;
+const desdeHace = (dias: number) => new Date(Date.now() - dias * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Qué se puede afirmar sobre las noticias de este símbolo (12/9). Tres estados, no dos:
+ *
+ * `null` = nunca se leyó una noticia. Ese día 47 de 91 filas del Radar y cinco de las ocho posiciones con
+ * plata puesta estaban así, y las tres pantallas decían "ninguno detectado en noticias", que es una
+ * afirmación sobre el mundo hecha sin haber mirado. Es exactamente el error que el dueño viene marcando:
+ * el hueco se presentaba como un resultado.
+ */
+function EstadoDelBarrido({ scannedTo }: { scannedTo: string | null | undefined }) {
+  if (scannedTo === undefined) return null;
+  if (scannedTo === null) {
+    return <div className="warn" style={{ fontSize: 12 }}>Nunca se leyeron las noticias de este símbolo: lo de abajo está vacío porque nadie miró, no porque no haya pasado nada. Las noticias se leen de las candidatas del ranking y de las posiciones de la cartera.</div>;
+  }
+  return <div className="muted" style={{ fontSize: 12 }}>Noticias leídas del {desdeHace(VENTANA_DIAS)} al {scannedTo}.</div>;
+}
+
+export function VerificationSections({ statements, events, analystActions, analystTargets, close, metricsRaw, verification, newsScannedTo }: { statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[]; analystTargets?: AnalystTargets | null; close: number | null; metricsRaw?: Record<string, number | null> | null; verification?: CandidateVerification | null; newsScannedTo?: string | null }) {
   const core = statements?.core ?? null;
   const last4 = statements?.quarters.slice(-4) ?? [];
   const corePe = core?.coreEpsTTM && core.coreEpsTTM > 0 && close ? (close / core.coreEpsTTM).toFixed(1) : "—";
@@ -86,7 +109,8 @@ export function VerificationSections({ statements, events, analystActions, analy
       </div>
       <div style={{ marginTop: 10 }}>
         <b>Eventos materiales (90 días)</b>
-        {events.length === 0 ? <div className="muted">ninguno detectado en noticias</div> : events.map((e) => (
+        <EstadoDelBarrido scannedTo={newsScannedTo} />
+        {events.length === 0 ? <div className="muted">{newsScannedTo === null ? "sin eventos guardados" : "ninguno detectado en las noticias leídas"}</div> : events.map((e) => (
           <div key={e.url}><span className={`flag ${e.severity === "grave" ? "bad" : "warn"}`}>{e.severity}</span> <span className="mono">{e.date}</span> · {e.kind} · <a href={e.url} target="_blank" rel="noreferrer">{e.headline}</a>{e.why && <span className="muted"> · {e.why}</span>}</div>
         ))}
       </div>
@@ -107,7 +131,7 @@ export function VerificationSections({ statements, events, analystActions, analy
             y comparalo con el más reciente, que sí está en escala.
           </div>
         )}
-        {analystActions.length === 0 ? <div className="muted">sin acciones reconocidas en titulares</div> : analystActions.map((a) => (
+        {analystActions.length === 0 ? <div className="muted">{newsScannedTo === null ? "sin titulares leídos: no hay de dónde reconocer una acción de analista" : "sin acciones reconocidas en los titulares leídos"}</div> : analystActions.map((a) => (
           <div key={a.url} className="mono"><span>{a.date}</span> · {a.firm} · {a.action}{a.rating ? ` ${a.rating}` : ""}{a.target !== null ? ` · objetivo ${a.target}` : ""}
             {a.target !== null && close ? (enEscala(a.target, close)
               ? <span className={a.target > close ? "ok" : "bad"}> ({(((a.target - close) / close) * 100).toFixed(0)}%)</span>

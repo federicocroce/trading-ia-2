@@ -76,6 +76,37 @@ describe("sumarCriteria", () => {
     expect(sumarCriteria({ ...ok, stop: null }).ok).toBe(false);
     expect(sumarCriteria({ ...ok, return21dPct: null }).ok).toBe(false);
   });
+  it("no si nunca se leyeron las noticias del símbolo", () => {
+    const r = sumarCriteria({ ...ok, noticiasLeidas: false });
+    expect(r.ok).toBe(false);
+    expect(r.why).toContain("no leí las noticias");
+  });
+  it("con las noticias leídas, o sin saberlo, sigue valiendo como antes", () => {
+    expect(sumarCriteria({ ...ok, noticiasLeidas: true }).ok).toBe(true);
+    expect(sumarCriteria({ ...ok, noticiasLeidas: null }).ok).toBe(true);
+  });
+});
+
+/**
+ * GGAL, HUT, MARA, NEM e YPF el 12/9: cinco de las ocho posiciones con plata puesta y ni una noticia leída
+ * jamás. El veredicto se calculaba con `events: []`, que es lo mismo que devuelve un símbolo verificado y
+ * limpio, así que la app proponía SUMAR sin haber mirado nada.
+ */
+describe("una posición cuyas noticias nunca se leyeron", () => {
+  it("no se propone para sumar, y el motivo lo dice", () => {
+    const v = decideVerb({ ...base, candles: flat30, weightPct: 10, tesis: { news: { scannedTo: null } } });
+    expect(v.verb).toBe("MANTENER");
+    expect(v.warning).toContain("No leí las noticias");
+  });
+  it("pero tampoco pasa a REVISAR: no mirar no es lo mismo que encontrar algo malo", () => {
+    const v = decideVerb({ ...base, candles: flat30, weightPct: 10, tesis: { news: { scannedTo: null } } });
+    expect(v.tesisAlerts ?? []).toEqual([]);
+  });
+  it("leídas y sin eventos, vuelve a ser candidata a sumar y sin aviso", () => {
+    const v = decideVerb({ ...base, candles: flat30, weightPct: 10, tesis: { news: { scannedTo: "2026-08-31" }, events: [] } });
+    expect(v.verb).toBe("SUMAR");
+    expect(v.warning).toBeNull();
+  });
 });
 
 describe("applyDegrade", () => {

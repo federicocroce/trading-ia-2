@@ -1,5 +1,5 @@
 import { computeTarget, computeTrailingStop } from "./stop.js";
-import { tesisAlerts, type TesisInput } from "./tesis.js";
+import { noticiasLeidas, tesisAlerts, type TesisInput } from "./tesis.js";
 import type { Candle, Layer, Verb } from "./types.js";
 
 export interface VerdictInput {
@@ -40,8 +40,12 @@ export function isStale(lastCandleDate: string, today: string, maxCalendarDays =
   return (Date.parse(today) - Date.parse(lastCandleDate)) / DAY > maxCalendarDays;
 }
 
-export function sumarCriteria(i: { weightPct: number; positionsCount: number; close: number; stop: number | null; return21dPct: number | null }): { ok: boolean; why: string } {
+export function sumarCriteria(i: { weightPct: number; positionsCount: number; close: number; stop: number | null; return21dPct: number | null; noticiasLeidas?: boolean | null }): { ok: boolean; why: string } {
   const equal = 100 / Math.max(1, i.positionsCount);
+  // Poner MÁS plata en algo cuyas noticias nunca se leyeron es la única de las cuatro condiciones que no
+  // habla del precio: habla de lo que la app no miró. Esta regla solo QUITA un premio (deja de proponer
+  // sumar); nunca convierte un MANTENER en una alarma, porque "no miré" no es "pasó algo".
+  if (i.noticiasLeidas === false) return { ok: false, why: "no leí las noticias de este símbolo: no puedo afirmar que no pasó nada" };
   if (i.stop === null) return { ok: false, why: "sin stop" };
   if (i.return21dPct === null) return { ok: false, why: "sin retorno de 21 velas" };
   if (i.weightPct >= 0.8 * equal) return { ok: false, why: `pesa ${round2(i.weightPct)}% ≥ 80% del igualitario (${round2(equal)}%)` };
@@ -79,7 +83,10 @@ export function decideVerb(i: VerdictInput): PositionVerdict {
     return { ...base, verb: "MANTENER", reason: "No pude calcular el stop: faltan velas (necesito 23). Mantené y revisá a mano.", warning: "Sin stop dinámico hasta tener 23 velas." };
   }
   const return21dPct = i.candles.length >= 22 ? round2((close / i.candles[i.candles.length - 22]!.close - 1) * 100) : null;
-  const sumar = sumarCriteria({ weightPct: i.weightPct, positionsCount: i.positionsCount, close, stop, return21dPct });
+  const leidas = i.tesis ? noticiasLeidas(i.tesis) : null;
+  const sumar = sumarCriteria({ weightPct: i.weightPct, positionsCount: i.positionsCount, close, stop, return21dPct, noticiasLeidas: leidas });
+  // Lo que la app no leyó se dice en la ficha, no se esconde ni se disfraza de "todo tranquilo".
+  const avisoNoticias = leidas === false ? "No leí las noticias de este símbolo: que no figure un evento no significa que no lo haya habido." : null;
 
   // La tesis no vende sola: el stop sigue siendo la única regla dura de salida. Pero si el negocio cambió,
   // no se puede seguir diciendo "dejá correr" ni proponer poner más plata como si nada hubiera pasado.
@@ -98,7 +105,7 @@ export function decideVerb(i: VerdictInput): PositionVerdict {
   if (sumar.ok) {
     return { ...base, verb: "SUMAR", reason: `Candidata a aporte: ${sumar.why}. Stop $${stop}, objetivo $${target}.`, warning: null };
   }
-  return { ...base, verb: "MANTENER", reason: `Dejá correr. Tu stop sube solo a $${stop} y el objetivo es $${target}: salís solo si cierra abajo.`, warning: null };
+  return { ...base, verb: "MANTENER", reason: `Dejá correr. Tu stop sube solo a $${stop} y el objetivo es $${target}: salís solo si cierra abajo.`, warning: avisoNoticias };
 }
 
 /** El modelo solo puede degradar MANTENER/SUMAR a REVISAR. Cualquier otra cosa se ignora. */

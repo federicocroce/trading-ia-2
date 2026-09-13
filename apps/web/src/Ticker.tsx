@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type TickerPage, type WatchItem } from "./api";
+import { api, type Candidate, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
@@ -163,14 +163,18 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           plata puesta, la app tenía la verificación con reservas y seis recortes de precio objetivo, y la
           ficha no mostraba nada mientras Cartera decía SUMAR. La evidencia que contradice al veredicto es
           justo la que no puede depender de estar en el ranking del día. */}
-      {(t.verification || t.statements || t.events.length > 0 || t.analystActions.length > 0) && (
+      {/* También se dibuja cuando NO hay nada que mostrar, si el símbolo es una posición o una candidata: ahí el
+          hueco es la información. Con la condición vieja, un símbolo sin estados y sin noticias leídas no
+          dibujaba la tarjeta y la pantalla quedaba idéntica a la de uno verificado y limpio. */}
+      {(t.verification || t.statements || t.events.length > 0 || t.analystActions.length > 0 || t.position || t.candidate) && (
         <div className="card">
           <b>Verificación y estados</b>
           {!t.candidate && <span className="muted"> · no es candidata del Radar hoy, pero esto es lo que la app sabe del negocio</span>}
-          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} />
+          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} newsScannedTo={t.newsScannedTo} />
         </div>
       )}
-      {t.candidate && (t.candidate.kind === "stock" || t.candidate.kind === "etf") && (
+      {t.candidate && t.candidate.kind === "etf" && <EtfCard c={t.candidate} />}
+      {t.candidate && t.candidate.kind === "stock" && (
         <div className="card">
           <b>Radar</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">score {f2(t.candidate.score)} · rank {t.candidate.rankInGroup}/{t.candidate.groupSize} entre pares · riesgo {t.candidate.riskScore}/10 · {t.candidate.candidateDate}</span>
           {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}><Flags flags={t.candidate.flags} /></div>}
@@ -238,5 +242,35 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
       {t.pending.length > 0 && <div className="card muted">Completando {t.pending.join(", ")}…</div>}
       {t.errors.length > 0 && <div className="card muted">Fuentes que no respondieron: {t.errors.join(" · ")}</div>}
     </>
+  );
+}
+
+/**
+ * ETF en la ficha del ticker (12/9). Antes compartía tarjeta con las acciones y el resultado mentía tres
+ * veces en la misma línea: "score — · rank / entre pares · riesgo /10" (un ETF no se puntúa contra pares ni
+ * se le calcula riesgo, así que los tres salían vacíos con su rótulo puesto), y "ejes (z vs pares): rs3m
+ * 2.76 · rs6m -3.25 · rs12m 45.88" con nombres crudos, cuando no son z de nada: son PORCENTAJES de fuerza
+ * relativa contra SPY. Leído como z, un 45,88 es imposible; leído como lo que es, dice que COPX le sacó
+ * 45,9% al SPY en doce meses, que es toda la tesis del ETF.
+ */
+function EtfCard({ c }: { c: Candidate }) {
+  const nucleo = c.verdict === "NUCLEO";
+  return (
+    <div className="card">
+      <b>Radar · ETF</b> <span className={`verb ${c.verdict}`}>{c.verdict}</span> <span className="muted">{c.candidateDate}</span>
+      <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+        {nucleo
+          ? "Del núcleo: se compra por calendario con el aporte del mes y se mantiene. No se le busca el momento, no lleva stop ni objetivo."
+          : "Satélite: se decide por fuerza relativa contra el SPY, no por fundamentals. No se puntúa contra pares ni se le calcula riesgo, por eso acá no hay score ni ranking."}
+      </div>
+      {c.flags.length > 0 && <div style={{ marginTop: 6 }}><Flags flags={c.flags} /></div>}
+      {!nucleo && <EntryLine e={c.entry} />}
+      <div className="muted mono" style={{ marginTop: 6 }}>
+        fuerza relativa contra SPY: 3m {pct(c.axes["rs3m"])} · 6m {pct(c.axes["rs6m"])} · 12m {pct(c.axes["rs12m"])} · contra su media de 200 {pct(c.axes["distSma200Pct"])} · movimiento diario típico {pct(c.axes["atrPct"])}
+      </div>
+      <div className="muted mono">
+        precio {f2(c.close)}{nucleo ? "" : ` · stop ${f2(c.stop)} · objetivo ${f2(c.target)}`}
+      </div>
+    </div>
   );
 }

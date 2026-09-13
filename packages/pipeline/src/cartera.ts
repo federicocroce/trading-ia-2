@@ -18,6 +18,16 @@ export interface CarteraDeps {
    * por precio, y los tests que no la pasan siguen valiendo.
    */
   tesis?: (symbol: string) => Promise<TesisInput | null>;
+  /**
+   * Lee las noticias de un símbolo y guarda sus eventos materiales. Opcional; sin esto el veredicto sale
+   * igual que antes, solo que la app lo dice en vez de dar por limpio lo que no miró.
+   *
+   * Por qué acá. El barrido de noticias corría SOLO sobre las candidatas del ranking del día. El 12/9 eso
+   * dejaba a GGAL, HUT, MARA, NEM e YPF —cinco de las ocho posiciones con plata puesta— sin una sola
+   * noticia leída nunca, y el veredicto de mantener se calculaba con `events: []`. Donde hay plata es
+   * justo donde no puede faltar.
+   */
+  scanEvents?: (symbol: string) => Promise<void>;
   log?: (msg: string, extra?: unknown) => void;
 }
 export interface CarteraSummary {
@@ -78,14 +88,27 @@ export async function runCartera(deps: CarteraDeps, opts: { today: string }): Pr
   const spyClose = spy[spy.length - 1]?.close ?? null;
   for (const [sym, c] of Object.entries(candles)) if (c.length) await deps.store.upsertCandles(sym, c).catch(() => {});
 
-  // 2. Perfiles (cache 7 días) y riesgo de cartera.
+  // 2. Noticias de cada posición, antes de decidir: el veredicto de mantener las usa. Una que falle no
+  //    frena a las demás ni a la corrida; queda sin fecha de barrido y el veredicto lo dice.
+  if (deps.scanEvents) {
+    for (const p of positions) {
+      try {
+        await deps.scanEvents(p.symbol);
+      } catch (e) {
+        errors.push({ symbol: p.symbol, error: `noticias de ${p.symbol}: ${String(e)}` });
+        log(`[cartera] noticias de ${p.symbol} fallaron`, { error: String(e).slice(0, 120) });
+      }
+    }
+  }
+
+  // 3. Perfiles (cache 7 días) y riesgo de cartera.
   const profiles: Record<string, SymbolProfile | null> = {};
   for (const p of positions) profiles[p.symbol] = await profileFor(deps, p, opts.today);
   const allTags = await deps.store.allTags().catch(() => ({}));
   const tags = Object.fromEntries(Object.entries(allTags).map(([k, t]) => [k, { sector: t.sector, themes: t.themes }]));
   const risk = buildRiskReport({ positions, candles, spy, profiles, tags });
 
-  // 3. Veredicto por posición.
+  // 4. Veredicto por posición.
   const verdicts: VerdictRow[] = [];
   for (const p of positions) {
     const weightPct = risk.weights.find((w) => w.symbol === p.symbol)?.weightPct ?? 0;

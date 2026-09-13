@@ -152,14 +152,21 @@ export function Radar() {
       {sub === "etfs" && <div className="card" style={{ overflowX: "auto" }}>
         <b>ETFs</b> <span className="muted">({etfs.length})</span>
         <table style={{ marginTop: 8 }}>
-          <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3m" /><Th k="fr6m" /><Th k="fr12m" /><Th k="sma200" /><Th k="precio" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
+          <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3m" /><Th k="fr6m" /><Th k="fr12m" /><Th k="sma200" /><Th k="precio" /><Th k="entrada" /><Th k="stop" /><Th k="objetivoEtf" /><Th k="etiquetas" /><th></th></tr></thead>
           <tbody>
             {etfs.map((c) => (
               <tr key={c.symbol}>
                 <td><SymbolLink symbol={c.symbol} /></td>
                 <td><span className={`verb ${c.verdict}`}>{c.verdict}</span> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
                 <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
-                <td className="mono">{f2(c.close)}</td><td className="mono">{f2(c.stop)}</td><td className="mono">{f2(c.target)}</td>
+                <td className="mono">{f2(c.close)}</td>
+                {/* La columna "cuándo entrar" faltaba y sin ella la fila era ilegible: EWT el 12/9 salía
+                    COMPRAR con precio 110,91 y objetivo 110,69, o sea un objetivo DEBAJO del precio. No
+                    estaba mal calculado: el objetivo se mide desde la franja de compra (106,75–107,83), a la
+                    que hay que esperar. Sin la franja a la vista, el 2 a 1 parecía un error de la app. */}
+                <td><EntryCell e={c.entry} fallback={c.verdict === "NUCLEO" ? <span className="muted">a mercado</span> : <span className="muted">—</span>} /></td>
+                <td className="mono">{f2(c.stop)}</td>
+                <td className="mono">{f2(c.target)}{c.target !== null && c.entry && <span className="muted"> {pct(((c.target - (c.entry.high ?? c.close)) / (c.entry.high ?? c.close)) * 100)} desde la entrada</span>}</td>
                 <td><TagChips tags={c.tags} /></td>
                 <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} />}</td>
               </tr>
@@ -223,7 +230,7 @@ function CandRow({ c, open, onToggle, editing, onEdit, onSaved }: { c: Candidate
                     {detail.fundamentals.earningsSurprises?.length ? ` · sorpresas: ${detail.fundamentals.earningsSurprises.map((s) => `${s.period.slice(0, 7)} ${pct(s.surprisePercent)}`).join(", ")}` : ""}
                   </div>
                 )}
-                <VerificationSections statements={detail.statements} events={detail.events} analystActions={detail.analystActions} analystTargets={c.analystTargets} close={c.close} metricsRaw={detail.fundamentals?.metricsRaw} verification={detail.verification ?? null} />
+                <VerificationSections statements={detail.statements} events={detail.events} analystActions={detail.analystActions} analystTargets={c.analystTargets} close={c.close} metricsRaw={detail.fundamentals?.metricsRaw} verification={detail.verification ?? null} newsScannedTo={detail.newsScannedTo ?? null} />
                 {detail.peers.length > 0 && (
                   <table style={{ marginTop: 8 }}>
                     <thead><tr><th>par</th><th>P/E</th><th>EV/EBITDA</th><th>P/S</th><th>ROE</th><th>margen op.</th><th>crec. ingresos</th><th>deuda/patr.</th></tr></thead>
