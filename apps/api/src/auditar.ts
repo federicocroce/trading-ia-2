@@ -28,13 +28,15 @@ async function pedir<T>(ruta: string, porDefecto: T): Promise<T> {
   }
 }
 
-const [candidatos, plan, veredictos, novedades, posiciones, movimientos] = await Promise.all([
+const [candidatos, plan, veredictos, novedades, posiciones, movimientos, top] = await Promise.all([
   pedir<Pantallas["candidatos"]>("/radar/candidates", []),
   pedir<Pantallas["plan"]>("/radar/plan", null),
   pedir<Pantallas["veredictos"]>("/cartera/verdicts", []),
   pedir<Pantallas["novedades"]>("/novedades", null),
   pedir<NonNullable<Pantallas["posiciones"]>>("/cartera/positions", []),
   pedir<NonNullable<Pantallas["movimientos"]>>("/cartera/transactions", []),
+  // "Lo que más recomienda hoy": el "2 a 1" que dice la tarjeta tiene que salir de los % que muestra al lado.
+  pedir<{ picks: NonNullable<Pantallas["top"]> } | null>("/radar/top?n=20", null),
 ]);
 
 const pantallas: Pantallas = {
@@ -43,10 +45,11 @@ const pantallas: Pantallas = {
   veredictos: veredictos ?? [],
   posiciones: posiciones ?? [],
   movimientos: movimientos ?? [],
+  top: top?.picks ?? [],
   ...(novedades ? { novedades } : {}),
 };
 
-console.log(`[auditar] Radar ${pantallas.candidatos.length} candidatos · plan ${pantallas.plan?.lines.length ?? 0} líneas · Cartera ${pantallas.veredictos.length} posiciones · ${pantallas.movimientos?.length ?? 0} movimientos`);
+console.log(`[auditar] Radar ${pantallas.candidatos.length} candidatos · plan ${pantallas.plan?.lines.length ?? 0} líneas · Cartera ${pantallas.veredictos.length} posiciones · ${pantallas.movimientos?.length ?? 0} movimientos · ${pantallas.top?.length ?? 0} recomendadas`);
 
 const findings = checkPantallas(pantallas);
 const { graves, avisos } = summarizeFindings(findings);

@@ -22,6 +22,8 @@ export interface Pantallas {
   veredictos: Array<{ symbol: string; verb: string; close: number; stop: number | null; target?: number | null }>;
   /** Hoy → novedades. */
   novedades?: { verdictChanges?: Array<{ symbol: string; from: string; to: string }> } | null;
+  /** Radar → "lo que más recomienda hoy" (`/radar/top`): porcentajes y razones tal como se muestran. */
+  top?: Array<{ symbol: string; gainPct: number; lossPct: number; reasons: string[] }>;
   /** Cartera → posiciones, tal como se muestran. */
   posiciones?: Array<{ symbol: string; quantity: number }>;
   /**
@@ -93,6 +95,15 @@ export function checkPantallas(p: Pantallas): Finding[] {
   };
   for (const l of p.plan?.lines ?? []) objetivoDistinto(l.symbol, l.target, "el plan");
   for (const v of p.veredictos) if (v.verb === "SUMAR") objetivoDistinto(v.symbol, v.target, "Cartera (SUMAR)");
+
+  // 3c. La relación que dice el texto tiene que salir de los porcentajes que se muestran al lado. NVDA el 13/9:
+  //     "objetivo +9.1% contra stop -1.6% (2 a 1)", que es 5,9 a 1; los % eran del cierre y el 2 a 1 del techo.
+  for (const t of p.top ?? []) {
+    const dicho = t.reasons.map((r) => /\((\d+(?:\.\d+)?) a 1\)/.exec(r)).find((m) => m !== null);
+    if (!dicho || !(t.lossPct < 0)) continue;
+    const real = t.gainPct / -t.lossPct;
+    if (Math.abs(real - Number(dicho[1])) > 0.1) add("dos_a_uno_falso", t.symbol, "grave", `la tarjeta dice ${dicho[1]} a 1 y sus porcentajes (${r2(t.gainPct)}% / ${r2(t.lossPct)}%) dan ${r2(real)} a 1`);
+  }
 
   // 4. El plan no puede comprar lo que el Radar no tiene en COMPRAR, ni contradecir su momento de entrada.
   for (const l of p.plan?.lines ?? []) {

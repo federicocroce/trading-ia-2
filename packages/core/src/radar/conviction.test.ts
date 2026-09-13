@@ -4,7 +4,8 @@ import type { CandidateRow, Tags } from "./types.js";
 
 const base: CandidateRow = {
   candidateDate: "2026-09-07", symbol: "AAA", kind: "stock", verdict: "COMPRAR", score: 1.2, axes: {}, peerGroup: [], rankInGroup: 1, groupSize: 20,
-  close: 100, entryLow: 100, entryHigh: 102, stop: 92, target: 116, sizeUsd: 10_000, sizeQty: 100, riskScore: 4, flags: [], nthAppearance: 1,
+  // Objetivo como lo calcula el motor desde el 12/9: techo de la franja + 2 × (techo − stop) = 102 + 2 × 10.
+  close: 100, entryLow: 100, entryHigh: 102, stop: 92, target: 122, sizeUsd: 10_000, sizeQty: 100, riskScore: 4, flags: [], nthAppearance: 1,
   summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null,
   close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null,
 };
@@ -23,13 +24,14 @@ describe("convictionFor", () => {
     const p = convictionFor(row({ flags: ["consenso_compra", "sorpresa_positiva"] }), tags(["IA"]), {})!;
     expect(p.allAligned).toBe(true);
     expect(p.cautions).toEqual([]);
-    expect(p.gainPct).toBe(16);
-    expect(p.lossPct).toBe(-8);
+    expect(p.gainPct).toBeCloseTo(19.6078, 3);
+    expect(p.lossPct).toBeCloseTo(-9.8039, 3);
+    expect(p.base).toBe(102);
     expect(p.reasons).toEqual([
       "1° de 20 pares por fundamentals (score 1.20)",
       "analistas: consenso de compra",
       "último resultado sorprendió para arriba",
-      "objetivo +16.0% contra stop -8.0% (2 a 1)",
+      "objetivo +19.6% contra stop -9.8% desde 102 (2 a 1)",
       "riesgo 4/10",
     ]);
     // score × fiabilidad(1) + 0.2 + 0.2
@@ -38,7 +40,7 @@ describe("convictionFor", () => {
 
   it("descuenta grupo chico, riesgo alto, banderas negativas, objetivo cercano y temas donde ya estás cargado", () => {
     const p = convictionFor(
-      row({ score: 1.5, groupSize: 5, riskScore: 9, flags: ["insiders_venden", "sorpresa_negativa"], stop: 98, target: 104 }),
+      row({ score: 1.5, groupSize: 5, riskScore: 9, flags: ["insiders_venden", "sorpresa_negativa"], entryHigh: 100, stop: 98, target: 104 }),
       tags(["argentina", "bancos"]),
       { argentina: 75.6 },
     )!;
@@ -60,6 +62,35 @@ describe("convictionFor", () => {
     expect(p.allAligned).toBe(false);
     expect(p.cautions).toEqual(["se mueve como YPF que ya tenés (correlación 0.82)"]);
     expect(p.conviction).toBeCloseTo(0.9, 4);
+  });
+});
+
+describe("ganancia, pérdida y consenso desde el precio que se paga (13/9)", () => {
+  // NVDA del 13/9: la tarjeta decía "objetivo +9.1% contra stop -1.6% (2 a 1)", o sea 5,9 a 1. Los porcentajes
+  // salían del cierre (218,29) y el 2 a 1, del techo de la franja (222,66).
+  const nvda = row({ symbol: "NVDA", close: 218.29, entryLow: 218.29, entryHigh: 222.66, stop: 214.89, target: 238.2, verification: { date: "2026-09-10", verdict: "apto", reason: "r", consensusTarget: 327 } });
+  it("los dos porcentajes salen del techo de la franja y el texto dice desde dónde", () => {
+    const p = convictionFor(nvda, null, {})!;
+    expect(p.base).toBe(222.66);
+    expect(p.gainPct).toBeCloseTo(6.98, 2);
+    expect(p.lossPct).toBeCloseTo(-3.49, 2);
+    expect(p.reasons).toContain("objetivo +7.0% contra stop -3.5% desde 222.66 (2 a 1)");
+  });
+  it("el consenso de analistas va al lado, medido desde el mismo precio", () => {
+    const p = convictionFor(nvda, null, {})!;
+    expect(p.consensus).toEqual({ target: 327, upsidePct: expect.closeTo(46.86, 1) });
+  });
+  it("si el objetivo queda arriba del consenso lo dice, sin restar convicción", () => {
+    // LNC con el stop nuevo: objetivo 52,50 contra una mediana de 47 en 11 analistas.
+    const lnc = row({ symbol: "LNC", close: 43.84, entryLow: 43.84, entryHigh: 44.72, stop: 40.83, target: 52.5 });
+    const sin = convictionFor(lnc, null, {})!;
+    const con = convictionFor({ ...lnc, analystTargets: { n: 11, median: 47, min: 42, max: 53, latestDate: "2026-08-24" } }, null, {})!;
+    expect(con.cautions.some((c) => c.includes("arriba del consenso"))).toBe(true);
+    expect(con.conviction).toBeCloseTo(sin.conviction, 4);
+  });
+  it("una fila que no es 2 a 1 desde la entrada muestra su relación real, no un 2 a 1 escrito a mano", () => {
+    const p = convictionFor(row({ target: 116 }), null, {})!;
+    expect(p.reasons).toContain("objetivo +13.7% contra stop -9.8% desde 102 (1.4 a 1)");
   });
 });
 

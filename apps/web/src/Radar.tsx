@@ -266,11 +266,13 @@ function TopPicks({ t, plan }: { t: RadarTop; plan: ContributionPlan | null }) {
                 <span className="mono muted help" title={HELP_CONVICCION}>convicción {p.conviction.toFixed(2)}</span>
                 {p.allAligned ? <span className="verb COMPRAR">todo acompaña</span> : <span className="verb OBSERVAR">con salvedades</span>}
                 <div style={{ flex: 1 }} />
-                <span className="mono"><span className="ok">{pct(p.gainPct)}</span> / <span className="bad">{pct(p.lossPct)}</span></span>
+                {/* Los dos % salen del techo de la franja, el precio desde el que se calcula el objetivo. Hasta el
+                    13/9 salían del cierre y el "2 a 1" de las razones no coincidía (NVDA: +9,1% / −1,6%). */}
+                <span className="mono help" title="Medidos desde el precio máximo de compra, el mismo desde el que se calcula el objetivo. No es un pronóstico: el objetivo es 2 veces lo que se arriesga hasta el stop."><span className="ok">{pct(p.gainPct)}</span> / <span className="bad">{pct(p.lossPct)}</span> <span className="muted">desde {f2(p.base)}</span></span>
               </div>
               {p.summary && <div className="muted" style={{ marginTop: 4 }}>{p.summary}</div>}
               <ul className="why">{p.reasons.map((r) => <li key={r} className="ok">✓ {r}</li>)}{p.cautions.map((r) => <li key={r} className="warn">⚠ {r}</li>)}</ul>
-              <div className="muted mono" style={{ marginTop: 4 }}>entrar hasta {f2(p.entryHigh)} · stop {f2(p.stop)} · objetivo {f2(p.target)} · tamaño {p.sizeQty ?? "—"} ({money(p.sizeUsd)})</div>
+              <div className="muted mono" style={{ marginTop: 4 }}>entrar hasta {f2(p.entryHigh)} · stop {f2(p.stop)} · objetivo {f2(p.target)}{p.consensus ? <> · consenso de analistas {f2(p.consensus.target)} ({pct(p.consensus.upsidePct)})</> : <> · sin consenso de analistas</>} · tamaño {p.sizeQty ?? "—"} ({money(p.sizeUsd)})</div>
               {p.mainRisk && <div className="muted" style={{ marginTop: 2 }}><b>Riesgo principal:</b> {p.mainRisk}</div>}
             </div>
           ))}

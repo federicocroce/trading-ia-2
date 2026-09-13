@@ -58,6 +58,15 @@ describe("checkPantallas", () => {
     });
   });
 
+  it("NVDA del 13/9: la tarjeta decía 2 a 1 al lado de +9,1% contra −1,6%", () => {
+    const top = [{ symbol: "NVDA", gainPct: 9.1209, lossPct: -1.5576, reasons: ["objetivo +9.1% contra stop -1.6% (2 a 1)"] }];
+    const f = solo("dos_a_uno_falso", checkPantallas({ ...base, top }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+    const bien = [{ symbol: "NVDA", gainPct: 6.98, lossPct: -3.49, reasons: ["objetivo +7.0% contra stop -3.5% desde 222.66 (2 a 1)"] }];
+    expect(solo("dos_a_uno_falso", checkPantallas({ ...base, top: bien }))).toEqual([]);
+  });
+
   it("el plan compra algo que el Radar no tiene en COMPRAR", () => {
     const f = solo("plan_contra_radar", checkPantallas({ ...base, candidatos: [cand("DVA", { verdict: "OBSERVAR" })], plan: { lines: [linea("DVA")] } }));
     expect(f).toHaveLength(1);

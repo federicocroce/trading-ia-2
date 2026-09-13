@@ -33,13 +33,21 @@ export const PRICE_THRESHOLDS = { consensusMinUpsidePct: 10, consensusRunupPct: 
  */
 export const CONSENSUS_SCALE = { maxRatio: 2, minRatio: 0.5 };
 
-/** `consenso_en_precio`: mediana de objetivos de titulares (2 o más) o, si no hay, el consenso que trajo la verificación web. */
-export function consensusUpsidePct(close: number, analystTargets: AnalystTargets | null | undefined, consensusTarget: number | null | undefined): number | null {
+/**
+ * Objetivo de consenso: mediana de objetivos de titulares (2 o más) o, si no hay, el que trajo la verificación
+ * web. null si no hay o si no está en escala contra el precio (split sin ajustar, ver `CONSENSUS_SCALE`).
+ */
+export function consensusTargetOf(close: number, analystTargets: AnalystTargets | null | undefined, consensusTarget: number | null | undefined): number | null {
   const median = analystTargets && analystTargets.n >= 2 && analystTargets.median !== null ? analystTargets.median : (consensusTarget ?? null);
   if (median === null || !(close > 0)) return null;
   const ratio = median / close;
-  if (ratio > CONSENSUS_SCALE.maxRatio || ratio < CONSENSUS_SCALE.minRatio) return null;
-  return round2((median / close - 1) * 100);
+  return ratio > CONSENSUS_SCALE.maxRatio || ratio < CONSENSUS_SCALE.minRatio ? null : median;
+}
+
+/** `consenso_en_precio`: potencial del consenso contra el cierre, en %. */
+export function consensusUpsidePct(close: number, analystTargets: AnalystTargets | null | undefined, consensusTarget: number | null | undefined): number | null {
+  const median = consensusTargetOf(close, analystTargets, consensusTarget);
+  return median === null ? null : round2((median / close - 1) * 100);
 }
 
 /** Bandera de la verificación web. `undefined` = no hay verificador; `null` = hay pero todavía no respondió (pendiente). */

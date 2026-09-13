@@ -1,3 +1,4 @@
+import { consensusTargetOf } from "./candidate.js";
 import type { Overlap } from "./overlap.js";
 import { isRateSensitive, type MacroRegime } from "./regime.js";
 import type { CandidateRow, Tags } from "./types.js";
@@ -26,9 +27,16 @@ import type { CandidateRow, Tags } from "./types.js";
 export interface TopPick {
   symbol: string;
   conviction: number;
-  /** % desde el precio hasta el objetivo (positivo) y hasta el stop (negativo). */
+  /**
+   * % hasta el objetivo (positivo) y hasta el stop (negativo), medidos desde `base`: el techo de la franja de
+   * compra, el mismo precio desde el que se calcula el objetivo. Hasta el 13/9 salían del cierre y el "2 a 1"
+   * de al lado era mentira (NVDA: +9,1% contra −1,6%, o sea 5,9 a 1).
+   */
   gainPct: number;
   lossPct: number;
+  base: number;
+  /** Objetivo de consenso de analistas y su potencial desde `base`; null si no hay o no está en escala. */
+  consensus: { target: number; upsidePct: number } | null;
   reasons: string[];
   cautions: string[];
   /** Sin salvedades: todos los factores acompañan. */
@@ -75,9 +83,12 @@ const signed = (n: number) => `${n >= 0 ? "+" : ""}${r1(n)}%`;
  */
 export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: Record<string, number>, overlap: Record<string, Overlap> = {}, regime: MacroRegime | null = null): TopPick | null {
   if (row.kind !== "stock" || row.verdict !== "COMPRAR" || row.score === null) return null;
-  if (row.stop === null || row.target === null || row.stop >= row.close || row.target <= row.close) return null;
-  const gainPct = ((row.target - row.close) / row.close) * 100;
-  const lossPct = ((row.stop - row.close) / row.close) * 100;
+  const base = row.entryHigh ?? row.close;
+  if (row.stop === null || row.target === null || row.stop >= row.close || row.stop >= base || row.target <= base) return null;
+  const gainPct = ((row.target - base) / base) * 100;
+  const lossPct = ((row.stop - base) / base) * 100;
+  const ct = consensusTargetOf(row.close, row.analystTargets, row.verification?.consensusTarget);
+  const consensus = ct === null ? null : { target: ct, upsidePct: r4((ct / base - 1) * 100) };
   const reasons: string[] = [];
   const cautions: string[] = [];
   const group = row.groupSize ?? 0;
@@ -107,7 +118,12 @@ export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: 
       reasons.push(row.verification?.reason ? `verificación web apta (${row.verification.date}): ${row.verification.reason}` : "verificación web apta");
     }
   }
-  reasons.push(`objetivo ${signed(gainPct)} contra stop ${signed(lossPct)} (2 a 1)`);
+  // La relación se calcula, no se escribe: si una fila no es 2 a 1 desde la entrada, el texto lo tiene que decir.
+  const ratio = gainPct / -lossPct;
+  const ratioTxt = Math.abs(ratio - Math.round(ratio)) < 0.05 ? String(Math.round(ratio)) : r1(ratio);
+  reasons.push(`objetivo ${signed(gainPct)} contra stop ${signed(lossPct)} desde ${base} (${ratioTxt} a 1)`);
+  // Sin penalidad: el objetivo es 2× el riesgo, no un pronóstico. Pero si pide más que los analistas, se dice.
+  if (consensus && row.target > consensus.target) cautions.push(`objetivo ${row.target} arriba del consenso de analistas (${consensus.target}): la operación pide más de lo que esperan`);
   if (gainPct < MIN_GAIN_PCT) {
     conviction -= 0.3;
     cautions.push(`objetivo a solo ${signed(gainPct)}: poco margen para comisiones y ruido`);
@@ -130,7 +146,7 @@ export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: 
     conviction -= 0.3;
     cautions.push(`régimen restrictivo (${regime.why}): sensible a tasas`);
   }
-  return { symbol: row.symbol, conviction: r4(conviction), gainPct: r4(gainPct), lossPct: r4(lossPct), reasons, cautions, allAligned: cautions.length === 0 };
+  return { symbol: row.symbol, conviction: r4(conviction), gainPct: r4(gainPct), lossPct: r4(lossPct), base, consensus, reasons, cautions, allAligned: cautions.length === 0 };
 }
 
 export function topPicks(rows: CandidateRow[], tags: Record<string, Tags>, overweight: Record<string, number>, n = 5, overlap: Record<string, Overlap> = {}, regime: MacroRegime | null = null): TopPick[] {
