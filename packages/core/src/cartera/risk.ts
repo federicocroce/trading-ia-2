@@ -17,6 +17,29 @@ export interface RiskReport {
   portfolioBeta: number | null;
   /** Caída estimada (%) si SPY cae 20%: Σ peso × beta × (−20). Aproximación lineal. */
   stressSpyMinus20Pct: number | null;
+  /**
+   * Lo que la beta NO dice (12/9). Ese día la pantalla mostraba beta 0,62 y "si SPY cae 20% → −12,5%" como
+   * única medida de daño, mientras la tarjeta de abajo, en la misma pantalla, decía que la caída máxima
+   * real de la cartera había sido 33,6% contra 9,1% del SPY, y su volatilidad 51,5% contra 12,5%. O sea
+   * cuatro veces la del índice, no 0,62 veces.
+   *
+   * La contradicción no es un error de cálculo: la beta solo mide la parte que se mueve CON el mercado, y
+   * esta cartera (mineras de cripto, papeles argentinos) se mueve casi toda por lo suyo. `r2VsSpy` es
+   * exactamente esa proporción: cuánta de la varianza de la cartera explica el SPY. Con un R² bajo, el
+   * estrés lineal no es un techo de pérdida y la pantalla tiene que decirlo.
+   */
+  risk: {
+    /** Volatilidad anualizada de la cartera con los pesos de hoy, sobre 63 ruedas. */
+    portfolioVolPct: number | null;
+    /** La del SPY en la misma ventana, para comparar. */
+    spyVolPct: number | null;
+    /** Proporción de la varianza de la cartera explicada por el SPY (0 a 1). */
+    r2VsSpy: number | null;
+    /** La peor rueda de las últimas 63 con los pesos de hoy, en %. */
+    worstDayPct: number | null;
+    /** Ruedas efectivamente usadas. */
+    sessions: number;
+  };
   liquidity: Array<{ symbol: string; avgDollarVolume30d: number | null; daysToLiquidate: number | null }>;
   notes: string[];
 }
@@ -31,6 +54,12 @@ export function dailyReturns(c: Candle[]): number[] {
   return out;
 }
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+/** Desvío típico muestral de una serie de retornos diarios. */
+const stdev = (xs: number[]) => {
+  if (xs.length < 2) return 0;
+  const m = mean(xs);
+  return Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1));
+};
 
 /** Pearson sobre las últimas min(len) observaciones alineadas por el final. null si < 20. */
 export function correlation(a: number[], b: number[]): number | null {
@@ -145,6 +174,33 @@ export function buildRiskReport(i: RiskInput): RiskReport {
   const stressSpyMinus20Pct = portfolioBeta === null ? null : round2(withBeta.reduce((s, w) => s + (w.weightPct / 100) * betas[w.symbol]! * -20, 0));
   if (withBeta.length < weights.length) notes.push("Estrés calculado solo sobre posiciones con beta (faltan velas en el resto).");
 
+  // Serie de la cartera con los pesos de HOY: es lo que permite medir su propia volatilidad y su peor rueda
+  // sin depender del histórico de aportes, y compararlas con las del SPY en la misma ventana.
+  const largo = Math.min(63, spyRets.length, ...syms.map((s) => rets[s]!.length));
+  const cartera: number[] = [];
+  if (largo >= MIN_POINTS && syms.length > 0) {
+    for (let k = 0; k < largo; k++) {
+      let r = 0;
+      let pesoUsado = 0;
+      for (const w of weights) {
+        const serie = rets[w.symbol]!;
+        const v = serie[serie.length - largo + k];
+        if (v === undefined) continue;
+        r += (w.weightPct / 100) * v;
+        pesoUsado += w.weightPct / 100;
+      }
+      cartera.push(pesoUsado > 0 ? r / pesoUsado : 0);
+    }
+  }
+  const spyVentana = spyRets.slice(-largo);
+  const risk = {
+    portfolioVolPct: cartera.length >= MIN_POINTS ? round2(stdev(cartera) * Math.sqrt(252) * 100) : null,
+    spyVolPct: spyVentana.length >= MIN_POINTS ? round2(stdev(spyVentana) * Math.sqrt(252) * 100) : null,
+    r2VsSpy: cartera.length >= MIN_POINTS ? (() => { const c = correlation(cartera, spyVentana); return c === null ? null : round4(c * c); })() : null,
+    worstDayPct: cartera.length ? round2(Math.min(...cartera) * 100) : null,
+    sessions: cartera.length,
+  };
+
   const liquidity = i.positions.map((p) => {
     const last30 = (i.candles[p.symbol] ?? []).slice(-30);
     if (!last30.length) return { symbol: p.symbol, avgDollarVolume30d: null, daysToLiquidate: null };
@@ -153,5 +209,5 @@ export function buildRiskReport(i: RiskInput): RiskReport {
     return { symbol: p.symbol, avgDollarVolume30d: avgDollar, daysToLiquidate: avgShares > 0 ? round4(p.quantity / (avgShares * 0.1)) : null };
   });
 
-  return { totalValue, weights, concentration: { byCountry, byIndustry, bySector, byTheme, hhiCountry: hhi(byCountry), hhiIndustry: hhi(byIndustry), warnings }, correlatedPairs, betas, portfolioBeta, stressSpyMinus20Pct, liquidity, notes };
+  return { totalValue, weights, concentration: { byCountry, byIndustry, bySector, byTheme, hhiCountry: hhi(byCountry), hhiIndustry: hhi(byIndustry), warnings }, correlatedPairs, betas, portfolioBeta, stressSpyMinus20Pct, risk, liquidity, notes };
 }

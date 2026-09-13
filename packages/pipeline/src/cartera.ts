@@ -42,7 +42,7 @@ const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * DAY).
 const HISTORY_DAYS = 260;
 const PROFILE_TTL_DAYS = 7;
 
-const EMPTY_RISK: RiskReport = { totalValue: 0, weights: [], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, liquidity: [], notes: [] };
+const EMPTY_RISK: RiskReport = { totalValue: 0, weights: [], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, risk: { portfolioVolPct: null, spyVolPct: null, r2VsSpy: null, worstDayPct: null, sessions: 0 }, liquidity: [], notes: [] };
 
 async function profileFor(deps: CarteraDeps, p: Position, today: string): Promise<SymbolProfile | null> {
   const cached = await deps.store.profile(p.symbol);

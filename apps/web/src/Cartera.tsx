@@ -232,24 +232,50 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
   );
 }
 
+/**
+ * Riesgo de cartera. El 12/9 esta tarjeta mostraba beta 0,62 y "si SPY cae 20% → −12,5%" como ÚNICA medida
+ * de daño, mientras la tarjeta de la curva, en la misma pantalla, decía que la caída máxima real había sido
+ * 33,6% contra 9,1% del SPY. Las dos cosas eran ciertas: la beta solo mide la parte que se mueve con el
+ * mercado, y esta cartera (mineras de cripto, papeles argentinos) se mueve casi toda por lo suyo. Pero la
+ * pantalla ponía adelante la tranquilizadora y dejaba la grave en otra tarjeta.
+ *
+ * Ahora la volatilidad propia va al lado de la beta, y el estrés lineal dice qué proporción del movimiento
+ * explica realmente el SPY. Con un R² bajo ese −12,5% no es un techo de pérdida y hay que decirlo ahí mismo.
+ */
 function Risk({ r, date }: { r: RiskReport; date: string }) {
   const top = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(0)}%`).join(" · ");
+  const o = r.risk;
+  const explicaPoco = o?.r2VsSpy !== null && o?.r2VsSpy !== undefined && o.r2VsSpy < 0.5;
+  const vecesSpy = o?.portfolioVolPct && o?.spyVolPct ? o.portfolioVolPct / o.spyVolPct : null;
   return (
     <div className="card">
       <b>Riesgo de cartera</b> <span className="muted">({date})</span>
       <div className="kpis" style={{ marginTop: 8 }}>
         <div className="kpi"><b>${money(r.totalValue)}</b><span>valor a cierre</span></div>
         <div className="kpi"><b>{f2(r.portfolioBeta)}</b><span>beta vs SPY (63 ruedas)</span></div>
+        {o?.portfolioVolPct !== null && o?.portfolioVolPct !== undefined && (
+          <div className="kpi"><b className={vecesSpy !== null && vecesSpy > 2 ? "bad" : ""}>{o.portfolioVolPct.toFixed(0)}%</b><span>volatilidad propia{o.spyVolPct !== null && <> · SPY {o.spyVolPct.toFixed(0)}%{vecesSpy !== null && ` (${vecesSpy.toFixed(1)}×)`}</>}</span></div>
+        )}
+        {o?.worstDayPct !== null && o?.worstDayPct !== undefined && (
+          <div className="kpi"><b className="bad">{o.worstDayPct.toFixed(1)}%</b><span>peor rueda de las últimas {o.sessions}</span></div>
+        )}
         <div className="kpi"><b className="bad">{pct(r.stressSpyMinus20Pct)}</b><span>si SPY cae 20% (lineal)</span></div>
         <div className="kpi"><b>{r.correlatedPairs.length}</b><span>pares con correlación &gt; 0.7</span></div>
       </div>
+      {explicaPoco && (
+        <div className="warn" style={{ fontSize: 12, marginTop: 6 }}>
+          El SPY explica solo el {Math.round(o!.r2VsSpy! * 100)}% del movimiento de esta cartera: el resto es riesgo propio de cada papel.
+          Por eso el −{Math.abs(r.stressSpyMinus20Pct ?? 0).toFixed(1)}% de arriba NO es un techo de pérdida. La cartera puede caer mucho más
+          sin que el SPY se mueva, y de hecho ya lo hizo: mirá la caída máxima en la curva, más abajo.
+        </div>
+      )}
       {r.concentration.warnings.map((w) => <div key={w} className="warn" style={{ marginTop: 6 }}>⚠ {w}</div>)}
       <div style={{ marginTop: 8 }}><b>País:</b> {top(r.concentration.byCountry)}</div>
       <div><b>Industria:</b> {top(r.concentration.byIndustry)}</div>
       {Object.keys(r.concentration.bySector ?? {}).length > 0 && <div><b>Sector:</b> {top(r.concentration.bySector)}</div>}
       {Object.keys(r.concentration.byTheme ?? {}).length > 0 && <div><b>Temas:</b> {top(r.concentration.byTheme)}</div>}
       {r.correlatedPairs.length > 0 && <div><b>Correlacionados:</b> {r.correlatedPairs.map((p) => `${p.a}–${p.b} ${p.corr.toFixed(2)}`).join(" · ")}</div>}
-      <div className="muted" style={{ marginTop: 6 }}>Liquidez (días para salir al 10% del volumen): {r.liquidity.map((l) => `${l.symbol} ${f2(l.daysToLiquidate, 1)}`).join(" · ")}</div>
+      <Liquidez filas={r.liquidity} />
       {r.notes.map((n) => <div key={n} className="muted">{n}</div>)}
     </div>
   );
@@ -299,6 +325,34 @@ function MeasurementCard({ m }: { m: Measurement }) {
         <tbody>{verbs.map((v) => <tr key={v}><td><span className={`verb ${v}`}>{v}</span></td><td className="mono">{cell(m.byVerb[v].h7)}</td><td className="mono">{cell(m.byVerb[v].h30)}</td></tr>)}</tbody>
       </table>
       <div className="muted" style={{ marginTop: 6 }}>VENDER acierta si el papel rindió menos que SPY después; MANTENER/SUMAR si rindió más; REVISAR no se puntúa. Los MANTENER diarios de una misma posición están correlacionados: leé la tendencia, no el n.</div>
+    </div>
+  );
+}
+
+
+/**
+ * Liquidez. El 12/9 esta línea mostraba ocho ceros: todas las posiciones salen en fracciones de rueda
+ * (la mayor, PAM, en 0,02 días) y `toFixed(1)` las aplastaba a "0.0". Ocho ceros seguidos no informan que
+ * la cartera es líquida: parecen un dato roto, y la regla dura dice que un número que no cambia ninguna
+ * decisión no puede estar ahí como si la cambiara.
+ *
+ * Ahora se dice la conclusión primero y solo se detallan las que tardarían de verdad. El dato crudo sigue
+ * disponible en el title de cada símbolo, que es donde tiene sentido mirarlo.
+ */
+const UMBRAL_DIAS = 0.5;
+function Liquidez({ filas }: { filas: RiskReport["liquidity"] }) {
+  const conDato = filas.filter((l) => l.daysToLiquidate !== null);
+  if (!conDato.length) return <div className="muted" style={{ marginTop: 6 }}>Liquidez: sin volumen para calcularla.</div>;
+  const lentas = conDato.filter((l) => l.daysToLiquidate! >= UMBRAL_DIAS).sort((a, b) => b.daysToLiquidate! - a.daysToLiquidate!);
+  const peor = conDato.reduce((a, b) => (b.daysToLiquidate! > a.daysToLiquidate! ? b : a));
+  const horas = (d: number) => (d >= 1 ? `${d.toFixed(1)} ruedas` : `${Math.max(1, Math.round(d * 6.5 * 60))} min de rueda`);
+  return (
+    <div className="muted" style={{ marginTop: 6 }}>
+      Liquidez: {lentas.length === 0
+        ? <>las {conDato.length} posiciones se venden enteras en menos de media rueda vendiendo al 10% del volumen diario. La más lenta es <b>{peor.symbol}</b> ({horas(peor.daysToLiquidate!)}).</>
+        : <>{lentas.length} {lentas.length === 1 ? "posición tarda" : "posiciones tardan"} más de media rueda en venderse al 10% del volumen: {lentas.map((l) => `${l.symbol} ${horas(l.daysToLiquidate!)}`).join(" · ")}.</>}
+      {" "}
+      <span title={conDato.map((l) => `${l.symbol}: ${l.daysToLiquidate!.toFixed(4)} ruedas · volumen medio 30d US$ ${Math.round(l.avgDollarVolume30d ?? 0).toLocaleString("en-US")}`).join("\n")}>ver el detalle</span>
     </div>
   );
 }

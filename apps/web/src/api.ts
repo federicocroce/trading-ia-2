@@ -32,6 +32,8 @@ export interface RiskReport {
   betas: Record<string, number | null>;
   portfolioBeta: number | null;
   stressSpyMinus20Pct: number | null;
+  /** Lo observado, no lo estimado: volatilidad propia, la del SPY, cuánto explica el SPY y la peor rueda. */
+  risk?: { portfolioVolPct: number | null; spyVolPct: number | null; r2VsSpy: number | null; worstDayPct: number | null; sessions: number };
   liquidity: Array<{ symbol: string; avgDollarVolume30d: number | null; daysToLiquidate: number | null }>;
   notes: string[];
 }

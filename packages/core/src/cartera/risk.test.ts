@@ -115,3 +115,49 @@ describe("concentración por país con nombres mezclados", () => {
     expect(r.concentration.warnings.some((w) => w.includes("AR"))).toBe(true);
   });
 });
+
+/**
+ * 12/9: la pantalla mostraba beta 0,62 y "si SPY cae 20% → −12,5%" como única medida de daño, mientras la
+ * caída máxima real de la cartera había sido 33,6% contra 9,1% del SPY. La beta no estaba mal: solo mide la
+ * parte que se mueve con el mercado. Faltaba lo que NO explica.
+ */
+describe("lo que la beta no dice", () => {
+  // Serie que se mueve fuerte y sin ninguna relación con el SPY: beta cercana a cero, riesgo enorme.
+  const propia = series(walk(130, 100, (i) => (i % 3 === 0 ? 0.09 : i % 3 === 1 ? -0.08 : 0.02)));
+  const r = buildRiskReport({
+    positions: [pos("SOLA", 10)],
+    candles: { SOLA: propia },
+    spy,
+    profiles: { SOLA: { symbol: "SOLA", name: "Sola", country: "US", industry: "X", marketCap: 1 } },
+    tags: {},
+  });
+
+  it("mide la volatilidad propia y la del SPY en la misma ventana", () => {
+    expect(r.risk.portfolioVolPct).not.toBeNull();
+    expect(r.risk.spyVolPct).not.toBeNull();
+    expect(r.risk.portfolioVolPct!).toBeGreaterThan(r.risk.spyVolPct! * 2);
+  });
+
+  it("dice cuánto del movimiento explica el SPY: acá casi nada, y por eso el estrés lineal no es un techo", () => {
+    expect(r.risk.r2VsSpy).not.toBeNull();
+    expect(r.risk.r2VsSpy!).toBeLessThan(0.5);
+  });
+
+  it("la peor rueda observada es una pérdida real, no una estimación", () => {
+    expect(r.risk.worstDayPct).not.toBeNull();
+    expect(r.risk.worstDayPct!).toBeLessThan(0);
+    expect(r.risk.sessions).toBeGreaterThanOrEqual(20);
+  });
+
+  it("una cartera que SÍ es el mercado tiene R² alto: el chequeo distingue los dos casos", () => {
+    const igual = buildRiskReport({
+      positions: [pos("ESPEJO", 10)],
+      candles: { ESPEJO: doubleSpy },
+      spy,
+      profiles: { ESPEJO: { symbol: "ESPEJO", name: "Espejo", country: "US", industry: "X", marketCap: 1 } },
+      tags: {},
+    });
+    expect(igual.risk.r2VsSpy!).toBeGreaterThan(0.9);
+  });
+});
+
