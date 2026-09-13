@@ -60,8 +60,9 @@ describe("decideArStock", () => {
     const d = decideArStock(series(260, 2000, 1000), series(260, 1000, 1500), 1583.2, technical);
     if ("excluded" in d) throw new Error("excluida");
     expect(d.verdict).toBe("OBSERVAR");
-    expect(d.reasons.some((r) => r.includes("Merval"))).toBe(true);
-    expect(d.reasons).toContain("bajo SMA200");
+    // Nombre estable más el dato detrás de los dos puntos: la pantalla lo traduce, no lo muestra crudo.
+    expect(d.reasons.some((r) => r.startsWith("fr6m_negativa_merval:"))).toBe(true);
+    expect(d.reasons).toContain("bajo_sma200");
   });
   it("sin 200 ruedas queda excluida; sin CCL no hay precio en dólares", () => {
     expect(decideArStock(series(50, 1, 2), series(260, 1, 2), 1583.2, technical)).toEqual({ excluded: true, reasons: ["sin_historial"] });

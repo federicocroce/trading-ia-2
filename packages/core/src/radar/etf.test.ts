@@ -50,7 +50,7 @@ describe("decideEtf", () => {
     const d = decideEtf(cfg("satelite"), weak, spy, tech);
     if ("excluded" in d) throw new Error("no");
     expect(d.verdict).toBe("OBSERVAR");
-    expect(d.reasons.join()).toMatch(/fuerza relativa/);
+    expect(d.reasons.some((r) => r.startsWith("fr6m_negativa:"))).toBe(true);
   });
   it("sin velas suficientes → excluido", () => {
     expect(decideEtf(cfg("satelite"), strong.slice(-50), spy, tech)).toEqual({ excluded: true, reasons: ["sin_historial"] });

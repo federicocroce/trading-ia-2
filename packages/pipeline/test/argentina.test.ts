@@ -57,7 +57,7 @@ describe("refreshArgentina", () => {
     expect(ggal.spyClose).toBe(1500); // cierre del Merval, la referencia para medir
     const alua = rows.find((x) => x.symbol === "ALUA.BA")!;
     expect(alua.verdict).toBe("OBSERVAR");
-    expect(alua.flags).toContain("bajo SMA200");
+    expect(alua.flags).toContain("bajo_sma200");
     const aapl = rows.find((x) => x.symbol === "AAPL.BA")!;
     expect(aapl.kind).toBe("cedear");
     expect(aapl.flags).toEqual(["en_linea"]);

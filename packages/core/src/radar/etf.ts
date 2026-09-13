@@ -54,11 +54,16 @@ export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: R
     entry: null as EntryTiming | null,
   };
   // El núcleo no se vende por stop ni tiene objetivo: se compra por calendario y se mantiene.
-  if (cfg.role === "nucleo") return { ...base, stop: null, target: null, entry: null, verdict: "NUCLEO", reasons: ["núcleo: se compra por calendario, sin timing"] };
+  // Las banderas son NOMBRES estables, no frases: la pantalla las traduce y las pinta según su signo. Antes
+  // acá viajaba "núcleo: se compra por calendario, sin timing", una oración que la UI no podía reconocer y
+  // pintaba en ámbar con el mismo ⚑ que una salvedad. Que un ETF sea del núcleo no es una advertencia.
+  if (cfg.role === "nucleo") return { ...base, stop: null, target: null, entry: null, verdict: "NUCLEO", reasons: ["nucleo_por_calendario"] };
   base.entry = entryTiming(candles);
   const reasons: string[] = [];
-  if (base.rs6m === null || base.rs6m <= 0) reasons.push(`fuerza relativa 6m ${base.rs6m ?? "—"}% ≤ 0 contra SPY`);
-  if (s200 !== null && close < s200) reasons.push("bajo SMA200");
+  // El dato va detrás de los dos puntos, no dentro de una frase: así hay UNA bandera con un valor y no
+  // cuarenta cadenas distintas ("fuerza relativa 6m -10.9176% ≤ 0 contra SPY") que nadie puede traducir.
+  if (base.rs6m === null || base.rs6m <= 0) reasons.push(`fr6m_negativa:${base.rs6m ?? "—"}`);
+  if (s200 !== null && close < s200) reasons.push("bajo_sma200");
   const r21 = returnPct(candles, 21);
   if (r21 !== null && r21 > p.maxReturn21dPct) reasons.push("no_perseguir");
   // Cierre bajo el stop dinámico: viene cayendo desde un máximo reciente. Se observa; nunca un objetivo por debajo del precio.

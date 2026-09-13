@@ -98,8 +98,11 @@ export function decideArStock(candles: Candle[], merval: Candle[], ccl: number |
   const stop = computeTrailingStop(candles);
   const rs6m = relativeStrength(candles, merval, 126);
   const reasons: string[] = [];
-  if (rs6m === null || rs6m <= 0) reasons.push(`fuerza relativa 6m ${rs6m ?? "—"}% ≤ 0 contra el Merval`);
-  if (s200 !== null && close < s200) reasons.push("bajo SMA200");
+  // Mismo criterio que los ETFs: nombre estable más el dato, no una frase. Y "bajo_sma200" con guión bajo,
+  // igual que el motor de acciones: con la versión con espacio convivían dos escrituras de la misma cosa y
+  // la pantalla solo sabía traducir una.
+  if (rs6m === null || rs6m <= 0) reasons.push(`fr6m_negativa_merval:${rs6m ?? "—"}`);
+  if (s200 !== null && close < s200) reasons.push("bajo_sma200");
   const r21 = returnPct(candles, 21);
   if (r21 !== null && r21 > p.maxReturn21dPct) reasons.push("no_perseguir");
   // Cierre bajo el stop dinámico: la misma guarda que ya tenían las acciones US y los ETFs, y que acá

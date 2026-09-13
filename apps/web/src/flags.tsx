@@ -35,6 +35,12 @@ const FLAG_LABEL: Record<string, string> = {
   verificacion_pendiente: "verificación web pendiente",
   consenso_en_precio: "objetivo de consenso a < 10% del precio",
   subio_mucho_12m: "subió > 100% en 12 meses",
+  nucleo_por_calendario: "del núcleo: se compra por calendario, sin timing",
+  stop_dentro_de_la_entrada: "el stop cae dentro de la franja de compra: no hay operación posible",
+  en_linea: "el CEDEAR cotiza en línea con el CCL",
+  caro_vs_ccl: "el CEDEAR está caro contra el CCL",
+  barato_vs_ccl: "el CEDEAR está barato contra el CCL",
+  ratio_dudoso: "el ratio cargado no coincide con el precio: revisar si hubo split",
 };
 /**
  * Banderas con un dato adentro, en la forma `nombre:dato`. Se traducen aparte porque el dato cambia por
@@ -42,6 +48,13 @@ const FLAG_LABEL: Record<string, string> = {
  */
 const FLAG_CON_DATO: Record<string, (dato: string) => string> = {
   serie_con_salto: (fecha) => `la serie de precios da un salto de escala el ${fecha}: un split que la fuente no ajustó`,
+  fr6m_negativa: (v) => `le perdió al SPY en 6 meses (${redondear(v)}%)`,
+  fr6m_negativa_merval: (v) => `le perdió al Merval en 6 meses (${redondear(v)}%)`,
+};
+/** Los motores guardan el número completo; en pantalla, un decimal alcanza y sobra. */
+const redondear = (v: string) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(1) : v;
 };
 export const flagLabel = (flag: string): string => {
   const i = flag.indexOf(":");
@@ -55,7 +68,13 @@ export const flagLabel = (flag: string): string => {
 export type FlagTone = "bueno" | "salvedad" | "limitacion";
 
 /** Señales a favor. Ninguna de estas resta en la convicción ni acerca a OBSERVAR. */
-const BUENAS = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiva", "dividendo", "verificacion_apta"]);
+const BUENAS = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiva", "dividendo", "verificacion_apta", "barato_vs_ccl"]);
+/**
+ * Ni buenas ni malas: describen qué ES el instrumento o cómo está cotizando, y no restan nada. Que un ETF
+ * sea del núcleo se pintaba en ámbar con el mismo ⚑ que una salvedad, y "en línea con el CCL", que es la
+ * situación normal de un CEDEAR, también.
+ */
+const NEUTRAS = new Set(["nucleo_por_calendario", "en_linea"]);
 /** Ni a favor ni en contra: falta un dato. No es un defecto de la empresa, es un límite de la fuente. */
 const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente"]);
 /** Las que llevan un dato adentro y también son límites de la fuente, no defectos de la empresa. */
@@ -64,7 +83,7 @@ const LIMITACIONES_CON_DATO = new Set(["serie_con_salto"]);
 /** Todo lo que no está declarado como bueno o como límite cuenta como salvedad: el default seguro. */
 export function flagTone(flag: string): FlagTone {
   if (BUENAS.has(flag)) return "bueno";
-  if (LIMITACIONES.has(flag)) return "limitacion";
+  if (LIMITACIONES.has(flag) || NEUTRAS.has(flag)) return "limitacion";
   const i = flag.indexOf(":");
   if (i > 0 && LIMITACIONES_CON_DATO.has(flag.slice(0, i))) return "limitacion";
   return "salvedad";
