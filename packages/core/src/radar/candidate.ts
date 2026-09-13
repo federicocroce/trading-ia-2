@@ -1,6 +1,6 @@
 import { atr, computeTarget, computeTrailingStop, entryStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
-import type { Fundamentals } from "./ranking.js";
+import { unreliableGrowthKeys, type Fundamentals } from "./ranking.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
 import { earningsQualityFlags, hasExtraordinary } from "./statements.js";
 import { crossesSplit } from "./split.js";
@@ -169,6 +169,8 @@ export function buildFlags(
   flags.push(...gate.reasons);
   if (nthAppearance >= chronicWeeks) flags.push("residente_cronico");
   if (extra.core === null) flags.push("sin_estados");
+  // En bancos el ranking ya no usa el crecimiento de ingresos de Finnhub (NBN +124% contra +4% real, 13/9): la fila lo dice.
+  if (unreliableGrowthKeys(f).length) flags.push("crecimiento_no_confiable");
   if (hasExtraordinary(extra.core)) flags.push("resultado_extraordinario");
   flags.push(...earningsQualityFlags(extra.core));
   const since = extra.today ? Date.parse(extra.today) - EVENT_WINDOW_DAYS * DAY : Number.NEGATIVE_INFINITY;

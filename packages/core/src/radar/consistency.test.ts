@@ -55,6 +55,18 @@ describe("checkConsistency", () => {
     expect(f[0]!.severity).toBe("grave");
   });
 
+  it("NBN del 13/9: un banco con crecimiento de ingresos de Finnhub tiene que llevar la bandera", () => {
+    const metrics = { NBN: { revenueGrowthTTMYoy: 123.89, revenueGrowthQuarterlyYoy: 133.39 }, NBIS: { revenueGrowthTTMYoy: 488.2 } };
+    const industries = { NBN: "Banking", NBIS: "Technology" };
+    const sinBandera = solo("crecimiento_sin_bandera", checkConsistency({ rows: [fila({ symbol: "NBN", flags: ["sin_estados"] })], candles: {}, plan: null, metrics, industries }));
+    expect(sinBandera).toHaveLength(1);
+    expect(sinBandera[0]!.severity).toBe("grave");
+    const conBandera = solo("crecimiento_sin_bandera", checkConsistency({ rows: [fila({ symbol: "NBN", flags: ["sin_estados", "crecimiento_no_confiable"] })], candles: {}, plan: null, metrics, industries }));
+    expect(conBandera).toEqual([]);
+    // Fuera de los bancos no hay regla: NBIS crece de verdad.
+    expect(solo("crecimiento_sin_bandera", checkConsistency({ rows: [fila({ symbol: "NBIS" })], candles: {}, plan: null, metrics, industries }))).toEqual([]);
+  });
+
   describe("stop de una compra nueva (13/9)", () => {
     // Plana en 100 con un pico de 103 dentro de las últimas 22 ruedas: el de seguimiento queda pegado al precio.
     const velas = Array.from({ length: 30 }, (_, i) => vela(`2026-08-${String(i + 12).padStart(2, "0")}`, 100));

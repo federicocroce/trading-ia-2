@@ -70,6 +70,11 @@ describe("buildFlags", () => {
     expect(buildFlags(f(), gate, 4, 4)).toContain("residente_cronico");
     expect(buildFlags(f(), gate, 1, 4)).toEqual([]);
   });
+  it("NBN del 13/9: en un banco, el crecimiento de ingresos de Finnhub no se usa y la fila lo dice", () => {
+    const nbn = { beta: 0.65, revenueGrowthTTMYoy: 123.89, revenueGrowthQuarterlyYoy: 133.39 };
+    expect(buildFlags(f({ industry: "Banking", metrics: nbn }), gate, 1, 4)).toContain("crecimiento_no_confiable");
+    expect(buildFlags(f({ industry: "Technology", metrics: nbn }), gate, 1, 4)).not.toContain("crecimiento_no_confiable");
+  });
 });
 
 describe("consensusUpsidePct", () => {

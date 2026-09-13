@@ -48,10 +48,14 @@ de las veces. NBN: Finnhub da ingresos +124% TTM y +133% trimestral; el comunica
   una salvedad informativa sin penalidad.
 - Chequeo nuevo `dos_a_uno_falso` (grave) en `auditar` sobre `/radar/top`.
 
-### 4. Crecimiento sin confirmar
-- Crecimiento de ingresos (TTM o trimestral) mayor a 100% en una empresa sin estados de la SEC no entra al
-  ranking: se ignora esa métrica para ese símbolo (el resto del eje queda) y la fila lleva la bandera
-  informativa `crecimiento_sin_confirmar`. Con estados de la SEC no cambia nada.
+### 4. Crecimiento de ingresos no confiable en bancos
+- Primera versión, descartada al correrla contra la base: "más de 100% sin estados de la SEC no entra". Marcaba
+  además a NBIS (+488%), APLD (+365%) y ASTS, que crecen de verdad.
+- Lo que muestran los datos: en la industria "Banking" Finnhub infla el crecimiento de ingresos en general (TFC
+  +58%, AMTB +78%, MBWM +59%, JPM +109%, NBN +124%), cuando un banco crece de 0 a 15%.
+- Regla: en bancos, el crecimiento de ingresos de Finnhub (TTM y trimestral) no entra al ranking; el de 5 años y
+  el de EPS siguen. La fila lleva la bandera informativa `crecimiento_no_confiable`. Fuera de los bancos no cambia
+  nada. Chequeo `crecimiento_sin_bandera` (grave) si un banco no la lleva.
 
 ### 5. Verificación web
 - El cuestionario pide el EPS limpio contra el consenso (¿la sorpresa sobrevive sin extraordinarios?),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupMedians, peerGroup, rankStocks, robustZ, type Fundamentals } from "./index.js";
+import { groupMedians, peerGroup, rankStocks, robustZ, unreliableGrowthKeys, type Fundamentals } from "./index.js";
 
 const weights = { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 };
 const base = { peTTM: 20, evEbitdaTTM: 12, psTTM: 3, roeTTM: 15, operatingMarginTTM: 20, netProfitMarginTTM: 12, revenueGrowthTTMYoy: 10, revenueGrowth5Y: 8, epsGrowthTTMYoy: 10, "totalDebt/totalEquityAnnual": 0.5, currentRatioAnnual: 1.5 };
@@ -69,6 +69,30 @@ describe("rankStocks", () => {
  * y sin descartar los P/E no positivos: mostraba "mediana del grupo (8)" y un P/E de 67,3×, cuando el puntaje
  * usaba 66,0× sobre nueve. Estos son los P/E reales de ese día.
  */
+describe("crecimiento de ingresos no confiable en bancos (NBN, 13/9)", () => {
+  // NBN era 1° por convicción con ingresos +124% TTM y +133% trimestral según Finnhub; el comunicado dice +4%.
+  // Contra la base del 13/9 el problema es de la fuente con los bancos, no de NBN: TFC +58%, AMTB +78%, MBWM +59%,
+  // JPM +109%, cuando un banco crece de 0 a 15%. Y una regla "más de 100% sin estados" marcaba además a NBIS
+  // (+488%), APLD (+365%) y ASTS, que crecen de verdad: por eso la regla es por industria y no por umbral.
+  const bancos = ["B1", "B2", "B3", "B4", "B5"];
+  const banco = (i: number) => ({ ...base, revenueGrowthTTMYoy: 8 + i, revenueGrowthQuarterlyYoy: 9 + i, revenueGrowth5Y: 7 + i, epsGrowthTTMYoy: 10 + i });
+  // Los dos números rotos son los reales; 5 años y EPS quedan cerca de los pares para que el efecto se vea (con
+  // los reales, 21,87 y 26,41, también saturan en +3 en un grupo de seis y el eje no puede subir más).
+  const nbn = { ...base, revenueGrowthTTMYoy: 123.89, revenueGrowthQuarterlyYoy: 133.39, revenueGrowth5Y: 11, epsGrowthTTMYoy: 12 };
+  const grupo = (f: Fundamentals) => new Map<string, Fundamentals>([["NBN", f], ...bancos.map((s, i) => [s, mk(s, "Banking", banco(i), ["NBN", ...bancos.filter((x) => x !== s)])] as [string, Fundamentals])]);
+  const growth = (f: Fundamentals) => rankStocks(grupo(f), weights).ranked.find((r) => r.symbol === "NBN")!.axes.growth!;
+
+  it("en un banco, el crecimiento de ingresos de Finnhub no entra al eje (el de 5 años y el de EPS sí)", () => {
+    const roto = mk("NBN", "Banking", nbn, bancos);
+    const sinEsos = mk("NBN", "Banking", { ...nbn, revenueGrowthTTMYoy: null, revenueGrowthQuarterlyYoy: null }, bancos);
+    expect(unreliableGrowthKeys(roto)).toEqual(["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy"]);
+    expect(growth(roto)).toBeCloseTo(growth(sinEsos), 4);
+  });
+  it("fuera de los bancos no cambia nada, ni siquiera con crecimientos enormes (NBIS +488%, sin estados)", () => {
+    expect(unreliableGrowthKeys(mk("NBIS", "Technology", { ...base, revenueGrowthTTMYoy: 488.2, revenueGrowthQuarterlyYoy: 454 }))).toEqual([]);
+  });
+});
+
 describe("groupMedians", () => {
   const pe = (v: number | null) => ({ metrics: { peTTM: v } as Record<string, number | null> });
   const aph = pe(39.7);

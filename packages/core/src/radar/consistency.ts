@@ -2,6 +2,7 @@ import type { Candle } from "../cartera/types.js";
 import { atr, computeTrailingStop, ENTRY_STOP_ATR, entryStop } from "../cartera/stop.js";
 import { CONSENSUS_SCALE } from "./candidate.js";
 import { lineHasExit, type ContributionPlan } from "./plan.js";
+import { UNRELIABLE_GROWTH_INDUSTRY } from "./ranking.js";
 import type { CandidateRow } from "./types.js";
 
 /**
@@ -45,6 +46,8 @@ export interface ConsistencyInput {
    * con esto se puede distinguir "no hubo eventos" de "nadie miró", que hasta el 12/9 eran el mismo vacío.
    */
   newsScannedTo?: Record<string, string | null>;
+  /** Industria de Finnhub por símbolo (para `crecimiento_sin_bandera`: en bancos el crecimiento de ingresos no se usa). */
+  industries?: Record<string, string | null>;
   /** Símbolos en cartera. Una posición usa su stop de seguimiento; sin esto no corre `stop_dentro_del_ruido`. */
   held?: string[];
 }
@@ -124,6 +127,15 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       if (a !== null && a > 0 && row.entryLow - row.stop < ENTRY_STOP_ATR * a - CONSISTENCY_THRESHOLDS.stopEpsilon) {
         add("stop_dentro_del_ruido", row.symbol, "grave", `compra hasta ${r2(row.entryLow)} con el stop en ${r2(row.stop)}, a ${r2((row.entryLow - row.stop) / a)} ATR: el ruido de un día lo ejecuta`);
       }
+    }
+
+    // 1d. En bancos el crecimiento de ingresos de Finnhub no es confiable (NBN el 13/9: +124% contra +4% del
+    //     comunicado; TFC +58%). El ranking ya no lo usa; la fila tiene que decirlo.
+    const crec = i.metrics?.[row.symbol];
+    const industria = i.industries?.[row.symbol] ?? null;
+    if (crec && row.kind === "stock" && industria && UNRELIABLE_GROWTH_INDUSTRY.test(industria) && !row.flags.includes("crecimiento_no_confiable")) {
+      const usados = ["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy"].filter((k) => typeof crec[k] === "number");
+      if (usados.length) add("crecimiento_sin_bandera", row.symbol, "grave", `banco con ${usados.map((k) => `${k} ${r2(crec[k]!)}%`).join(", ")} de Finnhub y sin la bandera crecimiento_no_confiable`);
     }
 
     // 2. La verificación web y las banderas tienen que contar la misma historia. Si el dictamen está guardado

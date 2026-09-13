@@ -62,9 +62,31 @@ export function robustZ(values: Array<number | null>): Array<number | null> {
   });
 }
 
+/**
+ * Crecimiento de ingresos no confiable en bancos (2026-09-13). NBN era 1° por convicción con +124% TTM y +133%
+ * trimestral según Finnhub; su comunicado dice +4% (65,2 M contra 62,7 M). Dos de las cuatro métricas del eje de
+ * crecimiento quedaban en +3 por un dato que no existe.
+ *
+ * Contra la base del 13/9 el problema es de la fuente con los bancos, no de NBN: TFC +58%, AMTB +78%, MBWM +59%,
+ * JPM +109%, cuando un banco crece de 0 a 15% por año. Primero probé "más de 100% sin estados de la SEC" y marcaba
+ * además a NBIS (+488%), APLD (+365%) y ASTS, que crecen de verdad: le sacaba a una empresa su mejor número por un
+ * defecto de otra. Por eso la regla es por industria: en bancos, el crecimiento de ingresos de Finnhub (TTM y
+ * trimestral) no entra al ranking. El de 5 años y el de EPS siguen; la fila lo dice con `crecimiento_no_confiable`.
+ */
+export const UNRELIABLE_GROWTH_INDUSTRY = /^bank/i;
+const REVENUE_GROWTH_KEYS = ["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy"] as const;
+export function unreliableGrowthKeys(f: Fundamentals): string[] {
+  if (!f.industry || !UNRELIABLE_GROWTH_INDUSTRY.test(f.industry)) return [];
+  return REVENUE_GROWTH_KEYS.filter((k) => {
+    const v = f.metrics[k];
+    return typeof v === "number" && Number.isFinite(v);
+  });
+}
+
 const metricOf = (f: Fundamentals, spec: { key: string; positiveOnly?: boolean }): number | null => {
   const v = f.metrics[spec.key];
   if (v === null || v === undefined || !Number.isFinite(v)) return null;
+  if (unreliableGrowthKeys(f).includes(spec.key)) return null;
   if (spec.positiveOnly && v <= 0) return null;
   return v;
 };
