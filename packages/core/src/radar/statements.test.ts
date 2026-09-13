@@ -124,6 +124,22 @@ describe("applyCoreMetrics", () => {
     expect(out.metrics["peTTM"]).toBe(12.8462);
     expect(out.statementsAsOf).toBeNull();
   });
+  it("McDonald's del 12/9: una ganancia por acción absurda no reemplaza al P/E de la fuente", () => {
+    // El extractor devolvía 711,1 acciones en vez de 711,1 millones, y el "P/E núcleo" daba 0,0 porque la
+    // ganancia por acción salía 14 millones de dólares. Eso entraba en la tabla de comparables y en el score.
+    const core = { asOf: "2026-09-12", revenueTTM: 26_000, operatingIncomeTTM: 11_000, coreOperatingIncomeTTM: 10_000, netIncomeTTM: 9_000, coreNetIncomeTTM: 8_000, coreEpsTTM: 14_224_666, operatingCashFlowTTM: null, freeCashFlowTTM: null, equity: 5_000, taxRate: 0.2, extraordinaryTTM: 1_000, extraordinaryItems: [], deviationPct: 0.11, noncontrollingTTM: null, receivablesPctRevenue: null, lastQuarterYoy: null };
+    const f = { symbol: "MCD", asOf: "2026-09-12", metrics: { epsTTM: 12.5, peTTM: 20.6 }, peers: [], industry: null, mcapUsd: null, dollarVolumeUsd: 0, priceUsd: 257, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null };
+    const r = applyCoreMetrics(f, core, 257);
+    expect(r.metrics["peTTM"]).toBe(20.6); // se queda el de la fuente, no 0,0
+    expect(r.metricsRaw!["peTTM"]).toBe(20.6);
+  });
+
+  it("una ganancia por acción del núcleo creíble sí reemplaza al P/E de la fuente", () => {
+    const core = { asOf: "2026-09-12", revenueTTM: 1_000, operatingIncomeTTM: 200, coreOperatingIncomeTTM: 150, netIncomeTTM: 120, coreNetIncomeTTM: 90, coreEpsTTM: 9, operatingCashFlowTTM: null, freeCashFlowTTM: null, equity: 500, taxRate: 0.2, extraordinaryTTM: 30, extraordinaryItems: [], deviationPct: 0.25, noncontrollingTTM: null, receivablesPctRevenue: null, lastQuarterYoy: null };
+    const f = { symbol: "X", asOf: "2026-09-12", metrics: { epsTTM: 12, peTTM: 10 }, peers: [], industry: null, mcapUsd: null, dollarVolumeUsd: 0, priceUsd: 120, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null };
+    expect(applyCoreMetrics(f, core, 120).metrics["peTTM"]).toBeCloseTo(120 / 9, 2);
+  });
+
   it("EPS núcleo ≤ 0 → P/E null (se trata como faltante en el ranking)", () => {
     const out = applyCoreMetrics(f(), { ...core!, coreEpsTTM: -0.1 }, 12.57);
     expect(out.metrics["peTTM"]).toBeNull();

@@ -243,12 +243,36 @@ export const hasExtraordinary = (core: CoreEarnings | null | undefined): boolean
 /** Reemplaza P/E, ROE y márgenes por las cifras núcleo; Finnhub queda en `metricsRaw`. Sin núcleo o sin ingresos: nada cambia, `statementsAsOf` null.
  *  Sin ganancias extraordinarias operativas identificadas (`extraordinaryTTM === 0`): tampoco se reemplaza (el núcleo ignora intereses y sesgaría a
  *  favor de empresas apalancadas), pero `statementsAsOf` sí se marca: los estados están disponibles y se muestran. */
+/**
+ * Banda de credibilidad de la ganancia por acción del núcleo contra la que publica la fuente. Fuera de esto
+ * el número no viene de un ajuste por extraordinarios: viene de un error de extracción de acciones.
+ */
+export const CORE_EPS_BAND = { min: 1 / 3, max: 3 };
+
 export function applyCoreMetrics(f: Fundamentals, core: CoreEarnings | null, priceUsd: number): Fundamentals {
   const raw = f.metricsRaw ?? f.metrics;
   if (!core || core.revenueTTM === null || core.revenueTTM <= 0 || core.coreOperatingIncomeTTM === null) return { ...f, metrics: raw, metricsRaw: raw, statementsAsOf: null };
   if (core.extraordinaryTTM === 0) return { ...f, metrics: raw, metricsRaw: raw, statementsAsOf: core.asOf };
   const metrics: FinnhubMetrics = { ...raw };
-  metrics["peTTM"] = core.coreEpsTTM !== null && core.coreEpsTTM > 0 ? r4(priceUsd / core.coreEpsTTM) : null;
+  /*
+   * El P/E núcleo solo reemplaza al de la fuente si la ganancia por acción del núcleo es CREÍBLE contra la
+   * que publica Finnhub. El extractor de XBRL toma a veces la dilución incremental en vez de las acciones
+   * diluidas ponderadas, y a veces el dato viene en millones y otras en unidades. Resultado medido el 12/9:
+   * 12 símbolos con "P/E núcleo 0.0" (McDonald's daba 14 millones de dólares de ganancia por acción) y el
+   * 22% del universo desviado más de 35% del de Finnhub. Ese número entraba en la tabla de comparables y en
+   * el eje de valuación, que es el de mayor peso: TECH aparecía con P/E 0,03 y SON con 1.109.
+   *
+   * Si no es creíble se deja el de la fuente. Perder el ajuste por extraordinarios en algunos símbolos es
+   * mucho menos grave que hacer parecer al papel más caro del grupo el más barato.
+   */
+  const epsFuente = typeof raw["epsTTM"] === "number" ? raw["epsTTM"] : null;
+  const eps = core.coreEpsTTM;
+  // Ganancia núcleo negativa o nula NO es un error de extracción: es la señal de que el negocio no gana
+  // plata sin los extraordinarios, que es justo lo que hay que ver. Ahí el P/E queda en null, como antes.
+  const nucleoEnPerdida = eps !== null && eps <= 0;
+  // Positiva pero de otra escala que la de la fuente: eso sí es extracción rota, y se deja la de la fuente.
+  const creible = eps !== null && eps > 0 && (epsFuente === null || epsFuente <= 0 || (eps / epsFuente >= CORE_EPS_BAND.min && eps / epsFuente <= CORE_EPS_BAND.max));
+  metrics["peTTM"] = creible ? r4(priceUsd / eps!) : nucleoEnPerdida || eps === null ? null : raw["peTTM"];
   metrics["operatingMarginTTM"] = r4((core.coreOperatingIncomeTTM / core.revenueTTM) * 100);
   metrics["netProfitMarginTTM"] = core.coreNetIncomeTTM === null ? raw["netProfitMarginTTM"] : r4((core.coreNetIncomeTTM / core.revenueTTM) * 100);
   metrics["roeTTM"] = core.equity && core.equity > 0 && core.coreNetIncomeTTM !== null ? r4((core.coreNetIncomeTTM / core.equity) * 100) : raw["roeTTM"];
