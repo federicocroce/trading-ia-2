@@ -38,7 +38,7 @@ export function radarRoutes(c: Container) {
     const byTheme = (d ? await store.riskForDate(d) : await store.latestRisk())?.report.concentration.byTheme ?? {};
     const overweight = Object.fromEntries(Object.entries(byTheme).filter(([, pct]) => pct > 40));
     // Candidatos que se mueven como algo que ya tenés: mismo riesgo con otro nombre, suma menos.
-    const overlap = await candidateOverlap(store, rows);
+    const overlap = await candidateOverlap(store, rows, deps.etfs.filter((e) => e.role === "nucleo").map((e) => e.symbol));
     // Régimen macro desde el 10 años guardado por el plan (sin volver a pedirlo a Yahoo).
     const since = new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10);
     const regime = assessRegime(await store.candles(TNX_SYMBOL, since).catch(() => []));

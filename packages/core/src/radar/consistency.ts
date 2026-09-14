@@ -1,7 +1,7 @@
 import type { Candle } from "../cartera/types.js";
 import { atr, computeTrailingStop, ENTRY_STOP_ATR, entryStop } from "../cartera/stop.js";
 import { CONSENSUS_SCALE } from "./candidate.js";
-import { PLAN_BLOCKERS, lineHasExit, type ContributionPlan } from "./plan.js";
+import { PLAN_BLOCKERS, STOP_NOISE_ATR, lineHasExit, type ContributionPlan } from "./plan.js";
 import { UNRELIABLE_GROWTH_INDUSTRY } from "./ranking.js";
 import type { CandidateRow } from "./types.js";
 
@@ -261,6 +261,16 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     if (l.kind === "nucleo" || l.kind === "sumar") continue;
     const v = verdictOf.get(l.symbol);
     if (v && v !== "COMPRAR") add("plan_contra_veredicto", l.symbol, "grave", `el plan lo compra pero el Radar de hoy lo tiene en ${v}`);
+  }
+
+  // 7b. Ni comprar ni sumar con el precio pegado al stop (14/9): TSM cerró a 0,4 ATR del stop de su posición y APH a
+  //     0,3 del de su orden. Una rueda normal los ejecuta. El núcleo no tiene stop y no se mide.
+  for (const l of i.plan?.lines ?? []) {
+    if (l.kind === "nucleo" || l.stop === null || l.stop === undefined || l.close === null) continue;
+    const a = atr(i.candles[l.symbol] ?? [], 14);
+    if (a !== null && a > 0 && l.close - l.stop < STOP_NOISE_ATR * a) {
+      add("plan_stop_en_el_ruido", l.symbol, "grave", `el plan lo ${l.kind === "sumar" ? "suma" : "compra"} a ${r2(l.close)} con el stop en ${r2(l.stop)}, a ${r2((l.close - l.stop) / a)} ATR: una rueda normal lo ejecuta`);
+    }
   }
 
   // 8. Ni con una bandera que lo saca del plan (precio ya descontado, banco sin estados). NBN el 14/9 entró por la

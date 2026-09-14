@@ -220,6 +220,18 @@ describe("checkConsistency", () => {
     expect(solo("banco_sin_bandera", checkConsistency({ rows: [fila({ symbol: "APH", flags: ["sin_estados"] })], candles: {}, plan: null, industries }))).toEqual([]);
   });
 
+  it("TSM y APH el 14/9: el plan no puede comprar ni sumar con el stop a menos de 1 ATR del precio", () => {
+    // Velas planas con rango 1: ATR de 14 ruedas = 1.
+    const velas = Array.from({ length: 30 }, (_, i) => vela(`2026-08-${String(i + 12).padStart(2, "0")}`, 100));
+    const f = solo("plan_stop_en_el_ruido", checkConsistency({
+      rows: [], candles: { TSM: velas, NVDA: velas, VTI: velas },
+      plan: plan([linea({ symbol: "TSM", kind: "sumar", close: 100, stop: 99.5 }), linea({ symbol: "NVDA", close: 100, stop: 98 }), linea({ symbol: "VTI", kind: "nucleo", close: 100, stop: null })]),
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.symbol).toBe("TSM");
+    expect(f[0]!.severity).toBe("grave");
+  });
+
   it("el plan no puede comprar algo que el Radar de hoy tiene en OBSERVAR", () => {
     const f = solo("plan_contra_veredicto", checkConsistency({
       rows: [fila({ symbol: "HRTG", verdict: "OBSERVAR" })],

@@ -178,3 +178,45 @@ describe("planContribution", () => {
     expect(p.notes.join(" ")).toMatch(/6500/);
   });
 });
+
+describe("antes de comprar: el stop fuera del ruido y una posición que diversifique (14/9)", () => {
+  type Buy = PlanInput["buyCandidates"][number];
+  const apta = { verdict: "apto" as const, reason: "ok", current: true };
+  const compra = (symbol: string, priority: number, close: number, stop: number, atr: number | null, extra: Partial<Buy> = {}): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close, entryHigh: close * 1.02, stop, target: close * 1.2, verification: apta, atr, ...extra });
+  const cuarenta = (i: Partial<PlanInput>) => planContribution({ ...base, closes: { ...base.closes, TSM: 418.01, APH: 78.55, NVDA: 211, GFI: 43.09 }, ...i }, c, { amountUsd: 40_000 });
+  const nucleo = (p: ReturnType<typeof planContribution>) => p.lines.filter((l) => l.kind === "nucleo").reduce((s, l) => s + l.amountUsd, 0);
+
+  it("TSM el 14/9: cerró en 418 con el stop de la posición en 413,63 (0,4 ATR): no se suma y su parte va al núcleo", () => {
+    const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 413.63, target: 498.44, verification: apta, atr: 11 };
+    const con = cuarenta({ sumarCandidates: [tsm] });
+    const sin = cuarenta({ sumarCandidates: [{ ...tsm, stop: 380 }] });
+    expect(con.lines.some((l) => l.symbol === "TSM")).toBe(false);
+    expect(con.notes.join(" ")).toMatch(/No se sumó TSM: .*0,4 ATR del stop/);
+    expect(sin.lines.find((l) => l.symbol === "TSM")!.kind).toBe("sumar");
+    expect(nucleo(con)).toBeGreaterThan(nucleo(sin));
+  });
+  it("APH el 14/9: cerró en 78,55 con el stop de la orden en 77,81 (0,3 ATR): no se compra, lo dice y el lugar va al núcleo", () => {
+    const p = cuarenta({ buyCandidates: [compra("APH", 1.6, 78.55, 77.81, 2.44), compra("NVDA", 1.1, 211, 199.06, 8)] });
+    expect(p.lines.some((l) => l.symbol === "APH")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "APH")!.reason).toMatch(/0,3 ATR del stop.*ruido/);
+    expect(p.lines.find((l) => l.symbol === "NVDA")!.kind).toBe("comprar");
+  });
+  it("una compra nueva que se mueve como algo que ya tenés (GFI con NEM, 0,86) no entra: no diversifica", () => {
+    const gfi = compra("GFI", 0.7, 43.09, 38, 1.6, { overlap: { with: "NEM", corr: 0.86 } });
+    const p = cuarenta({ buyCandidates: [compra("NVDA", 1.1, 211, 199.06, 8), gfi] });
+    expect(p.lines.some((l) => l.symbol === "GFI")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "GFI")!.reason).toMatch(/se mueve como NEM que ya tenés \(correlación 0,86\): no diversifica/);
+    // Debajo del umbral entra, con la salvedad que ya tenía.
+    const q = cuarenta({ buyCandidates: [compra("NVDA", 1.1, 211, 199.06, 8), { ...gfi, overlap: { with: "NEM", corr: 0.75 } }] });
+    expect(q.lines.some((l) => l.symbol === "GFI")).toBe(true);
+  });
+  it("cada orden dice debajo de qué precio ya no se ejecuta: stop + 1 ATR", () => {
+    const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 380, target: 498.44, verification: apta, atr: 11 };
+    const p = cuarenta({ sumarCandidates: [tsm], buyCandidates: [compra("NVDA", 1.1, 211, 199.06, 8)] });
+    expect(p.lines.find((l) => l.symbol === "NVDA")!.minPrice).toBe(207.06);
+    expect(p.lines.find((l) => l.symbol === "TSM")!.minPrice).toBe(391);
+    // Sin ATR no se inventa un piso.
+    const sinAtr = cuarenta({ buyCandidates: [compra("NVDA", 1.1, 211, 199.06, null)] });
+    expect(sinAtr.lines.find((l) => l.symbol === "NVDA")!.minPrice).toBeNull();
+  });
+});

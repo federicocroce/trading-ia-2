@@ -210,10 +210,17 @@ describe("plan y medición", () => {
     await store.upsertVerdicts([{ verdictDate: TODAY, symbol: "SL", verb: "SUMAR", reason: "r", narrative: null, warning: null, close: 100, spot: null, stop: 90, target: 120, gainPct: 0, weightPct: 1, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null }]);
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    // Las velas sintéticas son la misma rampa para todos: correlación 1 con SL, que es tuya, y la regla de
+    // diversificación (14/9) sacaría a todas las candidatas. Acá SL se mueve distinto, como en la vida real.
+    const fechas = (await store.candles("SA", "2000-01-01")).map((c) => c.date);
+    await store.upsertCandles("SL", fechas.map((date, i) => { const c = 50 + (i % 2 ? 1.5 : -1.5); return { date, open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1_000_000 }; }));
     const plan = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
+    // VTI también es tuya y se mueve igual que las candidatas, pero es el núcleo: parecerse al mercado no es duplicar una apuesta.
+    expect(plan.leftOut?.some((x) => /como VTI/.test(x.reason))).toBe(false);
     // Regla v2: SUMAR hasta el 30% del resto; las dos nuevas (máximo por mes) se reparten parejo lo que queda.
     // Las dos nuevas se reparten por convicción (peso 1 + convicción): SA rankea mejor que SH y se lleva más.
-    expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 1950], ["SA", "comprar", 2935], ["SH", "comprar", 1615]]);
+    // Hasta el 14/9 las dos pagaban una penalidad por "moverse como VTI" (el núcleo) y el reparto era 2935/1615.
+    expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 1950], ["SA", "comprar", 2862], ["SH", "comprar", 1688]]);
     expect((await store.latestPlan())?.month).toBe("2026-05");
 
     // medición: velas hasta 2026-05-18 → un candidato del 2026-04-01 tiene 7 y 30 días de vela posterior
@@ -223,6 +230,25 @@ describe("plan y medición", () => {
     expect(m.candidates["7"]).toBe(1);
     expect(m.candidates["30"]).toBe(1);
     expect(m.candidates["90"]).toBe(0);
+  });
+});
+
+describe("plan: el ATR y la correlación de cada compra llegan al plan (14/9)", () => {
+  it("con las velas de SL iguales a las de las candidatas (correlación 1), ninguna entra por no diversificar; el SUMAR lleva su precio mínimo", async () => {
+    const { store, d } = deps();
+    await store.upsertPosition({ symbol: "SL", quantity: 10, avgCost: 50, currency: "USD", market: "us", layer: "riesgo", notes: null });
+    await store.saveRisk(TODAY, { totalValue: 100_000, weights: [{ symbol: "SL", value: 1000, weightPct: 1 }], concentration: { byCountry: {}, byIndustry: {}, bySector: {}, byTheme: {}, hhiCountry: 0, hhiIndustry: 0, warnings: [] }, correlatedPairs: [], betas: {}, portfolioBeta: null, stressSpyMinus20Pct: null, risk: { portfolioVolPct: null, spyVolPct: null, r2VsSpy: null, worstDayPct: null, sessions: 0 }, liquidity: [], notes: [] });
+    await store.upsertVerdicts([{ verdictDate: TODAY, symbol: "SL", verb: "SUMAR", reason: "r", narrative: null, warning: null, close: 100, spot: null, stop: 90, target: 120, gainPct: 0, weightPct: 1, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null }]);
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const plan = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
+    const compras = (await store.latestCandidates()).filter((c) => c.kind === "stock" && c.verdict === "COMPRAR").map((c) => c.symbol);
+    if (!compras.length) expect.fail("el fixture necesita COMPRAR");
+    for (const s of compras) expect(plan.leftOut!.find((x) => x.symbol === s)?.reason).toMatch(/se mueve como SL que ya tenés .*no diversifica/);
+    const sumar = plan.lines.find((l) => l.symbol === "SL" && l.kind === "sumar");
+    if (!sumar) expect.fail(`SL no quedó como SUMAR: ${plan.lines.map((l) => `${l.symbol}:${l.kind}`).join(" ")}`);
+    expect(sumar.minPrice).not.toBeNull();
+    expect(sumar.minPrice!).toBeGreaterThan(sumar.stop!);
   });
 });
 

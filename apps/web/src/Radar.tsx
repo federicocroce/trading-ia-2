@@ -482,7 +482,12 @@ function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; t
               <td className="mono">{money(l.amountUsd)}</td>
               <td className="mono">{qty(l) ?? "—"}</td>
               <td className="mono">{f2(l.close)}</td>
-              <td><EntryCell e={l.entry} fallback={l.entryHigh ? <span className="mono">hasta {f2(l.entryHigh)}</span> : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted" title="El núcleo se compra al precio que esté: es aporte periódico, no una operación.">a mercado</span> : <span className="muted">—</span>} /></td>
+              <td>
+                <EntryCell e={l.entry} fallback={l.entryHigh ? <span className="mono">hasta {f2(l.entryHigh)}</span> : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted" title="El núcleo se compra al precio que esté: es aporte periódico, no una operación.">a mercado</span> : <span className="muted">—</span>} />
+                {/* 14/9: APH cayó a 0,3 ATR del stop de su orden durante la rueda. Más abajo de este precio, el stop
+                    queda dentro del ruido de un día: la orden espera a la corrida siguiente, que la rearma. */}
+                {l.minPrice ? <div className="warn" style={{ fontSize: 11 }} title="Si el precio está por debajo, no ejecutes: el stop quedaría a menos de 1 ATR y una rueda normal lo tocaría. Esperá a la corrida siguiente, que rearma la orden con el cierre nuevo.">no por debajo de <span className="mono">{f2(l.minPrice)}</span></div> : null}
+              </td>
               <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="El núcleo no se vende por stop: se compra y se mantiene. Es la base de la cartera, no una apuesta.">sin stop</span> : "—"}</td>
               {/* El objetivo no es una ganancia esperada: es el doble de la distancia al stop, así que sigue a la
                   volatilidad y no a la empresa. Se muestra sin el % en verde, que se leía como pronóstico, y al

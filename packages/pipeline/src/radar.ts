@@ -4,6 +4,7 @@ import {
   AXIS_METRICS,
   alphaPct,
   applyCoreMetrics,
+  atr,
   sanitizeMetrics,
   assetClassFor,
   computeTrailingStop,
@@ -641,15 +642,20 @@ export async function measureRadar(deps: Pick<RadarDeps, "store" | "history">, o
 // ---------- solapamiento con la cartera ----------
 
 const OVERLAP_SINCE_DAYS = 200;
+/** Ventana de velas para el ATR de 14 ruedas del plan: sobra para 14 ruedas aun con feriados. */
+const ATR_SINCE_DAYS = 60;
 
 /**
  * Para cada COMPRAR del Radar, la posición tuya con la que más se mueve (correlación > 0.7, misma ventana que el
  * panel de riesgo). Velas guardadas de ambos lados; no pide nada a la red. Sin posiciones, nada que solapar.
  */
-export async function candidateOverlap(store: Pick<CarteraStore, "positions"> & Pick<RadarStore, "candles">, candidates: CandidateRow[]): Promise<Record<string, Overlap>> {
+export async function candidateOverlap(store: Pick<CarteraStore, "positions"> & Pick<RadarStore, "candles">, candidates: CandidateRow[], coreSymbols: Iterable<string> = []): Promise<Record<string, Overlap>> {
   const buys = candidates.filter((c) => c.kind === "stock" && c.verdict === "COMPRAR").map((c) => c.symbol);
   if (!buys.length) return {};
-  const positions = await store.positions();
+  // El núcleo no cuenta (14/9): casi toda acción de EE.UU. se mueve con VTI, que es el mercado. Parecerse al mercado
+  // no es duplicar una apuesta; la regla de diversificación sacaría a las buenas apenas el núcleo estuviera comprado.
+  const core = new Set(coreSymbols);
+  const positions = (await store.positions()).filter((p) => p.layer !== "nucleo" && !core.has(p.symbol));
   if (!positions.length) return {};
   const since = new Date(Date.now() - OVERLAP_SINCE_DAYS * 86_400_000).toISOString().slice(0, 10);
   const load = async (symbols: string[]) => {
@@ -691,7 +697,16 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   const portfolioValueUsd = opts.portfolioUsd ?? risk?.report.totalValue ?? policy.sizing.fallbackPortfolioUsd;
   const etfOf = (s: string) => deps.etfs.find((e) => e.symbol === s);
   const overweight = Object.fromEntries(Object.entries(risk?.report.concentration.byTheme ?? {}).filter(([, pct]) => pct > 40));
-  const overlap = await candidateOverlap(store, candidates);
+  const overlap = await candidateOverlap(store, candidates, deps.etfs.filter((e) => e.role === "nucleo").map((e) => e.symbol));
+  // ATR de 14 ruedas de lo que el plan puede comprar o sumar: el stop no puede quedar dentro del ruido (14/9, TSM y APH).
+  // Al día de la fila, no del calendario: el ATR tiene que ser el de las mismas velas que dieron el stop.
+  const atrOf = new Map<string, number | null>();
+  const fechaDe = new Map<string, string>([...verdicts.filter((v) => v.verb === "SUMAR").map((v) => [v.symbol, v.verdictDate] as const), ...candidates.filter((c) => c.verdict === "COMPRAR").map((c) => [c.symbol, c.candidateDate] as const)]);
+  await Promise.all([...fechaDe].map(async ([sym, fecha]) => {
+    const desde = new Date(Date.parse(fecha) - ATR_SINCE_DAYS * 86_400_000).toISOString().slice(0, 10);
+    const velas = (await store.candles(sym, desde).catch(() => [] as Candle[])).filter((v) => v.date <= fecha);
+    atrOf.set(sym, atr(velas, 14));
+  }));
   // Régimen macro (pieza 4): el 10 años de Yahoo (^TNX); se guarda para que el panel lo lea sin volver a pedirlo.
   const tnx = await deps.history.candles(TNX_SYMBOL, HISTORY_DAYS).catch(() => [] as Candle[]);
   if (tnx.length) await store.upsertCandles(TNX_SYMBOL, tnx).catch(() => {});
@@ -726,7 +741,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => {
         const c = candidatePorSimbolo.get(v.symbol);
         // Un SUMAR también es una compra: si el Radar lo verificó, el dictamen vale igual que para una nueva.
-        return { symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: c ? c.stop : v.stop, target: c ? c.target : v.target, caution: sumarCaution(v.symbol), verification: c ? planVerification(c.verification) : undefined };
+        return { symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: c ? c.stop : v.stop, target: c ? c.target : v.target, caution: sumarCaution(v.symbol), verification: c ? planVerification(c.verification) : undefined, atr: atrOf.get(v.symbol) ?? null };
       }),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
       // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
@@ -743,6 +758,9 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           flags: c.flags,
           // Cuándo comprarla: si está extendida, la línea del plan dice el nivel a esperar.
           entry: c.entry ?? null,
+          // Para no comprar con el stop en el ruido ni algo que se mueve como lo que ya tenés (14/9).
+          atr: atrOf.get(c.symbol) ?? null,
+          overlap: overlap[c.symbol] ?? null,
         })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,
