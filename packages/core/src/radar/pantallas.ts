@@ -32,6 +32,11 @@ export interface Pantallas {
    * que todo lo anterior a él ya está adentro y sumarlo sería contarlo dos veces.
    */
   movimientos?: Array<{ symbol: string; type: string; quantity: number; date: string }>;
+  /**
+   * Ficha → gráfico: última vela del diario (1M) y última sesión del intradiario (1D) de cada símbolo del plan.
+   * `null` si esa vista no devolvió nada.
+   */
+  graficos?: Array<{ symbol: string; ultimaDiaria: string | null; ultimaIntradiaria: string | null }>;
 }
 
 /** Diferencia tolerada de precio entre dos pantallas del mismo día, en dólares. */
@@ -111,6 +116,14 @@ export function checkPantallas(p: Pantallas): Finding[] {
   const ultimoRadar = p.candidatos.filter((c) => !c.kind || c.kind === "stock" || c.kind === "etf" || c.kind === "watch").map((c) => c.candidateDate ?? "").reduce((a, b) => (b > a ? b : a), "");
   if (p.plan?.builtAt && ultimoRadar && p.plan.builtAt.slice(0, 10) < ultimoRadar) {
     add("plan_atrasado", null, "grave", `el plan se armó el ${p.plan.builtAt.slice(0, 10)} y el Radar es del ${ultimoRadar}: se rearma solo después de cada corrida y esta vez no pasó`);
+  }
+
+  // 3e. El gráfico diario tiene que llegar a la última sesión. APH el 14/9 terminaba en la vela del 11/9 (83,92)
+  //     con el precio ya en 79: la caída del día, la que más importa para comprar, no estaba en el gráfico.
+  for (const g of p.graficos ?? []) {
+    if (g.ultimaDiaria && g.ultimaIntradiaria && g.ultimaIntradiaria > g.ultimaDiaria) {
+      add("grafico_sin_ultima_rueda", g.symbol, "grave", `el gráfico diario termina el ${g.ultimaDiaria} y la sesión del ${g.ultimaIntradiaria} ya está en el intradiario: falta la vela que más importa`);
+    }
   }
 
   // 4. El plan no puede comprar lo que el Radar no tiene en COMPRAR, ni contradecir su momento de entrada.

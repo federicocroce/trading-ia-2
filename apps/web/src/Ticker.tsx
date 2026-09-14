@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Candidate, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
+import { relacionDeLaOrden } from "./niveles";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { EntryLine } from "./Entry";
@@ -61,7 +62,8 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const move = (level: number | null) => (px && level ? ((level - px) / px) * 100 : null);
   const toStop = move(stop);
   const toTarget = move(target);
-  const rr = toStop !== null && toTarget !== null && toStop < 0 && toTarget > 0 ? toTarget / -toStop : null;
+  // Sin posición, la relación es la de la orden del Radar (desde el techo de compra), no la del precio en vivo.
+  const rr = relacionDeLaOrden({ stop, target, price: px, entryHigh: t.verdict ? null : t.candidate?.entryHigh, desde: levelsFrom });
   const qty = t.position?.quantity ?? null;
   const usdAt = (level: number | null) => (px && level && qty ? money(qty * (level - px)) : null);
 
@@ -100,7 +102,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
             <div className="row" style={{ marginTop: 8, gap: 16 }}>
               {stop && <span>Stop <b className="mono">{f2(stop)}</b> <span className={toStop !== null && toStop < 0 ? "bad" : "warn"}>{pct(toStop)}{usdAt(stop) && ` · ${usdAt(stop)}`}</span></span>}
               {target && <span>Objetivo <b className="mono">{f2(target)}</b> <span className={toTarget !== null && toTarget > 0 ? "ok" : "warn"}>{pct(toTarget)}{usdAt(target) && ` · ${usdAt(target)}`}</span></span>}
-              {rr !== null && <span className="muted">relación {rr.toFixed(1)} : 1</span>}
+              {rr && <span className="muted">{rr.texto}</span>}
               {toStop !== null && toStop >= 0 && <span className="verb VENDER">precio por debajo del stop</span>}
               <span className="muted">({levelsFrom}{qty ? `, sobre tu tenencia de ${f2(qty)}` : ", sin posición"})</span>
             </div>
@@ -108,7 +110,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
         </div>
       </div>
 
-      <div className="card"><PriceChart symbol={t.symbol} currentPrice={q?.price ?? null} levels={{ avgCost: t.position?.avgCost ?? null, stop, target }} onPeriodChange={onPeriod} /></div>
+      <div className="card"><PriceChart symbol={t.symbol} currentPrice={q?.price ?? null} levels={{ avgCost: t.position?.avgCost ?? null, stop, target, stopLabel: levelsFrom === "Radar" ? "stop de compra" : "stop" }} onPeriodChange={onPeriod} /></div>
 
       <div className="grid2">
         {t.position && (

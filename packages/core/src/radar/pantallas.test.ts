@@ -79,6 +79,18 @@ describe("checkPantallas", () => {
     expect(argentina).toEqual([]);
   });
 
+  it("APH el 14/9: el gráfico diario terminaba el 11/9 y el intradiario ya tenía la sesión del 14 (−5,8%)", () => {
+    const f = solo("grafico_sin_ultima_rueda", checkPantallas({ ...base, graficos: [
+      { symbol: "APH", ultimaDiaria: "2026-09-11", ultimaIntradiaria: "2026-09-14" },
+      { symbol: "NVDA", ultimaDiaria: "2026-09-14", ultimaIntradiaria: "2026-09-14" },
+      // Sin intradiario (Yahoo no respondió) no hay con qué comparar: no se inventa un error.
+      { symbol: "GFI", ultimaDiaria: "2026-09-11", ultimaIntradiaria: null },
+    ] }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.symbol).toBe("APH");
+    expect(f[0]!.severity).toBe("grave");
+  });
+
   it("el plan compra algo que el Radar no tiene en COMPRAR", () => {
     const f = solo("plan_contra_radar", checkPantallas({ ...base, candidatos: [cand("DVA", { verdict: "OBSERVAR" })], plan: { lines: [linea("DVA")] } }));
     expect(f).toHaveLength(1);

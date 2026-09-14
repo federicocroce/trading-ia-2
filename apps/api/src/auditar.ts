@@ -39,6 +39,17 @@ const [candidatos, plan, veredictos, novedades, posiciones, movimientos, top] = 
   pedir<{ picks: NonNullable<Pantallas["top"]> } | null>("/radar/top?n=20", null),
 ]);
 
+// Gráfico de la ficha de cada símbolo del plan: la última vela del diario contra la última sesión del intradiario.
+const diaUtc = (t: number) => new Date(t * 1000).toISOString().slice(0, 10);
+const graficos = await Promise.all((plan?.lines ?? []).map(async (l) => {
+  const [diario, intradiario] = await Promise.all([
+    pedir<Array<{ time: number }>>(`/ticker/${l.symbol}/chart?range=3mo&interval=1d`, []),
+    pedir<Array<{ time: number }>>(`/ticker/${l.symbol}/chart?range=1d&interval=5m`, []),
+  ]);
+  const ultima = (b: Array<{ time: number }>) => (Array.isArray(b) && b.length ? diaUtc(b[b.length - 1]!.time) : null);
+  return { symbol: l.symbol, ultimaDiaria: ultima(diario), ultimaIntradiaria: ultima(intradiario) };
+}));
+
 const pantallas: Pantallas = {
   candidatos: candidatos ?? [],
   plan: plan ?? null,
@@ -46,10 +57,11 @@ const pantallas: Pantallas = {
   posiciones: posiciones ?? [],
   movimientos: movimientos ?? [],
   top: top?.picks ?? [],
+  graficos,
   ...(novedades ? { novedades } : {}),
 };
 
-console.log(`[auditar] Radar ${pantallas.candidatos.length} candidatos · plan ${pantallas.plan?.lines.length ?? 0} líneas · Cartera ${pantallas.veredictos.length} posiciones · ${pantallas.movimientos?.length ?? 0} movimientos · ${pantallas.top?.length ?? 0} recomendadas`);
+console.log(`[auditar] Radar ${pantallas.candidatos.length} candidatos · plan ${pantallas.plan?.lines.length ?? 0} líneas · Cartera ${pantallas.veredictos.length} posiciones · ${pantallas.movimientos?.length ?? 0} movimientos · ${pantallas.top?.length ?? 0} recomendadas · ${graficos.filter((g) => g.ultimaDiaria && g.ultimaIntradiaria).length} gráficos comparables`);
 
 const findings = checkPantallas(pantallas);
 const { graves, avisos } = summarizeFindings(findings);

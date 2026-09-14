@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AreaSeries, CandlestickSeries, ColorType, HistogramSeries, LineSeries, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import { api, type ChartBar } from "./api";
+import { notaVelaParcial } from "./niveles";
 
 /**
  * Gráfico de precio portado de trading v1 (lightweight-charts). Velas/línea/área + volumen,
@@ -25,7 +26,7 @@ const INDICADORES: Indicador[] = [
   { k: "sma20", label: "MM 20", color: "#3b82f6", panel: "precio", grupo: "Decisión", ayuda: "Media móvil de 20 ruedas. Si la acción está muy por encima, la app manda esperar a que vuelva acá antes de comprar." },
   { k: "sma50", label: "MM 50", color: "#a855f7", panel: "precio", grupo: "Decisión", ayuda: "Media móvil de 50 ruedas. Por debajo no se compra la caída: se espera que recupere el máximo de las últimas 10 ruedas." },
   { k: "sma200", label: "MM 200", color: "#f59e0b", panel: "precio", grupo: "Decisión", ayuda: "Media móvil de 200 ruedas. Cerrar por debajo excluye a la candidata: la tendencia de fondo es bajista." },
-  { k: "stop", label: "Stop", color: "#ef4444", panel: "precio", grupo: "Decisión", ayuda: "Stop dinámico de 22 ruedas y 3 ATR. Si cierra por debajo, la tesis se anuló." },
+  { k: "stop", label: "Stop dinámico", color: "#ef4444", panel: "precio", grupo: "Decisión", ayuda: "Stop dinámico de 22 ruedas y 3 ATR, la línea punteada que acompaña al precio. Es el filtro del Radar (cerrar por debajo la excluye) y el stop de lo que ya tenés. El de una compra nueva es la línea horizontal «stop de compra», más abajo para que el ruido de un día no la ejecute." },
   { k: "volumen", label: "Volumen", color: "#8a8a8a", panel: "volumen", grupo: "Contexto", ayuda: "Acciones operadas por rueda. Contexto: la app no decide con esto." },
   { k: "rsi14", label: "RSI 14", color: "#14b8a6", panel: "rsi", grupo: "Contexto", ayuda: "Fuerza relativa de 14 ruedas, de 0 a 100. Arriba de 70 viene sobrecomprada, abajo de 30 sobrevendida. Contexto: la app no decide con esto." },
 ];
@@ -52,7 +53,11 @@ const TIMEFRAMES = [
 ] as const;
 type ChartType = "candle" | "line" | "area";
 export interface PeriodChange { label: string; change: number; changePercent: number }
-export interface PriceLevels { avgCost?: number | null; stop?: number | null; target?: number | null }
+/** `stopLabel`: nombre de la línea del stop. Sin posición es "stop de compra", que no es el dinámico punteado. */
+export interface PriceLevels { avgCost?: number | null; stop?: number | null; target?: number | null; stopLabel?: string }
+/** Alto del panel de precio y del panel del RSI, que va aparte para no pisar las velas. */
+const ALTO_PRECIO = 380;
+const ALTO_RSI = 90;
 
 const isDark = () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
 
@@ -101,13 +106,14 @@ export function PriceChart({ symbol, currentPrice, levels, onPeriodChange }: { s
     if (!containerRef.current || window_.length === 0) return;
     chartRef.current?.remove();
     const dark = isDark();
+    const conRsi = indicadores.includes("rsi14") && window_.some((b) => b.rsi14 !== null && b.rsi14 !== undefined);
     const chart = createChart(containerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: COLORS.text, attributionLogo: false },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: COLORS.text, attributionLogo: false, panes: { separatorColor: COLORS.grid } },
       grid: { vertLines: { color: COLORS.grid }, horzLines: { color: COLORS.grid } },
       rightPriceScale: { borderColor: COLORS.grid },
       timeScale: { borderColor: COLORS.grid, timeVisible: isIntraday, secondsVisible: false },
       width: containerRef.current.clientWidth,
-      height: 380,
+      height: ALTO_PRECIO + (conRsi ? ALTO_RSI : 0),
       crosshair: { mode: 0 },
     });
     // Intradiario: lightweight-charts dibuja en UTC; se corre 3 h para leer hora argentina.
@@ -117,7 +123,13 @@ export function PriceChart({ symbol, currentPrice, levels, onPeriodChange }: { s
     let main: ISeriesApi<"Candlestick"> | ISeriesApi<"Line"> | ISeriesApi<"Area">;
     if (chartType === "candle") {
       main = chart.addSeries(CandlestickSeries, { upColor: COLORS.green, downColor: COLORS.red, borderUpColor: COLORS.green, borderDownColor: COLORS.red, wickUpColor: COLORS.green, wickDownColor: COLORS.red });
-      main.setData(window_.map((b) => ({ time: t(b), open: b.open, high: b.high, low: b.low, close: b.close })));
+      // La vela de la sesión en curso va apagada: todavía no cerró (ver `notaVelaParcial`).
+      const apagada = (b: ChartBar) => {
+        if (!b.partial) return {};
+        const c = b.close >= b.open ? COLORS.greenFaded : COLORS.redFaded;
+        return { color: c, borderColor: b.close >= b.open ? COLORS.green : COLORS.red, wickColor: c };
+      };
+      main.setData(window_.map((b) => ({ time: t(b), open: b.open, high: b.high, low: b.low, close: b.close, ...apagada(b) })));
     } else if (chartType === "line") {
       main = chart.addSeries(LineSeries, { color: up ? COLORS.green : COLORS.red, lineWidth: 2 });
       main.setData(window_.map((b) => ({ time: t(b), value: b.close })));
@@ -128,6 +140,9 @@ export function PriceChart({ symbol, currentPrice, levels, onPeriodChange }: { s
     if (indicadores.includes("volumen") && window_.some((b) => b.volume > 0)) {
       const vol = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "volume" });
       chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+      // El volumen ocupa el 20% de abajo; el precio termina antes. Antes compartían ese espacio y la media de
+      // 200 de APH (73, lejos del precio) se dibujaba adentro de las barras de volumen, como si fuera parte de él.
+      main.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.25 } });
       vol.setData(window_.filter((b) => b.volume > 0).map((b) => ({ time: t(b), value: b.volume, color: b.close >= b.open ? COLORS.greenVolume : COLORS.redVolume })));
     }
     // Indicadores. Solo se dibuja el que tiene datos: en una ventana corta la media de 200 puede no existir.
@@ -140,12 +155,13 @@ export function PriceChart({ symbol, currentPrice, levels, onPeriodChange }: { s
       const serie = chart.addSeries(LineSeries, { color: ind.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, ...(ind.k === "stop" ? { lineStyle: 2 } : {}) });
       serie.setData(datos);
     }
-    // RSI en su propio panel: escala 0 a 100, no comparte eje con el precio.
-    if (indicadores.includes("rsi14")) {
+    // RSI en su propio panel, abajo: escala 0 a 100. Antes iba en el mismo espacio que las velas y el volumen,
+    // con otra escala superpuesta, y su línea cruzaba las barras de volumen.
+    if (conRsi) {
       const datos = window_.filter((b) => b.rsi14 !== null && b.rsi14 !== undefined).map((b) => ({ time: t(b), value: b.rsi14 as number }));
       if (datos.length >= 2) {
-        const r = chart.addSeries(LineSeries, { color: "#14b8a6", lineWidth: 1, priceScaleId: "rsi", priceLineVisible: false, lastValueVisible: true });
-        chart.priceScale("rsi").applyOptions({ scaleMargins: { top: 0.86, bottom: 0 } });
+        const r = chart.addSeries(LineSeries, { color: "#14b8a6", lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, 1);
+        chart.panes()[1]?.setHeight(ALTO_RSI);
         r.setData(datos);
         for (const nivel of [70, 30]) r.createPriceLine({ price: nivel, color: COLORS.grid, lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: String(nivel) });
       }
@@ -155,14 +171,16 @@ export function PriceChart({ symbol, currentPrice, levels, onPeriodChange }: { s
     // % de movimiento desde el precio actual hasta el nivel: lo que se pierde en el stop, lo que se gana en el objetivo.
     const rel = (p: number | null | undefined) => (p && currentPrice ? ` ${p >= currentPrice ? "+" : ""}${(((p - currentPrice) / currentPrice) * 100).toFixed(1)}%` : "");
     line(levels?.avgCost, dark ? "#7aa2f7" : "#2f4f9f", "costo");
-    line(levels?.stop, COLORS.red, `stop${rel(levels?.stop)}`);
+    line(levels?.stop, COLORS.red, `${levels?.stopLabel ?? "stop"}${rel(levels?.stop)}`);
     line(levels?.target, COLORS.green, `objetivo${rel(levels?.target)}`);
     chart.timeScale().fitContent();
     chartRef.current = chart;
     const onResize = () => { if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth }); };
     window.addEventListener("resize", onResize);
     return () => { window.removeEventListener("resize", onResize); chart.remove(); chartRef.current = null; };
-  }, [window_.length, tf.range, tf.interval, chartType, levels?.avgCost, levels?.stop, levels?.target, currentPrice, isIntraday, symbol, indicadores]);
+  }, [window_.length, tf.range, tf.interval, chartType, levels?.avgCost, levels?.stop, levels?.target, levels?.stopLabel, currentPrice, isIntraday, symbol, indicadores]);
+  const conRsiVisible = indicadores.includes("rsi14") && window_.some((b) => b.rsi14 !== null && b.rsi14 !== undefined);
+  const nota = isIntraday ? null : notaVelaParcial(window_);
 
   return (
     <div>
@@ -194,8 +212,9 @@ export function PriceChart({ symbol, currentPrice, levels, onPeriodChange }: { s
         </div>
       </div>
       {isIntraday && <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>Las medias, el stop y el RSI se calculan sobre ruedas diarias: en 1D y 1S no se dibujan.</div>}
+      {nota && <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>{nota}</div>}
       {err && <div className="err">{err}</div>}
-      {bars === null && !err ? <div className="muted" style={{ height: 380 }}>Cargando gráfico…</div> : window_.length === 0 ? <div className="muted" style={{ height: 380 }}>Sin datos para este período.</div> : <div ref={containerRef} style={{ width: "100%", height: 380 }} />}
+      {bars === null && !err ? <div className="muted" style={{ height: 380 }}>Cargando gráfico…</div> : window_.length === 0 ? <div className="muted" style={{ height: 380 }}>Sin datos para este período.</div> : <div ref={containerRef} style={{ width: "100%", height: ALTO_PRECIO + (conRsiVisible ? ALTO_RSI : 0) }} />}
     </div>
   );
 }

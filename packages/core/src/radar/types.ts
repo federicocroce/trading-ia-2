@@ -320,6 +320,8 @@ export interface ChartBar {
   stop?: number | null;
   /** RSI de Wilder de 14 ruedas. Contexto de momento; la app NO decide con esto. */
   rsi14?: number | null;
+  /** Vela de la sesión en curso (o de la última que la base todavía no guardó), armada con el intradiario. */
+  partial?: boolean;
 }
 export interface LiveQuote {
   symbol: string;

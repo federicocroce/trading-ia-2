@@ -1,4 +1,4 @@
-import { chandelierSeries, rsiSeries, smaSeries, todayLocal } from "@thesis/core";
+import { chandelierSeries, rsiSeries, sessionBarFrom, smaSeries, todayLocal } from "@thesis/core";
 import { Hono } from "hono";
 import type { ChartBar } from "@thesis/core";
 import { buildTicker, withTimeout } from "@thesis/pipeline";
@@ -18,6 +18,8 @@ const CALENTAMIENTO_DIAS = 330;
 
 /** Yahoo en vivo no puede colgar el gráfico: pasado esto, 502 y el front avisa. */
 const CHART_TIMEOUT_MS = 8_000;
+/** La vela de hoy es un agregado: si el intradiario tarda, el diario sale sin ella. */
+const SESSION_TIMEOUT_MS = 3_000;
 
 export function tickerRoutes(c: Container) {
   const app = new Hono();
@@ -58,6 +60,14 @@ export function tickerRoutes(c: Container) {
           time: Math.floor(Date.parse(x.date) / 1000), open: x.open, high: x.high, low: x.low, close: x.close, volume: x.volume,
           sma20: s20[i] ?? null, sma50: s50[i] ?? null, sma200: s200[i] ?? null, stop: stop[i] ?? null, rsi14: rsi[i] ?? null,
         })).filter((b) => b.time >= Math.floor(Date.parse(desde) / 1000));
+        // La sesión que la base todavía no tiene (la de hoy durante la rueda, o la del viernes hasta el lunes a la
+        // mañana), armada con el intradiario. Sin ella, APH el 14/9 terminaba en 83,92 con el precio en 79.
+        const ultima = todas.at(-1)?.date;
+        if (ultima && ultima < t) {
+          const intradiario = await withTimeout(deps.chart.bars(symbol, "1d", "5m"), SESSION_TIMEOUT_MS, "sesión de hoy").catch(() => []);
+          const hoy = sessionBarFrom(intradiario, ultima);
+          if (hoy) bars.push({ ...hoy, sma20: null, sma50: null, sma200: null, stop: null, rsi14: null });
+        }
         return ctx.json(bars);
       }
     }
