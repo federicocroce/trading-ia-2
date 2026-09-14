@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Candle, Fundamentals } from "@thesis/core";
+import type { Candle, CandidateRow, Fundamentals } from "@thesis/core";
 import { MemoryStore, refreshWatchlist, type RadarDeps } from "../src/index.js";
 
 const series = (n: number, from: number, to: number): Candle[] =>
@@ -62,6 +62,26 @@ describe("refreshWatchlist", () => {
     const again = await refreshWatchlist(deps, { today: "2026-09-09", portfolioUsd: 150_000 });
     expect(again.rows).toBe(3);
     expect((await store.latestCandidates()).find((x) => x.symbol === "VST")?.nthAppearance).toBe(2);
+  });
+  it("APH el 14/9: seguir algo que el ranking ya eligió no pisa su fila del Radar (era 1° por convicción y pasó a seguimiento)", async () => {
+    const { store, deps } = setup();
+    const peers = ["VST", "CEG", "NRG", "AES", "SO"];
+    for (const p of peers) await store.saveFundamentals(fund(p, p === "VST" ? 12 : 25, peers.filter((x) => x !== p)));
+    // La corrida de la mañana: VST es candidata del ranking, con su score y su lugar entre pares.
+    const delRanking = { candidateDate: today, symbol: "VST", kind: "stock", verdict: "COMPRAR", score: 1.7, axes: {}, peerGroup: peers, rankInGroup: 1, groupSize: 5, close: 200, entryLow: 200, entryHigh: 204, stop: 185, target: 242, sizeUsd: 10_000, sizeQty: 50, riskScore: 3, flags: ["verificacion_apta"], nthAppearance: 3, summary: "ficha", whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: 600, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null } satisfies CandidateRow;
+    await store.upsertCandidates([delRanking]);
+    await store.addWatch("VST", { entryPrice: 150, targetPrice: null, stopLoss: null, horizonDays: 30 });
+    await store.addWatch("USAR");
+    const r = await refreshWatchlist(deps, { today, portfolioUsd: 150_000 });
+    expect(r.errors).toEqual([]);
+    const filas = await store.latestCandidates();
+    const vst = filas.filter((x) => x.symbol === "VST");
+    expect(vst).toHaveLength(1);
+    expect(vst[0]).toMatchObject({ kind: "stock", score: 1.7, nthAppearance: 3, summary: "ficha" });
+    // El seguimiento igual se evalúa contra el precio de hoy.
+    expect((await store.watchlist()).find((i) => i.symbol === "VST")).toMatchObject({ status: "live", lastPrice: 200 });
+    // Lo que el ranking no eligió sí tiene su fila de seguimiento.
+    expect(filas.find((x) => x.symbol === "USAR")?.kind).toBe("watch");
   });
   it("lista vacía: no hace nada; sin velas: error por símbolo y sigue", async () => {
     const { store, deps } = setup();

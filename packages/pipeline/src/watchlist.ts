@@ -7,7 +7,8 @@ import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-ve
 /**
  * Lista de seguimiento: tickers elegidos a mano. Reciben todos los días el mismo tratamiento que un candidato
  * (filtro técnico, stop, objetivo, tamaño, riesgo) y su rank contra pares si están en el universo,
- * aunque el ranking no los elija. Filas con kind "watch": no entran en convicción ni en el plan.
+ * aunque el ranking no los elija. Filas con kind "watch": no entran en convicción, y al plan solo como la línea
+ * de seguimiento. Lo que el ranking de hoy ya eligió conserva su fila del Radar (ver `refreshWatchlist`).
  */
 const HISTORY_DAYS = 400;
 const FRESH_DAYS = 14;
@@ -60,7 +61,12 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
   if (spy.length) await store.upsertCandles("SPY", spy).catch(() => {});
   const spyClose = spy[spy.length - 1]?.close ?? null;
-  const previous = (await store.latestCandidates()).filter((r) => r.kind === "watch");
+  const latest = await store.latestCandidates();
+  const previous = latest.filter((r) => r.kind === "watch");
+  // Lo que el ranking de hoy ya eligió no se pisa: hay una fila por símbolo y por día, y la de seguimiento reemplazaba
+  // a la del Radar. El 14/9 el dueño siguió APH y TSM desde la ficha: APH, 1° por convicción, salió del ranking y
+  // pasó a la línea de seguimiento del plan (3.820 → 2.456), y su lugar fue al núcleo. Seguirlo no cambia qué es.
+  const delRanking = new Set(latest.filter((r) => r.candidateDate === opts.today && (r.kind === "stock" || r.kind === "etf")).map((r) => r.symbol));
   // Lo tuyo que ya está en cartera usa el stop de la posición; lo demás es una compra nueva (ver `heldSymbols`).
   const held = new Set((await store.positions()).map((p) => p.symbol.toUpperCase()));
   // La lista de seguimiento comparte la cuota de búsqueda: la mitad del tope de una corrida.
@@ -74,6 +80,10 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       if (!candles.length) throw new Error("sin velas");
       await store.upsertCandles(sym, candles);
       const close = candles[candles.length - 1]!.close;
+      if (delRanking.has(sym)) {
+        await evaluateLifecycle(store, item, close, opts.today);
+        continue;
+      }
       const f = all.get(sym) ?? stubFundamentals(sym, close);
       const prev = previous.find((p) => p.symbol === sym);
       const nth = prev ? (prev.candidateDate === opts.today ? prev.nthAppearance : prev.nthAppearance + 1) : 1;
