@@ -67,6 +67,18 @@ describe("checkPantallas", () => {
     expect(solo("dos_a_uno_falso", checkPantallas({ ...base, top: bien }))).toEqual([]);
   });
 
+  it("14/9: el plan es la única fuente de COMPRAR y no puede quedar atrás del Radar", () => {
+    // El 13/9 a la noche entraron ORRF y HSBC al Radar y el plan seguía siendo el de las 16:37.
+    const atrasado = solo("plan_atrasado", checkPantallas({ ...base, candidatos: [cand("ORRF", { candidateDate: "2026-09-14" })], plan: { builtAt: "2026-09-13T19:37:09Z", lines: [] } }));
+    expect(atrasado).toHaveLength(1);
+    expect(atrasado[0]!.severity).toBe("grave");
+    const alDia = solo("plan_atrasado", checkPantallas({ ...base, candidatos: [cand("ORRF", { candidateDate: "2026-09-14" })], plan: { builtAt: "2026-09-14T10:52:00Z", lines: [] } }));
+    expect(alDia).toEqual([]);
+    // Una fila argentina más nueva no cuenta: esa corrida no rearma el plan en dólares.
+    const argentina = solo("plan_atrasado", checkPantallas({ ...base, candidatos: [cand("GGAL.BA", { candidateDate: "2026-09-15", kind: "ar" })], plan: { builtAt: "2026-09-14T10:52:00Z", lines: [] } }));
+    expect(argentina).toEqual([]);
+  });
+
   it("el plan compra algo que el Radar no tiene en COMPRAR", () => {
     const f = solo("plan_contra_radar", checkPantallas({ ...base, candidatos: [cand("DVA", { verdict: "OBSERVAR" })], plan: { lines: [linea("DVA")] } }));
     expect(f).toHaveLength(1);

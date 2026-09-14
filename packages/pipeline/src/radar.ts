@@ -663,6 +663,18 @@ export async function candidateOverlap(store: Pick<CarteraStore, "positions"> & 
 
 // ---------- plan del aporte ----------
 
+/**
+ * Rearma el plan con el último monto que pidió el dueño (14/9). El plan es la única fuente de COMPRAR en todas las
+ * pantallas, así que no puede quedar atrás del Radar: el 13/9 a la noche entraron ORRF y HSBC y el plan seguía siendo
+ * el de las 16:37. Se llama después de cada corrida que cambia sus entradas (ranking, refresco, seguimiento, Cartera).
+ * Sin plan previo no inventa uno: el monto lo elige el dueño.
+ */
+export async function replan(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null }): Promise<ContributionPlan | null> {
+  const last = await deps.store.latestPlan();
+  if (!last) return null;
+  return buildContributionPlan(deps, { month: opts.today.slice(0, 7), portfolioUsd: opts.portfolioUsd, today: opts.today, amountUsd: last.totalUsd });
+}
+
 export async function buildContributionPlan(deps: RadarDeps, opts: { month: string; portfolioUsd: number | null; amountUsd?: number; today?: string }): Promise<ContributionPlan> {
   const { store, policy } = deps;
   const positions = await store.positions();

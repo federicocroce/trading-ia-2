@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { computeTrailingStop, coreEarnings, entryStop, verificationOrder, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
-import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
+import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, replan, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
   weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 },
@@ -257,6 +257,26 @@ describe("refresco: el presupuesto de verificación va primero a lo de más conv
     const verifier = { promptVersion: "v-test", verify: async (i: { symbol: string }) => { llamadas.push(i.symbol); return { verdict: "apto" as const, reason: "ok", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [{ title: "x", url: "https://x" }], researchText: "DICTAMEN: APTO", model: "m" }; } };
     await refreshRadar({ ...d, verifier, policy: { ...policy, candidates: { ...policy.candidates, verifyPerRun: 1 } } }, { today: "2026-05-20", portfolioUsd: null });
     expect(llamadas).toEqual([compras[0]!.symbol]);
+  });
+});
+
+describe("replan: el plan se rearma solo con el último monto (14/9)", () => {
+  it("después de una corrida, el plan es de hoy y conserva los 40.000 que pidió el dueño", async () => {
+    // El plan es la única fuente de COMPRAR en todas las pantallas: si queda atrás del Radar, una pantalla dice COMPRAR
+    // con la selección de ayer (ORRF y HSBC entraron al Radar el 13/9 a la noche y el plan era de las 16:37).
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000, amountUsd: 40_000 });
+    const antes = await store.latestPlan();
+    const p = await replan(d, { today: "2026-05-20", portfolioUsd: 100_000 });
+    expect(p?.totalUsd).toBe(40_000);
+    expect((await store.latestPlan())?.totalUsd).toBe(40_000);
+    expect(antes).not.toBeNull();
+  });
+  it("sin plan previo no inventa uno", async () => {
+    const { d } = deps();
+    expect(await replan(d, { today: "2026-05-20", portfolioUsd: null })).toBeNull();
   });
 });
 

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { todayLocal, AXES, AXIS_METRICS, assessRegime, groupMedians, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
-import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, scanUniverse } from "@thesis/pipeline";
+import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
 
@@ -96,13 +96,18 @@ export function radarRoutes(c: Container) {
     const ticket = row?.verdict === "COMPRAR" ? { targetPrice: row.target, stopLoss: row.stop } : { targetPrice: null, stopLoss: null };
     await store.addWatch(symbol, { note: body.note ?? null, entryPrice, entryAction: row?.verdict ?? "manual", ...ticket, thesis: row?.summary ?? null, horizonDays: 30 });
     const r = await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
+    await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
     return ctx.json({ ...(await watchPayload()), refreshed: r });
   });
   app.delete("/radar/watchlist/:symbol", async (ctx) => {
     await store.removeWatch(ctx.req.param("symbol"));
     return ctx.json(await watchPayload());
   });
-  app.post("/radar/watchlist/refresh", async (ctx) => ctx.json(await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() })));
+  app.post("/radar/watchlist/refresh", async (ctx) => {
+    const r = await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
+    await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+    return ctx.json(r);
+  });
   app.get("/radar/candidates/:symbol", async (ctx) => {
     const symbol = ctx.req.param("symbol").toUpperCase();
     const cand = (await store.latestCandidates()).find((r) => r.symbol === symbol);
@@ -144,11 +149,17 @@ export function radarRoutes(c: Container) {
     return ctx.json({ ...state.scan, scanDate, status: scanDate ? await store.scanStatus(scanDate) : null });
   });
 
-  app.post("/radar/rank", async (ctx) => ctx.json(await rankRadar(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() })));
+  // Toda corrida que cambia las candidatas rearma el plan con el último monto: el plan es la única fuente de COMPRAR (14/9).
+  app.post("/radar/rank", async (ctx) => {
+    const r = await rankRadar(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
+    await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+    return ctx.json(r);
+  });
   app.post("/radar/refresh", async (ctx) => {
     const t = today(ctx);
     const r = await refreshRadar(deps, { today: t, portfolioUsd: await portfolioUsd() });
     const measured = await measureRadar(deps, { today: t });
+    await replan(deps, { today: t, portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
     return ctx.json({ ...r, measured });
   });
   app.get("/radar/plan", async (ctx) => ctx.json(await store.latestPlan()));

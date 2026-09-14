@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { todayLocal, summarizeMeasurement } from "@thesis/core";
-import { carteraCurve, liveQuotes, measureVerdicts, runCartera, type CurveResponse } from "@thesis/pipeline";
+import { carteraCurve, liveQuotes, measureVerdicts, replan, runCartera, type CurveResponse } from "@thesis/pipeline";
 import { randomUUID } from "node:crypto";
 import type { Container } from "../container.js";
 
@@ -71,6 +71,8 @@ export function carteraRoutes(c: Container) {
     const today = ctx.req.query("today") ?? todayLocal();
     const s = await runCartera(c.carteraDeps, { today });
     const measured = await measureVerdicts(c.carteraDeps, { today });
+    // Un SUMAR de Cartera cambia lo que el plan suma: se rearma para que las dos pantallas digan lo mismo (14/9).
+    await replan(c.radarDeps, { today, portfolioUsd: (await c.store.latestRisk())?.report.totalValue ?? null }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
     bustCurve();
     return ctx.json({ ...s, measured });
   });

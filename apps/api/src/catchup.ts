@@ -1,4 +1,4 @@
-import { STEPS, buildContributionPlan, dailyRun, tesisSince, dueSteps, expectedDate, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, runCartera, scanUniverse, stepById, withUsageStep, type DueStep, type StepId } from "@thesis/pipeline";
+import { STEPS, buildContributionPlan, dailyRun, tesisSince, dueSteps, expectedDate, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, runCartera, scanUniverse, stepById, withUsageStep, type DueStep, type StepId } from "@thesis/pipeline";
 import { state, type Container } from "./container.js";
 
 /** El registro de uso de fuentes externas se guarda este tiempo; lo viejo se borra en cada chequeo de "ponerme al día". */
@@ -60,6 +60,8 @@ async function scanAndRank(c: Container, today: string): Promise<string> {
     try {
       if (needScan) state.scan.last = await scanUniverse(c.radarDeps, { scanDate: scanDate && pending.length > 0 && scanDate >= today ? scanDate : today, today });
       const r = await rankRadar(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
+      // El plan es la única fuente de COMPRAR en las pantallas: se rearma con lo que el ranking acaba de cambiar (14/9).
+      await replan(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
       await store.markJobRun("scan", today, `${r.candidates.length} candidatos, ${r.errors.length} errores`);
       console.log(`[catchup] barrido+ranking listo: ${r.candidates.length} candidatos`);
     } catch (e) {
@@ -78,12 +80,15 @@ export function defaultRunners(): Runners {
     cartera: async (c, today) => {
       const s = await runCartera(c.carteraDeps, { today });
       const m = await measureVerdicts(c.carteraDeps, { today });
+      // Un SUMAR de Cartera cambia lo que el plan suma: se rearma para que Cartera y el plan digan lo mismo (14/9).
+      await replan(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
       return `${s.verdicts.length} veredictos, ${s.errors.length} errores, medidos ${m.measured7}/${m.measured30}`;
     },
     radar: async (c, today) => {
       const r = await refreshRadar(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
       const m = await measureRadar(c.radarDeps, { today });
       const w = await refreshWatchlist(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
+      await replan(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
       return `${r.refreshed} candidatos refrescados, seguimiento ${w.rows}/${w.symbols}, medidos 7d ${m.candidates["7"]} · 30d ${m.candidates["30"]} · 90d ${m.candidates["90"]}`;
     },
     argentina: async (c, today) => {
@@ -91,7 +96,9 @@ export function defaultRunners(): Runners {
       return `${r.adrs} ADRs en dólares, ${r.acciones} acciones en pesos, ${r.cedears} CEDEARs, ${r.errors.length} errores`;
     },
     plan: async (c, today) => {
-      const p = await buildContributionPlan(c.radarDeps, { month: today.slice(0, 7), portfolioUsd: await portfolioUsd(c) });
+      // Con el último monto que pidió el dueño; sin plan previo, el aporte mensual. Antes armaba siempre el mensual y
+      // un plan de 40.000 quedaba pisado por uno de 6.500 al cambiar el mes.
+      const p = (await replan(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) })) ?? (await buildContributionPlan(c.radarDeps, { month: today.slice(0, 7), portfolioUsd: await portfolioUsd(c), today }));
       return `plan ${p.month}: ${p.lines.length} líneas`;
     },
     tesis: async (c, today) => {

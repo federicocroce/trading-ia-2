@@ -15,9 +15,9 @@ import type { Finding } from "./consistency.js";
  */
 export interface Pantallas {
   /** Radar → tabla de candidatos y fichas. */
-  candidatos: Array<{ symbol: string; verdict: string; close: number; stop: number | null; target?: number | null; flags: string[]; entry?: { state: string; low: number; high: number } | null }>;
+  candidatos: Array<{ symbol: string; verdict: string; close: number; stop: number | null; target?: number | null; candidateDate?: string; kind?: string; flags: string[]; entry?: { state: string; low: number; high: number } | null }>;
   /** Radar → plan del aporte. */
-  plan: { lines: Array<{ symbol: string; kind: string; close: number | null; stop?: number | null; target?: number | null; entryHigh?: number | null; entry?: { state: string } | null }>; leftOut?: Array<{ symbol: string; reason: string }> } | null;
+  plan: { builtAt?: string; lines: Array<{ symbol: string; kind: string; close: number | null; stop?: number | null; target?: number | null; entryHigh?: number | null; entry?: { state: string } | null }>; leftOut?: Array<{ symbol: string; reason: string }> } | null;
   /** Cartera → veredicto por posición. */
   veredictos: Array<{ symbol: string; verb: string; close: number; stop: number | null; target?: number | null }>;
   /** Hoy → novedades. */
@@ -103,6 +103,14 @@ export function checkPantallas(p: Pantallas): Finding[] {
     if (!dicho || !(t.lossPct < 0)) continue;
     const real = t.gainPct / -t.lossPct;
     if (Math.abs(real - Number(dicho[1])) > 0.1) add("dos_a_uno_falso", t.symbol, "grave", `la tarjeta dice ${dicho[1]} a 1 y sus porcentajes (${r2(t.gainPct)}% / ${r2(t.lossPct)}%) dan ${r2(real)} a 1`);
+  }
+
+  // 3d. El plan es la única fuente de COMPRAR en las pantallas (14/9): si es de un día anterior al Radar, una pantalla
+  //     dice COMPRAR con la selección vieja. El 13/9 a la noche entraron ORRF y HSBC y el plan era de las 16:37.
+  // Solo las familias que alimentan el plan: Argentina corre por su lado y no lo rearma.
+  const ultimoRadar = p.candidatos.filter((c) => !c.kind || c.kind === "stock" || c.kind === "etf" || c.kind === "watch").map((c) => c.candidateDate ?? "").reduce((a, b) => (b > a ? b : a), "");
+  if (p.plan?.builtAt && ultimoRadar && p.plan.builtAt.slice(0, 10) < ultimoRadar) {
+    add("plan_atrasado", null, "grave", `el plan se armó el ${p.plan.builtAt.slice(0, 10)} y el Radar es del ${ultimoRadar}: se rearma solo después de cada corrida y esta vez no pasó`);
   }
 
   // 4. El plan no puede comprar lo que el Radar no tiene en COMPRAR, ni contradecir su momento de entrada.
