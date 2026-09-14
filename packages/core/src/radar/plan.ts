@@ -17,12 +17,12 @@ export interface PlanInput {
   positions: Array<{ symbol: string; valueUsd: number; assetClass: AssetClass; role?: EtfRole }>;
   /** `caution`: si el ETF del tema está en OBSERVAR (oro bajo la media de 200 con NEM subponderada), no se suma y la nota lo dice.
    *  `verification`: la del Radar si el símbolo está ahí. Un SUMAR es una compra: con reservas, evitar o con el cuestionario anterior no se suma. */
-  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null; caution?: string | null; verification?: PlanVerification | null }>;
+  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null; caution?: string | null; verification?: PlanVerification | null | undefined }>;
   /** `cautions`: salvedades ya escritas (p. ej. "se mueve como YPF que ya tenés") que van a la razón de la línea.
    *  `verification`: veredicto de la verificación web. Una acción entra solo apta y con el cuestionario vigente;
    *  `null` = pendiente (no entra); `undefined` = no hay verificador (no se exige).
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null; flags?: string[]; entry?: PlanLine["entry"] }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"] }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   /** Fecha del plan y decisiones de la Fed (`config/fomc.json`): con una dentro de 3 días hábiles, el primer tramo va después. */
@@ -80,10 +80,14 @@ export interface PlanOptions {
 const DEFAULTS = { coreSharePctWhileBelowTarget: 60, sumarSharePctOfRest: 30, watchLinesMax: 1, etfLinesMax: 1 };
 /** A partir de cuántos aportes mensuales el plan sugiere escalonar la compra. */
 export const TRANCHE_AT_MONTHS = 3;
-/** Banderas de precio que dejan a un candidato fuera de las posiciones nuevas del plan (la convicción ya lo descuenta; acá se explica). */
-export const PLAN_PRICE_BLOCKERS: Record<string, string> = {
+/**
+ * Banderas que dejan a un candidato fuera de las posiciones nuevas del plan, con el motivo que se muestra. Las de precio
+ * ya las descuenta la convicción; `banco_sin_estados` (14/9) es que la app no tiene cómo verificar su ganancia.
+ */
+export const PLAN_BLOCKERS: Record<string, string> = {
   consenso_en_precio: "el objetivo de consenso está a menos de 10% del precio",
   subio_mucho_12m: "subió más de 100% en 12 meses",
+  banco_sin_estados: "banco sin estados de la SEC legibles: la app no puede verificar su ganancia (Finnhub infla los ingresos de los bancos y la verificación web no encontró sus extraordinarios ni su concentración inmobiliaria)",
 };
 /** Posiciones nuevas según el monto: el tope base más una por cada 3 aportes mensuales, hasta 5 (40k con 6.5k mensual → 4). */
 export const maxNewPositions = (aporte: number, monthlyUsd: number, base: number) => Math.min(5, base + Math.floor(aporte / (3 * Math.max(1, monthlyUsd))));
@@ -236,10 +240,10 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         if (pool.kind === "stock") caidas.push(b.priority);
         return;
       }
-      // Salvedades de precio (pieza 3): tampoco entra como nueva, con el motivo.
-      const blocker = (b.flags ?? []).find((f) => PLAN_PRICE_BLOCKERS[f]);
+      // Salvedades de precio (pieza 3) y banco sin estados legibles (14/9): tampoco entra como nueva, con el motivo.
+      const blocker = (b.flags ?? []).find((f) => PLAN_BLOCKERS[f]);
       if (blocker) {
-        leftOut.push({ symbol: b.symbol, reason: `${place}: ${PLAN_PRICE_BLOCKERS[blocker]}` });
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${PLAN_BLOCKERS[blocker]}` });
         return;
       }
       // Ya está en el tope por posición (PAM 10/9: 15,8% de la cartera): no ocupa un lugar que otro puede usar.

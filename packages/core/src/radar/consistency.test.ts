@@ -198,6 +198,28 @@ describe("checkConsistency", () => {
     expect(f).toEqual([]);
   });
 
+  it("NBN del 14/9: el plan no puede comprar un banco sin estados legibles (ni nada con una bandera que lo bloquea)", () => {
+    const f = solo("plan_con_bloqueo", checkConsistency({
+      rows: [fila({ symbol: "NBN", flags: ["sin_estados", "banco_sin_estados", "verificacion_apta"] }), fila({ symbol: "APH", flags: ["verificacion_apta"] })],
+      candles: {},
+      plan: plan([linea({ symbol: "NBN" }), linea({ symbol: "APH" })]),
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.symbol).toBe("NBN");
+    expect(f[0]!.severity).toBe("grave");
+  });
+
+  it("un banco sin estados de la SEC tiene que llevar la bandera que lo saca del plan", () => {
+    const industries = { NBN: "Banking", APH: "Electrical Equipment" };
+    const sinBandera = solo("banco_sin_bandera", checkConsistency({ rows: [fila({ symbol: "NBN", flags: ["sin_estados"] })], candles: {}, plan: null, industries }));
+    expect(sinBandera).toHaveLength(1);
+    expect(sinBandera[0]!.severity).toBe("grave");
+    expect(solo("banco_sin_bandera", checkConsistency({ rows: [fila({ symbol: "NBN", flags: ["sin_estados", "banco_sin_estados"] })], candles: {}, plan: null, industries }))).toEqual([]);
+    // Con estados de la SEC (sin la bandera sin_estados) la regla no aplica; tampoco fuera de los bancos.
+    expect(solo("banco_sin_bandera", checkConsistency({ rows: [fila({ symbol: "NBN" })], candles: {}, plan: null, industries }))).toEqual([]);
+    expect(solo("banco_sin_bandera", checkConsistency({ rows: [fila({ symbol: "APH", flags: ["sin_estados"] })], candles: {}, plan: null, industries }))).toEqual([]);
+  });
+
   it("el plan no puede comprar algo que el Radar de hoy tiene en OBSERVAR", () => {
     const f = solo("plan_contra_veredicto", checkConsistency({
       rows: [fila({ symbol: "HRTG", verdict: "OBSERVAR" })],

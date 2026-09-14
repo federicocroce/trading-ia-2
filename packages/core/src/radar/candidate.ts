@@ -1,6 +1,6 @@
 import { atr, computeTarget, computeTrailingStop, entryStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
-import { unreliableGrowthKeys, type Fundamentals } from "./ranking.js";
+import { UNRELIABLE_GROWTH_INDUSTRY, unreliableGrowthKeys, type Fundamentals } from "./ranking.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
 import { earningsQualityFlags, hasExtraordinary } from "./statements.js";
 import { crossesSplit } from "./split.js";
@@ -174,6 +174,10 @@ export function buildFlags(
   if (extra.core === null) flags.push("sin_estados");
   // En bancos el ranking ya no usa el crecimiento de ingresos de Finnhub (NBN +124% contra +4% real, 13/9): la fila lo dice.
   if (unreliableGrowthKeys(f).length) flags.push("crecimiento_no_confiable");
+  // Un banco sin estados legibles no se puede verificar (14/9): los estados de la SEC no traen "resultado operativo" en
+  // bancos, Finnhub infla sus ingresos, y la verificación web dio "apta" a NBN sin ver sus créditos fiscales comprados, sus
+  // reservas liberadas ni su inmobiliario comercial al 485% del capital. El plan no lo compra (ver `PLAN_BLOCKERS`).
+  if (extra.core === null && f.industry && UNRELIABLE_GROWTH_INDUSTRY.test(f.industry)) flags.push("banco_sin_estados");
   if (hasExtraordinary(extra.core)) flags.push("resultado_extraordinario");
   flags.push(...earningsQualityFlags(extra.core));
   const since = extra.today ? Date.parse(extra.today) - EVENT_WINDOW_DAYS * DAY : Number.NEGATIVE_INFINITY;

@@ -1,7 +1,7 @@
 import type { Candle } from "../cartera/types.js";
 import { atr, computeTrailingStop, ENTRY_STOP_ATR, entryStop } from "../cartera/stop.js";
 import { CONSENSUS_SCALE } from "./candidate.js";
-import { lineHasExit, type ContributionPlan } from "./plan.js";
+import { PLAN_BLOCKERS, lineHasExit, type ContributionPlan } from "./plan.js";
 import { UNRELIABLE_GROWTH_INDUSTRY } from "./ranking.js";
 import type { CandidateRow } from "./types.js";
 
@@ -137,6 +137,11 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       const usados = ["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy"].filter((k) => typeof crec[k] === "number");
       if (usados.length) add("crecimiento_sin_bandera", row.symbol, "grave", `banco con ${usados.map((k) => `${k} ${r2(crec[k]!)}%`).join(", ")} de Finnhub y sin la bandera crecimiento_no_confiable`);
     }
+    // 1e. Un banco sin estados de la SEC no se puede verificar y el plan no lo compra (NBN el 14/9: la verificación web
+    //     lo dio "apta" sin ver sus créditos fiscales comprados ni su inmobiliario al 485% del capital). Sin la bandera, entra.
+    if (row.kind === "stock" && industria && UNRELIABLE_GROWTH_INDUSTRY.test(industria) && row.flags.includes("sin_estados") && !row.flags.includes("banco_sin_estados")) {
+      add("banco_sin_bandera", row.symbol, "grave", `banco (${industria}) sin estados de la SEC y sin la bandera banco_sin_estados: el plan lo puede comprar sin poder verificarlo`);
+    }
 
     // 2. La verificación web y las banderas tienen que contar la misma historia. Si el dictamen está guardado
     //    pero la bandera no, la salvedad no resta convicción y la candidata entra al plan como si estuviera limpia.
@@ -256,6 +261,15 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     if (l.kind === "nucleo" || l.kind === "sumar") continue;
     const v = verdictOf.get(l.symbol);
     if (v && v !== "COMPRAR") add("plan_contra_veredicto", l.symbol, "grave", `el plan lo compra pero el Radar de hoy lo tiene en ${v}`);
+  }
+
+  // 8. Ni con una bandera que lo saca del plan (precio ya descontado, banco sin estados). NBN el 14/9 entró por la
+  //    verificación web y ninguna regla lo frenaba: el chequeo mira la fila de hoy, no el camino por el que entró.
+  const flagsOf = new Map(i.rows.map((r) => [r.symbol, r.flags]));
+  for (const l of i.plan?.lines ?? []) {
+    if (l.kind !== "comprar" && l.kind !== "seguimiento") continue;
+    const bloqueo = (flagsOf.get(l.symbol) ?? []).find((f) => PLAN_BLOCKERS[f]);
+    if (bloqueo) add("plan_con_bloqueo", l.symbol, "grave", `el plan lo compra y la fila de hoy dice ${PLAN_BLOCKERS[bloqueo]}`);
   }
 
   return out;

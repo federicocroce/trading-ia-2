@@ -119,7 +119,7 @@ describe("planContribution", () => {
     // vigente; un lugar que ninguna llena va al núcleo, no a un ETF ni repartido entre las demás.
     type Buy = PlanInput["buyCandidates"][number];
     const apta = { verdict: "apto" as const, reason: "ok", current: true };
-    const stock = (symbol: string, priority: number, verification: Buy["verification"]): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close: 100, entryHigh: 102, stop: 90, target: 126, verification });
+    const stock = (symbol: string, priority: number, verification: Exclude<Buy["verification"], undefined>): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close: 100, entryHigh: 102, stop: 90, target: 126, verification });
     const cuarenta = (buys: Buy[], extra: Partial<PlanInput> = {}) => planContribution({ ...base, closes: { ...base.closes, APH: 84, NBN: 132, LNC: 44, GFI: 45, XLF: 57 }, buyCandidates: [...buys, { symbol: "XLF", kind: "etf", priority: 1.1, score: null, sizeUsd: 5_000, close: 57, entryHigh: 58, stop: 55, target: 64 }], ...extra }, c, { amountUsd: 40_000 });
     const nucleo = (p: ReturnType<typeof planContribution>) => p.lines.filter((l) => l.kind === "nucleo").reduce((s, l) => s + l.amountUsd, 0);
 
@@ -139,6 +139,11 @@ describe("planContribution", () => {
       expect(nucleo(vacio)).toBeGreaterThan(nucleo(lleno));
       expect(vacio.notes.join(" ")).toMatch(/lugar.*núcleo/i);
       expect(vacio.lines.reduce((s, l) => s + l.amountUsd, 0)).toBe(40_000);
+    });
+    it("NBN del 14/9: un banco sin estados legibles no entra aunque la verificación web diga apta", () => {
+      const p = cuarenta([{ ...stock("NBN", 1.63, apta), flags: ["sin_estados", "banco_sin_estados"] }, stock("APH", 1.58, apta)]);
+      expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/banco sin estados/);
+      expect(p.lines.some((l) => l.symbol === "NBN")).toBe(false);
     });
     it("una acción con la verificación pendiente tampoco entra", () => {
       const p = cuarenta([stock("NBN", 1.63, null), stock("APH", 1.58, apta)]);

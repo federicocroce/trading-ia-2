@@ -71,7 +71,7 @@ export interface FundamentalsSource {
   nextEarnings(symbol: string, today: string): Promise<string | null>;
 }
 export interface RadarDeps {
-  store: CarteraStore & RadarStore & Pick<TickerStore, "upsertNews">;
+  store: CarteraStore & RadarStore & Pick<TickerStore, "news" | "upsertNews">;
   assets: { list(): Promise<AssetInfo[]>; snapshots(symbols: string[]): Promise<SnapshotLite[]> };
   fundamentals: FundamentalsSource;
   history: PriceHistory;
@@ -361,7 +361,7 @@ async function scanCandidateEvents(deps: RadarDeps, sym: string, today: string, 
  * Símbolos en cartera, en mayúsculas. Una posición tiene un solo stop, el de seguimiento que muestra Cartera;
  * lo que no está en cartera es una compra nueva y su stop lleva el aire mínimo de `entryStop` (2026-09-13).
  */
-export async function heldSymbols(store: Pick<RadarStore, "positions">): Promise<Set<string>> {
+export async function heldSymbols(store: Pick<CarteraStore, "positions">): Promise<Set<string>> {
   return new Set((await store.positions()).map((p) => p.symbol.toUpperCase()));
 }
 

@@ -70,6 +70,12 @@ describe("buildFlags", () => {
     expect(buildFlags(f(), gate, 4, 4)).toContain("residente_cronico");
     expect(buildFlags(f(), gate, 1, 4)).toEqual([]);
   });
+  it("NBN del 14/9: un banco sin estados de la SEC legibles lleva banco_sin_estados (no entra al plan)", () => {
+    // La verificación web del 14/9 la dio "apta" diciendo que no hubo extraordinarios (hubo créditos fiscales comprados
+    // y reservas liberadas) y que no encontró el inmobiliario comercial sobre capital (485% en el mismo comunicado).
+    expect(buildFlags(f({ industry: "Banking" }), gate, 1, 4, { core: null })).toContain("banco_sin_estados");
+    expect(buildFlags(f({ industry: "Technology" }), gate, 1, 4, { core: null })).not.toContain("banco_sin_estados");
+  });
   it("NBN del 13/9: en un banco, el crecimiento de ingresos de Finnhub no se usa y la fila lo dice", () => {
     const nbn = { beta: 0.65, revenueGrowthTTMYoy: 123.89, revenueGrowthQuarterlyYoy: 133.39 };
     expect(buildFlags(f({ industry: "Banking", metrics: nbn }), gate, 1, 4)).toContain("crecimiento_no_confiable");

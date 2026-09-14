@@ -23,6 +23,7 @@ const FLAG_LABEL: Record<string, string> = {
   resultado_extraordinario: "ganancia con extraordinarios (ranking con núcleo)",
   sin_estados: "sin estados de la SEC",
   crecimiento_no_confiable: "banco: crecimiento de ingresos de Finnhub no confiable (fuera del ranking)",
+  banco_sin_estados: "banco sin estados de la SEC: no se puede verificar, no entra al plan",
   evento_grave: "evento grave en 90 días",
   evento_moderado: "evento moderado en 90 días",
   eventos_sin_clasificar: "titulares sin clasificar",
@@ -96,7 +97,8 @@ const BUENAS = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiv
 const NEUTRAS = new Set(["nucleo_por_calendario", "en_linea"]);
 /** Ni a favor ni en contra: falta un dato. No es un defecto de la empresa, es un límite de la fuente. */
 // `crecimiento_no_confiable`: el número de la fuente no sirve en bancos y el ranking ya no lo usa (NBN, 13/9).
-const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente", "fr_sin_dividendos", "crecimiento_no_confiable"]);
+// `banco_sin_estados`: tampoco es un defecto del banco; es que la app no lo puede verificar, y por eso no lo compra (14/9).
+const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente", "fr_sin_dividendos", "crecimiento_no_confiable", "banco_sin_estados"]);
 /** Las que llevan un dato adentro y también son límites de la fuente, no defectos de la empresa. */
 const LIMITACIONES_CON_DATO = new Set(["serie_con_salto"]);
 

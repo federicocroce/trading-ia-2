@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLAN_PRICE_BLOCKERS, assessRegime, lineHasExit, totalReturnPct, consensusUpsidePct, convictionFor, decideCandidate, isRateSensitive, maxNewPositions, planContribution, type Candle, type CandidateRow, type EtfConfig, type Fundamentals, type PlanInput, type Tags } from "../index.js";
+import { PLAN_BLOCKERS, assessRegime, lineHasExit, totalReturnPct, consensusUpsidePct, convictionFor, decideCandidate, isRateSensitive, maxNewPositions, planContribution, type Candle, type CandidateRow, type EtfConfig, type Fundamentals, type PlanInput, type Tags } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01"): Candle[] => closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1_000_000 }));
 
@@ -161,7 +161,7 @@ describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000"
     expect(left["HRTG"]).toBe("3° por convicción: verificación web con reservas: reservas liberadas en temporada benigna");
     expect(left["SOLV"]).toContain("verificación web con reservas");
     expect(left["PAM"]).toBe("6° por convicción: ya está en el tope del 15% por posición");
-    expect(left["TER"]).toBe(`8° por convicción: ${PLAN_PRICE_BLOCKERS["subio_mucho_12m"]}`);
+    expect(left["TER"]).toBe(`8° por convicción: ${PLAN_BLOCKERS["subio_mucho_12m"]}`);
     expect(left["GLW"]).toContain("verificación web con reservas");
     const comprar = p.lines.filter((l) => l.kind === "comprar");
     expect(comprar.reduce((s, l) => s + l.amountUsd, 0) + 24_000).toBe(40_000);
