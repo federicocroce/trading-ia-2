@@ -4,7 +4,7 @@
  */
 export const HELP: Record<string, { label: string; short: string }> = {
   simbolo: { label: "símbolo", short: "Ticker. Click para abrir la ficha completa." },
-  veredicto: { label: "veredicto", short: "COMPRAR: buena empresa y buen momento. OBSERVAR: buena empresa, mal momento (bajo la media de 200 ruedas, subió >15% en 21 ruedas, reporta en ≤10 días, bajo su stop o residente crónico)." },
+  veredicto: { label: "veredicto", short: "COMPRAR: está en el plan de hoy, con su monto; es la única orden de compra de la app, en cualquier pantalla. CANDIDATA: pasó los filtros del Radar (buena empresa, buen momento) pero el plan no la compra, y al lado dice por qué. OBSERVAR: buena empresa, mal momento (bajo la media de 200 ruedas, subió >15% en 21 ruedas, reporta en ≤10 días, bajo su stop o residente crónico)." },
   score: { label: "score", short: "Fundamentals contra sus pares, en desviaciones típicas: 0 = mediana del grupo, +1 claramente mejor, tope ±3. Pesos: valuación 35%, calidad 30%, crecimiento 25%, balance 10%. Es relativo, no dice que la acción vaya a subir." },
   rank: { label: "rank", short: "Posición por score dentro del grupo de comparación. 1/59 dice mucho; 1/5 dice poco: el denominador importa tanto como el numerador." },
   precio: { label: "precio", short: "Último cierre usado para calcular entrada, stop y objetivo." },
@@ -20,7 +20,7 @@ export const HELP: Record<string, { label: string; short: string }> = {
   fr12m: { label: "FR 12m", short: "Fuerza relativa contra SPY a 12 meses." },
   sma200: { label: "vs SMA200", short: "Distancia al promedio móvil de 200 ruedas. Negativo = tendencia de fondo bajista, queda afuera." },
   adr: { label: "ADR", short: "El mismo papel cotizando en Nueva York, en dólares. Ahí están los fundamentals y el ranking contra pares." },
-  frMerval: { label: "FR 6m vs Merval", short: "Fuerza relativa contra el índice Merval a 6 meses, en pesos: cuánto le ganó (o perdió) al mercado local. COMPRAR exige > 0 y estar sobre la SMA200." },
+  frMerval: { label: "FR 6m vs Merval", short: "Fuerza relativa contra el índice Merval a 6 meses, en pesos: cuánto le ganó (o perdió) al mercado local. Para ser CANDIDATA tiene que ser > 0 y estar sobre la SMA200." },
   precioArs: { label: "precio ARS", short: "Último cierre en pesos en BYMA." },
   precioUsd: { label: "precio USD", short: "El mismo cierre pasado a dólares al CCL del día." },
   ratio: { label: "ratio", short: "Cuántos CEDEARs equivalen a una acción en EE.UU. Cambia con los splits: si el dólar implícito se va más de 10% del CCL, el ratio cargado está mal." },
@@ -87,8 +87,8 @@ export function RadarHelpModal({ onClose }: { onClose: () => void }) {
 
         <h3>Cómo se combinan para decidir si entrar</h3>
         <ol>
-          <li><b>El veredicto es la puerta.</b> COMPRAR solo si pasó los filtros técnicos: por encima de la media de 200 ruedas, no subió más de 15% en 21 ruedas, no reporta en 10 días, no está bajo su stop, no es residente crónico (4ª semana seguida como candidato). OBSERVAR es "buena empresa, mal momento".</li>
-          <li><b>Entre los COMPRAR, priorizá score alto con denominador grande en el rank.</b></li>
+          <li><b>Los filtros son la puerta.</b> Una acción es CANDIDATA si pasó los filtros técnicos: por encima de la media de 200 ruedas, no subió más de 15% en 21 ruedas, no reporta en 10 días, no está bajo su stop, no es residente crónico (4ª semana seguida como candidato). OBSERVAR es "buena empresa, mal momento".</li>
+          <li><b>Entre las candidatas, el plan elige por convicción</b> y solo con verificación web apta; lo que compra dice COMPRAR, con su monto. El resto sigue como CANDIDATA con su motivo.</li>
           <li><b>El riesgo te dice cuánto y qué esperar.</b> Un 9/10 es una apuesta: respetá el tamaño de la tabla, no lo agrandes porque el score es lindo.</li>
           <li><b>Entrá dentro del rango de entrada.</b> Si el precio ya se escapó por arriba, no lo corras.</li>
           <li><b>Cruzalo con la concentración de Cartera.</b> Si ya tenés más del 40% en un tema, dos candidatos más de ese tema no suman diversificación. El plan del aporte hace este cruce solo: núcleo primero, máximo 2 posiciones nuevas por mes, 50% del aporte por línea.</li>
@@ -98,13 +98,13 @@ export function RadarHelpModal({ onClose }: { onClose: () => void }) {
         <p>Junta todo lo anterior en un número, sin agregar nada nuevo: score × fiabilidad del grupo (pares/10, tope 1), +0.2 por consenso de compra, insiders que compran o sorpresa positiva, −0.15/−0.3 por banderas negativas, −0.1 por cada punto de riesgo sobre 5, −0.3 si el objetivo queda a menos de 5%, −0.3 si comparte un tema donde ya tenés más del 40% de la cartera. "Todo acompaña" es cuando no hay ninguna salvedad.</p>
 
         <h3>ETFs</h3>
-        <p><b>FR 3m / 6m / 12m</b>: fuerza relativa contra SPY, cuánto le ganó o perdió al S&amp;P 500 en ese plazo. <b>vs SMA200</b>: distancia al promedio de 200 ruedas. Los de núcleo (NUCLEO) se compran por calendario según el plan; satélites y coberturas salen COMPRAR u OBSERVAR por fuerza relativa.</p>
+        <p><b>FR 3m / 6m / 12m</b>: fuerza relativa contra SPY, cuánto le ganó o perdió al S&amp;P 500 en ese plazo. <b>vs SMA200</b>: distancia al promedio de 200 ruedas. Los de núcleo (NUCLEO) se compran por calendario según el plan; satélites y coberturas salen CANDIDATA u OBSERVAR por fuerza relativa; COMPRAR solo si el plan los compra.</p>
 
         <h3>Seguimiento</h3>
-        <p>El Radar es un filtro de valor: las historias que ya están en el precio (energía para la IA, minerales críticos) rara vez entran como candidatas. La lista de seguimiento te deja seguirlas con las mismas reglas: veredicto técnico (COMPRAR si está sobre la SMA200 y no corrió más de 15% en 21 ruedas; si no OBSERVAR con la razón), stop chandelier, objetivo 2:1, tamaño y riesgo, más el rank contra pares cuando el papel está en el universo. No entran en "lo que más recomienda" ni en el plan del aporte: la decisión es tuya, el sistema te pone la disciplina.</p>
+        <p>El Radar es un filtro de valor: las historias que ya están en el precio (energía para la IA, minerales críticos) rara vez entran como candidatas. La lista de seguimiento te deja seguirlas con las mismas reglas: veredicto técnico (CANDIDATA si está sobre la SMA200 y no corrió más de 15% en 21 ruedas; si no OBSERVAR con la razón; COMPRAR solo si el plan la toma como línea de seguimiento), stop chandelier, objetivo 2:1, tamaño y riesgo, más el rank contra pares cuando el papel está en el universo. El plan del aporte toma como máximo una de tu lista por mes (la de menor riesgo en COMPRAR); el resto queda como CANDIDATA: la decisión es tuya, el sistema te pone la disciplina.</p>
 
         <h3>Argentina</h3>
-        <p>Las acciones de BYMA cotizan en pesos, así que se comparan contra el <b>Merval</b> y no contra SPY: COMPRAR si le ganan al índice a 6 meses y están sobre la media de 200 ruedas. No tienen score ni rank porque Finnhub no cubre el mercado local; cuando el papel tiene <b>ADR</b>, los fundamentals están en la ficha del ADR. El <b>precio USD</b> es el cierre en pesos al CCL del día. Los <b>CEDEARs</b> no son una recomendación: son un chequeo de a qué dólar estás comprando la acción de EE.UU. si la comprás en pesos. El <b>macro</b> (CCL, MEP, oficial, brecha, riesgo país, Merval en dólares) se guarda todos los días para tener la serie.</p>
+        <p>Las acciones de BYMA cotizan en pesos, así que se comparan contra el <b>Merval</b> y no contra SPY: CANDIDATA si le ganan al índice a 6 meses y están sobre la media de 200 ruedas. El plan en dólares no compra papeles argentinos, así que acá nunca dice COMPRAR. No tienen score ni rank porque Finnhub no cubre el mercado local; cuando el papel tiene <b>ADR</b>, los fundamentals están en la ficha del ADR. El <b>precio USD</b> es el cierre en pesos al CCL del día. Los <b>CEDEARs</b> no son una recomendación: son un chequeo de a qué dólar estás comprando la acción de EE.UU. si la comprás en pesos. El <b>macro</b> (CCL, MEP, oficial, brecha, riesgo país, Merval en dólares) se guarda todos los días para tener la serie.</p>
 
         <p className="muted"><b>Advertencia honesta:</b> el score todavía no está validado. La medición a 7, 30 y 90 días contra SPY, con OBSERVAR como grupo de control, es la que va a decir si estos números anticipan algo. Hasta entonces es un buen filtro para saber dónde mirar, no una promesa.</p>
       </div>

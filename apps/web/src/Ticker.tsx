@@ -9,6 +9,7 @@ import { usePrices } from "./prices";
 import { Flags } from "./flags";
 import { VerificationSections } from "./Verification";
 import { PeersTable } from "./Peers";
+import { CarteraVerdict, RadarVerdict, usePlan } from "./plan";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)}%`);
@@ -19,6 +20,8 @@ const stale = (asOf: string | null) => (asOf ? (Date.now() - Date.parse(asOf)) /
 
 /** Página global por ticker: todo lo que el sistema sabe de un símbolo, servido desde la base. */
 export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void }) {
+  // Toda etiqueta de COMPRAR o SUMAR sale del plan vigente (14/9).
+  const plan = usePlan();
   const [t, setT] = useState<TickerPage | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [period, setPeriod] = useState<PeriodChange | null>(null);
@@ -110,7 +113,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
       <div className="grid2">
         {t.position && (
           <div className="card">
-            <b>Tu posición</b>{t.verdict && <> <span className={`verb ${t.verdict.verb}`}>{t.verdict.verb}</span></>}
+            <b>Tu posición</b>{t.verdict && <> <CarteraVerdict symbol={t.symbol} verb={t.verdict.verb} plan={plan} /></>}
             <div className="kpis" style={{ marginTop: 8 }}>
               <div className="kpi"><b>{f2(t.position.quantity)}</b><span>tenencia</span></div>
               <div className="kpi"><b>{t.position.weightPct !== null ? `${t.position.weightPct.toFixed(1)}%` : "—"}</b><span>% cartera</span></div>
@@ -147,7 +150,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
 
       {t.candidate && t.candidate.kind === "ar" && (
         <div className="card">
-          <b>Radar Argentina</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">contra el Merval, en pesos · {t.candidate.candidateDate}</span>
+          <b>Radar Argentina</b> <RadarVerdict symbol={t.symbol} verdict={t.candidate.verdict} plan={null} context="argentina" /> <span className="muted">contra el Merval, en pesos · {t.candidate.candidateDate}</span>
           {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}><Flags flags={t.candidate.flags} /></div>}
           <div className="muted mono" style={{ marginTop: 6 }}>FR 3m {pct(t.candidate.axes["rs3m"])} · FR 6m {pct(t.candidate.axes["rs6m"])} · FR 12m {pct(t.candidate.axes["rs12m"])} · vs SMA200 {pct(t.candidate.axes["distSma200Pct"])} · precio al CCL US$ {f2(t.candidate.axes["closeUsd"])}</div>
           {t.candidate.peerGroup[0] && <div style={{ marginTop: 6 }}>Fundamentals y ranking contra pares: en el ADR <SymbolLink symbol={t.candidate.peerGroup[0]} />.</div>}
@@ -179,7 +182,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
       {t.candidate && (t.candidate.kind === "etf" || t.candidate.kind === "adr") && <EtfCard c={t.candidate} />}
       {t.candidate && t.candidate.kind === "stock" && (
         <div className="card">
-          <b>Radar</b> <span className={`verb ${t.candidate.verdict}`}>{t.candidate.verdict}</span> <span className="muted">score {f2(t.candidate.score)} · rank {t.candidate.rankInGroup}/{t.candidate.groupSize} entre pares · riesgo {t.candidate.riskScore}/10 · {t.candidate.candidateDate}</span>
+          <b>Radar</b> <RadarVerdict symbol={t.symbol} verdict={t.candidate.verdict} plan={plan} /> <span className="muted">score {f2(t.candidate.score)} · rank {t.candidate.rankInGroup}/{t.candidate.groupSize} entre pares · riesgo {t.candidate.riskScore}/10 · {t.candidate.candidateDate}</span>
           {t.candidate.flags.length > 0 && <div style={{ marginTop: 6 }}><Flags flags={t.candidate.flags} /></div>}
           {t.candidate.summary && <div style={{ marginTop: 6 }}><b>Qué hace:</b> {t.candidate.summary}</div>}
           {t.candidate.whyRanks && <div><b>Por qué rankea:</b> {t.candidate.whyRanks}</div>}
@@ -255,13 +258,14 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
  * 45,9% al SPY en doce meses, que es toda la tesis del ETF.
  */
 function EtfCard({ c }: { c: Candidate }) {
+  const plan = usePlan();
   const nucleo = c.verdict === "NUCLEO";
   // Un ADR argentino se decide con las mismas reglas de tendencia que un ETF satélite (ver `decideAdr`): la
   // tarjeta es la misma, pero tiene que decir qué es y de qué acción local sale.
   const adr = c.kind === "adr";
   return (
     <div className="card">
-      <b>{adr ? "Radar · ADR argentino" : "Radar · ETF"}</b> <span className={`verb ${c.verdict}`}>{c.verdict}</span> <span className="muted">{c.candidateDate}</span>
+      <b>{adr ? "Radar · ADR argentino" : "Radar · ETF"}</b> <RadarVerdict symbol={c.symbol} verdict={c.verdict} plan={adr ? null : plan} {...(adr ? { context: "argentina" as const } : {})} /> <span className="muted">{c.candidateDate}</span>
       <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
         {adr
           ? <>Empresa argentina en Nueva York, en dólares{c.peerGroup[0] && <> (su acción local es <SymbolLink symbol={c.peerGroup[0]} />)</>}. Se decide por tendencia contra el SPY, igual que un ETF satélite: no está en el ranking de fundamentals contra pares, por eso acá no hay score ni ranking.</>

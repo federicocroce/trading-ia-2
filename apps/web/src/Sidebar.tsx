@@ -4,6 +4,7 @@ import { usePrices } from "./prices";
 import { goToSymbol } from "./SymbolLink";
 import { WatchStatusBadge, isResolved } from "./WatchlistButton";
 import { SymbolSearch } from "./SymbolSearch";
+import { RadarVerdict, usePlan } from "./plan";
 
 /** Watchlist en barra lateral (portada de trading v1): precios vivos, búsqueda, filtro por tipo, orden, ciclo de vida, alta y baja. */
 type SortMode = "default" | "changeDesc" | "changeAsc" | "category";
@@ -14,6 +15,8 @@ const FLAG: Record<string, string> = { accion_us: "🇺🇸", adr: "🌎", accio
 const readSort = (): SortMode => { try { const v = localStorage.getItem("watchlist:sort"); return v === "changeDesc" || v === "changeAsc" || v === "category" ? v : "default"; } catch { return "default"; } };
 
 export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  // La etiqueta de cada ticker sale del plan vigente: COMPRAR solo si el plan lo compra (14/9).
+  const plan = usePlan();
   const [w, setW] = useState<Watchlist | null>(null);
   const { prices, live } = usePrices();
   const [q, setQ] = useState("");
@@ -79,7 +82,7 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
           return (
             <div key={i.symbol} className={`sidebar-row ${review ? "review" : ""}`} onClick={() => goToSymbol(i.symbol)}>
               <div style={{ minWidth: 0 }}>
-                <div className="row" style={{ gap: 6 }}><span>{FLAG[r?.tags?.assetClass ?? ""] ?? "🌐"}</span><b>{i.symbol}</b>{r && <span className={`verb ${r.verdict}`} style={{ fontSize: 10, padding: "0 6px" }}>{r.verdict}</span>}</div>
+                <div className="row" style={{ gap: 6 }}><span>{FLAG[r?.tags?.assetClass ?? ""] ?? "🌐"}</span><b>{i.symbol}</b>{r && <RadarVerdict symbol={i.symbol} verdict={r.verdict} plan={plan} detail={false} small />}</div>
                 <div style={{ marginTop: 2 }}><WatchStatusBadge item={i} /></div>
               </div>
               <div className="row" style={{ gap: 6 }}>

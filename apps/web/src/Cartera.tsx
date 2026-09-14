@@ -4,6 +4,7 @@ import { CurveChart } from "./CurveChart";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { usePrices } from "./prices";
+import { CarteraVerdict, usePlan } from "./plan";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -185,6 +186,7 @@ export function Cartera() {
 
 function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onEditTags, onTagsSaved }: { p: Position; v: Verdict | undefined; q: Quote | null; tags: Tags | null; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void; editingTags: boolean; onEditTags: () => void; onTagsSaved: () => void }) {
   const x = valuation(p, v, q);
+  const plan = usePlan();
   const priceTitle = !q ? "sin precio vivo: cierre del veredicto" : x.live ? `último precio${q.asOf ? ` ${new Date(q.asOf).toLocaleString("es-AR")}` : ""}` : "precio de su última rueda, no de hoy";
   return (
     <>
@@ -201,7 +203,8 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
         <td className={`mono ${cls(x.pnl)}`}>{signed(x.pnl)}</td>
         <td className={`mono ${cls(x.pnlPct)}`}>{pct(x.pnlPct)}</td>
         <td className="mono">{v ? `${v.weightPct.toFixed(1)}%` : "—"}</td>
-        <td>{v ? <span className={`verb ${v.verb}`}>{v.verb}</span> : <span className="muted">sin veredicto</span>}</td>
+        {/* SUMAR solo si el plan de hoy lo suma: TSM el 14/9 decía SUMAR acá y el plan no lo sumaba. */}
+        <td style={{ maxWidth: 260 }}>{v ? <CarteraVerdict symbol={p.symbol} verb={v.verb} plan={plan} /> : <span className="muted">sin veredicto</span>}</td>
         <td className="mono">{f2(v?.stop)}</td>
         {/* El "objetivo" es el precio donde la operación paga dos veces lo que arriesga hasta el stop: es
             aritmética sobre el stop, no una ganancia esperada. En el plan del Radar ya se corrigió; acá

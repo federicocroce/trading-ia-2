@@ -37,6 +37,9 @@ input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var
 .verb.COMPRAR { background: var(--ok); color: #fff; border-color: transparent; }
 .verb.OBSERVAR { background: #b8860b; color: #fff; border-color: transparent; }
 .verb.NUCLEO { background: var(--accent); color: #fff; border-color: transparent; }
+/* Pasa los filtros pero el plan no la compra: nunca verde, para que no se lea como una orden (14/9). */
+.verb.CANDIDATA { background: transparent; color: var(--muted); border: 1px dashed var(--muted); }
+.verb.MANTENER { background: transparent; color: var(--fg); }
 /* El signo de la bandera se ve antes que el texto: a favor, salvedad o dato faltante. */
 .flag { display: inline-block; font-size: 11px; margin-right: 6px; color: var(--muted); }
 .flag.bueno { color: var(--ok); }
