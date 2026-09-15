@@ -10,7 +10,14 @@ export interface RiskInput {
 }
 export interface RiskReport {
   totalValue: number;
-  weights: Array<{ symbol: string; value: number; weightPct: number }>;
+  /**
+   * Fecha de la vela con la que se valuó (15/9). La corrida de las 07:49 del 15/9 usó el cierre del 14/9 y la
+   * pantalla decía "valor al cierre del 2026-09-15": la fecha de la corrida no es la del precio. Opcional porque
+   * los informes guardados antes no la tienen; la API la reconstruye con `fechaDeCierre`.
+   */
+  asOf?: string | null;
+  /** `close` y `closeDate`: el precio con que se valuó cada papel y de qué vela salió (opcionales por lo mismo). */
+  weights: Array<{ symbol: string; value: number; weightPct: number; close?: number | null; closeDate?: string | null }>;
   concentration: { byCountry: Record<string, number>; byIndustry: Record<string, number>; bySector: Record<string, number>; byTheme: Record<string, number>; hhiCountry: number; hhiIndustry: number; warnings: string[] };
   correlatedPairs: Array<{ a: string; b: string; corr: number }>;
   betas: Record<string, number | null>;
@@ -119,13 +126,32 @@ export function canonicalCountry(raw: string | null | undefined): string | null 
 const countryOf = (p: Position, prof: SymbolProfile | null) =>
   canonicalCountry(prof?.country) ?? (p.market === "adr" || p.market === "ar" ? "AR" : "US");
 
+/**
+ * Fecha de la vela de la que salió un cierre, para lo guardado antes del 15/9 sin esa fecha: la última vela hasta
+ * la fecha de la corrida con ese mismo cierre. Una vela posterior a la corrida no puede ser la que usó (la del
+ * 15/9 llega después de la corrida de las 07:49). null si ninguna coincide: mejor no decir fecha que decir una falsa.
+ */
+export function fechaDeCierre(candles: Candle[], close: number, hasta: string): string | null {
+  for (let k = candles.length - 1; k >= 0; k--) {
+    const c = candles[k]!;
+    if (c.date <= hasta && Math.abs(c.close - close) < 0.005) return c.date;
+  }
+  return null;
+}
+
 export function buildRiskReport(i: RiskInput): RiskReport {
   const notes: string[] = [];
-  const lastClose = (s: string) => i.candles[s]?.[i.candles[s]!.length - 1]?.close ?? null;
-  const values = i.positions.map((p) => ({ symbol: p.symbol, value: (lastClose(p.symbol) ?? 0) * p.quantity }));
+  const lastCandle = (s: string) => i.candles[s]?.[i.candles[s]!.length - 1] ?? null;
+  const lastClose = (s: string) => lastCandle(s)?.close ?? null;
+  const values = i.positions.map((p) => ({ symbol: p.symbol, value: (lastClose(p.symbol) ?? 0) * p.quantity, close: lastClose(p.symbol), closeDate: lastCandle(p.symbol)?.date ?? null }));
   const totalValue = round2(values.reduce((s, v) => s + v.value, 0));
-  const weights = values.map((v) => ({ symbol: v.symbol, value: round2(v.value), weightPct: totalValue > 0 ? round2((v.value / totalValue) * 100) : 0 }));
+  const weights = values.map((v) => ({ symbol: v.symbol, value: round2(v.value), weightPct: totalValue > 0 ? round2((v.value / totalValue) * 100) : 0, close: v.close, closeDate: v.closeDate }));
   for (const p of i.positions) if (lastClose(p.symbol) === null) notes.push(`${p.symbol}: sin velas, valuada en 0`);
+  // El valor total es "al cierre del asOf": el cierre más reciente de los usados. Si algún papel quedó con uno más
+  // viejo (no cotizó o no llegó la vela), su valor es de otro día y se dice.
+  const fechas = values.map((v) => v.closeDate).filter((d): d is string => d !== null).sort();
+  const asOf = fechas.at(-1) ?? null;
+  for (const v of values) if (v.closeDate !== null && asOf !== null && v.closeDate < asOf) notes.push(`${v.symbol}: valuada con el cierre del ${v.closeDate}, anterior al del ${asOf} del resto`);
 
   const byCountry: Record<string, number> = {};
   const byIndustry: Record<string, number> = {};
@@ -209,5 +235,5 @@ export function buildRiskReport(i: RiskInput): RiskReport {
     return { symbol: p.symbol, avgDollarVolume30d: avgDollar, daysToLiquidate: avgShares > 0 ? round4(p.quantity / (avgShares * 0.1)) : null };
   });
 
-  return { totalValue, weights, concentration: { byCountry, byIndustry, bySector, byTheme, hhiCountry: hhi(byCountry), hhiIndustry: hhi(byIndustry), warnings }, correlatedPairs, betas, portfolioBeta, stressSpyMinus20Pct, risk, liquidity, notes };
+  return { totalValue, asOf, weights, concentration: { byCountry, byIndustry, bySector, byTheme, hhiCountry: hhi(byCountry), hhiIndustry: hhi(byIndustry), warnings }, correlatedPairs, betas, portfolioBeta, stressSpyMinus20Pct, risk, liquidity, notes };
 }

@@ -85,7 +85,7 @@ export function Cartera() {
     setMsg(null);
     try {
       const s = await api.cartera.run();
-      setMsg(`${s.verdicts.length} veredictos para ${s.date}. Medidos: ${s.measured.measured7} a 7d, ${s.measured.measured30} a 30d.${s.errors.length ? ` Errores: ${s.errors.map((e) => `${e.symbol}: ${e.error}`).join(" · ")}` : ""}`);
+      setMsg(`${s.verdicts.length} veredictos para ${s.date}${s.risk.asOf ? `, con los cierres del ${s.risk.asOf}` : ""}. Medidos: ${s.measured.measured7} a 7d, ${s.measured.measured30} a 30d.${s.errors.length ? ` Errores: ${s.errors.map((e) => `${e.symbol}: ${e.error}`).join(" · ")}` : ""}`);
       await load();
     } catch (e) {
       setMsg(String(e));
@@ -114,6 +114,8 @@ export function Cartera() {
 
   const vBy = new Map(verdicts.map((v) => [v.symbol, v]));
   const date = verdicts[0]?.verdictDate;
+  // La corrida del 15/9 a las 07:49 usó los cierres del 14/9: la fecha del veredicto no es la del precio.
+  const cierres = risk?.report.asOf ?? verdicts.find((v) => v.closeDate)?.closeDate ?? null;
   const tot = totals(positions, vBy, quotes);
   const priced = Object.values(quotes).filter((q) => q !== null).length;
   const quotesNote = quotesErr
@@ -127,7 +129,7 @@ export function Cartera() {
     <>
       <div className="card row">
         <b>Cartera real</b>
-        <span className="muted">{date ? `veredictos del ${date}` : "sin veredictos todavía"}</span>
+        <span className="muted">{date ? `veredictos del ${date}${cierres && cierres !== date ? `, con los cierres del ${cierres}` : ""}` : "sin veredictos todavía"}</span>
         <div className="spacer" style={{ flex: 1 }} />
         <button className="ghost" onClick={() => setForm({ ...EMPTY })} disabled={busy}>Agregar posición</button>
         {!isHistorical() && <button className="primary" onClick={run} disabled={busy}>{busy ? "Corriendo…" : "Actualizar veredictos"}</button>}
@@ -137,8 +139,9 @@ export function Cartera() {
         <div className="card">
           <div className="kpis">
             {/* Dos valores de cartera conviven en esta pantalla y hasta el 13/9 ninguno decía de cuándo era:
-                éste, al precio vivo de ahora, y el "valor a cierre" de la tarjeta de riesgo, que es el del
-                cierre de la última corrida. Que no coincidan es correcto; que no se sepa cuál es cuál, no. */}
+                éste, al precio vivo de ahora, y el "valor al cierre" de la tarjeta de riesgo, que es el de la
+                última vela que usó la corrida (el 15/9 decía "cierre del 15/9" con el del 14/9). Que no
+                coincidan es correcto; que no se sepa cuál es cuál, no. */}
             <div className="kpi"><b>{usd(tot.value)}</b><span>valor ahora{quotesAt ? `, ${hhmm(quotesAt)}` : ""}{totNote ? ` (sin ${totNote})` : ""}</span></div>
             <div className="kpi"><b>{usd(tot.cost)}</b><span>costo total</span></div>
             <div className="kpi"><b className={cls(tot.pnl)}>{signed(tot.pnl)}</b><span>P&amp;L</span></div>
@@ -230,7 +233,8 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
             <div><b>Por qué:</b> {v.reason}</div>
             {v.narrative && <div style={{ marginTop: 6 }}><b>Modelo:</b> {v.narrative}{v.degradedBy && <span className="muted"> (degradó el veredicto)</span>}</div>}
             {v.warning && <div className="warn" style={{ marginTop: 6 }}><b>Aviso:</b> {v.warning}</div>}
-            <div className="muted mono" style={{ marginTop: 6 }}>cierre {f2(v.close)} · spot {f2(v.spot)} · ganancia a esa fecha {pct(v.gainPct)} · SPY {f2(v.spyClose)} · {v.verdictDate}</div>
+            {/* 15/9: esta línea terminaba en la fecha de la corrida y se leía como la del cierre (era la del 14/9). */}
+            <div className="muted mono" style={{ marginTop: 6 }}>cierre {v.closeDate ? `del ${v.closeDate} ` : "(fecha de la vela no registrada) "}{f2(v.close)} · spot a la hora de la corrida {f2(v.spot)} · ganancia a ese cierre {pct(v.gainPct)} · SPY {f2(v.spyClose)} · veredicto del {v.verdictDate}</div>
           </td>
         </tr>
       )}
@@ -249,16 +253,18 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
  * explica realmente el SPY. Con un R² bajo ese −12,5% no es un techo de pérdida y hay que decirlo ahí mismo.
  */
 function Risk({ r, date }: { r: RiskReport; date: string }) {
-  // `date` es la fecha de la corrida que produjo este informe: todo lo de esta tarjeta es de ese cierre.
+  // `date` es la fecha de la CORRIDA; `r.asOf`, la de la vela con la que se valuó. El 15/9 la corrida de las 07:49
+  // usó el cierre del 14/9 y esta tarjeta decía "valor al cierre del 2026-09-15": son fechas distintas.
   const top = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(0)}%`).join(" · ");
   const o = r.risk;
   const explicaPoco = o?.r2VsSpy !== null && o?.r2VsSpy !== undefined && o.r2VsSpy < 0.5;
   const vecesSpy = o?.portfolioVolPct && o?.spyVolPct ? o.portfolioVolPct / o.spyVolPct : null;
+  const cierre = r.asOf ? `al cierre del ${r.asOf}` : `al último cierre que tenía la corrida del ${date}`;
   return (
     <div className="card">
-      <b>Riesgo de cartera</b> <span className="muted">({date})</span>
+      <b>Riesgo de cartera</b> <span className="muted">(corrida del {date}{r.asOf ? `, con los cierres del ${r.asOf}` : ""})</span>
       <div className="kpis" style={{ marginTop: 8 }}>
-        <div className="kpi"><b>${money(r.totalValue)}</b><span>valor al cierre del {date}</span></div>
+        <div className="kpi"><b>${money(r.totalValue)}</b><span>valor {cierre}</span></div>
         <div className="kpi"><b>{f2(r.portfolioBeta)}</b><span>beta vs SPY (63 ruedas)</span></div>
         {o?.portfolioVolPct !== null && o?.portfolioVolPct !== undefined && (
           <div className="kpi"><b className={vecesSpy !== null && vecesSpy > 2 ? "bad" : ""}>{o.portfolioVolPct.toFixed(0)}%</b><span>volatilidad propia{o.spyVolPct !== null && <> · SPY {o.spyVolPct.toFixed(0)}%{vecesSpy !== null && ` (${vecesSpy.toFixed(1)}×)`}</>}</span></div>

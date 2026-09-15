@@ -102,6 +102,19 @@ describe("runCartera", () => {
     expect(s.verdicts[0]!.narrative).toBeNull();
     expect(s.errors[0]!.error).toContain("503");
   });
+  /**
+   * 15/9: la corrida de las 07:49 guardó el riesgo con la fecha de la corrida y la pantalla decía "valor al
+   * cierre del 2026-09-15" con el cierre del 14/9. El informe guarda de qué vela sale cada precio.
+   */
+  it("el riesgo guardado dice de qué cierre es, no la fecha de la corrida", async () => {
+    const { store, deps } = setup(null);
+    await store.upsertPosition(pos("YPF", 100, 30, "adr"));
+    const s = await runCartera(deps, { today });
+    expect(s.risk.asOf).toBe("2026-09-07");
+    expect((await store.latestRisk())!.date).toBe(today);
+    expect((await store.latestRisk())!.report.asOf).toBe("2026-09-07");
+    expect((await store.latestRisk())!.report.weights[0]!.closeDate).toBe("2026-09-07");
+  });
   it("correr dos veces el mismo día reemplaza, no duplica", async () => {
     const { store, deps } = setup(null);
     await store.upsertPosition(pos("TSM", 10, 300));

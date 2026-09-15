@@ -23,10 +23,12 @@ export interface Thesis {
 
 export interface Position { symbol: string; quantity: number; avgCost: number; currency: string; market: "us" | "adr" | "ar"; layer: "riesgo" | "nucleo" | "cobertura"; notes: string | null }
 export type Verb = "VENDER" | "REVISAR" | "MANTENER" | "SUMAR";
-export interface Verdict { verdictDate: string; symbol: string; verb: Verb; reason: string; narrative: string | null; warning: string | null; close: number; spot: number | null; stop: number | null; target: number | null; gainPct: number; weightPct: number; spyClose: number | null; degradedBy: string | null }
+export interface Verdict { verdictDate: string; symbol: string; verb: Verb; reason: string; narrative: string | null; warning: string | null; close: number; spot: number | null; stop: number | null; target: number | null; gainPct: number; weightPct: number; spyClose: number | null; degradedBy: string | null; /** Fecha de la vela de `close` (15/9): no es la fecha de la corrida. */ closeDate?: string | null }
 export interface RiskReport {
   totalValue: number;
-  weights: Array<{ symbol: string; value: number; weightPct: number }>;
+  /** Fecha de la vela con que se valuó (15/9): no es la fecha de la corrida. */
+  asOf?: string | null;
+  weights: Array<{ symbol: string; value: number; weightPct: number; close?: number | null; closeDate?: string | null }>;
   concentration: { byCountry: Record<string, number>; byIndustry: Record<string, number>; bySector: Record<string, number>; byTheme: Record<string, number>; hhiCountry: number; hhiIndustry: number; warnings: string[] };
   correlatedPairs: Array<{ a: string; b: string; corr: number }>;
   betas: Record<string, number | null>;

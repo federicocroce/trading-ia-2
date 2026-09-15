@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { beta, buildRiskReport, correlation, hhi, type Candle, type Position } from "./index.js";
+import { beta, buildRiskReport, correlation, fechaDeCierre, hhi, type Candle, type Position } from "./index.js";
 
 const series = (closes: number[], volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: `2026-01-${String(i + 1).padStart(2, "0")}`, open: c, high: c, low: c, close: c, volume }));
@@ -113,6 +113,48 @@ describe("concentración por país con nombres mezclados", () => {
     expect(Object.keys(r.concentration.byCountry).sort()).toEqual(["AR", "US"]);
     expect(r.concentration.byCountry["AR"]).toBeGreaterThan(90);
     expect(r.concentration.warnings.some((w) => w.includes("AR"))).toBe(true);
+  });
+});
+
+/**
+ * 15/9: la tarjeta de riesgo decía "valor al cierre del 2026-09-15" (USD 157.964) y la corrida de las 07:49 había
+ * usado el cierre del 14/9 (GGAL 42,96 × 920,77). La fecha de la corrida no es la fecha del precio.
+ */
+describe("de qué cierre es el valor", () => {
+  const vela = (date: string, close: number): Candle => ({ date, open: close, high: close, low: close, close, volume: 1 });
+  const ggal = { symbol: "GGAL", quantity: 920.77279309, avgCost: 34.6788, currency: "USD", market: "adr" as const, layer: "riesgo" as const, notes: null };
+  const tsm = { symbol: "TSM", quantity: 26.52852693, avgCost: 376.1988, currency: "USD", market: "us" as const, layer: "riesgo" as const, notes: null };
+
+  it("dice la fecha de la última vela usada, no la de la corrida", () => {
+    const r = buildRiskReport({
+      positions: [ggal, tsm],
+      candles: { GGAL: [vela("2026-09-11", 43.86), vela("2026-09-14", 42.96)], TSM: [vela("2026-09-11", 433.24), vela("2026-09-14", 418.01)] },
+      spy: [vela("2026-09-14", 760.88)],
+      profiles: { GGAL: null, TSM: null },
+    });
+    expect(r.asOf).toBe("2026-09-14");
+    expect(r.weights.find((w) => w.symbol === "GGAL")).toMatchObject({ value: 39556.4, closeDate: "2026-09-14", close: 42.96 });
+    expect(r.notes.filter((n) => n.includes("valuada con el cierre"))).toEqual([]);
+  });
+
+  it("si un papel quedó con un cierre más viejo que el resto, lo dice", () => {
+    const r = buildRiskReport({
+      positions: [ggal, tsm],
+      candles: { GGAL: [vela("2026-09-14", 42.96)], TSM: [vela("2026-09-11", 433.24)] },
+      spy: [vela("2026-09-14", 760.88)],
+      profiles: { GGAL: null, TSM: null },
+    });
+    expect(r.asOf).toBe("2026-09-14");
+    expect(r.notes).toContain("TSM: valuada con el cierre del 2026-09-11, anterior al del 2026-09-14 del resto");
+  });
+
+  it("para los informes guardados sin fecha: la busca por el cierre que se usó, sin pasarse de la corrida", () => {
+    const velas = [vela("2026-09-11", 43.86), vela("2026-09-14", 42.96), vela("2026-09-15", 43.5)];
+    expect(fechaDeCierre(velas, 42.96, "2026-09-15")).toBe("2026-09-14");
+    // Un cierre que no está en las velas no se adivina.
+    expect(fechaDeCierre(velas, 41, "2026-09-15")).toBeNull();
+    // Una vela posterior a la corrida no puede ser la que usó.
+    expect(fechaDeCierre([vela("2026-09-16", 42.96)], 42.96, "2026-09-15")).toBeNull();
   });
 });
 

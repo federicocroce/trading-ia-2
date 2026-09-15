@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { todayLocal, summarizeMeasurement } from "@thesis/core";
+import { fechaDeCierre, todayLocal, summarizeMeasurement, type RiskReport, type VerdictRow } from "@thesis/core";
 import { carteraCurve, liveQuotes, measureVerdicts, replan, runCartera, type CurveResponse } from "@thesis/pipeline";
 import { randomUUID } from "node:crypto";
 import type { Container } from "../container.js";
@@ -30,12 +30,43 @@ const TxBody = z.object({
 
 /** La curva se calcula desde lo guardado; se cachea 5 min y se invalida al tocar posiciones u operaciones o al correr. */
 const CURVE_TTL_MS = 5 * 60_000;
+const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * 86_400_000).toISOString().slice(0, 10);
 
 export function carteraRoutes(c: Container) {
   const app = new Hono();
   const store = c.carteraDeps.store;
   let curveCache: { at: number; value: CurveResponse } | null = null;
   const bustCurve = () => { curveCache = null; };
+
+  /**
+   * De qué vela sale el cierre de cada veredicto (15/9). La corrida de las 07:49 del 15/9 usó el cierre del 14/9 y
+   * la pantalla decía "cierre del 15/9". Las corridas nuevas lo guardan en el informe de riesgo de ESA fecha; para
+   * las anteriores se busca la vela con el mismo cierre, sin pasarse de la fecha de la corrida.
+   */
+  async function fechasDeCierre(date: string, verdicts: VerdictRow[], report: RiskReport | null): Promise<Record<string, string | null>> {
+    const out: Record<string, string | null> = {};
+    for (const w of report?.weights ?? []) if (w.closeDate) out[w.symbol] = w.closeDate;
+    for (const v of verdicts) {
+      if (out[v.symbol] !== undefined || v.verdictDate !== date) continue;
+      const velas = await c.store.candles(v.symbol, addDays(date, -15)).catch(() => []);
+      out[v.symbol] = fechaDeCierre(velas, v.close, date);
+    }
+    return out;
+  }
+  /** El informe de riesgo de esa corrida exacta (no uno anterior), con la fecha de la vela completada si faltaba. */
+  async function riesgoConFecha(r: { date: string; report: RiskReport } | null): Promise<{ date: string; report: RiskReport } | null> {
+    if (!r || r.report.asOf) return r;
+    const fechas = await fechasDeCierre(r.date, await store.verdictsForDate(r.date), r.report);
+    const conocidas = Object.values(fechas).filter((d): d is string => d !== null).sort();
+    return { ...r, report: { ...r.report, asOf: conocidas.at(-1) ?? null, weights: r.report.weights.map((w) => ({ ...w, closeDate: w.closeDate ?? fechas[w.symbol] ?? null })) } };
+  }
+  async function veredictosConFecha(list: VerdictRow[]) {
+    const date = list[0]?.verdictDate;
+    if (!date) return [];
+    const r = await store.riskForDate(date);
+    const fechas = await fechasDeCierre(date, list, r && r.date === date ? r.report : null);
+    return list.map((v) => ({ ...v, closeDate: fechas[v.symbol] ?? null }));
+  }
 
   app.get("/cartera/positions", async (ctx) => ctx.json(await store.positions()));
   app.post("/cartera/positions", async (ctx) => {
@@ -84,9 +115,9 @@ export function carteraRoutes(c: Container) {
     curveCache = { at: Date.now(), value };
     return ctx.json(value);
   });
-  // ?date=YYYY-MM-DD: histórico, tal como quedó esa corrida.
-  app.get("/cartera/verdicts", async (ctx) => { const d = ctx.req.query("date"); return ctx.json(d ? await store.verdictsForDate(d) : await store.latestVerdicts()); });
-  app.get("/cartera/risk", async (ctx) => { const d = ctx.req.query("date"); return ctx.json(d ? await store.riskForDate(d) : await store.latestRisk()); });
+  // ?date=YYYY-MM-DD: histórico, tal como quedó esa corrida. Cada veredicto lleva `closeDate` y el riesgo `asOf`.
+  app.get("/cartera/verdicts", async (ctx) => { const d = ctx.req.query("date"); return ctx.json(await veredictosConFecha(d ? await store.verdictsForDate(d) : await store.latestVerdicts())); });
+  app.get("/cartera/risk", async (ctx) => { const d = ctx.req.query("date"); return ctx.json(await riesgoConFecha(d ? await store.riskForDate(d) : await store.latestRisk())); });
   app.get("/cartera/measurement", async (ctx) => {
     const all = await store.allVerdicts();
     return ctx.json({ total: all.length, ...summarizeMeasurement(all) });
