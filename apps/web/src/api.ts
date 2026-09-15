@@ -124,9 +124,12 @@ export interface TickerPage {
   tags: Tags | null;
   fundamentals: { asOf: string; metrics: Record<string, number | null>; metricsRaw?: Record<string, number | null> | null; statementsAsOf?: string | null; peers: string[]; mcapUsd: number | null; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null;
   candidate: Candidate | null;
-  peers: Array<{ symbol: string; metrics: Record<string, number | null> }>;
+  /** `excluded`: métricas que el puntaje no usa para ese par (15/9: en bancos, el crecimiento de ingresos de Finnhub). */
+  peers: Array<{ symbol: string; metrics: Record<string, number | null>; excluded?: string[] }>;
   /** Mediana del grupo completo, la propia incluida: la misma que usa el puntaje. */
   medians?: Record<string, number | null> | null;
+  /** Métricas que el puntaje no usa para este símbolo. */
+  ownExcluded?: string[];
   statements: Statements | null;
   events: RadarEvent[];
   analystActions: AnalystAction[];

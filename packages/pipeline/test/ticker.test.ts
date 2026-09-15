@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Candle, SymbolDescription } from "@thesis/core";
-import { MemoryStore, buildTicker, liveQuotes, type TickerDeps } from "../src/index.js";
+import type { Candle, Fundamentals, SymbolDescription } from "@thesis/core";
+import { groupMedians, rankStocks } from "@thesis/core";
+import { MemoryStore, buildTicker, comparables, liveQuotes, type TickerDeps } from "../src/index.js";
 
 const series = (closes: number[], start = "2026-06-01"): Candle[] => closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c + 1, low: c - 1, close: c, volume: 1_000_000 }));
 const today = "2026-09-08";
@@ -150,6 +151,42 @@ describe("buildTicker", () => {
     expect(t.news).toEqual([]);
     expect(t.quote).toBeNull();
     expect(t.errors.length).toBe(2);
+  });
+});
+
+describe("comparables (C4, 15/9)", () => {
+  // NBN y sus diez pares del 15/9, todos bancos, con el crecimiento de ingresos que da Finnhub (TTM, trimestral).
+  const pares: Array<[string, number | null, number | null]> = [["HFWA", 30.89696, 20.22091], ["AMTB", 77.86044, 56.36941], ["MCB", 50.46917, 64.02435], ["FSBC", null, null], ["UVSP", 53.22302, 45.20089], ["CFFN", null, null], ["MBWM", 59.29094, 47.8381], ["EQBK", 34.29414, 33.96844], ["BFST", null, null], ["TFC", 58.19041, 42.57267]];
+  const fund = (symbol: string, ttm: number | null, q: number | null, pe: number): Fundamentals => ({ symbol, asOf: "2026-09-13", metrics: { revenueGrowthTTMYoy: ttm, revenueGrowthQuarterlyYoy: q, peTTM: pe, roeTTM: 10 }, peers: [], industry: "Banking", mcapUsd: 1e9, dollarVolumeUsd: 1e7, priceUsd: 50, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null });
+  it("NBN: la tabla mostraba una mediana de crecimiento de 53,2% y pintaba en verde su 123,9%, cuando el ranking no usa ese dato en bancos; los pares van con su industria y la mediana es la del puntaje", async () => {
+    const store = new MemoryStore();
+    const nbn = fund("NBN", 123.8872, 133.3867, 10.5761);
+    await store.saveFundamentals(nbn);
+    for (const [s, ttm, q] of pares) await store.saveFundamentals(fund(s, ttm, q, 12));
+    const c = await comparables(store, nbn, pares.map(([s]) => s));
+    expect(c.medians?.["revenueGrowthTTMYoy"]).toBeNull();
+    expect(c.medians?.["revenueGrowthQuarterlyYoy"]).toBeNull();
+    // La misma mediana que calcula el ranking con las fundamentales completas.
+    const all = new Map([nbn, ...(await Promise.all(pares.map(([s]) => store.fundamentals(s))))].map((f) => [f!.symbol, f!]));
+    const ranked = rankStocks(all, { valuation: 1, quality: 1, growth: 1, balance: 1 }).ranked.find((r) => r.symbol === "NBN");
+    expect(c.medians).toEqual(groupMedians([nbn, ...pares.map(([s]) => all.get(s)!)]));
+    if (ranked) expect(c.medians?.["revenueGrowthTTMYoy"]).toBe(ranked.medians["revenueGrowthTTMYoy"]);
+    // Cada fila dice qué métricas el puntaje no usa para esa empresa.
+    expect(c.ownExcluded).toEqual(["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy"]);
+    expect(c.peers.find((p) => p.symbol === "UVSP")?.excluded).toEqual(["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy"]);
+    expect(c.peers.find((p) => p.symbol === "FSBC")?.excluded).toEqual([]);
+  });
+  it("la ficha usa esa misma función: un banco en el Radar ya no muestra la mediana de crecimiento", async () => {
+    const { store, deps } = setup();
+    const nbn = fund("NBN", 123.8872, 133.3867, 10.5761);
+    await store.saveFundamentals(nbn);
+    for (const [s, ttm, q] of pares) await store.saveFundamentals(fund(s, ttm, q, 12));
+    const base = { candidateDate: today, kind: "stock" as const, verdict: "COMPRAR" as const, score: 1, axes: {}, rankInGroup: 3, groupSize: 11, close: 132.23, entryLow: 132.23, entryHigh: 134.87, stop: 123.85, target: 156.91, sizeUsd: null, sizeQty: null, riskScore: null, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null };
+    await store.upsertCandidates([{ ...base, symbol: "NBN", peerGroup: pares.map(([s]) => s) }]);
+    const t = await buildTicker(deps, "NBN", { today });
+    expect(t.medians?.["revenueGrowthTTMYoy"]).toBeNull();
+    expect(t.ownExcluded).toEqual(["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy"]);
+    expect(t.peers).toHaveLength(10);
   });
 });
 

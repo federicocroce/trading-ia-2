@@ -1,5 +1,5 @@
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
-import { AXES, AXIS_METRICS, groupMedians } from "@thesis/core";
+import { AXES, AXIS_METRICS, groupMedians, unreliableGrowthKeys } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
 /**
@@ -26,9 +26,11 @@ export interface TickerPage {
   tags: Tags | null;
   fundamentals: Fundamentals | null;
   candidate: CandidateRow | null;
-  peers: Array<{ symbol: string; metrics: Record<string, number | null> }>;
+  peers: PeerRowView[];
   /** Mediana de cada métrica en el grupo completo, la propia incluida: la referencia exacta del puntaje. */
   medians: Record<string, number | null> | null;
+  /** Métricas que el puntaje no usa para este símbolo (en bancos, el crecimiento de ingresos de Finnhub). */
+  ownExcluded: string[];
   /** Verificación (spec verificación): estados de la SEC, eventos materiales de 90 días sin ruido, acciones de analistas de 90 días. */
   statements: Statements | null;
   events: RadarEvent[];
@@ -87,6 +89,33 @@ export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promis
 }
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 120);
+
+/** Fila de la tabla de comparables: métricas del puntaje y cuáles de ellas el puntaje NO usa para esa empresa. */
+export interface PeerRowView {
+  symbol: string;
+  metrics: Record<string, number | null>;
+  excluded: string[];
+}
+
+/**
+ * Tabla de comparables con la mediana del puntaje, para la ficha y el detalle del Radar (15/9). Los pares se armaban
+ * con `{ symbol, metrics }`, sin la industria, así que `groupMedians` no podía aplicar la regla de los bancos: en NBN
+ * (diez pares, todos bancos) la tabla mostraba una mediana de crecimiento de ingresos de 53,2% y pintaba en verde el
+ * 123,9% de NBN, cuando el ranking no usa ese dato en bancos (`crecimiento_no_confiable`) y su mediana es nula. Ahora
+ * la mediana sale de las fundamentales completas, igual que en `rankStocks`, y cada fila dice qué métricas no cuentan.
+ */
+export async function comparables(store: Pick<RadarStore, "fundamentals">, own: Fundamentals | null, peerGroup: string[]): Promise<{ peers: PeerRowView[]; medians: Record<string, number | null> | null; ownExcluded: string[] }> {
+  const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
+  const full: Fundamentals[] = [];
+  for (const p of peerGroup) {
+    const f = await store.fundamentals(p);
+    if (f) full.push(f);
+  }
+  const peers = full.map((f) => ({ symbol: f.symbol, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])), excluded: unreliableGrowthKeys(f) }));
+  // Misma mediana que el puntaje, calculada en un solo lugar (ver `groupMedians`), con la industria de cada uno.
+  const medians = own && full.length ? groupMedians([own, ...full]) : null;
+  return { peers, medians, ownExcluded: own ? unreliableGrowthKeys(own) : [] };
+}
 
 /** Del precio crudo a lo que muestra la UI: variación diaria en moneda y en % contra el cierre previo. */
 export type QuoteView = NonNullable<TickerPage["quote"]>;
@@ -240,14 +269,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     store.newsScannedTo(symbol).catch(() => null),
   ]);
   const events = allEvents.filter((e) => e.severity !== "ruido");
-  const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
-  const peers: TickerPage["peers"] = [];
-  for (const p of candidate?.peerGroup ?? []) {
-    const f = await store.fundamentals(p);
-    if (f) peers.push({ symbol: p, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])) });
-  }
-  // Misma mediana que el puntaje, calculada en un solo lugar (ver `groupMedians`).
-  const medians = fundamentals && peers.length ? groupMedians([fundamentals, ...peers]) : null;
+  const { peers, medians, ownExcluded } = await comparables(store, fundamentals, candidate?.peerGroup ?? []);
   const mine = txs.filter((t) => t.symbol === symbol).sort((a, b) => b.date.localeCompare(a.date));
   const sum = (type: Transaction["type"]) => {
     const rows = mine.filter((t) => t.type === type);
@@ -275,6 +297,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     candidate,
     peers,
     medians,
+    ownExcluded,
     statements,
     events,
     analystActions,
