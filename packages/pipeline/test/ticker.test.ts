@@ -270,3 +270,14 @@ describe("buildTicker: verificación", () => {
     expect((await buildTicker(d, "NBN", { today: "2026-09-15", timeoutMs: 1000 })).verificationCurrent).toBeNull();
   });
 });
+
+describe("ficha: el objetivo de tu posición (auditoría del 15/9)", () => {
+  it("TSM: la ficha trae el objetivo de la posición (428,41) además del de sumar (533,92), el mismo que Cartera", async () => {
+    const { store, deps } = setup();
+    await store.upsertPosition({ symbol: "TSM", quantity: 27.6, avgCost: 376.2, currency: "USD", market: "adr", layer: "riesgo", notes: null });
+    await store.upsertVerdicts([{ verdictDate: today, symbol: "TSM", verb: "SUMAR", reason: "Candidata a aporte", narrative: "n", warning: null, close: 418.01, spot: null, stop: 412.81, target: 533.92, gainPct: 11.1, weightPct: 7, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null }]);
+    const p = await buildTicker(deps, "TSM", { today });
+    expect(p.verdict?.target).toBe(533.92);
+    expect(p.verdict?.holdTarget).toBe(428.41);
+  });
+});

@@ -1,5 +1,5 @@
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
-import { AXES, AXIS_METRICS, atr, groupMedians, unreliableGrowthKeys } from "@thesis/core";
+import { AXES, AXIS_METRICS, atr, groupMedians, holdTargetOf, unreliableGrowthKeys } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
 /**
@@ -23,7 +23,7 @@ export interface TickerPage {
   /** `prevCloseDate`: el cambio del día se midió contra el cierre guardado de esa fecha; sin él, contra el de la fuente. */
   quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency: string | null; prevCloseDate?: string } | null;
   position: (Position & { valueUsd: number; pnlUsd: number; pnlPct: number; weightPct: number | null }) | null;
-  verdict: VerdictRow | null;
+  verdict: (VerdictRow & { holdTarget: number | null }) | null;
   tags: Tags | null;
   fundamentals: Fundamentals | null;
   candidate: CandidateRow | null;
@@ -320,7 +320,9 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     description,
     quote,
     position,
-    verdict: verdicts.find((v) => v.symbol === symbol) ?? null,
+    // Con el objetivo de la posición al lado (15/9): en un SUMAR, `target` es el de la compra nueva, y la ficha mostraba
+    // ese (533,92 en TSM) mientras Cartera y el Radar mostraban el de la posición (428,41).
+    verdict: (() => { const v = verdicts.find((x) => x.symbol === symbol); return v ? { ...v, holdTarget: holdTargetOf(v) } : null; })(),
     tags,
     fundamentals,
     candidate,

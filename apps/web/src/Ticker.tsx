@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Candidate, type TickerPage, type WatchItem } from "./api";
+import { api, isHistorical, type Candidate, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
 import { baseDelDia, distanciaAlStop, notaDelSeguimiento, relacionDeLaOrden, rotuloDelStop } from "./niveles";
 import { TagChips, TagEditor } from "./Tags";
@@ -11,7 +11,8 @@ import { Flags } from "./flags";
 import { VerificationSections } from "./Verification";
 import { PeersTable } from "./Peers";
 import { CarteraVerdict, RadarVerdict, usePlan } from "./plan";
-import { planLoCompra } from "./instruccion";
+import { instruccionCartera, planLoCompra, planStatusFor } from "./instruccion";
+import { lineaSumar, vistaFila } from "./carteraVista";
 import { chipDeCabecera } from "./cabecera";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -59,7 +60,10 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const isNucleo = t.candidate?.verdict === "NUCLEO";
   const levelsFrom = t.verdict ? "Cartera" : t.candidate && !isNucleo ? "Radar" : null;
   const stop = t.verdict?.stop ?? (isNucleo ? null : t.candidate?.stop ?? null);
-  const target = t.verdict?.target ?? (isNucleo ? null : t.candidate?.target ?? null);
+  // Lo que ya tenés lleva el objetivo de la posición, el mismo que Cartera y el Radar (15/9: la ficha mostraba el de
+  // sumar de TSM, 533,92, con el plan diciendo MANTENER). El de una compra nueva va aparte en "Tu posición".
+  const target = t.verdict ? (t.verdict.holdTarget ?? t.verdict.target) : isNucleo ? null : t.candidate?.target ?? null;
+  const vista = t.verdict ? vistaFila(t.verdict, instruccionCartera(t.verdict.verb, isHistorical() ? null : planStatusFor(t.symbol, plan)), lineaSumar(plan, t.symbol)) : null;
   const px = q?.price ?? null;
   const move = (level: number | null) => (px && level ? ((level - px) / px) * 100 : null);
   const toStop = move(stop);
@@ -146,9 +150,10 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               <div className="kpi"><b>${f2(t.position.avgCost)}</b><span>costo promedio</span></div>
               <div className="kpi"><b className={t.position.pnlUsd >= 0 ? "ok" : "bad"}>{money(t.position.pnlUsd)}</b><span>ganancia no realizada ({pct(t.position.pnlPct)})</span></div>
               <div className="kpi"><b>{money(t.position.valueUsd)}</b><span>valor</span></div>
-              {t.verdict && <div className="kpi"><b><span className="bad">{f2(t.verdict.stop)}</span> / <span className="ok">{f2(t.verdict.target)}</span></b><span>stop ({pct(move(t.verdict.stop))}) / objetivo ({pct(move(t.verdict.target))})</span></div>}
+              {t.verdict && vista && <div className="kpi"><b><span className="bad">{f2(t.verdict.stop)}</span> / <span className="ok">{f2(vista.objetivo)}</span></b><span>stop ({pct(move(t.verdict.stop))}) / objetivo de la posición ({pct(move(vista.objetivo))}){vista.siSumas && <> · si sumás desde {f2(vista.siSumas.desde)}: {f2(vista.siSumas.objetivo)}</>}</span></div>}
             </div>
-            {t.verdict && <div style={{ marginTop: 8 }}><b>Por qué:</b> {t.verdict.reason}{t.verdict.narrative && <div className="muted" style={{ marginTop: 4 }}><b>Modelo:</b> {t.verdict.narrative}</div>}{t.verdict.warning && <div className="warn" style={{ marginTop: 4 }}>⚠ {t.verdict.warning}</div>}</div>}
+            {/* El motivo y la narración como en Cartera (`vistaFila`): si el plan no suma, el motivo es el del plan. */}
+            {t.verdict && vista && <div style={{ marginTop: 8 }}><b>Por qué:</b> {vista.motivo}{vista.narrativa && <div className="muted" style={{ marginTop: 4 }}><b>Modelo:</b> {vista.narrativa}</div>}{t.verdict.warning && <div className="warn" style={{ marginTop: 4 }}>⚠ {t.verdict.warning}</div>}</div>}
           </div>
         )}
         <div className="card">
