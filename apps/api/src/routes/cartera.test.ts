@@ -66,6 +66,17 @@ describe("/cartera", () => {
     const [h] = await (await a.request("/cartera/verdicts?date=2026-09-15")).json();
     expect(h.closeDate).toBe("2026-09-14");
   });
+  /**
+   * 15/9: el plan no sumaba TSM y Cartera mostraba el objetivo de SUMAR, 533,92, medido desde el techo de la franja
+   * (453,18). Cada veredicto lleva el objetivo de la posición, calculado en core, sin columna nueva en la base.
+   */
+  it("cada veredicto lleva el objetivo de la posición: TSM 428,41 aunque el de SUMAR sea 533,92", async () => {
+    const store = new MemoryStore();
+    await store.upsertVerdicts([{ ...ggal15, symbol: "TSM", verb: "SUMAR", close: 418.01, stop: 412.81, target: 533.92, weightPct: 7.02 }, ggal15]);
+    const vs = await (await app(store).request("/cartera/verdicts")).json();
+    expect(vs.find((v: { symbol: string }) => v.symbol === "TSM")).toMatchObject({ target: 533.92, holdTarget: 428.41 });
+    expect(vs.find((v: { symbol: string }) => v.symbol === "GGAL")).toMatchObject({ target: 47.26, holdTarget: 47.26 });
+  });
   it("una corrida nueva guarda la fecha de la vela y la API la sirve tal cual", async () => {
     const a = app();
     await post(a, "/cartera/positions", { symbol: "ypf", quantity: 100, avgCost: 30, market: "adr" });

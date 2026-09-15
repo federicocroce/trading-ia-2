@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { fechaDeCierre, todayLocal, summarizeMeasurement, type RiskReport, type VerdictRow } from "@thesis/core";
+import { fechaDeCierre, holdTargetOf, todayLocal, summarizeMeasurement, type RiskReport, type VerdictRow } from "@thesis/core";
 import { carteraCurve, liveQuotes, measureVerdicts, replan, runCartera, type CurveResponse } from "@thesis/pipeline";
 import { randomUUID } from "node:crypto";
 import type { Container } from "../container.js";
@@ -65,7 +65,9 @@ export function carteraRoutes(c: Container) {
     if (!date) return [];
     const r = await store.riskForDate(date);
     const fechas = await fechasDeCierre(date, list, r && r.date === date ? r.report : null);
-    return list.map((v) => ({ ...v, closeDate: fechas[v.symbol] ?? null }));
+    // `holdTarget`: el objetivo de la posición (15/9). Derivado, sin columna: `target` sigue siendo el del veredicto,
+    // que en SUMAR es el de la compra nueva (TSM: 533,92 desde el techo de la franja contra 428,41 de la posición).
+    return list.map((v) => ({ ...v, closeDate: fechas[v.symbol] ?? null, holdTarget: holdTargetOf(v) }));
   }
 
   app.get("/cartera/positions", async (ctx) => ctx.json(await store.positions()));

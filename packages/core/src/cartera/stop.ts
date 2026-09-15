@@ -52,3 +52,15 @@ export function computeTarget(close: number, stop: number | null): number | null
   if (stop === null) return null;
   return round2(close + 2 * (close - stop));
 }
+
+/**
+ * Objetivo de lo que YA TENÉS: cierre + 2 × (cierre − stop). Único lugar donde se calcula (15/9).
+ *
+ * El 15/9 el plan no sumaba TSM y Cartera mostraba igual el objetivo de SUMAR, 533,92, medido desde el techo de la
+ * franja de compra (453,18): el precio de una compra que no se iba a hacer. Lo que ya tenés se mide desde el cierre:
+ * 418,01 + 2 × (418,01 − 412,81) = 428,41. El objetivo de una compra nueva es otro número y se rotula
+ * "si sumás desde X". Todo veredicto que no es SUMAR ya trae éste; la API lo sirve junto a cada veredicto.
+ */
+export function holdTargetOf(v: { close: number; stop: number | null }): number | null {
+  return computeTarget(v.close, v.stop);
+}

@@ -5,6 +5,8 @@ import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { usePrices } from "./prices";
 import { CarteraVerdict, usePlan } from "./plan";
+import { instruccionCartera, planStatusFor } from "./instruccion";
+import { lineaSumar, vistaFila } from "./carteraVista";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -190,6 +192,9 @@ export function Cartera() {
 function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onEditTags, onTagsSaved }: { p: Position; v: Verdict | undefined; q: Quote | null; tags: Tags | null; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void; editingTags: boolean; onEditTags: () => void; onTagsSaved: () => void }) {
   const x = valuation(p, v, q);
   const plan = usePlan();
+  // La misma instrucción que muestra la etiqueta (CarteraVerdict): objetivo, motivo y narración la siguen (15/9).
+  const ins = v ? instruccionCartera(v.verb, isHistorical() ? null : planStatusFor(p.symbol, plan)) : null;
+  const vista = v && ins ? vistaFila(v, ins, isHistorical() ? null : lineaSumar(plan, p.symbol)) : null;
   const priceTitle = !q ? "sin precio vivo: cierre del veredicto" : x.live ? `último precio${q.asOf ? ` ${new Date(q.asOf).toLocaleString("es-AR")}` : ""}` : "precio de su última rueda, no de hoy";
   return (
     <>
@@ -210,12 +215,16 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
         <td style={{ maxWidth: 260 }}>{v ? <CarteraVerdict symbol={p.symbol} verb={v.verb} plan={plan} /> : <span className="muted">sin veredicto</span>}</td>
         <td className="mono">{f2(v?.stop)}</td>
         {/* El "objetivo" es el precio donde la operación paga dos veces lo que arriesga hasta el stop: es
-            aritmética sobre el stop, no una ganancia esperada. En el plan del Radar ya se corrigió; acá
-            mostraba el mismo número con el mismo rótulo engañoso. Se deja apagado y con su motivo. */}
+            aritmética sobre el stop, no una ganancia esperada. Es el de la POSICIÓN, medido desde el cierre: el
+            15/9 TSM decía MANTENER y mostraba 533,92, el de SUMAR medido desde el techo de la franja (453,18).
+            El de una compra nueva va aparte, rotulado "si sumás desde X", y solo si el plan suma. */}
         <td className="mono">
-          {f2(v?.target)}
-          {v?.target !== null && v?.target !== undefined && (
-            <div className="muted" style={{ fontSize: 11 }} title="No es una ganancia esperada ni un pronóstico: es el precio donde la operación paga dos veces lo que arriesga hasta el stop. Por eso acompaña a la distancia del stop y no a la empresa.">2× el riesgo</div>
+          {f2(vista?.objetivo)}
+          {vista?.objetivo !== null && vista?.objetivo !== undefined && (
+            <div className="muted" style={{ fontSize: 11 }} title="El de lo que ya tenés, medido desde el cierre. No es una ganancia esperada ni un pronóstico: es el precio donde la posición paga dos veces lo que arriesga hasta el stop. Por eso acompaña a la distancia del stop y no a la empresa.">de la posición · 2× el riesgo</div>
+          )}
+          {vista?.siSumas && (
+            <div className="muted" style={{ fontSize: 11 }} title="El objetivo de la compra nueva que propone el plan: dos veces el riesgo medido desde el precio que pagarías, el techo de la franja de compra.">si sumás{vista.siSumas.desde !== null ? ` desde ${f2(vista.siSumas.desde)}` : ""}: {f2(vista.siSumas.objetivo)}</div>
           )}
         </td>
         <td><TagChips tags={tags} /></td>
@@ -230,8 +239,8 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
       {open && v && (
         <tr>
           <td colSpan={14}>
-            <div><b>Por qué:</b> {v.reason}</div>
-            {v.narrative && <div style={{ marginTop: 6 }}><b>Modelo:</b> {v.narrative}{v.degradedBy && <span className="muted"> (degradó el veredicto)</span>}</div>}
+            <div><b>Por qué:</b> {vista?.motivo ?? v.reason}</div>
+            {vista?.narrativa && <div style={{ marginTop: 6 }}><b>Modelo:</b> {vista.narrativa}{v.degradedBy && <span className="muted"> (degradó el veredicto)</span>}</div>}
             {v.warning && <div className="warn" style={{ marginTop: 6 }}><b>Aviso:</b> {v.warning}</div>}
             {/* 15/9: esta línea terminaba en la fecha de la corrida y se leía como la del cierre (era la del 14/9). */}
             <div className="muted mono" style={{ marginTop: 6 }}>cierre {v.closeDate ? `del ${v.closeDate} ` : "(fecha de la vela no registrada) "}{f2(v.close)} · spot a la hora de la corrida {f2(v.spot)} · ganancia a ese cierre {pct(v.gainPct)} · SPY {f2(v.spyClose)} · veredicto del {v.verdictDate}</div>

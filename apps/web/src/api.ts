@@ -23,7 +23,7 @@ export interface Thesis {
 
 export interface Position { symbol: string; quantity: number; avgCost: number; currency: string; market: "us" | "adr" | "ar"; layer: "riesgo" | "nucleo" | "cobertura"; notes: string | null }
 export type Verb = "VENDER" | "REVISAR" | "MANTENER" | "SUMAR";
-export interface Verdict { verdictDate: string; symbol: string; verb: Verb; reason: string; narrative: string | null; warning: string | null; close: number; spot: number | null; stop: number | null; target: number | null; gainPct: number; weightPct: number; spyClose: number | null; degradedBy: string | null; /** Fecha de la vela de `close` (15/9): no es la fecha de la corrida. */ closeDate?: string | null }
+export interface Verdict { verdictDate: string; symbol: string; verb: Verb; reason: string; narrative: string | null; warning: string | null; close: number; spot: number | null; stop: number | null; target: number | null; gainPct: number; weightPct: number; spyClose: number | null; degradedBy: string | null; /** Fecha de la vela de `close` (15/9): no es la fecha de la corrida. */ closeDate?: string | null; /** Objetivo de la posición, cierre + 2 × (cierre − stop), calculado en core (15/9). En SUMAR, `target` es el de la compra nueva. */ holdTarget?: number | null }
 export interface RiskReport {
   totalValue: number;
   /** Fecha de la vela con que se valuó (15/9): no es la fecha de la corrida. */
