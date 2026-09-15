@@ -13,6 +13,8 @@ function app(intraday: ChartBar[] | Error = [{ time: 1, open: 1, high: 1, low: 1
   const yahooCalls: string[] = [];
   const c = {
     store,
+    // El cuestionario vigente de la verificación web es el del verificador del Radar.
+    radarDeps: { verifier: { promptVersion: "v1-07c33234178c-gemini" } },
     tickerDeps: {
       store,
       history: { candles: async (s: string) => series(100, s === "SPY" ? 500 : 40) },
@@ -41,6 +43,12 @@ describe("/ticker", () => {
     expect(t.candles.length).toBe(100);
     expect((await store.description("GGAL"))?.longName).toBe("GGAL Inc");
     expect((await store.candles("GGAL", "2026-06-01")).length).toBe(100);
+  });
+  it("C5 (15/9): la ficha sabe si la verificación es del cuestionario vigente (NBN, apta con el anterior)", async () => {
+    const { a, store } = app();
+    await store.saveVerification({ symbol: "NBN", date: "2026-09-14", verdict: "apto", reason: "r", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [], researchText: "", promptVersion: "v1-c12a96012ca5-gemini", model: "gemini-2.5-flash", detectedAt: "2026-09-14T11:07:13.886Z" });
+    const t = await (await a.request(`/ticker/NBN?today=2026-09-15`)).json();
+    expect(t.verificationCurrent).toBe(false);
   });
   it("símbolo inválido → 400", async () => {
     expect((await app().a.request("/ticker/no-valido!")).status).toBe(400);

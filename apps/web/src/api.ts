@@ -73,7 +73,8 @@ export interface MacroAr { date: string; oficial: number | null; mep: number | n
 export type WatchStatus = "live" | "triggered" | "invalidated" | "expired";
 export interface WatchItem { symbol: string; note: string | null; addedAt: string; entryPrice: number | null; entryAction: string | null; targetPrice: number | null; stopLoss: number | null; thesis: string | null; horizonDays: number; status: WatchStatus; lastPrice: number | null; lastReturn: number | null; lastEvaluatedAt: string | null; resolvedAt: string | null; resolutionPrice: number | null; resolutionReturn: number | null }
 export interface Watchlist { items: WatchItem[]; rows: Candidate[] }
-export interface PriceRow { symbol: string; price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; stale: boolean; currency: string | null }
+/** `prevCloseDate`: el cambio se mide contra el cierre guardado de esa fecha; null = contra el de la fuente (15/9). */
+export interface PriceRow { symbol: string; price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; stale: boolean; currency: string | null; prevCloseDate?: string | null }
 export interface SymbolHit { symbol: string; name: string; exchange: string; type: "accion_us" | "accion_ar" | "cedear" | "etf" | "cripto"; flag: string }
 export interface Tape { at: string; tracked: number; gainers: PriceRow[]; losers: PriceRow[] }
 /**
@@ -83,13 +84,17 @@ export interface Tape { at: string; tracked: number; gainers: PriceRow[]; losers
 export interface ArgentinaData { macro: MacroAr | null; series: MacroAr[]; adrs?: Candidate[]; acciones: Candidate[]; cedears: Candidate[] }
 export interface Novedades { date: string | null; previousDate: string | null; verdictChanges: Array<{ symbol: string; from: string; to: string; reason: string }>; alerts: Array<{ symbol: string; verb: string; reason: string }>; enteredBuy: Array<{ symbol: string; kind: string; score: number | null; held?: boolean }>; leftBuy: Array<{ symbol: string; kind: string; now: string }>; watchResolved: Array<{ symbol: string; status: string; returnPct: number | null; date?: string }>; proposedTheses: Array<{ id: string; ticker: string; eventType: string; direction: string; edge: number; pMarketFromOptions?: boolean; summary: string }>; news: NewsItem[]; empty: boolean }
 export interface CatchUpResult { at: string; ran: Array<{ id: string; label: string; ok: boolean; detail: string }> }
-export interface StepStatus { id: string; label: string; schedule: string; lastDate: string | null; ranAt: string | null; detail: string | null; lastError: string | null; lastErrorAt: string | null; expected: string; due: boolean; running: boolean }
-export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; steps: StepStatus[]; lastRunAt: string | null; running: boolean; current: string | null; lastResult: CatchUpResult | null }
+/** `ranAtSource`: "registro" = job_runs, con hora; "base" = fecha de los datos (15/9: con job_runs viejo, la hora no se conoce). */
+export interface StepStatus { id: string; label: string; schedule: string; lastDate: string | null; ranAt: string | null; ranAtSource?: "registro" | "base" | null; detail: string | null; lastError: string | null; lastErrorAt: string | null; expected: string; due: boolean; running: boolean }
+/** `lastRunStep`: de qué paso es `lastRunAt` (no es la última corrida de todo el pipeline). */
+export interface CatchUpStatus { now: string; due: Array<{ id: string; label: string; last: string | null; expected: string }>; last: Record<string, { lastDate: string; ranAt: string | null; detail: string | null } | null>; steps: StepStatus[]; lastRunAt: string | null; lastRunStep?: string | null; running: boolean; current: string | null; lastResult: CatchUpResult | null }
 export interface UsageSourceRow { source: string; calls: number; ok: number; errors: number; peakPerMinute: number; limitPerMinute: number | null; limitPerDay: number | null; pctMinute: number | null; pctDay: number | null }
-export interface UsageGeminiRow { model: string; keyIndex: number; calls: number; ok: number; rpm: number; rpd: number; saturado: number; validacion: number; error: number; tokensIn: number; tokensOut: number; tokensThink: number; costUsd: number; limitPerDay: number | null; pctDay: number | null }
+/** `limite`: 429 sin detalle (no es la cuota diaria). `exhausted`: 429 por día sin respuestas buenas después (15/9). */
+export interface UsageGeminiRow { model: string; keyIndex: number; calls: number; ok: number; rpm: number; rpd: number; limite: number; saturado: number; validacion: number; error: number; tokensIn: number; tokensOut: number; tokensThink: number; costUsd: number; limitPerDay: number | null; pctDay: number | null; exhausted: boolean; lastRpdAt: string | null; lastOkAt: string | null }
 export interface UsageStepRow { step: string; source: string; calls: number; errors: number; ms: number }
-export interface UsageSummary { date: string; total: { calls: number; errors: number; costUsd: number }; bySource: UsageSourceRow[]; gemini: { rows: UsageGeminiRow[]; tokensIn: number; tokensOut: number; tokensThink: number; costUsd: number; failedPct: number | null }; byStep: UsageStepRow[]; warnings: string[] }
-export interface UsageDay { date: string; calls: number; errors: number; costUsd: number; bySource: Record<string, number>; geminiCalls: number; geminiFailed: number }
+export type UsageCoverage = "completo" | "parcial" | "sin_registro";
+export interface UsageSummary { date: string; total: { calls: number; errors: number; costUsd: number }; bySource: UsageSourceRow[]; gemini: { rows: UsageGeminiRow[]; tokensIn: number; tokensOut: number; tokensThink: number; costUsd: number; failedPct: number | null }; byStep: UsageStepRow[]; warnings: string[]; coverage?: { state: UsageCoverage; from: string | null }; quotaResetAt?: string | null }
+export interface UsageDay { date: string; calls: number; errors: number; costUsd: number; bySource: Record<string, number>; geminiCalls: number; geminiFailed: number; coverage?: UsageCoverage }
 export interface UsageCallRow { id: string; at: string; source: string; step: string; purpose: string | null; symbol: string | null; endpoint: string; model: string | null; keyIndex: number | null; status: number | null; result: string; tokensIn: number | null; tokensOut: number | null; tokensThink: number | null; ms: number }
 export interface UsageCalls { date: string; total: number; calls: UsageCallRow[] }
 export interface TopPick { symbol: string; conviction: number; gainPct: number; lossPct: number; base: number; consensus: { target: number; upsidePct: number } | null; reasons: string[]; cautions: string[]; allAligned: boolean; close: number; entryHigh: number | null; stop: number | null; target: number | null; sizeUsd: number | null; sizeQty: number | null; riskScore: number | null; score: number | null; rankInGroup: number | null; groupSize: number | null; summary: string | null; mainRisk: string | null; tags: Tags | null }
@@ -115,7 +120,7 @@ export interface SymbolDescription { symbol: string; longName: string | null; su
 export interface NewsItem { symbol: string; date: string; headline: string; source: string | null; url: string; summary: string | null }
 export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" | "DIVIDEND" | "TRANSFER"; quantity: number; price: number; fees: number; date: string; currency: string; platform: string | null; externalId: string | null; notes: string | null }
 /** Precio vivo con la variación del día contra el cierre previo. */
-export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null; /** Marca del servidor (más de 30 horas): la misma para toda la app (15/9). */ stale?: boolean }
+export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null; /** Marca del servidor (más de 30 horas): la misma para toda la app (15/9). */ stale?: boolean; /** De qué rueda es `prevClose` (15/9). */ prevCloseDate?: string | null }
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
@@ -125,19 +130,26 @@ export interface TickerPage {
   tags: Tags | null;
   fundamentals: { asOf: string; metrics: Record<string, number | null>; metricsRaw?: Record<string, number | null> | null; statementsAsOf?: string | null; peers: string[]; mcapUsd: number | null; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null;
   candidate: Candidate | null;
-  peers: Array<{ symbol: string; metrics: Record<string, number | null> }>;
+  /** `excluded`: métricas que el puntaje no usa para ese par (15/9: en bancos, el crecimiento de ingresos de Finnhub). */
+  peers: Array<{ symbol: string; metrics: Record<string, number | null>; excluded?: string[] }>;
   /** Mediana del grupo completo, la propia incluida: la misma que usa el puntaje. */
   medians?: Record<string, number | null> | null;
+  /** Métricas que el puntaje no usa para este símbolo. */
+  ownExcluded?: string[];
   statements: Statements | null;
   events: RadarEvent[];
   analystActions: AnalystAction[];
   /** Hasta qué fecha se leyeron las noticias. null = nunca: una lista de eventos vacía no prueba nada. */
   newsScannedTo: string | null;
   verification?: CandidateVerification | null;
+  /** ¿La verificación es del cuestionario vigente? null = no se sabe (15/9: NBN estaba APTA con el anterior). */
+  verificationCurrent?: boolean | null;
   theses: Thesis[];
   transactions: Transaction[];
   transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; dividendShares?: number; invested: number };
   candles: Candle[];
+  /** ATR de 14 ruedas de las velas guardadas: para decir a cuántos ATR está el precio del stop (15/9). */
+  atr14?: number | null;
   news: NewsItem[];
   filings: string[];
   arNews: string[];

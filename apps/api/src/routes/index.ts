@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { todayLocal, CloseReason } from "@thesis/core";
 import { approveAndExecute, calibrationReport, closeThesis, dailyRun, tesisSince, rejectByHuman, syncOrders, buildNovedades, withUsageStep, STEPS, tesisReemplazadas, todasLasTesis, type StepId } from "@thesis/pipeline";
-import { dailyUsage, summarizeUsage } from "@thesis/core";
+import { dailyUsage, geminiQuotaResetWithin, inicioDelRegistro, summarizeUsage } from "@thesis/core";
 import { z } from "zod";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
@@ -20,6 +20,15 @@ export function buildApp(c: Container) {
   app.use("*", (_ctx, next) => withUsageStep({ step: "api" }, () => next()));
 
   app.get("/health", async (ctx) => ctx.json({ ok: true, paper: true, killSwitch: state.killSwitch, lastRun: state.lastRun }));
+  /**
+   * Desde cuándo hay registro de uso para una ventana (ver `inicioDelRegistro`): si el día anterior tiene filas, el
+   * registro ya corría. Antes del inicio un día no tuvo cero llamadas: no tiene datos, y la pantalla lo dice (15/9: del
+   * 10 al 13/9 no había filas, y ese día a las 17:15 la tabla se vació entera).
+   */
+  const registroDesde = async (from: Date, to: Date, ventana: Awaited<ReturnType<typeof c.store.callsBetween>>) => {
+    const antes = await c.store.callsBetween(new Date(from.getTime() - 86_400_000).toISOString(), from.toISOString());
+    return inicioDelRegistro({ antes, ventana, hasta: to.toISOString() });
+  };
   /** Uso de fuentes externas del día: por fuente contra su límite, Gemini por modelo y clave, y por paso. ?date=YYYY-MM-DD (local). */
   app.get("/usage", async (ctx) => {
     const date = ctx.req.query("date") ?? localDate(new Date());
@@ -28,7 +37,8 @@ export function buildApp(c: Container) {
     const to = new Date(from.getTime() + 86_400_000);
     await c.usage?.flush();
     const calls = await c.store.callsBetween(from.toISOString(), to.toISOString());
-    return ctx.json(summarizeUsage(calls, { date }));
+    // El día de la pantalla va de medianoche a medianoche de acá; la cuota de Gemini se reinicia a las 04:00 (15/9).
+    return ctx.json(summarizeUsage(calls, { date, dayFrom: from.toISOString(), dayTo: to.toISOString(), registroDesde: await registroDesde(from, to, calls), quotaResetAt: geminiQuotaResetWithin(from.toISOString(), to.toISOString()) }));
   });
   /** Serie diaria del uso (últimos N días, día local): para el gráfico de la pestaña Uso. */
   app.get("/usage/daily", async (ctx) => {
@@ -46,7 +56,7 @@ export function buildApp(c: Container) {
     const from = new Date(`${dates[0]}T00:00:00`);
     await c.usage?.flush();
     const calls = await c.store.callsBetween(from.toISOString(), to.toISOString());
-    return ctx.json(dailyUsage(calls, dates, (iso) => localDate(new Date(iso))));
+    return ctx.json(dailyUsage(calls, dates, (iso) => localDate(new Date(iso)), { registroDesde: await registroDesde(from, to, calls) }));
   });
   /** Llamadas de un día con filtros (fuente, paso, resultado, símbolo), las más recientes primero. */
   app.get("/usage/calls", async (ctx) => {

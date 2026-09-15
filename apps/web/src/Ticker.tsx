@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Candidate, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
-import { relacionDeLaOrden } from "./niveles";
+import { baseDelDia, distanciaAlStop, notaDelSeguimiento, relacionDeLaOrden, rotuloDelStop } from "./niveles";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { EntryLine } from "./Entry";
@@ -11,6 +11,7 @@ import { Flags } from "./flags";
 import { VerificationSections } from "./Verification";
 import { PeersTable } from "./Peers";
 import { CarteraVerdict, RadarVerdict, usePlan } from "./plan";
+import { chipDeCabecera } from "./cabecera";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)}%`);
@@ -49,7 +50,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const d = t.description;
   const hubRow = livePrices.get(t.symbol.toUpperCase());
   // Precio en vivo del hub si el símbolo está seguido; si no, el de la página.
-  const q = hubRow ? { price: hubRow.price, prevClose: hubRow.prevClose, change: hubRow.change, changePct: hubRow.changePct, asOf: hubRow.asOf, currency: hubRow.currency } : t.quote;
+  const q = hubRow ? { price: hubRow.price, prevClose: hubRow.prevClose, change: hubRow.change, changePct: hubRow.changePct, asOf: hubRow.asOf, currency: hubRow.currency, prevCloseDate: hubRow.prevCloseDate ?? null } : t.quote;
   const years = d?.firstTradeDate ? Math.floor((Date.now() - Date.parse(d.firstTradeDate)) / (365.25 * 86_400_000)) : null;
   const priceStale = stale(q?.asOf ?? null);
   const m = t.fundamentals?.metrics ?? {};
@@ -63,9 +64,17 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const toStop = move(stop);
   const toTarget = move(target);
   // Sin posición, la relación es la de la orden del Radar (desde el techo de compra), no la del precio en vivo.
+  // Con posición no hay relación: va la distancia al stop, con aviso si está pegado (15/9: TSM "67,8 : 1" a 0,2 ATR).
   const rr = relacionDeLaOrden({ stop, target, price: px, entryHigh: t.verdict ? null : t.candidate?.entryHigh, desde: levelsFrom });
+  const dist = levelsFrom === "Cartera" ? distanciaAlStop({ price: px, stop, atr: t.atr14 }) : null;
+  // Una fila del Radar sin objetivo no se puede ejecutar: su stop es el dinámico, no uno de compra (15/9: NVDA).
+  const stopLabel = rotuloDelStop({ desde: levelsFrom, target });
   const qty = t.position?.quantity ?? null;
   const usdAt = (level: number | null) => (px && level && qty ? money(qty * (level - px)) : null);
+  const chip = chipDeCabecera({ verdict: t.verdict, candidate: t.candidate });
+  // El chip de la lista ("VIVA −0,6%") se mide con el stop del alta y el último cierre, no con los de la cabecera (15/9: APH).
+  const watchItem = watchItems.find((i) => i.symbol === t.symbol.toUpperCase());
+  const seguimiento = watchItem ? notaDelSeguimiento(watchItem, { precio: px, stopHoy: stop, velas: t.candles }) : null;
 
   return (
     <>
@@ -78,6 +87,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           <WatchlistButton symbol={t.symbol} items={watchItems} onChanged={() => { void loadWatch(); window.dispatchEvent(new Event("watchlist:changed")); }} />
           <button className="ghost" onClick={() => setEditingTags(!editingTags)}>Etiquetas</button>
         </div>
+        {seguimiento && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Lista de seguimiento: {seguimiento.texto}.{seguimiento.aviso && <span className="warn"> ⚠ {seguimiento.aviso}.</span>}</div>}
         {editingTags && <TagEditor symbol={t.symbol} current={t.tags} onSaved={() => { setEditingTags(false); void load(); }} onCancel={() => setEditingTags(false)} />}
         {d ? (
           <div className="muted" style={{ marginTop: 8, borderLeft: "2px solid var(--line)", paddingLeft: 10 }}>
@@ -92,25 +102,38 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
             <div className="row" style={{ alignItems: "baseline" }}>
               <span style={{ fontSize: 30, fontWeight: 700, fontFamily: "ui-monospace, Menlo, monospace" }} className={priceStale ? "muted" : ""}>${q.price.toFixed(2)}</span>
               <span className="muted">{q.currency ?? "USD"}</span>
-              {q.change !== null && <span className={priceStale ? "muted" : q.change >= 0 ? "ok" : "bad"}>{q.change >= 0 ? "+" : ""}{q.change.toFixed(2)} ({pct(q.changePct)}){priceStale && " — de su última rueda, no de hoy"}</span>}
-              {period && <span className={period.changePercent >= 0 ? "ok" : "bad"}>· {period.label}: {pct(period.changePercent)}</span>}
+              {q.change !== null && <span className={priceStale ? "muted" : q.change >= 0 ? "ok" : "bad"} title={q.prevClose !== null ? `Cierre anterior ${f2(q.prevClose)}` : undefined}>{q.change >= 0 ? "+" : ""}{q.change.toFixed(2)} ({pct(q.changePct)}) <span className="muted">{baseDelDia(q.prevCloseDate)}</span>{priceStale && " — de su última rueda, no de hoy"}</span>}
+              {period && <span className={period.changePercent >= 0 ? "ok" : "bad"} title={`Base ${f2(period.base)}`}>· {period.label}: {pct(period.changePercent)} <span className="muted">{period.baseTexto}</span></span>}
               {priceStale && <span className="verb REVISAR">⚠ precio viejo: última operación {q.asOf?.slice(0, 10)}</span>}
             </div>
           ) : <span className="muted">Sin precio vivo.</span>}
-          {isNucleo && !t.verdict && <div className="row" style={{ marginTop: 8 }}><span className="verb NUCLEO">NUCLEO</span><span className="muted">ETF de base de la cartera: se compra por calendario con el aporte y se mantiene años. Sin stop ni objetivo: no se vende por precio.</span></div>}
+          {/* La instrucción va en la cabecera, con la misma etiqueta que el Radar y Cartera (15/9). VTI tenía "NUCLEO"
+              escrito a mano: ahora sale de `RadarVerdict` y dice ESPERAR si los controles frenan el plan. */}
+          {chip && (
+            <div className="row" style={{ marginTop: 8 }}>
+              {chip.fuente === "Cartera"
+                ? <CarteraVerdict symbol={t.symbol} verb={chip.verb} plan={plan} />
+                : <RadarVerdict symbol={t.symbol} verdict={chip.verdict} plan={chip.conPlan ? plan : null} {...(chip.context ? { context: chip.context } : {})} />}
+              {isNucleo && !t.verdict && <span className="muted">ETF de base de la cartera: se compra por calendario con el aporte y se mantiene años. Sin stop ni objetivo: no se vende por precio.</span>}
+            </div>
+          )}
           {px && (stop || target) && (
             <div className="row" style={{ marginTop: 8, gap: 16 }}>
-              {stop && <span>Stop <b className="mono">{f2(stop)}</b> <span className={toStop !== null && toStop < 0 ? "bad" : "warn"}>{pct(toStop)}{usdAt(stop) && ` · ${usdAt(stop)}`}</span></span>}
+              {stop && <span>{stopLabel.charAt(0).toUpperCase() + stopLabel.slice(1)} <b className="mono">{f2(stop)}</b> <span className={toStop !== null && toStop < 0 ? "bad" : "warn"}>{pct(toStop)}{usdAt(stop) && ` · ${usdAt(stop)}`}</span></span>}
               {target && <span>Objetivo <b className="mono">{f2(target)}</b> <span className={toTarget !== null && toTarget > 0 ? "ok" : "warn"}>{pct(toTarget)}{usdAt(target) && ` · ${usdAt(target)}`}</span></span>}
               {rr && <span className="muted">{rr.texto}</span>}
-              {toStop !== null && toStop >= 0 && <span className="verb VENDER">precio por debajo del stop</span>}
+              {dist && <span className="muted">{dist.texto}</span>}
+              {dist?.aviso && <span className="warn">⚠ {dist.aviso}</span>}
+              {/* Un hecho, no una instrucción: la instrucción es la etiqueta de arriba (15/9). Con posición, Cartera vende
+                  solo si CIERRA abajo del stop; un chip rojo de VENDER al lado de MANTENER era doble discurso. */}
+              {toStop !== null && toStop >= 0 && <span className="warn">⚠ precio debajo del {stopLabel}{qty ? ": la venta se confirma con el cierre" : ""}</span>}
               <span className="muted">({levelsFrom}{qty ? `, sobre tu tenencia de ${f2(qty)}` : ", sin posición"})</span>
             </div>
           )}
         </div>
       </div>
 
-      <div className="card"><PriceChart symbol={t.symbol} currentPrice={q?.price ?? null} levels={{ avgCost: t.position?.avgCost ?? null, stop, target, stopLabel: levelsFrom === "Radar" ? "stop de compra" : "stop" }} onPeriodChange={onPeriod} /></div>
+      <div className="card"><PriceChart symbol={t.symbol} currentPrice={q?.price ?? null} levels={{ avgCost: t.position?.avgCost ?? null, stop, target, stopLabel }} onPeriodChange={onPeriod} /></div>
 
       <div className="grid2">
         {t.position && (
@@ -178,7 +201,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
         <div className="card">
           <b>Verificación y estados</b>
           {!t.candidate && <span className="muted"> · no es candidata del Radar hoy, pero esto es lo que la app sabe del negocio</span>}
-          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} newsScannedTo={t.candidate?.kind === "etf" ? undefined : t.newsScannedTo} />
+          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} newsScannedTo={t.candidate?.kind === "etf" ? undefined : t.newsScannedTo} verificationCurrent={t.verificationCurrent ?? null} fila={t.candidate ? { verdict: t.candidate.verdict, flags: t.candidate.flags } : null} />
         </div>
       )}
       {t.candidate && (t.candidate.kind === "etf" || t.candidate.kind === "adr") && <EtfCard c={t.candidate} />}
@@ -192,7 +215,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
           <EntryLine e={t.candidate.entry} />
           <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)} pagando hasta {f2(t.candidate.entryHigh)})</div>
-          <PeersTable own={t.symbol} ownMetrics={m} peers={t.peers} medians={t.medians ?? null} asOf={t.fundamentals?.asOf ?? null} />
+          <PeersTable own={t.symbol} ownMetrics={m} peers={t.peers} medians={t.medians ?? null} asOf={t.fundamentals?.asOf ?? null} ownExcluded={t.ownExcluded ?? []} />
         </div>
       )}
 

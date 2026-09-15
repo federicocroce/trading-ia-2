@@ -1,5 +1,5 @@
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
-import { AXES, AXIS_METRICS, groupMedians } from "@thesis/core";
+import { AXES, AXIS_METRICS, atr, groupMedians, unreliableGrowthKeys } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
 /**
@@ -20,15 +20,18 @@ export interface TickerDeps {
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
-  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency: string | null } | null;
+  /** `prevCloseDate`: el cambio del día se midió contra el cierre guardado de esa fecha; sin él, contra el de la fuente. */
+  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency: string | null; prevCloseDate?: string } | null;
   position: (Position & { valueUsd: number; pnlUsd: number; pnlPct: number; weightPct: number | null }) | null;
   verdict: VerdictRow | null;
   tags: Tags | null;
   fundamentals: Fundamentals | null;
   candidate: CandidateRow | null;
-  peers: Array<{ symbol: string; metrics: Record<string, number | null> }>;
+  peers: PeerRowView[];
   /** Mediana de cada métrica en el grupo completo, la propia incluida: la referencia exacta del puntaje. */
   medians: Record<string, number | null> | null;
+  /** Métricas que el puntaje no usa para este símbolo (en bancos, el crecimiento de ingresos de Finnhub). */
+  ownExcluded: string[];
   /** Verificación (spec verificación): estados de la SEC, eventos materiales de 90 días sin ruido, acciones de analistas de 90 días. */
   statements: Statements | null;
   events: RadarEvent[];
@@ -41,6 +44,11 @@ export interface TickerPage {
   newsScannedTo: string | null;
   /** Verificación web del candidato (spec 2026-09-10), si existe. */
   verification: CandidateVerification | null;
+  /**
+   * ¿La verificación es del cuestionario vigente? null = no hay verificación o no hay verificador para comparar. El
+   * 15/9 NBN y NVDA estaban APTAS con el cuestionario anterior, que el plan ya no acepta, y la ficha las pintaba en verde.
+   */
+  verificationCurrent: boolean | null;
   theses: Thesis[];
   transactions: Transaction[];
   transactionSummary: {
@@ -52,6 +60,11 @@ export interface TickerPage {
     invested: number;
   };
   candles: Candle[];
+  /**
+   * ATR de 14 ruedas de las velas guardadas (el `atr` del núcleo), para decir a cuántos ATR está el precio del stop. El
+   * 15/9 TSM estaba a 0,2 ATR del stop y la ficha mostraba "relación 67,8 : 1" en vez de avisarlo.
+   */
+  atr14: number | null;
   news: NewsItem[];
   filings: string[];
   arNews: string[];
@@ -83,11 +96,59 @@ export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promis
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 120);
 
+/** Fila de la tabla de comparables: métricas del puntaje y cuáles de ellas el puntaje NO usa para esa empresa. */
+export interface PeerRowView {
+  symbol: string;
+  metrics: Record<string, number | null>;
+  excluded: string[];
+}
+
+/**
+ * Tabla de comparables con la mediana del puntaje, para la ficha y el detalle del Radar (15/9). Los pares se armaban
+ * con `{ symbol, metrics }`, sin la industria, así que `groupMedians` no podía aplicar la regla de los bancos: en NBN
+ * (diez pares, todos bancos) la tabla mostraba una mediana de crecimiento de ingresos de 53,2% y pintaba en verde el
+ * 123,9% de NBN, cuando el ranking no usa ese dato en bancos (`crecimiento_no_confiable`) y su mediana es nula. Ahora
+ * la mediana sale de las fundamentales completas, igual que en `rankStocks`, y cada fila dice qué métricas no cuentan.
+ */
+export async function comparables(store: Pick<RadarStore, "fundamentals">, own: Fundamentals | null, peerGroup: string[]): Promise<{ peers: PeerRowView[]; medians: Record<string, number | null> | null; ownExcluded: string[] }> {
+  const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
+  const full: Fundamentals[] = [];
+  for (const p of peerGroup) {
+    const f = await store.fundamentals(p);
+    if (f) full.push(f);
+  }
+  const peers = full.map((f) => ({ symbol: f.symbol, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])), excluded: unreliableGrowthKeys(f) }));
+  // Misma mediana que el puntaje, calculada en un solo lugar (ver `groupMedians`), con la industria de cada uno.
+  const medians = own && full.length ? groupMedians([own, ...full]) : null;
+  return { peers, medians, ownExcluded: own ? unreliableGrowthKeys(own) : [] };
+}
+
 /** Del precio crudo a lo que muestra la UI: variación diaria en moneda y en % contra el cierre previo. */
 export type QuoteView = NonNullable<TickerPage["quote"]>;
-export function shapeQuote(q: LiveQuote): QuoteView {
-  const change = q.prevClose ? round2(q.price - q.prevClose) : null;
-  return { price: q.price, prevClose: q.prevClose, change, changePct: q.prevClose ? round2(((q.price - q.prevClose) / q.prevClose) * 100) : null, asOf: q.asOf, currency: q.currency ?? null };
+export function shapeQuote(q: LiveQuote, guardado?: { close: number; date: string } | null): QuoteView {
+  const prev = guardado?.close ?? q.prevClose;
+  const change = prev ? round2(q.price - prev) : null;
+  return { price: q.price, prevClose: prev, change, changePct: prev ? round2(((q.price - prev) / prev) * 100) : null, asOf: q.asOf, currency: q.currency ?? null, ...(guardado ? { prevCloseDate: guardado.date } : {}) };
+}
+
+const fechaNY = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+const habilAnterior = (iso: string) => {
+  let t = Date.parse(`${iso}T12:00:00Z`) - DAY;
+  while (new Date(t).getUTCDay() === 0 || new Date(t).getUTCDay() === 6) t -= DAY;
+  return new Date(t).toISOString().slice(0, 10);
+};
+
+/**
+ * Cierre guardado de la sesión anterior a la del precio (15/9). La cabecera de la ficha medía el cambio del día contra
+ * el cierre previo de Alpaca IEX (TSM 418,60) mientras las velas, el Radar y Cartera usan el de Yahoo guardado en la
+ * base (418,01): dos "cierres de ayer" en la misma pantalla. Se usa el guardado solo si es EXACTAMENTE la sesión hábil
+ * anterior a la del precio (hora de Nueva York); si falta (todavía no se guardó), null y queda el de la fuente, para no
+ * medir contra un cierre de hace dos ruedas. Una vela de hoy a medio armar no cuenta.
+ */
+export function closeAnterior(candles: Candle[], asOf: string | null, now = new Date()): { close: number; date: string } | null {
+  const sesion = fechaNY(asOf ? new Date(asOf) : now);
+  const vela = candles.filter((c) => c.date < sesion).sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+  return vela && vela.date === habilAnterior(sesion) ? { close: vela.close, date: vela.date } : null;
 }
 
 /**
@@ -117,7 +178,7 @@ export async function liveQuotes(quote: TickerDeps["quote"], symbols: string[], 
  * Con `live: false` (modo rápido) ni siquiera se espera lo que falta: se dispara atrás y se marca en `pending`,
  * para que la UI pinte lo guardado ya y complete con una segunda llamada.
  */
-export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { today: string; timeoutMs?: number; live?: boolean }): Promise<TickerPage> {
+export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { today: string; timeoutMs?: number; live?: boolean; verifierPromptVersion?: string | null }): Promise<TickerPage> {
   const symbol = symbolRaw.toUpperCase();
   const { store } = deps;
   const errors: string[] = [];
@@ -201,10 +262,10 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     return fresh ?? [];
   });
 
-  const quoteP = guarded("precio", () => deps.quote(symbol)).then((q): TickerPage["quote"] => (q ? shapeQuote(q) : null));
+  const quoteP = guarded("precio", () => deps.quote(symbol));
 
   const dbStart = Date.now();
-  const [description, candles, news, quote, positions, verdicts, tags, fundamentals, candidates, theses, txs, filings, risk] = await Promise.all([
+  const [description, candles, news, liveQuote, positions, verdicts, tags, fundamentals, candidates, theses, txs, filings, risk] = await Promise.all([
     descriptionP,
     candlesP,
     newsP,
@@ -220,6 +281,8 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     store.latestRisk(),
   ]);
   timings["fuentes+base"] = Date.now() - dbStart;
+  // El cambio del día contra el mismo cierre que usan las velas, el Radar y Cartera (ver `closeAnterior`).
+  const quote: TickerPage["quote"] = liveQuote ? shapeQuote(liveQuote, closeAnterior(candles, liveQuote.asOf)) : null;
   const pos = positions.find((p) => p.symbol === symbol) ?? null;
   const price = quote?.price ?? candles[candles.length - 1]?.close ?? null;
   const position = pos && price !== null
@@ -235,14 +298,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     store.newsScannedTo(symbol).catch(() => null),
   ]);
   const events = allEvents.filter((e) => e.severity !== "ruido");
-  const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
-  const peers: TickerPage["peers"] = [];
-  for (const p of candidate?.peerGroup ?? []) {
-    const f = await store.fundamentals(p);
-    if (f) peers.push({ symbol: p, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])) });
-  }
-  // Misma mediana que el puntaje, calculada en un solo lugar (ver `groupMedians`).
-  const medians = fundamentals && peers.length ? groupMedians([fundamentals, ...peers]) : null;
+  const { peers, medians, ownExcluded } = await comparables(store, fundamentals, candidate?.peerGroup ?? []);
   const mine = txs.filter((t) => t.symbol === symbol).sort((a, b) => b.date.localeCompare(a.date));
   const sum = (type: Transaction["type"]) => {
     const rows = mine.filter((t) => t.type === type);
@@ -270,15 +326,18 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     candidate,
     peers,
     medians,
+    ownExcluded,
     statements,
     events,
     analystActions,
     newsScannedTo,
     verification,
+    verificationCurrent: verification && opts.verifierPromptVersion ? verification.promptVersion === opts.verifierPromptVersion : null,
     theses,
     transactions: mine,
     transactionSummary: { buys, sells, dividends, dividendShares, invested: round2(buys.total - sells.total) },
     candles,
+    atr14: atr(candles, 14),
     news,
     filings,
     arNews,

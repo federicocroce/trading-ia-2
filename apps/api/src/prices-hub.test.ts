@@ -40,6 +40,20 @@ describe("PriceHub", () => {
     await hub.tick();
     expect(got[1]).toEqual(["NVDA", "VST"]);
   });
+  it("C6 (15/9): TSM a 414,66 medido contra el cierre guardado del 14/9 (418,01), no contra el de IEX (418,60), y dice de qué fecha es", async () => {
+    const store = new MemoryStore();
+    await store.addWatch("TSM");
+    await store.addWatch("NUEVO");
+    const vela = (date: string, close: number) => ({ date, open: close, high: close, low: close, close, volume: 1 });
+    await store.upsertCandles("TSM", [vela("2026-09-11", 433.24), vela("2026-09-14", 418.01)]);
+    const asOf = "2026-09-15T19:40:59.858Z";
+    const c = { store, pricesDeps: { quotes: async (symbols: string[]) => symbols.map((s) => ({ symbol: s, price: s === "TSM" ? 414.66 : 10, prevClose: s === "TSM" ? 418.6 : 9, asOf })) } } as unknown as Container;
+    const hub = new PriceHub(c, { now: () => new Date("2026-09-15T19:41:00Z") });
+    await hub.tick();
+    expect(hub.get("TSM")).toMatchObject({ price: 414.66, prevClose: 418.01, prevCloseDate: "2026-09-14", change: -3.35, changePct: -0.8 });
+    // Sin velas guardadas, queda el cierre de la fuente, sin fecha.
+    expect(hub.get("NUEVO")).toMatchObject({ prevClose: 9, prevCloseDate: null });
+  });
   it("tolera que la fuente falle: conserva lo último y sigue", async () => {
     const store = new MemoryStore();
     await store.addWatch("VST");

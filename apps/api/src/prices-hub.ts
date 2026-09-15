@@ -1,6 +1,17 @@
-import { withUsageStep } from "@thesis/pipeline";
+import type { Candle } from "@thesis/core";
+import { closeAnterior, withUsageStep } from "@thesis/pipeline";
 import type { Container } from "./container.js";
 import { toPriceRow, type PriceRow } from "./routes/prices.js";
+
+/**
+ * Fila del hub: el cambio del día se mide contra el cierre GUARDADO de la sesión anterior (el de Yahoo, el mismo que usan
+ * las velas, el Radar y Cartera) y `prevCloseDate` dice de qué fecha es; null = no estaba guardado y vale el de la fuente.
+ * El 15/9 la cabecera de TSM medía contra el cierre de Alpaca IEX (418,60) y las velas decían 418,01 (15/9).
+ */
+export type HubRow = PriceRow & { prevCloseDate: string | null };
+/** El cierre guardado cambia una vez por día (cuando se guarda la vela): se relee de la base cada 10 minutos. */
+const CLOSES_TTL_MS = 10 * 60_000;
+const CLOSES_DAYS = 10;
 
 /**
  * Hub de precios: una sola fuente de precios vivos para toda la app (Cartera, watchlist, cinta, ficha).
@@ -20,10 +31,11 @@ export function hubIntervalMs(now = new Date()): number {
   return open ? MARKET_MS : OFF_MS;
 }
 
-type Listener = (changed: PriceRow[]) => void;
+type Listener = (changed: HubRow[]) => void;
 
 export class PriceHub {
-  private rows = new Map<string, PriceRow>();
+  private rows = new Map<string, HubRow>();
+  private closes = new Map<string, { at: number; candles: Candle[] }>();
   private listeners = new Set<Listener>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private lastBa = 0;
@@ -51,9 +63,12 @@ export class PriceHub {
       const symbols = askBa ? [...us, ...ba] : us;
       if (askBa) this.lastBa = now.getTime();
       const quotes = await withUsageStep({ step: "precios" }, () => this.c.pricesDeps.quotes(symbols));
-      const changed: PriceRow[] = [];
+      const velas = await this.storedCandles(quotes.map((q) => q.symbol.toUpperCase()), now);
+      const changed: HubRow[] = [];
       for (const q of quotes) {
-        const row = toPriceRow(q, now.getTime());
+        // Contra el cierre guardado de la sesión anterior; si no está guardado, el de la fuente (ver `closeAnterior`).
+        const guardado = closeAnterior(velas.get(q.symbol.toUpperCase()) ?? [], q.asOf, now);
+        const row: HubRow = { ...toPriceRow({ ...q, prevClose: guardado?.close ?? q.prevClose }, now.getTime()), prevCloseDate: guardado?.date ?? null };
         const prev = this.rows.get(row.symbol);
         if (!prev || prev.price !== row.price || prev.changePct !== row.changePct || prev.stale !== row.stale) {
           this.rows.set(row.symbol, row);
@@ -63,6 +78,7 @@ export class PriceHub {
       // Lo que dejó de seguirse sale del mapa.
       const keep = new Set(all);
       for (const k of [...this.rows.keys()]) if (!keep.has(k)) this.rows.delete(k);
+      for (const k of [...this.closes.keys()]) if (!keep.has(k)) this.closes.delete(k);
       this.lastError = null;
       this.lastTickAt = now.toISOString();
       if (changed.length) for (const l of this.listeners) l(changed);
@@ -72,6 +88,22 @@ export class PriceHub {
     } finally {
       this.ticking = false;
     }
+  }
+
+  /** Velas guardadas de los últimos días por símbolo, con caché de 10 minutos; de a 20 consultas a la vez. */
+  private async storedCandles(symbols: string[], now: Date): Promise<Map<string, Candle[]>> {
+    const since = new Date(now.getTime() - CLOSES_DAYS * 86_400_000).toISOString().slice(0, 10);
+    const viejos = symbols.filter((s) => {
+      const h = this.closes.get(s);
+      return !h || now.getTime() - h.at > CLOSES_TTL_MS;
+    });
+    for (let i = 0; i < viejos.length; i += 20) {
+      await Promise.all(viejos.slice(i, i + 20).map(async (s) => {
+        const candles = await this.c.store.candles(s, since).catch(() => null);
+        if (candles) this.closes.set(s, { at: now.getTime(), candles });
+      }));
+    }
+    return new Map(symbols.map((s) => [s, this.closes.get(s)?.candles ?? []]));
   }
 
   start(): void {
@@ -85,6 +117,7 @@ export class PriceHub {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
   }
+  // Tipadas como PriceRow para las rutas que ya las usan; cada fila lleva además `prevCloseDate` (ver `HubRow`).
   snapshot(): PriceRow[] {
     return [...this.rows.values()];
   }

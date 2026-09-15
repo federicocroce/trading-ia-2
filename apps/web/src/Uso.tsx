@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type UsageCallRow, type UsageDay, type UsageSummary } from "./api";
+import { coberturaTexto, corteDelDia, cuotaDiaria, horaAR } from "./usoTextos";
 
 /**
  * Pestaña Uso: cuánto se le pide a cada fuente externa (Gemini, Finnhub, Alpaca, SEC, Yahoo), contra sus límites,
@@ -16,7 +17,7 @@ const n = (v: number) => v.toLocaleString("es-AR");
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v)}%`);
 const usd = (v: number) => `USD ${v.toFixed(3)}`;
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
-const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const hhmm = (iso: string) => horaAR(iso, true);
 
 function useDark(): boolean {
   const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false);
@@ -50,6 +51,16 @@ function DailyChart({ days, colors, selected, onPick }: { days: UsageDay[]; colo
         ))}
         {days.map((d, i) => {
           const x = PAD.l + i * iw + (iw - bw) / 2;
+          // Día sin llamadas guardadas (10 al 13/9, y lo anterior a las 17:15 del 15/9 cuando se vació la tabla): no es
+          // cero, no hay datos. Se marca con un contorno punteado.
+          if (d.coverage === "sin_registro") {
+            return (
+              <g key={d.date} onMouseEnter={() => setHover({ i, x: x + bw / 2 })} onMouseLeave={() => setHover(null)}>
+                <rect x={x} y={PAD.t} width={bw} height={H - PAD.t - PAD.b} fill="none" stroke="var(--line)" strokeDasharray="3 3" rx={2} />
+                <text x={x + bw / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--muted)">{d.date.slice(5)}</text>
+              </g>
+            );
+          }
           let acc = 0;
           const segs = SOURCES.filter((s) => (d.bySource[s] ?? 0) > 0).map((s) => {
             const v = d.bySource[s] ?? 0;
@@ -69,12 +80,15 @@ function DailyChart({ days, colors, selected, onPick }: { days: UsageDay[]; colo
       </svg>
       {hover && days[hover.i] && (
         <div className="card" style={{ position: "absolute", left: `${(hover.x / W) * 100}%`, top: 0, transform: "translateX(-50%)", padding: "6px 10px", fontSize: 12, pointerEvents: "none", whiteSpace: "nowrap" }}>
-          <b>{days[hover.i]!.date}</b> · {n(days[hover.i]!.calls)} llamadas · {n(days[hover.i]!.errors)} con error · {usd(days[hover.i]!.costUsd)}
-          {SOURCES.filter((s) => (days[hover.i]!.bySource[s] ?? 0) > 0).map((s) => <div key={s}><span style={{ color: colors[s] }}>●</span> {s} {n(days[hover.i]!.bySource[s] ?? 0)}</div>)}
+          {days[hover.i]!.coverage === "sin_registro" ? <><b>{days[hover.i]!.date}</b> · sin registro: no hay llamadas guardadas de ese día</> : <>
+            <b>{days[hover.i]!.date}</b> · {n(days[hover.i]!.calls)} llamadas · {n(days[hover.i]!.errors)} con error · {usd(days[hover.i]!.costUsd)}{days[hover.i]!.coverage === "parcial" && " · solo desde la primera llamada guardada de ese día"}
+            {SOURCES.filter((s) => (days[hover.i]!.bySource[s] ?? 0) > 0).map((s) => <div key={s}><span style={{ color: colors[s] }}>●</span> {s} {n(days[hover.i]!.bySource[s] ?? 0)}</div>)}
+          </>}
         </div>
       )}
       <div className="row" style={{ gap: 12, marginTop: 4, flexWrap: "wrap" }}>
         {SOURCES.map((s) => <span key={s} className="muted" style={{ fontSize: 12 }}><span style={{ color: colors[s] }}>●</span> {s}</span>)}
+        {days.some((d) => d.coverage === "sin_registro") && <span className="muted" style={{ fontSize: 12 }}>· punteado: sin registro (no es cero)</span>}
         <span className="muted" style={{ fontSize: 12 }}>· click en un día para verlo abajo</span>
       </div>
     </div>
@@ -109,6 +123,9 @@ export function Uso() {
     const rows = summary?.bySource.filter((r) => r.pctMinute !== null || r.pctDay !== null) ?? [];
     return rows.map((r) => ({ source: r.source, pct: Math.max(r.pctMinute ?? 0, r.pctDay ?? 0) })).sort((a, b) => b.pct - a.pct)[0] ?? null;
   }, [summary]);
+  // Un día anterior al registro (10 al 13/9) no tuvo cero llamadas: no tiene datos (15/9).
+  const sinRegistro = summary?.coverage?.state === "sin_registro";
+  const cobertura = summary?.coverage ? coberturaTexto(summary.coverage.state, summary.coverage.from) : null;
 
   return (
     <>
@@ -116,7 +133,7 @@ export function Uso() {
         <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
           <div>
             <b>Uso de fuentes externas</b>
-            <div className="muted" style={{ fontSize: 12 }}>Una fila por pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo, con su paso y resultado. Gemini: cuota por modelo y por clave (cada clave es un proyecto), 10 por minuto; la cuota diaria real no la publica Google (el 10/9 se agotó con 15 a 20 llamadas, y la búsqueda integrada con menos de 10), así que "agotada hoy" sale de un 429 diario real. Reinicio a la medianoche de California (04:00 en Buenos Aires). El costo es lo que valdría en el plan pago.</div>
+            <div className="muted" style={{ fontSize: 12 }}>Una fila por pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo, con su paso y resultado. Gemini: cuota por modelo y por clave (cada clave es un proyecto), 10 por minuto; la cuota diaria real no la publica Google (el 10/9 se agotó con 15 a 20 llamadas, y la búsqueda integrada con menos de 10), así que "agotada" sale de un 429 diario real sin ninguna respuesta buena después. {corteDelDia(summary?.quotaResetAt ?? null)} El costo es lo que valdría en el plan pago.</div>
           </div>
           <div className="row" style={{ gap: 6 }}>
             <input type="date" value={date} max={localToday()} onChange={(e) => setDate(e.target.value || localToday())} />
@@ -127,7 +144,9 @@ export function Uso() {
           </div>
         </div>
         {err && <div className="err" style={{ marginTop: 6 }}>{err}</div>}
-        {summary && (
+        {summary && sinRegistro && <div className="warn" style={{ marginTop: 10 }}>{summary.date}: {cobertura}. Los ceros de abajo no son "no hubo llamadas": no hay datos.</div>}
+        {summary && !sinRegistro && cobertura && <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>{summary.date}: {cobertura}.</div>}
+        {summary && !sinRegistro && (
           <div className="kpis" style={{ marginTop: 10 }}>
             <div className="kpi"><b>{n(summary.total.calls)}</b><span>llamadas el {summary.date}</span></div>
             <div className="kpi"><b className={summary.total.errors ? "bad" : ""}>{n(summary.total.errors)}</b><span>con error</span></div>
@@ -147,7 +166,7 @@ export function Uso() {
       {summary && (
         <div className="card">
           <b>Por fuente</b> <span className="muted">{summary.date}</span>
-          {summary.bySource.length === 0 ? <div className="muted">sin pedidos ese día</div> : (
+          {summary.bySource.length === 0 ? <div className="muted">{sinRegistro ? cobertura : "sin pedidos ese día"}</div> : (
             <table style={{ marginTop: 6 }}>
               <thead><tr><th>fuente</th><th>llamadas</th><th>con error</th><th>pico por minuto</th><th>límite por minuto</th><th title="Pico del minuto dividido por el límite por minuto.">% del límite por minuto</th></tr></thead>
               <tbody>
@@ -167,28 +186,35 @@ export function Uso() {
           {summary.gemini.rows.length > 0 && (
             <>
               <div style={{ marginTop: 12 }}><b>Gemini por modelo y clave</b> <span className="muted">tokens {n(summary.gemini.tokensIn)} entrada / {n(summary.gemini.tokensOut)} salida / {n(summary.gemini.tokensThink)} pensamiento · {usd(summary.gemini.costUsd)}</span></div>
+              <div className="muted" style={{ fontSize: 12 }}>{corteDelDia(summary.quotaResetAt ?? null)}</div>
+              <div style={{ overflowX: "auto" }}>
               <table style={{ marginTop: 6 }}>
-                <thead><tr><th>modelo</th><th>clave</th><th>llamadas</th><th>ok</th><th>429 minuto</th><th>429 día</th><th>503</th><th>no validó</th><th>error</th><th>tokens entrada</th><th>salida + pensamiento</th><th>costo</th><th>cuota diaria</th></tr></thead>
+                <thead><tr><th>modelo</th><th>clave</th><th>llamadas</th><th>ok</th><th>429 minuto</th><th>429 día</th><th title="429 sin decir qué límite: no es la cuota diaria (por ejemplo, búsqueda en un modelo que el plan gratis no tiene).">429 sin detalle</th><th>503</th><th>no validó</th><th>error</th><th>tokens entrada</th><th>salida + pensamiento</th><th>costo</th><th>cuota diaria</th></tr></thead>
                 <tbody>
-                  {summary.gemini.rows.map((g) => (
-                    <tr key={`${g.model}#${g.keyIndex}`}>
-                      <td className="mono">{g.model}</td>
-                      <td className="mono">{g.keyIndex}</td>
-                      <td className="mono">{n(g.calls)}</td>
-                      <td className="mono ok">{n(g.ok)}</td>
-                      <td className={g.rpm ? "warn mono" : "mono muted"}>{n(g.rpm)}</td>
-                      <td className={g.rpd ? "bad mono" : "mono muted"}>{n(g.rpd)}</td>
-                      <td className={g.saturado ? "warn mono" : "mono muted"}>{n(g.saturado)}</td>
-                      <td className={g.validacion ? "warn mono" : "mono muted"}>{n(g.validacion)}</td>
-                      <td className={g.error ? "bad mono" : "mono muted"}>{n(g.error)}</td>
-                      <td className="mono">{n(g.tokensIn)}</td>
-                      <td className="mono">{n(g.tokensOut + g.tokensThink)}</td>
-                      <td className="mono">{usd(g.costUsd)}</td>
-                      <td className={g.rpd ? "bad" : "mono muted"}>{g.rpd ? "agotada hoy" : "—"}</td>
-                    </tr>
-                  ))}
+                  {summary.gemini.rows.map((g) => {
+                    const cuota = cuotaDiaria(g);
+                    return (
+                      <tr key={`${g.model}#${g.keyIndex}`}>
+                        <td className="mono">{g.model}</td>
+                        <td className="mono">{g.keyIndex}</td>
+                        <td className="mono">{n(g.calls)}</td>
+                        <td className="mono ok">{n(g.ok)}</td>
+                        <td className={g.rpm ? "warn mono" : "mono muted"}>{n(g.rpm)}</td>
+                        <td className={g.rpd ? "bad mono" : "mono muted"}>{n(g.rpd)}</td>
+                        <td className={g.limite ? "warn mono" : "mono muted"}>{n(g.limite ?? 0)}</td>
+                        <td className={g.saturado ? "warn mono" : "mono muted"}>{n(g.saturado)}</td>
+                        <td className={g.validacion ? "warn mono" : "mono muted"}>{n(g.validacion)}</td>
+                        <td className={g.error ? "bad mono" : "mono muted"}>{n(g.error)}</td>
+                        <td className="mono">{n(g.tokensIn)}</td>
+                        <td className="mono">{n(g.tokensOut + g.tokensThink)}</td>
+                        <td className="mono">{usd(g.costUsd)}</td>
+                        <td className={cuota.tono}>{cuota.texto}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+              </div>
             </>
           )}
           {summary.byStep.length > 0 && (
