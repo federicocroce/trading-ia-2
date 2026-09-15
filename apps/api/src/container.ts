@@ -46,6 +46,8 @@ export interface Container {
   pricesDeps: { quotes(symbols: string[]): Promise<import("@thesis/core").LiveQuote[]> };
   /** Solo para tests: reemplaza los pasos reales de "ponerme al día". */
   catchupRunners?: import("./catchup.js").Runners;
+  /** Asegura los controles automáticos sobre el plan vigente (15/9). Lo arma el servidor; en los tests puede no estar. */
+  controlar?: () => Promise<import("@thesis/core").PlanControles | null>;
   /** Página por ticker (etapa 2b): agregador + gráfico intradiario en vivo. */
   tickerDeps: TickerDeps & { chart: { bars(symbol: string, range: string, interval: string): Promise<import("@thesis/core").ChartBar[]> } };
   marketData: MarketData;

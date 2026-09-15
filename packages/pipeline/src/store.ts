@@ -117,6 +117,8 @@ export interface RadarStore {
   allCandidates(): Promise<CandidateRow[]>;
   savePlan(p: ContributionPlan): Promise<void>;
   latestPlan(): Promise<ContributionPlan | null>;
+  /** Resultado de los controles automáticos sobre el plan del mes (15/9). */
+  savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>): Promise<void>;
   plansToMeasure(before: string): Promise<ContributionPlan[]>;
   updatePlanLines(month: string, lines: PlanLine[]): Promise<void>;
   /** Etapa 3: contexto macro argentino, una fila por día. */
@@ -562,7 +564,12 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
     return [...this.candidates.values()].sort((a, b) => b.candidateDate.localeCompare(a.candidateDate) || a.symbol.localeCompare(b.symbol));
   }
   async savePlan(p: ContributionPlan) {
-    this.plans.set(p.month, p);
+    // Como en Postgres: una versión nueva del plan no tiene controles, y el momento en que se armó lo pone el guardado.
+    this.plans.set(p.month, { ...p, controles: null, builtAt: new Date().toISOString() });
+  }
+  async savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>) {
+    const p = this.plans.get(month);
+    if (p) this.plans.set(month, { ...p, controles });
   }
   async latestPlan() {
     const m = [...this.plans.keys()].sort().at(-1);

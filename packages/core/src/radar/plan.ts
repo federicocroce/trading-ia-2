@@ -1,4 +1,5 @@
 import type { EntryTiming } from "./entry.js";
+import type { PlanChange, PlanSymbolInput } from "./plan-changes.js";
 import { firstTrancheFrom } from "./fomc.js";
 import type { MacroRegime } from "./regime.js";
 import type { AssetClass, EtfConfig, EtfRole, RadarPolicy } from "./types.js";
@@ -132,6 +133,25 @@ export interface ContributionPlan {
    * Lo pone la persistencia al leerlo; al construirlo va sin esto.
    */
   builtAt?: string;
+  /** Con qué datos entró cada símbolo (15/9): explica por qué cambia el plan la próxima vez que se rearma. */
+  inputs?: Record<string, PlanSymbolInput>;
+  /** Qué cambió respecto del plan anterior y por qué (ver `explainPlanChange`). */
+  changes?: PlanChange[];
+  /** Cuándo se había armado el plan contra el que se comparó. */
+  previousBuiltAt?: string | null;
+  /** Controles automáticos sobre este plan (15/9). Con un grave, o sin controles sobre este plan, no se ejecuta. */
+  controles?: PlanControles | null;
+}
+/** Resultado de los controles automáticos (auditoría de pantallas + consistencia de filas) sobre un plan. */
+export interface PlanControles {
+  at: string;
+  /** El plan que se controló: si el plan se rearmó después, estos controles ya no valen. */
+  planBuiltAt: string;
+  graves: number;
+  avisos: number;
+  findings: Array<{ check: string; symbol: string | null; severity: "grave" | "aviso"; detail: string }>;
+  /** Si los controles no pudieron correr (una pantalla no respondió): cuenta como no controlado. */
+  error?: string;
 }
 
 /**

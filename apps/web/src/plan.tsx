@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, isHistorical, type ContributionPlan, type Verb } from "./api";
-import { instruccionCartera, instruccionRadar, planStatusFor, type Instruccion } from "./instruccion";
+import { controlesBloquean, instruccionCartera, instruccionRadar, planStatusFor, type Instruccion } from "./instruccion";
 
 /**
  * El plan vigente, compartido por todas las pantallas (14/9). Cada etiqueta de COMPRAR o SUMAR sale de acá: si la
@@ -8,12 +8,19 @@ import { instruccionCartera, instruccionRadar, planStatusFor, type Instruccion }
  */
 let cache: Promise<ContributionPlan | null> | null = null;
 export const invalidatePlan = () => { cache = null; window.dispatchEvent(new Event("plan:changed")); };
+/** Mientras los controles no revisaron el plan vigente, se vuelve a pedir: corren solos en menos de un minuto. */
+let reintento: ReturnType<typeof setTimeout> | null = null;
+const esperarControles = (p: ContributionPlan | null) => {
+  if (reintento || !p || !p.lines.length) return;
+  const pendiente = !p.controles || p.controles.planBuiltAt !== p.builtAt;
+  if (pendiente && controlesBloquean(p)) reintento = setTimeout(() => { reintento = null; invalidatePlan(); }, 15_000);
+};
 
 export function usePlan(): ContributionPlan | null {
   const [plan, setPlan] = useState<ContributionPlan | null>(null);
   useEffect(() => {
     let vivo = true;
-    const load = () => { cache ??= api.radar.plan().catch(() => null); void cache.then((p) => { if (vivo) setPlan(p); }); };
+    const load = () => { cache ??= api.radar.plan().catch(() => null); void cache.then((p) => { if (vivo) setPlan(p); esperarControles(p); }); };
     load();
     const onChange = () => { cache = null; load(); };
     window.addEventListener("plan:changed", onChange);

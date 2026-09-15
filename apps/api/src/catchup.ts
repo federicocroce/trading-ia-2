@@ -168,6 +168,8 @@ async function runSteps(c: Container, ids: StepId[], runners: Runners, now: Date
       const detail = await withUsageStep({ step: id }, () => runners[id](c, today));
       // El barrido se registra solo cuando termina (corre en segundo plano).
       if (id !== "scan") await c.store.markJobRun(id, today, detail);
+      // El paso pudo rearmar el plan: sus controles corren ya, no al minuto siguiente (15/9).
+      await c.controlar?.().catch(() => null);
       result.ran.push({ id, label, ok: true, detail });
       console.log(`[catchup] ${label}: ${detail}`);
     } catch (e) {

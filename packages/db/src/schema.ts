@@ -330,6 +330,12 @@ export const contributionPlans = pgTable("contribution_plans", {
   leftOut: jsonb("left_out").notNull().default([]),
   /** En cuántas compras conviene ejecutarlo (1 = de una vez). */
   tranches: integer("tranches"),
+  /** Con qué datos entró cada símbolo, y qué cambió respecto del plan anterior (15/9). */
+  inputs: jsonb("inputs"),
+  changes: jsonb("changes"),
+  previousBuiltAt: text("previous_built_at"),
+  /** Controles automáticos sobre esta versión del plan; se borran al rearmarlo (15/9). */
+  controles: jsonb("controles"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 /** Eventos materiales detectados en noticias (spec verificación §5). Único por símbolo + URL; los `ruido` también se guardan. */

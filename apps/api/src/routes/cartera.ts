@@ -73,6 +73,7 @@ export function carteraRoutes(c: Container) {
     const measured = await measureVerdicts(c.carteraDeps, { today });
     // Un SUMAR de Cartera cambia lo que el plan suma: se rearma para que las dos pantallas digan lo mismo (14/9).
     await replan(c.radarDeps, { today, portfolioUsd: (await c.store.latestRisk())?.report.totalValue ?? null }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+    await c.controlar?.().catch(() => null);
     bustCurve();
     return ctx.json({ ...s, measured });
   });

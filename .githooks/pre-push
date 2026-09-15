@@ -1,0 +1,17 @@
+#!/bin/sh
+# Nada llega a master (ni al de este repo con `git push . HEAD:master`, ni al de GitHub) sin pasar
+# `pnpm verificar` (15/9). Las otras ramas se empujan sin esperar: son trabajo en curso.
+# Se activa con `git config core.hooksPath .githooks`.
+a_master=0
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  [ "$remote_ref" = "refs/heads/master" ] && a_master=1
+done
+[ "$a_master" -eq 0 ] && exit 0
+
+# Desde el editor o desde otra sesión el PATH puede no tener node: se usa el de nvm.
+if ! command -v pnpm >/dev/null 2>&1 && [ -d "$HOME/.nvm/versions/node" ]; then
+  PATH="$(ls -d "$HOME"/.nvm/versions/node/*/bin | tail -1):$PATH"
+  export PATH
+fi
+echo "[pre-push] empuje a master: corre pnpm verificar"
+exec pnpm -s verificar

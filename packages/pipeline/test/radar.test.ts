@@ -252,6 +252,28 @@ describe("plan: el ATR y la correlación de cada compra llegan al plan (14/9)", 
   });
 });
 
+describe("plan: por qué cambió (15/9)", () => {
+  it("NVDA el 15/9: si el Radar pasa una compra a OBSERVAR, el plan rearmado dice que salió y por qué; el primero no tiene cambios", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const primero = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
+    expect(primero.changes).toEqual([]);
+    const compra = primero.lines.find((l) => l.kind === "comprar");
+    if (!compra) expect.fail(`el fixture necesita una compra: ${primero.lines.map((l) => `${l.symbol}:${l.kind}`).join(" ")}`);
+    expect(primero.inputs?.[compra.symbol]).toMatchObject({ verdict: "COMPRAR" });
+    const fila = (await store.latestCandidates()).find((c) => c.symbol === compra.symbol)!;
+    await store.upsertCandidates([{ ...fila, verdict: "OBSERVAR", flags: [...fila.flags, "bajo_stop"] }]);
+    const segundo = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
+    const cambio = segundo.changes?.find((c) => c.symbol === compra.symbol);
+    expect(cambio).toMatchObject({ change: "sale", source: "mercado" });
+    expect(cambio!.cause).toMatch(/de COMPRAR a OBSERVAR/);
+    // Dice contra qué versión se comparó.
+    expect(segundo.previousBuiltAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect((await store.latestPlan())?.changes?.some((c) => c.symbol === compra.symbol)).toBe(true);
+  });
+});
+
 describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
   it("TSM del 13/9: stop y objetivo salen de la misma fila del Radar, no el stop de un lado y el objetivo del otro", async () => {
     const { store, d } = deps();

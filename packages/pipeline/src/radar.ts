@@ -5,6 +5,8 @@ import {
   alphaPct,
   applyCoreMetrics,
   atr,
+  explainPlanChange,
+  type PlanSymbolInput,
   sanitizeMetrics,
   assetClassFor,
   computeTrailingStop,
@@ -782,6 +784,25 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     l.ret12mPct = r?.pct ?? null;
     l.ret12mPartial = r?.partial ?? null;
   }
-  await store.savePlan(plan);
-  return plan;
+  // Por qué cambió el plan (15/9): con qué datos entró cada símbolo, comparado con la versión anterior. Se toman
+  // también los que estaban en el plan anterior, para poder decir por qué salieron.
+  const anterior = await store.latestPlan();
+  const verificacionDe = (c: CandidateRow): string | null => {
+    if (c.kind === "etf") return null;
+    if (!c.verification) return deps.verifier ? "pendiente" : null;
+    if (deps.verifier && c.verification.promptVersion !== deps.verifier.promptVersion) return "anterior";
+    return c.verification.verdict;
+  };
+  const inputs: Record<string, PlanSymbolInput> = {};
+  const fueSumar = (sym: string) => [...plan.lines, ...(anterior?.lines ?? [])].some((l) => l.symbol === sym && l.kind === "sumar");
+  for (const sym of new Set([...plan.lines, ...(plan.leftOut ?? []), ...(anterior?.lines ?? [])].map((x) => x.symbol))) {
+    const c = candidatePorSimbolo.get(sym);
+    const v = verdicts.find((x) => x.symbol === sym);
+    if (fueSumar(sym) && v) inputs[sym] = { kind: "posicion", verdict: v.verb, close: c ? c.close : v.close, stop: c ? c.stop : v.stop, verification: c ? verificacionDe(c) : null };
+    else if (c) inputs[sym] = { kind: c.kind, verdict: c.verdict, close: c.close, stop: c.stop, verification: verificacionDe(c) };
+  }
+  const conEntradas: ContributionPlan = { ...plan, inputs };
+  const final: ContributionPlan = { ...conEntradas, changes: explainPlanChange(anterior, conEntradas), previousBuiltAt: anterior?.builtAt ?? null };
+  await store.savePlan(final);
+  return final;
 }

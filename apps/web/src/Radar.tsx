@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { instruccionRadar, planStatusFor } from "./instruccion";
+import { controlesBloquean, instruccionRadar, planStatusFor } from "./instruccion";
 import { InstruccionChip, RadarVerdict, invalidatePlan } from "./plan";
-import { api, isHistorical, type ArgentinaData, type Candidate, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type GrupoMedicion, type Horizonte, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
+import { api, isHistorical, type ArgentinaData, type Candidate, type PlanChange, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type GrupoMedicion, type Horizonte, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { EntryCell } from "./Entry";
@@ -443,6 +443,65 @@ function sortPlanLines(lines: PlanLine[], sort: PlanSort): PlanLine[] {
  * el dueño leía dos recomendaciones distintas en la misma pantalla. Ahora arriba va solo lo que se compra, con su
  * porqué desplegable, y abajo, plegadas, las candidatas que no entran con su motivo.
  */
+/** Fecha y hora locales (Argentina), no UTC: el 15/9 el plan decía "armado 12:54" cuando eran las 9:54. */
+const horaLocal = (iso: string) => new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+/**
+ * Estado de los controles automáticos sobre esta versión del plan (15/9). Si frenan, arriba de todo dice que no se
+ * ejecute y por qué; cada línea dice ESPERAR (ver `controlesBloquean`). Si están al día, una línea chica lo confirma.
+ */
+function ControlesDelPlan({ p }: { p: ContributionPlan }) {
+  if (!p.lines.length) return null;
+  const freno = controlesBloquean(p);
+  const k = p.controles;
+  if (freno) {
+    return (
+      <div className="err" style={{ marginTop: 8 }}>
+        <b>No ejecutes este plan todavía:</b> {freno}.
+        {k && !k.error && k.graves > 0 && (
+          <ul style={{ margin: "4px 0 0 18px" }}>
+            {k.findings.filter((f) => f.severity === "grave").slice(0, 8).map((f, i) => <li key={i}><span className="mono">{f.check}</span>{f.symbol ? ` ${f.symbol}` : ""}: {f.detail}</li>)}
+          </ul>
+        )}
+      </div>
+    );
+  }
+  return <div className="muted" style={{ marginTop: 6, fontSize: 12 }} title="Después de cada corrida y de cada rearmado corren solos la auditoría de pantallas y la consistencia de filas. Con un error grave, el plan no se ejecuta.">✓ Controles automáticos al día ({horaLocal(k!.at)}): sin errores graves{k!.avisos ? ` · ${k!.avisos} avisos` : ""}.</div>;
+}
+
+const QUE_CAMBIO: Record<PlanChange["change"], string> = { entra: "entra", sale: "sale", monto: "cambia" };
+const DE_DONDE: Record<PlanChange["source"], string> = { mercado: "mercado", verificacion: "verificación", regla: "regla", usuario: "acción tuya", reparto: "reparto", monto: "monto" };
+
+/**
+ * Qué cambió respecto del plan anterior y por qué (15/9). El 14/9 APH pasó de 3.820 a 2.456 porque el dueño la siguió
+ * desde la ficha, y nada lo decía. Lo que cambió por una acción suya, y no por el mercado, va marcado y abierto.
+ */
+function CambiosDelPlan({ p }: { p: ContributionPlan }) {
+  const cambios = p.changes ?? [];
+  if (!cambios.length) return null;
+  const porVos = cambios.some((c) => c.source === "usuario");
+  return (
+    <details style={{ marginTop: 6 }} open={porVos}>
+      <summary className={porVos ? "warn" : "muted"} style={{ cursor: "pointer" }}>
+        {cambios.length === 1 ? "1 cambio" : `${cambios.length} cambios`} desde el plan {p.previousBuiltAt ? `del ${horaLocal(p.previousBuiltAt)}` : "anterior"}{porVos && " · alguno por una acción tuya, no por el mercado"}
+      </summary>
+      <table style={{ marginTop: 4 }}>
+        <tbody>
+          {cambios.map((c) => (
+            <tr key={c.symbol}>
+              <td><SymbolLink symbol={c.symbol} /></td>
+              <td>{QUE_CAMBIO[c.change]}</td>
+              <td className="mono">{money(c.fromUsd)} → {money(c.toUsd)}</td>
+              <td className={c.source === "usuario" ? "warn" : "muted"}>{DE_DONDE[c.source]}</td>
+              <td>{c.cause}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  );
+}
+
 function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; top: RadarTop | null; radarDate: string | null; onBuild: (amountUsd: number) => Promise<void>; busy: boolean }) {
   const [amount, setAmount] = useState<string>(String(p.totalUsd));
   const [sort, setSort] = useState<PlanSort>(readPlanSort);
@@ -460,7 +519,7 @@ function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; t
     <div className="card" style={{ overflowX: "auto" }}>
       <div className="row">
         {/* La fecha de armado dice de cuándo es lo que se está mirando (13/9: "¿es el mismo plan que ayer?"). */}
-        <b style={{ fontSize: 16 }}>Qué comprar hoy</b> <span className="muted">plan de {money(p.totalUsd)}{p.builtAt && ` · armado el ${p.builtAt.slice(0, 10)} ${p.builtAt.slice(11, 16)}`}</span>
+        <b style={{ fontSize: 16 }}>Qué comprar hoy</b> <span className="muted">plan de {money(p.totalUsd)}{p.builtAt && ` · armado el ${horaLocal(p.builtAt)}`}</span>
         <div style={{ flex: 1 }} />
         <span className="muted">Ordenar por</span>
         <select value={sort} onChange={(e) => changeSort(e.target.value as PlanSort)} title="Prioridad de compra: el orden en que el sistema asigna la plata (núcleo, sumar, nuevas por convicción, seguimiento). % al objetivo: ojo, es dos veces la distancia al stop, así que ordena por volatilidad.">
@@ -470,6 +529,8 @@ function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; t
         <input value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void onBuild(Number(amount)); }} style={{ width: 110 }} className="mono" />
         <button className="primary" disabled={busy || !(Number(amount) > 0)} onClick={() => void onBuild(Number(amount))}>{busy ? "Armando…" : "Armar plan con este monto"}</button>
       </div>
+      <ControlesDelPlan p={p} />
+      <CambiosDelPlan p={p} />
       {p.notes.filter(esInstruccion).map((n) => <div key={n} className="warn" style={{ marginTop: 6 }}>{n}</div>)}
       <table style={{ marginTop: 8 }}>
         <thead><tr><Th k="simbolo" /><th>qué hacer</th><th>monto</th><Th k="cantidad" /><Th k="precio" /><Th k="cuandoEntrar" /><Th k="stopPlan" /><Th k="objetivoPlan" /><th>por qué</th><Th k="alpha30" /><Th k="alpha90" /></tr></thead>

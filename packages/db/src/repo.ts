@@ -457,10 +457,18 @@ export class Repo {
     return (await this.db.select().from(s.radarCandidates).orderBy(desc(s.radarCandidates.candidateDate), s.radarCandidates.symbol)).map((r) => this.rowToCandidate(r));
   }
   private rowToPlan(r: typeof s.contributionPlans.$inferSelect): ContributionPlan {
-    return { month: r.planMonth, totalUsd: num(r.totalUsd), lines: (r.lines as PlanLine[]) ?? [], notes: (r.notes as string[]) ?? [], leftOut: (r.leftOut as ContributionPlan["leftOut"]) ?? [], builtAt: r.createdAt.toISOString(), ...(r.tranches === null ? {} : { tranches: r.tranches }) };
+    return {
+      month: r.planMonth, totalUsd: num(r.totalUsd), lines: (r.lines as PlanLine[]) ?? [], notes: (r.notes as string[]) ?? [], leftOut: (r.leftOut as ContributionPlan["leftOut"]) ?? [], builtAt: r.createdAt.toISOString(),
+      ...(r.tranches === null ? {} : { tranches: r.tranches }),
+      ...(r.inputs ? { inputs: r.inputs as NonNullable<ContributionPlan["inputs"]> } : {}),
+      ...(r.changes ? { changes: r.changes as NonNullable<ContributionPlan["changes"]> } : {}),
+      previousBuiltAt: r.previousBuiltAt ?? null,
+      controles: (r.controles as ContributionPlan["controles"]) ?? null,
+    };
   }
   async savePlan(p: ContributionPlan): Promise<void> {
-    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes, leftOut: p.leftOut ?? [], tranches: p.tranches ?? null };
+    // Los controles son de una versión del plan: al rearmarlo se borran, y hasta que vuelvan a correr no se ejecuta.
+    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes, leftOut: p.leftOut ?? [], tranches: p.tranches ?? null, inputs: p.inputs ?? null, changes: p.changes ?? null, previousBuiltAt: p.previousBuiltAt ?? null, controles: null };
     // `createdAt` va en el set a propósito: sin él, el timestamp quedaba congelado en el PRIMER guardado del
     // mes y el plan podía rearmarse diez veces sin que nada lo dijera. El 13/9 la base decía que el plan era
     // del 7 mientras sus precios eran de hoy, y no había forma de saber cuándo se había armado de verdad.
@@ -469,6 +477,10 @@ export class Repo {
   async latestPlan(): Promise<ContributionPlan | null> {
     const r = (await this.db.select().from(s.contributionPlans).orderBy(desc(s.contributionPlans.planMonth)).limit(1))[0];
     return r ? this.rowToPlan(r) : null;
+  }
+  /** Guarda el resultado de los controles en el plan del mes; `planBuiltAt` adentro dice a qué versión corresponde. */
+  async savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>): Promise<void> {
+    await this.db.update(s.contributionPlans).set({ controles }).where(eq(s.contributionPlans.planMonth, month));
   }
   /** Planes de meses ≤ `before` con alguna línea sin medir. */
   async plansToMeasure(before: string): Promise<ContributionPlan[]> {

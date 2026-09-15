@@ -97,15 +97,21 @@ export function radarRoutes(c: Container) {
     await store.addWatch(symbol, { note: body.note ?? null, entryPrice, entryAction: row?.verdict ?? "manual", ...ticket, thesis: row?.summary ?? null, horizonDays: 30 });
     const r = await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
     await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+    await c.controlar?.().catch(() => null);
     return ctx.json({ ...(await watchPayload()), refreshed: r });
   });
   app.delete("/radar/watchlist/:symbol", async (ctx) => {
     await store.removeWatch(ctx.req.param("symbol"));
+    // Sin esto el plan seguía comprando como "seguimiento" algo que ya no seguías, hasta la corrida del día siguiente.
+    await store.pruneCandidates(today(ctx), "watch", (await store.watchlist()).map((w) => w.symbol)).catch(() => 0);
+    await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+    await c.controlar?.().catch(() => null);
     return ctx.json(await watchPayload());
   });
   app.post("/radar/watchlist/refresh", async (ctx) => {
     const r = await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
     await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+    await c.controlar?.().catch(() => null);
     return ctx.json(r);
   });
   app.get("/radar/candidates/:symbol", async (ctx) => {
@@ -153,6 +159,7 @@ export function radarRoutes(c: Container) {
   app.post("/radar/rank", async (ctx) => {
     const r = await rankRadar(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
     await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+    await c.controlar?.().catch(() => null);
     return ctx.json(r);
   });
   app.post("/radar/refresh", async (ctx) => {
@@ -160,6 +167,7 @@ export function radarRoutes(c: Container) {
     const r = await refreshRadar(deps, { today: t, portfolioUsd: await portfolioUsd() });
     const measured = await measureRadar(deps, { today: t });
     await replan(deps, { today: t, portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+    await c.controlar?.().catch(() => null);
     return ctx.json({ ...r, measured });
   });
   app.get("/radar/plan", async (ctx) => ctx.json(await store.latestPlan()));
@@ -167,7 +175,9 @@ export function radarRoutes(c: Container) {
     const month = ctx.req.query("month") ?? new Date().toISOString().slice(0, 7);
     // ?amount=40000: plan para un monto líquido en vez del aporte mensual.
     const amount = Number(ctx.req.query("amount"));
-    return ctx.json(await buildContributionPlan(deps, { month, portfolioUsd: await portfolioUsd(), ...(amount > 0 ? { amountUsd: amount } : {}) }));
+    const plan = await buildContributionPlan(deps, { month, portfolioUsd: await portfolioUsd(), ...(amount > 0 ? { amountUsd: amount } : {}) });
+    await c.controlar?.().catch(() => null);
+    return ctx.json(plan);
   });
   app.get("/radar/measurement", async (ctx) => {
     const all = await store.allCandidates();

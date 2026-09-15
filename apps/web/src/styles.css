@@ -40,6 +40,8 @@ input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var
 /* Pasa los filtros pero el plan no la compra: nunca verde, para que no se lea como una orden (14/9). */
 .verb.CANDIDATA { background: transparent; color: var(--muted); border: 1px dashed var(--muted); }
 .verb.MANTENER { background: transparent; color: var(--fg); }
+/* ESPERAR (15/9): está en el plan, pero los controles no dejan ejecutarlo. Ámbar con borde: no es una venta ni una compra. */
+.verb.ESPERAR { background: transparent; color: #d97706; border: 1px solid #d97706; }
 /* El signo de la bandera se ve antes que el texto: a favor, salvedad o dato faltante. */
 .flag { display: inline-block; font-size: 11px; margin-right: 6px; color: var(--muted); }
 .flag.bueno { color: var(--ok); }
