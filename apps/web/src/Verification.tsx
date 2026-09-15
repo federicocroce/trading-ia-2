@@ -1,5 +1,6 @@
 import type { AnalystAction, AnalystTargets, CandidateVerification, RadarEvent, Statements } from "./api";
 import { EXTRAORDINARIOS_AYUDA, extraordinarioLabel } from "./extraordinarios";
+import { peNucleo } from "./verificacionTextos";
 
 const M = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${(v / 1e6).toFixed(1)}M`);
 const f1 = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toFixed(1));
@@ -68,7 +69,8 @@ function EstadoDelBarrido({ scannedTo }: { scannedTo: string | null | undefined 
 export function VerificationSections({ statements, events, analystActions, analystTargets, close, metricsRaw, verification, newsScannedTo }: { statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[]; analystTargets?: AnalystTargets | null; close: number | null; metricsRaw?: Record<string, number | null> | null; verification?: CandidateVerification | null; newsScannedTo?: string | null }) {
   const core = statements?.core ?? null;
   const last4 = statements?.quarters.slice(-4) ?? [];
-  const corePe = core?.coreEpsTTM && core.coreEpsTTM > 0 && close ? (close / core.coreEpsTTM).toFixed(1) : "—";
+  // Con la misma banda que el núcleo: SNDK el 15/9 daba "P/E núcleo 0,1" por un trimestre con 1.000.000 de acciones.
+  const corePe = peNucleo({ close, coreEps: core?.coreEpsTTM, epsFuente: metricsRaw?.["epsTTM"] });
   // Cuántos objetivos de analistas están en otra escala que el precio: el aviso de abajo lo explica.
   const fueraDeEscala = close ? analystActions.filter((a) => a.target !== null && !enEscala(a.target, close)).length : 0;
   return (
@@ -94,7 +96,7 @@ export function VerificationSections({ statements, events, analystActions, analy
             </table>
             {core && (
               <div className="muted mono" style={{ marginTop: 4 }}>
-                TTM: ingresos {M(core.revenueTTM)} · operativo núcleo {M(core.coreOperatingIncomeTTM)} ({pctOf(core.coreOperatingIncomeTTM, core.revenueTTM)}) · neto reportado {M(core.netIncomeTTM)} · neto núcleo {M(core.coreNetIncomeTTM)} · P/E núcleo {corePe}{metricsRaw?.["peTTM"] != null && ` (Finnhub ${f1(metricsRaw["peTTM"])})`} · flujo libre {M(core.freeCashFlowTTM)}
+                TTM: ingresos {M(core.revenueTTM)} · operativo núcleo {M(core.coreOperatingIncomeTTM)} ({pctOf(core.coreOperatingIncomeTTM, core.revenueTTM)}) · neto reportado {M(core.netIncomeTTM)} · neto núcleo {M(core.coreNetIncomeTTM)} · P/E núcleo <span title={corePe.motivo ?? undefined} className={corePe.motivo ? "warn" : undefined} style={corePe.motivo ? { cursor: "help" } : undefined}>{corePe.texto}{corePe.motivo && " (no creíble)"}</span>{metricsRaw?.["peTTM"] != null && ` (Finnhub ${f1(metricsRaw["peTTM"])})`} · flujo libre {M(core.freeCashFlowTTM)}
                 {core.extraordinaryTTM !== 0 && core.deviationPct !== null && Math.abs(core.deviationPct) > 0.25 && <span className="warn"> · desvío {signedPct(core.deviationPct * 100)} por extraordinarios</span>}
               </div>
             )}
