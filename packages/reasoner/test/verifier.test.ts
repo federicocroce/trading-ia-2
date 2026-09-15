@@ -125,6 +125,17 @@ describe("verificador que falla cerrado (15/9)", () => {
   });
 });
 
+describe("que busque en vez de contestar de memoria (15/9)", () => {
+  it("el pedido exige usar la búsqueda de Google, sin cambiar la versión del cuestionario", () => {
+    // Después de sacar los 3.x, la falla más común de 2.5-flash era contestar sin buscar: 6 de 8 intentos a las 12:15.
+    const antes = VERIFY_VERSION;
+    const m = buildResearchMessage({ symbol: "PBT", name: null, today: "2026-09-15" });
+    expect(m).toContain("Usá la búsqueda de Google");
+    expect(m).toContain("sin búsquedas se descarta");
+    expect(VERIFY_VERSION).toBe(antes);
+  });
+});
+
 describe("búsqueda solo en 2.5-flash (15/9)", () => {
   it("por defecto el verificador busca solo con gemini-2.5-flash: con claves gratis los 3.x no tienen búsqueda", async () => {
     const saturado = () => new Response(JSON.stringify({ error: { code: 503, message: "high demand", status: "UNAVAILABLE" } }), { status: 503 });

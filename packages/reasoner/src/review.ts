@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { PreTradeReviewInput, PreTradeReviewResult, PreTradeReviewer } from "@thesis/core";
 import { GeminiToolCaller, type GeminiCallerOptions } from "./gemini/transport.js";
+import { BUSCAR } from "./verifier.js";
 
 /**
  * Revisión antes de comprar (15/9). La verificación es un analista que responde un cuestionario; esta es otra persona
@@ -28,6 +29,7 @@ export function buildReviewMessage(i: PreTradeReviewInput): string {
     `# Hoy\n${i.today}`,
     `# La orden\n${i.line.kind === "sumar" ? "sumar a una posición que ya tiene" : "compra nueva"}${i.line.close !== null ? `, precio ${i.line.close}` : ""}${i.line.stop !== null ? `, stop ${i.line.stop}` : ""}`,
     `# Lo que dijo la verificación (contrastalo, no lo repitas)\n${verif}`,
+    BUSCAR,
     "Buscá razones para no comprarla hoy.",
   ].join("\n\n");
 }

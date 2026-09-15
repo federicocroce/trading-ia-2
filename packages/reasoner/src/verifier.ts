@@ -130,8 +130,15 @@ export function aplicarFaltantes<T extends { verdict: (typeof VERDICTS)[number];
   return { ...v, verdict: "con_reservas", reason: `falta verificar: ${faltantes.join("; ")}`.slice(0, 300) };
 }
 
+/**
+ * Buscar es obligatorio (15/9): sin los 3.x, la falla más común de 2.5-flash era contestar de memoria (6 de 8 intentos
+ * a las 12:15), y esa respuesta se descarta. Va en el pedido y no en el cuestionario: no cambia qué se pregunta, así
+ * que no cambia la versión ni obliga a repetir lo ya verificado.
+ */
+export const BUSCAR = "Usá la búsqueda de Google para cada punto, con datos de este año: una respuesta sin búsquedas se descarta.";
+
 export function buildResearchMessage(i: VerifierInput): string {
-  return [`# Empresa\n${i.symbol}${i.name ? ` — ${i.name}` : ""}`, `# Hoy\n${i.today}`, i.context ? `# Lo que ya sabe la app (contrastalo, no lo repitas)\n${i.context.slice(0, 2000)}` : null, "Respondé el cuestionario."].filter((x): x is string => x !== null).join("\n\n");
+  return [`# Empresa\n${i.symbol}${i.name ? ` — ${i.name}` : ""}`, `# Hoy\n${i.today}`, i.context ? `# Lo que ya sabe la app (contrastalo, no lo repitas)\n${i.context.slice(0, 2000)}` : null, BUSCAR, "Respondé el cuestionario."].filter((x): x is string => x !== null).join("\n\n");
 }
 
 export interface GeminiVerifierOptions extends GeminiCallerOptions {
