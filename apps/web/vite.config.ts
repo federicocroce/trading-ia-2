@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => {
   const apiPort = loadEnv(mode, root, "")["PORT"] ?? "3001";
   return {
     plugins: [react()],
+    // Los precios en vivo van directo a la API, no por el proxy (ver `prices.ts`): el cliente necesita saber el puerto.
+    define: { "import.meta.env.VITE_API_PORT": JSON.stringify(apiPort) },
     server: { port: 5173, proxy: { "/api": { target: `http://localhost:${apiPort}`, rewrite: (p) => p.replace(/^\/api/, "") } } },
   };
 });
