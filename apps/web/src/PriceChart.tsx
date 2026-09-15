@@ -53,7 +53,10 @@ const TIMEFRAMES = [
 ] as const;
 type ChartType = "candle" | "line" | "area";
 export type { PeriodChange };
-/** `stopLabel`: nombre de la línea del stop. Sin posición es "stop de compra", que no es el dinámico punteado. */
+/**
+ * `stopLabel`: nombre de la línea del stop (ver `rotuloDelStop`). Sin posición es "stop de compra", que no es el
+ * dinámico punteado; si la fila no se puede ejecutar (NVDA en OBSERVAR el 15/9), es "stop dinámico".
+ */
 export interface PriceLevels { avgCost?: number | null; stop?: number | null; target?: number | null; stopLabel?: string }
 /** Alto del panel de precio y del panel del RSI, que va aparte para no pisar las velas. */
 const ALTO_PRECIO = 380;

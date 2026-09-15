@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Candidate, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
-import { baseDelDia, relacionDeLaOrden } from "./niveles";
+import { baseDelDia, distanciaAlStop, relacionDeLaOrden, rotuloDelStop } from "./niveles";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { EntryLine } from "./Entry";
@@ -63,7 +63,11 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const toStop = move(stop);
   const toTarget = move(target);
   // Sin posición, la relación es la de la orden del Radar (desde el techo de compra), no la del precio en vivo.
+  // Con posición no hay relación: va la distancia al stop, con aviso si está pegado (15/9: TSM "67,8 : 1" a 0,2 ATR).
   const rr = relacionDeLaOrden({ stop, target, price: px, entryHigh: t.verdict ? null : t.candidate?.entryHigh, desde: levelsFrom });
+  const dist = levelsFrom === "Cartera" ? distanciaAlStop({ price: px, stop, atr: t.atr14 }) : null;
+  // Una fila del Radar sin objetivo no se puede ejecutar: su stop es el dinámico, no uno de compra (15/9: NVDA).
+  const stopLabel = rotuloDelStop({ desde: levelsFrom, target });
   const qty = t.position?.quantity ?? null;
   const usdAt = (level: number | null) => (px && level && qty ? money(qty * (level - px)) : null);
 
@@ -100,17 +104,20 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {isNucleo && !t.verdict && <div className="row" style={{ marginTop: 8 }}><span className="verb NUCLEO">NUCLEO</span><span className="muted">ETF de base de la cartera: se compra por calendario con el aporte y se mantiene años. Sin stop ni objetivo: no se vende por precio.</span></div>}
           {px && (stop || target) && (
             <div className="row" style={{ marginTop: 8, gap: 16 }}>
-              {stop && <span>Stop <b className="mono">{f2(stop)}</b> <span className={toStop !== null && toStop < 0 ? "bad" : "warn"}>{pct(toStop)}{usdAt(stop) && ` · ${usdAt(stop)}`}</span></span>}
+              {stop && <span>{stopLabel.charAt(0).toUpperCase() + stopLabel.slice(1)} <b className="mono">{f2(stop)}</b> <span className={toStop !== null && toStop < 0 ? "bad" : "warn"}>{pct(toStop)}{usdAt(stop) && ` · ${usdAt(stop)}`}</span></span>}
               {target && <span>Objetivo <b className="mono">{f2(target)}</b> <span className={toTarget !== null && toTarget > 0 ? "ok" : "warn"}>{pct(toTarget)}{usdAt(target) && ` · ${usdAt(target)}`}</span></span>}
               {rr && <span className="muted">{rr.texto}</span>}
-              {toStop !== null && toStop >= 0 && <span className="verb VENDER">precio por debajo del stop</span>}
+              {dist && <span className="muted">{dist.texto}</span>}
+              {dist?.aviso && <span className="warn">⚠ {dist.aviso}</span>}
+              {/* Con posición es una alerta de venta; sin posición es un hecho sobre la orden, no una instrucción. */}
+              {toStop !== null && toStop >= 0 && (qty ? <span className="verb VENDER">precio por debajo del stop</span> : <span className="warn">precio debajo del {stopLabel}</span>)}
               <span className="muted">({levelsFrom}{qty ? `, sobre tu tenencia de ${f2(qty)}` : ", sin posición"})</span>
             </div>
           )}
         </div>
       </div>
 
-      <div className="card"><PriceChart symbol={t.symbol} currentPrice={q?.price ?? null} levels={{ avgCost: t.position?.avgCost ?? null, stop, target, stopLabel: levelsFrom === "Radar" ? "stop de compra" : "stop" }} onPeriodChange={onPeriod} /></div>
+      <div className="card"><PriceChart symbol={t.symbol} currentPrice={q?.price ?? null} levels={{ avgCost: t.position?.avgCost ?? null, stop, target, stopLabel }} onPeriodChange={onPeriod} /></div>
 
       <div className="grid2">
         {t.position && (

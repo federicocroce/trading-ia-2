@@ -1,5 +1,5 @@
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
-import { AXES, AXIS_METRICS, groupMedians, unreliableGrowthKeys } from "@thesis/core";
+import { AXES, AXIS_METRICS, atr, groupMedians, unreliableGrowthKeys } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
 /**
@@ -60,6 +60,11 @@ export interface TickerPage {
     invested: number;
   };
   candles: Candle[];
+  /**
+   * ATR de 14 ruedas de las velas guardadas (el `atr` del núcleo), para decir a cuántos ATR está el precio del stop. El
+   * 15/9 TSM estaba a 0,2 ATR del stop y la ficha mostraba "relación 67,8 : 1" en vez de avisarlo.
+   */
+  atr14: number | null;
   news: NewsItem[];
   filings: string[];
   arNews: string[];
@@ -332,6 +337,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     transactions: mine,
     transactionSummary: { buys, sells, dividends, dividendShares, invested: round2(buys.total - sells.total) },
     candles,
+    atr14: atr(candles, 14),
     news,
     filings,
     arNews,

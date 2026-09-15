@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, Fundamentals, SymbolDescription } from "@thesis/core";
-import { groupMedians, rankStocks } from "@thesis/core";
+import { atr, groupMedians, rankStocks } from "@thesis/core";
 import { MemoryStore, buildTicker, closeAnterior, comparables, liveQuotes, type TickerDeps } from "../src/index.js";
 
 const series = (closes: number[], start = "2026-06-01"): Candle[] => closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c + 1, low: c - 1, close: c, volume: 1_000_000 }));
@@ -201,6 +201,14 @@ describe("cierre anterior guardado (C6, 15/9)", () => {
     expect(closeAnterior(tsm.slice(0, 2), "2026-09-14T15:00:00Z")).toEqual({ close: 433.24, date: "2026-09-11" });
     // Una vela de hoy a medio armar no es el cierre anterior.
     expect(closeAnterior([...tsm, vela("2026-09-15", 414.66)], "2026-09-15T19:40:59.858Z")).toEqual({ close: 418.01, date: "2026-09-14" });
+  });
+  it("C2: la página trae el ATR de 14 ruedas de las velas guardadas (con el de core), para medir la distancia al stop en ATR", async () => {
+    const { store, deps } = setup();
+    const velas = Array.from({ length: 20 }, (_, i) => ({ date: new Date(Date.parse("2026-08-20") + i * 86_400_000).toISOString().slice(0, 10), open: 400, high: 405 + (i % 3), low: 395, close: 400 + i, volume: 1 }));
+    await store.upsertCandles("TSM", velas);
+    const t = await buildTicker(deps, "TSM", { today: "2026-09-15" });
+    expect(t.atr14).toBeCloseTo(atr(velas, 14)!, 10);
+    expect((await buildTicker(deps, "NADA", { today: "2026-09-15", live: false })).atr14).toBeNull();
   });
   it("si falta la sesión anterior en la base no se usa una más vieja: queda el cierre de la fuente", () => {
     expect(closeAnterior(tsm.slice(0, 2), "2026-09-15T19:40:59.858Z")).toBeNull();

@@ -9,15 +9,48 @@ const coma = (n: number, d: number) => n.toFixed(d).replace(".", ",");
  * igual que la tarjeta del Radar: es el peor precio al que se entra. El 14/9 la ficha de APH decía
  * "relación 18,0 : 1" porque medía desde el precio en vivo, que había caído a 1,6% del stop: una orden
  * más cerca del stop parecía mejor, cuando lo que pasaba es que el stop había quedado dentro del ruido del día.
- * Con posición (Cartera) sí se mide desde el precio actual: es lo que queda por ganar y por perder desde hoy.
+ *
+ * Con posición (Cartera) no hay relación: no hay orden que evaluar. El 15/9 TSM decía "relación 67,8 : 1 desde el
+ * precio actual" porque el precio estaba a 1,76 del stop: cuanto más cerca del stop, mejor parecía. Con posición va la
+ * distancia al stop (`distanciaAlStop`).
  */
 export function relacionDeLaOrden(i: { stop: number | null; target: number | null; price: number | null; entryHigh: number | null | undefined; desde: "Radar" | "Cartera" | null }): { ratio: number; base: number; texto: string } | null {
+  if (i.desde === "Cartera") return null;
   const techo = i.desde === "Radar" && i.entryHigh ? i.entryHigh : null;
   const base = techo ?? i.price;
   if (!base || i.stop === null || i.target === null || i.stop >= base || i.target <= base) return null;
   const ratio = (i.target - base) / (base - i.stop);
   const desde = techo !== null ? `desde el techo de compra ${coma(techo, 2)}, como en el Radar` : "desde el precio actual";
   return { ratio, base, texto: `relación ${coma(ratio, 1)} : 1 ${desde}` };
+}
+
+/** A menos de esto del stop, el ruido de un día lo toca: 1 ATR (el mismo `STOP_NOISE_ATR` del plan) o 1%. */
+const STOP_CERCA_ATR = 1;
+const STOP_CERCA_PCT = 1;
+
+/**
+ * Con posición, cuánto le queda al precio actual hasta el stop, en % y en ATR de 14 ruedas, con aviso si está pegado
+ * (15/9: TSM a 414,57 con el stop en 412,81, 0,42% y 0,2 ATR, y la ficha mostraba "relación 67,8 : 1"). null si el
+ * precio ya está debajo del stop (eso lo dice su propio aviso) o falta un dato.
+ */
+export function distanciaAlStop(i: { price: number | null; stop: number | null; atr: number | null | undefined }): { pct: number; enAtr: number | null; texto: string; aviso: string | null } | null {
+  if (!i.price || i.stop === null || i.price <= i.stop) return null;
+  const d = i.price - i.stop;
+  const pct = (d / i.price) * 100;
+  const enAtr = i.atr && i.atr > 0 ? d / i.atr : null;
+  const texto = `a ${coma(pct, 2)}% del stop${enAtr !== null ? ` (${coma(enAtr, 1)} ATR)` : ""} desde el precio actual`;
+  const aviso = enAtr !== null && enAtr < STOP_CERCA_ATR ? "pegado al stop: a menos de 1 ATR, el movimiento de un día normal lo puede tocar" : pct < STOP_CERCA_PCT ? "pegado al stop: a menos de 1%" : null;
+  return { pct, enAtr, texto, aviso };
+}
+
+/**
+ * Nombre del stop en la cabecera y en el gráfico. Una fila del Radar sin objetivo no se puede ejecutar (bajo el stop, o
+ * con el stop dentro de la franja): su stop es el DINÁMICO de seguimiento, no uno de compra. El 15/9 NVDA en OBSERVAR
+ * mostraba "stop de compra" en una línea que estaba arriba del precio. Con posición, es el stop de la posición.
+ */
+export function rotuloDelStop(i: { desde: "Radar" | "Cartera" | null; target: number | null | undefined }): string {
+  if (i.desde !== "Radar") return "stop";
+  return i.target === null || i.target === undefined ? "stop dinámico" : "stop de compra";
 }
 
 /**

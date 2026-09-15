@@ -143,6 +143,8 @@ export interface TickerPage {
   transactions: Transaction[];
   transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; dividendShares?: number; invested: number };
   candles: Candle[];
+  /** ATR de 14 ruedas de las velas guardadas: para decir a cuántos ATR está el precio del stop (15/9). */
+  atr14?: number | null;
   news: NewsItem[];
   filings: string[];
   arNews: string[];
