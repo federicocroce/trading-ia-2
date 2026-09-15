@@ -33,6 +33,15 @@ export interface UsageGeminiRow {
   costUsd: number;
   limitPerDay: number | null;
   pctDay: number | null;
+  /**
+   * Cuota diaria agotada: hubo un 429 por día (después del reinicio de Google) y ninguna respuesta buena después
+   * del último. El 15/9 la clave 1 de 2.5-flash dio 429 "por día" a las 10:51 y siguió contestando bien a las 14:56
+   * y a las 15:48; la tabla decía "agotada hoy" desde las 10:51. Una respuesta buena posterior prueba que no lo estaba.
+   */
+  exhausted: boolean;
+  /** Último 429 por día del día de cuota (ISO), y última respuesta buena (ISO): la pantalla muestra las dos horas. */
+  lastRpdAt: string | null;
+  lastOkAt: string | null;
 }
 
 export interface UsageStepRow {
@@ -59,7 +68,21 @@ export interface UsageSummary {
   byStep: UsageStepRow[];
   /** Avisos en palabras: fuente cerca del límite, Gemini fallando demasiado. */
   warnings: string[];
+  /** Cuánto del día cubre el registro: un día anterior al registro no tuvo cero llamadas, no tiene datos. */
+  coverage: { state: UsageCoverage; from: string | null };
+  /** Reinicio de la cuota de Gemini dentro del día (ISO): lo anterior cuenta para la cuota del día previo. */
+  quotaResetAt: string | null;
 }
+
+/** `sin_registro`: el día entero es anterior al registro. `parcial`: el registro empieza ese día. */
+export type UsageCoverage = "completo" | "parcial" | "sin_registro";
+
+/**
+ * Primera fila de `external_calls`: el 14/9 a las 00:33 de Buenos Aires. La tabla existe desde el 10/9, pero la
+ * API que corría (la de launchd) no registraba hasta ese momento; del 10 al 13/9 no hay datos, y la pestaña Uso
+ * los dibujaba como días con cero llamadas. Lo anterior a esta fecha, o al vencimiento de la retención, es "sin registro".
+ */
+export const REGISTRO_USO_DESDE = "2026-09-14T03:33:52.384Z";
 
 export interface SummarizeOptions {
   date: string;
@@ -68,6 +91,12 @@ export interface SummarizeOptions {
   warnAtPct?: number;
   /** Aviso cuando Gemini falla más que este % del día. */
   geminiFailWarnPct?: number;
+  /** Límites del día pedido (ISO) y desde cuándo hay registro: para decir "sin registro" en vez de cero. */
+  dayFrom?: string;
+  dayTo?: string;
+  registroDesde?: string | null;
+  /** Reinicio de la cuota de Gemini dentro del día (ver `geminiQuotaResetWithin`). */
+  quotaResetAt?: string | null;
 }
 
 /** Un día de la serie de uso: llamadas, errores, costo equivalente y llamadas por fuente. */
@@ -79,14 +108,42 @@ export interface UsageDay {
   bySource: Record<string, number>;
   geminiCalls: number;
   geminiFailed: number;
+  coverage: UsageCoverage;
 }
 
 /**
- * Serie diaria para el gráfico de la pestaña Uso. `dates` fija qué días salen (con ceros si no hubo nada) y
- * `dateOf` traduce la hora ISO de cada llamada al día local (la API pasa su `localDate`). Puro.
+ * Medianoche de California (reinicio de la cuota gratis de Gemini) dentro de [fromIso, toIso), o null. Con
+ * horario de verano allá es a las 07:00 UTC, 04:00 en Buenos Aires; sin él, a las 08:00 UTC (05:00). La pestaña
+ * Uso corta el día a la medianoche de acá: lo de 00:00 a 04:00 es de la cuota del día anterior.
  */
-export function dailyUsage(calls: UsageCall[], dates: string[], dateOf: (iso: string) => string): UsageDay[] {
-  const days = new Map<string, UsageDay>(dates.map((d) => [d, { date: d, calls: 0, errors: 0, costUsd: 0, bySource: {}, geminiCalls: 0, geminiFailed: 0 }]));
+export function geminiQuotaResetWithin(fromIso: string, toIso: string): string | null {
+  const from = Date.parse(fromIso);
+  const to = Date.parse(toIso);
+  const horaEnLA = (ms: number) => Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", hour: "2-digit", hourCycle: "h23" }).format(new Date(ms)));
+  for (let d = Date.UTC(new Date(from).getUTCFullYear(), new Date(from).getUTCMonth(), new Date(from).getUTCDate() - 1); d <= to; d += 86_400_000) {
+    for (const h of [7, 8]) {
+      const t = d + h * 3_600_000;
+      if (t >= from && t < to && horaEnLA(t) === 0) return new Date(t).toISOString();
+    }
+  }
+  return null;
+}
+
+const coverageOf = (dayFrom: string | undefined, dayTo: string | undefined, registroDesde: string | null | undefined): UsageCoverage => {
+  if (!registroDesde || !dayFrom || !dayTo) return "completo";
+  if (dayTo <= registroDesde) return "sin_registro";
+  return dayFrom < registroDesde ? "parcial" : "completo";
+};
+
+/**
+ * Serie diaria para el gráfico de la pestaña Uso. `dates` fija qué días salen (con ceros si no hubo nada) y
+ * `dateOf` traduce la hora ISO de cada llamada al día local (la API pasa su `localDate`). Con `registroDesde`, los
+ * días anteriores salen `sin_registro` y el del inicio `parcial`. Puro.
+ */
+export function dailyUsage(calls: UsageCall[], dates: string[], dateOf: (iso: string) => string, opts: { registroDesde?: string | null } = {}): UsageDay[] {
+  const inicio = opts.registroDesde ? dateOf(opts.registroDesde) : null;
+  const cobertura = (d: string): UsageCoverage => (!inicio || d > inicio ? "completo" : d === inicio ? "parcial" : "sin_registro");
+  const days = new Map<string, UsageDay>(dates.map((d) => [d, { date: d, calls: 0, errors: 0, costUsd: 0, bySource: {}, geminiCalls: 0, geminiFailed: 0, coverage: cobertura(d) }]));
   for (const c of calls) {
     const d = days.get(dateOf(c.at));
     if (!d) continue;
@@ -118,8 +175,12 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
   const bySource = new Map<UsageSource, { calls: number; ok: number; errors: number; minutes: Map<string, number> }>();
   const gem = new Map<string, UsageGeminiRow>();
   const steps = new Map<string, UsageStepRow>();
+  // Orden de llegada del día de cuota por modelo y clave: "agotada" depende de qué pasó DESPUÉS del último 429 diario.
+  const orden = new Map<string, { rpd: number; ok: number }>();
+  const reset = opts.quotaResetAt ?? null;
   let costUsd = 0;
-  for (const c of calls) {
+  const ordenadas = [...calls].sort((a, b) => a.at.localeCompare(b.at));
+  for (const [i, c] of ordenadas.entries()) {
     let s = bySource.get(c.source);
     if (!s) {
       s = { calls: 0, ok: 0, errors: 0, minutes: new Map() };
@@ -150,11 +211,18 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
       const gk = `${model}#${keyIndex}`;
       let g = gem.get(gk);
       if (!g) {
-        g = { model, keyIndex, calls: 0, ok: 0, rpm: 0, rpd: 0, limite: 0, saturado: 0, validacion: 0, error: 0, tokensIn: 0, tokensOut: 0, tokensThink: 0, costUsd: 0, limitPerDay: limits.gemini.perDay, pctDay: null };
+        g = { model, keyIndex, calls: 0, ok: 0, rpm: 0, rpd: 0, limite: 0, saturado: 0, validacion: 0, error: 0, tokensIn: 0, tokensOut: 0, tokensThink: 0, costUsd: 0, limitPerDay: limits.gemini.perDay, pctDay: null, exhausted: false, lastRpdAt: null, lastOkAt: null };
         gem.set(gk, g);
       }
       g.calls++;
       g[c.result]++;
+      // Un 429 diario de antes del reinicio de Google es de la cuota del día anterior: no agota la de hoy.
+      if (!reset || c.at >= reset) {
+        const o = orden.get(gk) ?? { rpd: -1, ok: -1 };
+        if (c.result === "rpd") { o.rpd = i; g.lastRpdAt = c.at; }
+        if (c.result === "ok") { o.ok = i; g.lastOkAt = c.at; }
+        orden.set(gk, o);
+      }
       g.tokensIn += c.tokensIn ?? 0;
       g.tokensOut += c.tokensOut ?? 0;
       g.tokensThink += c.tokensThink ?? 0;
@@ -180,11 +248,16 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
     .map((g) => {
       g.costUsd = r2(g.costUsd * 1000) / 1000;
       // Google no publica la cuota diaria real de estas claves (10/9: 429 diario con 15–20 llamadas, y la búsqueda con menos de 10):
-      // la evidencia manda: un 429 diario en el día = agotada (100%).
-      g.pctDay = g.rpd > 0 ? 100 : pct(g.calls, g.limitPerDay);
-      if (g.rpd > 0) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: cuota diaria agotada (429 por día) tras ${g.calls} llamadas`);
+      // la evidencia manda. Agotada = 429 diario sin ninguna respuesta buena después (15/9: la clave 1 contestó bien
+      // a las 14:56 y a las 15:48 después del 429 de las 10:51, y la pantalla la daba por agotada).
+      const o = orden.get(`${g.model}#${g.keyIndex}`);
+      g.exhausted = !!o && o.rpd > o.ok;
+      g.pctDay = g.exhausted ? 100 : pct(g.calls, g.limitPerDay);
+      if (g.exhausted) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: cuota diaria agotada (429 por día sin respuestas buenas después) tras ${g.calls} llamadas`);
       if (g.limite > 0) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.limite} rechazos 429 sin detalle (no es la cuota diaria; con claves gratis, por ejemplo, los 3.x no tienen búsqueda)`);
-      else if (g.pctDay !== null && g.pctDay >= warnAt) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.calls} llamadas hoy (${g.pctDay}% de ${g.limitPerDay})`);
+      // Solo contra un límite conocido. El 15/9 este aviso se sumaba al de "agotada" con "(100% de null)": dos avisos por
+      // la misma clave, uno sin sentido.
+      if (!g.exhausted && g.limitPerDay !== null && g.pctDay !== null && g.pctDay >= warnAt) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.calls} llamadas hoy (${g.pctDay}% de ${g.limitPerDay})`);
       return g;
     })
     .sort((a, b) => a.model.localeCompare(b.model) || a.keyIndex - b.keyIndex);
@@ -207,6 +280,8 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
       failedPct,
     },
     byStep: [...steps.values()].sort((a, b) => b.calls - a.calls),
-    warnings,
+    warnings: [...new Set(warnings)],
+    coverage: { state: coverageOf(opts.dayFrom, opts.dayTo, opts.registroDesde), from: opts.registroDesde ?? null },
+    quotaResetAt: reset,
   };
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, type CatchUpStatus, type UsageSummary } from "./api";
 import { goToTab } from "./SymbolLink";
+import { corteDelDia, cuotaDiaria } from "./usoTextos";
 
 const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
 const n = (v: number) => v.toLocaleString("es-AR");
@@ -81,7 +82,7 @@ function UsagePanel({ u }: { u: UsageSummary | null }) {
   return (
     <>
       <h3 style={{ marginTop: 18 }}>Uso de fuentes externas · {u.date} <button className="ghost" style={{ marginLeft: 8, fontSize: 12, padding: "3px 8px" }} onClick={() => goToTab("uso")}>Ver pestaña Uso</button></h3>
-      <p className="muted">Cada pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo queda registrado con su paso, resultado y tiempo. Gemini: la cuota es por modelo y por clave (cada clave es un proyecto), 10 por minuto. La cuota diaria real no la publica Google y en la práctica se agotó entre 15 y 26 llamadas por modelo y clave (10 y 11 de septiembre); se reinicia a la medianoche de California, 04:00 en Buenos Aires. El costo es lo que valdría en el plan pago.</p>
+      <p className="muted">Cada pedido a Gemini, Finnhub, Alpaca, SEC o Yahoo queda registrado con su paso, resultado y tiempo. Gemini: la cuota es por modelo y por clave (cada clave es un proyecto), 10 por minuto. La cuota diaria real no la publica Google y en la práctica se agotó entre 15 y 26 llamadas por modelo y clave (10 y 11 de septiembre). {corteDelDia(u.quotaResetAt ?? null)} El costo es lo que valdría en el plan pago.</p>
       {u.warnings.length > 0 && <div className="card bad" style={{ marginTop: 6 }}>{u.warnings.map((w) => <div key={w}>⚠ {w}</div>)}</div>}
       {u.total.calls === 0 ? (
         <p className="muted">Todavía no hubo pedidos salientes hoy.</p>
@@ -105,28 +106,34 @@ function UsagePanel({ u }: { u: UsageSummary | null }) {
           {u.gemini.rows.length > 0 && (
             <>
               <p className="muted" style={{ marginBottom: 2 }}>Gemini por modelo y clave · tokens {n(u.gemini.tokensIn)} entrada / {n(u.gemini.tokensOut)} salida / {n(u.gemini.tokensThink)} pensamiento · costo equivalente {usd(u.gemini.costUsd)}{u.gemini.failedPct !== null && <span className={u.gemini.failedPct >= 20 ? " warn" : ""}> · falló {pct(u.gemini.failedPct)}</span>}</p>
+              <div style={{ overflowX: "auto" }}>
               <table>
-                <thead><tr><th>modelo</th><th>clave</th><th>llamadas</th><th>ok</th><th>por minuto</th><th>por día</th><th>saturado</th><th>validación</th><th>error</th><th>tokens entrada</th><th>salida + pensamiento</th><th>costo</th><th>cuota diaria</th></tr></thead>
+                <thead><tr><th>modelo</th><th>clave</th><th>llamadas</th><th>ok</th><th>429 minuto</th><th>429 día</th><th title="429 sin decir qué límite: no es la cuota diaria.">429 sin detalle</th><th>saturado</th><th>validación</th><th>error</th><th>tokens entrada</th><th>salida + pensamiento</th><th>costo</th><th>cuota diaria</th></tr></thead>
                 <tbody>
-                  {u.gemini.rows.map((g) => (
-                    <tr key={`${g.model}#${g.keyIndex}`}>
-                      <td className="mono">{g.model}</td>
-                      <td className="mono">{g.keyIndex}</td>
-                      <td className="mono">{n(g.calls)}</td>
-                      <td className="mono ok">{n(g.ok)}</td>
-                      <td className={g.rpm ? "warn mono" : "mono muted"}>{n(g.rpm)}</td>
-                      <td className={g.rpd ? "bad mono" : "mono muted"}>{n(g.rpd)}</td>
-                      <td className={g.saturado ? "warn mono" : "mono muted"}>{n(g.saturado)}</td>
-                      <td className={g.validacion ? "warn mono" : "mono muted"}>{n(g.validacion)}</td>
-                      <td className={g.error ? "bad mono" : "mono muted"}>{n(g.error)}</td>
-                      <td className="mono">{n(g.tokensIn)}</td>
-                      <td className="mono">{n(g.tokensOut + g.tokensThink)}</td>
-                      <td className="mono">{usd(g.costUsd)}</td>
-                      <td className={g.rpd ? "bad" : "mono muted"}>{g.rpd ? "agotada hoy" : "—"}</td>
-                    </tr>
-                  ))}
+                  {u.gemini.rows.map((g) => {
+                    const cuota = cuotaDiaria(g);
+                    return (
+                      <tr key={`${g.model}#${g.keyIndex}`}>
+                        <td className="mono">{g.model}</td>
+                        <td className="mono">{g.keyIndex}</td>
+                        <td className="mono">{n(g.calls)}</td>
+                        <td className="mono ok">{n(g.ok)}</td>
+                        <td className={g.rpm ? "warn mono" : "mono muted"}>{n(g.rpm)}</td>
+                        <td className={g.rpd ? "bad mono" : "mono muted"}>{n(g.rpd)}</td>
+                        <td className={g.limite ? "warn mono" : "mono muted"}>{n(g.limite ?? 0)}</td>
+                        <td className={g.saturado ? "warn mono" : "mono muted"}>{n(g.saturado)}</td>
+                        <td className={g.validacion ? "warn mono" : "mono muted"}>{n(g.validacion)}</td>
+                        <td className={g.error ? "bad mono" : "mono muted"}>{n(g.error)}</td>
+                        <td className="mono">{n(g.tokensIn)}</td>
+                        <td className="mono">{n(g.tokensOut + g.tokensThink)}</td>
+                        <td className="mono">{usd(g.costUsd)}</td>
+                        <td className={cuota.tono}>{cuota.texto}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+              </div>
             </>
           )}
           <p className="muted" style={{ marginBottom: 2 }}>Por paso</p>

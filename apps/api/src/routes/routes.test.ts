@@ -177,4 +177,18 @@ describe("/usage: registro de uso de fuentes externas", () => {
     expect((await (await app.request("/usage/calls?date=2099-03-04&step=cartera")).json()).calls).toHaveLength(0);
     expect((await app.request("/usage/daily?date=x")).status).toBe(400);
   });
+  it("C7 (15/9): del 10 al 13/9 no hay registro y la pestaña dibujaba ceros; el día dice desde cuándo hay datos y cuándo se reinicia la cuota", async () => {
+    const c = container();
+    const app = buildApp(c);
+    const row = (at: string) => ({ id: String(Math.random()), at, source: "finnhub", step: "radar", purpose: null, symbol: null, endpoint: "e", model: null, keyIndex: null, status: 200, result: "ok", tokensIn: null, tokensOut: null, tokensThink: null, ms: 8 });
+    await c.store.insertCalls([row("2026-09-14T03:33:52.384Z"), row("2026-09-15T15:00:00.000Z")] as never);
+    const daily = await (await app.request("/usage/daily?days=4&date=2026-09-15")).json();
+    expect(daily.map((d: { date: string; coverage: string }) => [d.date, d.coverage])).toEqual([["2026-09-12", "sin_registro"], ["2026-09-13", "sin_registro"], ["2026-09-14", "parcial"], ["2026-09-15", "completo"]]);
+    const s13 = await (await app.request("/usage?date=2026-09-13")).json();
+    expect(s13.coverage.state).toBe("sin_registro");
+    const s15 = await (await app.request("/usage?date=2026-09-15")).json();
+    expect(s15.coverage.state).toBe("completo");
+    // La cuota gratis de Gemini se reinicia a la medianoche de California: 04:00 de Buenos Aires en septiembre.
+    expect(s15.quotaResetAt).toBe("2026-09-15T07:00:00.000Z");
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KeyedRateLimiter, RateLimiter, dailyUsage, estimateCostUsd, recordingFetch, resultForStatus, sourceForHost, summarizeUsage, type UsageCall, type UsageCallInput, type UsageRecorder, type UsageResult } from "./index.js";
+import { KeyedRateLimiter, REGISTRO_USO_DESDE, RateLimiter, dailyUsage, estimateCostUsd, geminiQuotaResetWithin, recordingFetch, resultForStatus, sourceForHost, summarizeUsage, type UsageCall, type UsageCallInput, type UsageRecorder, type UsageResult } from "./index.js";
 
 function memRecorder() {
   const rows: Array<UsageCallInput & { id: string }> = [];
@@ -159,6 +159,59 @@ describe("summarizeUsage", () => {
     // La fila por fuente de Gemini no compara contra el día (la cuota es por modelo y clave).
     expect(s.bySource.find((r) => r.source === "gemini")!.pctDay).toBeNull();
     expect(s.total.costUsd).toBeGreaterThan(0);
+  });
+  /*
+   * 15/9, gemini-2.5-flash clave 1 (hora de Argentina, de `external_calls`): 429 "por día" a las 10:51, respuestas
+   * buenas a las 14:56 y a las 15:48. La tabla decía "agotada hoy" desde las 10:51 aunque la clave siguió
+   * contestando: una respuesta buena después de un 429 diario prueba que ese 429 no era la cuota agotada.
+   */
+  const g1 = (hhmmss: string, result: UsageResult) => call({ source: "gemini", model: "gemini-2.5-flash", endpoint: "gemini-2.5-flash", keyIndex: 1, at: `2026-09-15T${String(Number(hhmmss.slice(0, 2)) + 3).padStart(2, "0")}${hhmmss.slice(2)}.000Z`, result, status: result === "ok" ? 200 : 429 });
+  const real15 = [g1("10:47:18", "ok"), g1("10:51:42", "rpd"), g1("12:17:31", "rpd"), g1("14:56:10", "ok"), g1("14:56:19", "rpd"), g1("14:57:19", "rpd"), g1("15:48:51", "ok")];
+  it("C7: un 429 por día seguido de una respuesta buena no es cuota agotada (2.5-flash clave 1, 15/9)", () => {
+    const s = summarizeUsage(real15, { date: "2026-09-15" });
+    const r = s.gemini.rows[0]!;
+    expect(r.rpd).toBe(4);
+    expect(r.exhausted).toBe(false);
+    expect(r.lastRpdAt).toBe("2026-09-15T17:57:19.000Z");
+    expect(r.lastOkAt).toBe("2026-09-15T18:48:51.000Z");
+    expect(r.pctDay).toBeNull();
+    expect(s.warnings.some((w) => w.includes("agotada"))).toBe(false);
+    // Si el último 429 diario no tiene nada bueno después (15:50 y 15:51 del mismo día), sí queda agotada.
+    const despues = summarizeUsage([...real15, g1("15:50:35", "rpd"), g1("15:51:19", "rpd")], { date: "2026-09-15" }).gemini.rows[0]!;
+    expect(despues.exhausted).toBe(true);
+    expect(despues.pctDay).toBe(100);
+  });
+  it("C7: un 429 por día de antes del reinicio de Google (04:00 en Buenos Aires) es de la cuota del día anterior", () => {
+    const s = summarizeUsage([g1("02:10:00", "rpd")], { date: "2026-09-15", quotaResetAt: "2026-09-15T07:00:00.000Z" });
+    expect(s.gemini.rows[0]!.exhausted).toBe(false);
+    expect(s.quotaResetAt).toBe("2026-09-15T07:00:00.000Z");
+    expect(summarizeUsage([g1("05:10:00", "rpd")], { date: "2026-09-15", quotaResetAt: "2026-09-15T07:00:00.000Z" }).gemini.rows[0]!.exhausted).toBe(true);
+  });
+  it("C7: los avisos no se duplican ni dicen \"100% de null\" (15/9: una clave agotada daba dos avisos)", () => {
+    const s = summarizeUsage([g1("10:47:18", "ok"), g1("10:51:42", "rpd")], { date: "2026-09-15" });
+    expect(s.warnings.filter((w) => w.includes("gemini-2.5-flash clave 1"))).toHaveLength(1);
+    expect(s.warnings.some((w) => w.includes("null"))).toBe(false);
+  });
+  it("C7: la fila de Gemini trae los 429 sin detalle (`limite`), que la pantalla tiene que mostrar", () => {
+    const s = summarizeUsage([g1("12:00:00", "limite"), g1("12:01:00", "ok")], { date: "2026-09-15" });
+    expect(s.gemini.rows[0]).toMatchObject({ calls: 2, ok: 1, limite: 1, rpd: 0, exhausted: false });
+  });
+  it("C7: un día anterior al registro dice \"sin registro\", no cero (el registro empieza el 14/9 a las 00:33)", () => {
+    expect(REGISTRO_USO_DESDE).toBe("2026-09-14T03:33:52.384Z");
+    const ba = (iso: string) => new Date(new Date(iso).getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
+    const dias = dailyUsage([call({ at: "2026-09-14T12:00:00.000Z" })], ["2026-09-12", "2026-09-13", "2026-09-14", "2026-09-15"], ba, { registroDesde: REGISTRO_USO_DESDE });
+    expect(dias.map((d) => [d.date, d.coverage])).toEqual([["2026-09-12", "sin_registro"], ["2026-09-13", "sin_registro"], ["2026-09-14", "parcial"], ["2026-09-15", "completo"]]);
+    expect(dias[0]!.calls).toBe(0);
+    // El resumen del día dice lo mismo: el 13/9 no hay registro, el 14/9 hay desde las 00:33.
+    expect(summarizeUsage([], { date: "2026-09-13", dayFrom: "2026-09-13T03:00:00.000Z", dayTo: "2026-09-14T03:00:00.000Z", registroDesde: REGISTRO_USO_DESDE }).coverage).toEqual({ state: "sin_registro", from: REGISTRO_USO_DESDE });
+    expect(summarizeUsage([], { date: "2026-09-14", dayFrom: "2026-09-14T03:00:00.000Z", dayTo: "2026-09-15T03:00:00.000Z", registroDesde: REGISTRO_USO_DESDE }).coverage.state).toBe("parcial");
+    expect(summarizeUsage([], { date: "2026-09-15", dayFrom: "2026-09-15T03:00:00.000Z", dayTo: "2026-09-16T03:00:00.000Z", registroDesde: REGISTRO_USO_DESDE }).coverage.state).toBe("completo");
+    // Sin fecha de inicio (tests, llamadores viejos) no se afirma que falte nada.
+    expect(summarizeUsage([], { date: "2026-09-13" }).coverage.state).toBe("completo");
+  });
+  it("C7: el reinicio de la cuota es la medianoche de California: 04:00 en Buenos Aires con horario de verano allá, 05:00 sin él", () => {
+    expect(geminiQuotaResetWithin("2026-09-15T03:00:00.000Z", "2026-09-16T03:00:00.000Z")).toBe("2026-09-15T07:00:00.000Z");
+    expect(geminiQuotaResetWithin("2026-12-15T03:00:00.000Z", "2026-12-16T03:00:00.000Z")).toBe("2026-12-15T08:00:00.000Z");
   });
   it("sin llamadas: todo en cero y sin avisos", () => {
     const s = summarizeUsage([], { date: "2026-09-10" });
