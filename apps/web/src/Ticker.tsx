@@ -271,7 +271,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
         <div className="card">
           <b>Noticias y filings</b>
           {t.news.map((n) => <div key={n.url} style={{ marginTop: 6 }}><span className="muted mono">{n.date}</span> <a href={n.url} target="_blank" rel="noreferrer">{n.headline}</a>{n.source && <span className="muted"> · {n.source}</span>}</div>)}
-          {t.filings.length > 0 && <div style={{ marginTop: 8 }}><span className="muted">Filings SEC:</span> {t.filings.map((f) => <div key={f} className="muted mono">{f}</div>)}</div>}
+          {t.filings.length > 0 && <div style={{ marginTop: 8 }}><span className="muted">Filings SEC:</span> {/* Dos presentaciones con el mismo título (dos 6-K de TSM) se agrupan con su cantidad: repetidas no dicen más. */}{[...t.filings.reduce((m, f) => m.set(f, (m.get(f) ?? 0) + 1), new Map<string, number>())].map(([f, n]) => <div key={f} className="muted mono">{f}{n > 1 && ` (×${n})`}</div>)}</div>}
           {t.arNews.length > 0 && <div style={{ marginTop: 8 }}><span className="muted">Prensa argentina:</span> {t.arNews.map((f) => <div key={f} className="muted">{f}</div>)}</div>}
         </div>
       )}

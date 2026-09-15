@@ -77,3 +77,11 @@ describe("decideVerb con la tesis", () => {
     expect(v.verb).toBe("MANTENER");
   });
 });
+
+describe("sin doble punto (auditoría del 15/9)", () => {
+  it("HUT: el motivo de la verificación termina en punto y Hoy decía 'inciertas.. Revisá si'", () => {
+    const a = tesisAlerts({ verification: { date: "2026-09-12", verdict: "con_reservas", reason: "las ganancias futuras son inciertas." } });
+    expect(a[0]!.detail).toBe("la verificación web del 2026-09-12 tiene reservas: las ganancias futuras son inciertas");
+  });
+});
+

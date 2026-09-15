@@ -29,7 +29,7 @@ export function Novedades() {
       <Sec title="Dejan de pasar los filtros del Radar" items={n.leftBuy.map((c) => <li key={c.symbol} className="muted"><SymbolLink symbol={c.symbol} /> ahora {c.now === "fuera" ? <span title="No se degradó: dejó de entrar en el top del ranking de hoy. No es una señal de venta.">fuera del ranking</span> : c.now}</li>)} />
       <Sec title="Tesis propuestas, esperan tu decisión" items={n.proposedTheses.slice(0, 6).map((t) => <li key={t.id}><SymbolLink symbol={t.ticker} /> {t.direction} · <span title="Edge = probabilidad estimada menos la que descuenta el mercado. Es una diferencia de probabilidades, NO un rendimiento esperado.">edge {(t.edge * 100).toFixed(0)} puntos</span>{t.pMarketFromOptions === false && <span className="warn" title="No había cadena de opciones: la probabilidad del mercado la estimó el modelo, así que el edge no se midió contra el mercado."> (mercado estimado)</span>} <span className="muted">{t.summary}</span></li>)} />
       {n.proposedTheses.length > 0 && <div style={{ marginTop: 4 }}><button className="ghost" onClick={() => goToTab("proposed")}>Ver las {n.proposedTheses.length} propuestas</button></div>}
-      <Sec title="Noticias de lo tuyo (hoy y ayer)" items={n.news.map((x) => <li key={x.url}><SymbolLink symbol={x.symbol} /> <a href={x.url} target="_blank" rel="noreferrer">{x.headline}</a>{x.source && <span className="muted"> · {x.source}</span>}</li>)} />
+      <Sec title="Noticias de lo tuyo (hoy y ayer)" items={n.news.map((x) => <li key={`${x.symbol}|${x.url}`}><SymbolLink symbol={x.symbol} /> <a href={x.url} target="_blank" rel="noreferrer">{x.headline}</a>{x.source && <span className="muted"> · {x.source}</span>}</li>)} />
     </div>
   );
 }

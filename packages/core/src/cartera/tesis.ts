@@ -52,17 +52,20 @@ export interface TesisAlert {
   detail: string;
 }
 
+/** Sin el punto final: la frase se arma con otras y terminaba en "inciertas.. Revisá si" (Hoy, 15/9). */
+const sinPunto = (s: string) => s.trim().replace(/[.\s]+$/, "");
+
 export function tesisAlerts(i: TesisInput): TesisAlert[] {
   const out: TesisAlert[] = [];
 
   if (i.verification?.verdict === "evitar") {
-    out.push({ kind: "verificacion_evitar", detail: `la verificación web del ${i.verification.date} dice evitar: ${i.verification.reason}` });
+    out.push({ kind: "verificacion_evitar", detail: `la verificación web del ${i.verification.date} dice evitar: ${sinPunto(i.verification.reason)}` });
   } else if (i.verification?.verdict === "con_reservas") {
-    out.push({ kind: "verificacion_reservas", detail: `la verificación web del ${i.verification.date} tiene reservas: ${i.verification.reason}` });
+    out.push({ kind: "verificacion_reservas", detail: `la verificación web del ${i.verification.date} tiene reservas: ${sinPunto(i.verification.reason)}` });
   }
 
   const grave = (i.events ?? []).find((e) => e.severity === "grave");
-  if (grave) out.push({ kind: "evento_grave", detail: `evento grave del ${grave.date} (${grave.kind}): ${grave.headline}` });
+  if (grave) out.push({ kind: "evento_grave", detail: `evento grave del ${grave.date} (${grave.kind}): ${sinPunto(grave.headline)}` });
 
   const salvedades = (i.qualityFlags ?? []).length;
   if (salvedades >= TESIS_QUALITY_AT) {
