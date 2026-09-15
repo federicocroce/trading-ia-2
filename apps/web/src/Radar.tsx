@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { controlesBloquean, instruccionRadar, planStatusFor } from "./instruccion";
+import { controlesBloquean, instruccionRadar, planLoCompra, planStatusFor } from "./instruccion";
+import { baseCandidata, baseLinea, pctDesde, qtyLinea, riesgoLinea, tramoLinea, type Base } from "./orden";
 import { InstruccionChip, RadarVerdict, invalidatePlan } from "./plan";
 import { api, isHistorical, type ArgentinaData, type Candidate, type PlanChange, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type GrupoMedicion, type Horizonte, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
 import { TagChips, TagEditor } from "./Tags";
@@ -14,7 +15,21 @@ import { PeersTable } from "./Peers";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(1)}%`);
-const money = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `$${Math.round(n).toLocaleString("en-US")}`);
+// Un solo formato de plata en toda la app (15/9: "$40,000" acá y "USD 24.000" en el veredicto).
+const money = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `USD ${Math.round(n).toLocaleString("es-AR")}`);
+/** "2026-09-15" → "15/9". */
+const dm = (iso: string | null | undefined) => (iso ? `${Number(iso.slice(8, 10))}/${Number(iso.slice(5, 7))}` : "—");
+/** Fecha local (Argentina) de un instante UTC: `builtAt.slice(0, 10)` daba el día siguiente después de las 21. */
+const fechaLocal = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+/** % desde la base, con la base en el title: el número y su referencia van juntos (15/9). */
+function PctDesde({ valor, base }: { valor: number | null | undefined; base: Base }) {
+  const v = pctDesde(valor, base);
+  return v === null ? null : <span className="muted" title={base.label}> {pct(v)}</span>;
+}
+
+/** Lo que ya tenés, para medir desde la posición y no como una compra nueva (15/9). */
+interface Tenencias { tiene: (s: string) => boolean; objetivo: (s: string) => number | null; peso: (s: string) => number | null }
+const SIN_TENENCIAS: Tenencias = { tiene: () => false, objetivo: () => null, peso: () => null };
 const AXIS_LABEL: Record<string, string> = { valuation: "valuación", quality: "calidad", growth: "crecimiento", balance: "balance", rs3m: "FR 3m", rs6m: "FR 6m", rs12m: "FR 12m", distSma200Pct: "vs SMA200", atrPct: "ATR%" };
 
 /** Sub-pestañas del Radar, cada una con su URL (`?tab=radar&sub=etfs`). */
@@ -53,11 +68,17 @@ export function Radar() {
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
+  const [ten, setTen] = useState<Tenencias>(SIN_TENENCIAS);
 
   const load = useCallback(async () => {
     const q: Record<string, string> = {};
     for (const [k, v] of Object.entries(filter)) if (v) q[k] = v;
-    const [c, p, m, s, o, t, a, w] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options(), api.radar.top(5), api.radar.argentina(), api.radar.watchlist()]);
+    const [c, p, m, s, o, t, a, w, pos, ver, risk] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options(), api.radar.top(5), api.radar.argentina(), api.radar.watchlist(), api.cartera.positions().catch(() => []), api.cartera.verdicts().catch(() => []), api.cartera.risk().catch(() => null)]);
+    // Lo que ya tenés se mide desde la posición: su objetivo es el de Cartera, y el tamaño de una compra nueva no aplica.
+    const tenidas = new Set(pos.map((x) => x.symbol.toUpperCase()));
+    const objetivos = new Map(ver.map((v) => [v.symbol.toUpperCase(), v.target]));
+    const pesos = new Map((risk?.report.weights ?? []).map((x) => [x.symbol.toUpperCase(), x.weightPct]));
+    setTen({ tiene: (x) => tenidas.has(x.toUpperCase()), objetivo: (x) => objetivos.get(x.toUpperCase()) ?? null, peso: (x) => pesos.get(x.toUpperCase()) ?? null });
     setCands(c);
     setPlan(p);
     setTop(t);
@@ -145,7 +166,7 @@ export function Radar() {
           <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="score" /><Th k="rank" /><Th k="precio" /><Th k="entrada" /><Th k="stop" /><Th k="objetivo" /><Th k="tamano" /><Th k="riesgo" /><Th k="etiquetas" /><th></th></tr></thead>
           <tbody>
             {stocks.map((c) => (
-              <CandRow key={c.symbol} c={c} plan={plan} open={open === c.symbol} onToggle={() => setOpen(open === c.symbol ? null : c.symbol)} editing={editing === c.symbol} onEdit={() => setEditing(editing === c.symbol ? null : c.symbol)} onSaved={load} />
+              <CandRow key={c.symbol} c={c} plan={plan} ten={ten} open={open === c.symbol} onToggle={() => setOpen(open === c.symbol ? null : c.symbol)} editing={editing === c.symbol} onEdit={() => setEditing(editing === c.symbol ? null : c.symbol)} onSaved={load} />
             ))}
             {!stocks.length && <tr><td colSpan={12} className="muted">Sin acciones candidatas para este filtro.</td></tr>}
           </tbody>
@@ -166,9 +187,9 @@ export function Radar() {
                     COMPRAR con precio 110,91 y objetivo 110,69, o sea un objetivo DEBAJO del precio. No
                     estaba mal calculado: el objetivo se mide desde la franja de compra (106,75–107,83), a la
                     que hay que esperar. Sin la franja a la vista, el 2 a 1 parecía un error de la app. */}
-                <td><EntryCell e={c.entry} fallback={c.verdict === "NUCLEO" ? <span className="muted">a mercado</span> : <span className="muted">—</span>} /></td>
-                <td className="mono">{f2(c.stop)}</td>
-                <td className="mono">{f2(c.target)}{c.target !== null && c.entry && <span className="muted"> {pct(((c.target - (c.entry.high ?? c.close)) / (c.entry.high ?? c.close)) * 100)} desde la entrada</span>}</td>
+                <td><EntryCell e={c.entry} enPlan={planLoCompra(c.symbol, plan)} fallback={c.verdict === "NUCLEO" ? <span className="muted">a mercado</span> : <span className="muted">—</span>} /></td>
+                <td className="mono">{f2(c.stop)}<PctDesde valor={c.stop} base={baseCandidata(c, ten.tiene(c.symbol))} /></td>
+                <td className="mono">{f2(c.target)}<PctDesde valor={c.target} base={baseCandidata(c, ten.tiene(c.symbol))} /></td>
                 <td><TagChips tags={c.tags} /></td>
                 <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} />}</td>
               </tr>
@@ -176,14 +197,38 @@ export function Radar() {
           </tbody>
         </table>
       </div>}
-      {sub === "seguimiento" && watch && <WatchCard w={watch} plan={plan} setWatch={setWatch} editing={editing} setEditing={setEditing} reload={load} />}
-      {sub === "argentina" && ar && <ArgentinaCard d={ar} plan={plan} editing={editing} setEditing={setEditing} reload={load} />}
+      {sub === "seguimiento" && watch && <WatchCard w={watch} plan={plan} ten={ten} setWatch={setWatch} editing={editing} setEditing={setEditing} reload={load} />}
+      {sub === "argentina" && ar && <ArgentinaCard d={ar} plan={plan} ten={ten} editing={editing} setEditing={setEditing} reload={load} />}
       {sub === "medicion" && meas && <MeasCard m={meas} />}
     </>
   );
 }
 
-function CandRow({ c, plan, open, onToggle, editing, onEdit, onSaved }: { c: Candidate; plan: ContributionPlan | null; open: boolean; onToggle: () => void; editing: boolean; onEdit: () => void; onSaved: () => Promise<void> }) {
+/**
+ * Stop, objetivo y tamaño de una fila del Radar, con una sola base (15/9). Sin posición: desde el techo de la franja,
+ * lo máximo que se paga. Con posición: desde el precio de hoy, el objetivo de una compra nueva se rotula "si sumás" y
+ * al lado va el de tu posición (PAM: 84,61 en el Radar contra 96,19 en Cartera, sin decir que eran cosas distintas).
+ */
+function NivelesFila({ c, ten }: { c: Candidate; ten: Tenencias }) {
+  const tenida = ten.tiene(c.symbol);
+  const base = baseCandidata(c, tenida);
+  const suyo = tenida ? ten.objetivo(c.symbol) : null;
+  const peso = tenida ? ten.peso(c.symbol) : null;
+  return (
+    <>
+      <td className="mono">{f2(c.stop)}<PctDesde valor={c.stop} base={base} /></td>
+      <td className="mono">
+        {f2(c.target)}<PctDesde valor={c.target} base={base} />
+        {tenida && <div className="muted" style={{ fontSize: 11 }} title="El objetivo de la fila es el de una compra nueva desde la franja. El de lo que ya tenés es el de tu posición, en Cartera.">si sumás desde {f2(c.entryHigh ?? c.close)}{suyo !== null && <> · tu posición: {f2(suyo)}</>}</div>}
+      </td>
+      <td className="mono" title={tenida ? "Ya la tenés: el tamaño de una posición nueva no aplica. Cuánto sumar lo decide el plan, con el tope del 15% de la cartera por posición." : c.sizeQty && c.entryHigh ? `${c.sizeQty} acciones × ${f2(c.entryHigh)} (el techo de la franja de compra, que es lo que vas a pagar) = ${money(c.sizeUsd)}. Con el precio de hoy la cuenta no cierra, y por eso el precio va acá al lado.` : undefined}>
+        {tenida ? <span className="muted">ya la tenés{peso !== null && ` (${peso.toFixed(1)}% de la cartera)`}</span> : <>{c.sizeQty ?? "—"} · {money(c.sizeUsd)}{c.sizeQty !== null && c.entryHigh !== null && <span className="muted"> a {f2(c.entryHigh)}</span>}</>}
+      </td>
+    </>
+  );
+}
+
+function CandRow({ c, plan, ten, open, onToggle, editing, onEdit, onSaved }: { c: Candidate; plan: ContributionPlan | null; ten: Tenencias; open: boolean; onToggle: () => void; editing: boolean; onEdit: () => void; onSaved: () => Promise<void> }) {
   const [detail, setDetail] = useState<CandidateDetail | null>(null);
   useEffect(() => {
     if (open && !detail) api.radar.candidate(c.symbol).then(setDetail).catch(() => null);
@@ -197,11 +242,9 @@ function CandRow({ c, plan, open, onToggle, editing, onEdit, onSaved }: { c: Can
         <td className="mono">{f2(c.score)}</td>
         <td className="mono">{c.rankInGroup ?? "—"}/{c.groupSize ?? "—"}</td>
         <td className="mono">{f2(c.close)}</td>
-        <td><EntryCell e={c.entry} fallback={<span className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</span>} /></td>
-        <td className="mono">{f2(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
-        {/* El % sale del techo de la franja, igual que el objetivo, y va apagado: es 2× el riesgo, no un pronóstico. */}
-        <td className="mono">{f2(c.target)}{c.target !== null && <span className="muted"> {pct(((c.target - (c.entryHigh ?? c.close)) / (c.entryHigh ?? c.close)) * 100)}</span>}</td>
-        <td className="mono" title={c.sizeQty && c.entryHigh ? `${c.sizeQty} acciones × ${f2(c.entryHigh)} (el techo de la franja de compra, que es lo que vas a pagar) = ${money(c.sizeUsd)}. Con el precio de hoy la cuenta no cierra, y por eso el precio va acá al lado.` : undefined}>{c.sizeQty ?? "—"} · {money(c.sizeUsd)}{c.sizeQty !== null && c.entryHigh !== null && <span className="muted"> a {f2(c.entryHigh)}</span>}</td>
+        <td><EntryCell e={c.entry} enPlan={planLoCompra(c.symbol, plan)} fallback={<span className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</span>} /></td>
+        {/* Stop y objetivo desde la misma base, y apagados: el objetivo es 2× el riesgo, no un pronóstico. */}
+        <NivelesFila c={c} ten={ten} />
         <td className="mono">{c.riskScore ?? "—"}/10</td>
         <td><TagChips tags={c.tags} /></td>
         <td style={{ whiteSpace: "nowrap" }}><button className="ghost" onClick={onToggle}>{open ? "Cerrar" : "Ver"}</button> <button className="ghost" onClick={onEdit}>Etiquetas</button></td>
@@ -250,7 +293,7 @@ const delta = (cur: number | null, prev: number | null | undefined) => (cur !== 
 const CEDEAR_FLAG: Record<string, string> = { en_linea: "en línea", caro_vs_ccl: "caro vs CCL", barato_vs_ccl: "barato vs CCL", ratio_dudoso: "ratio dudoso" };
 
 /** Lista de seguimiento: tickers elegidos a mano con las mismas reglas que un candidato. */
-function WatchCard({ w, plan, setWatch, editing, setEditing, reload }: { w: Watchlist; plan: ContributionPlan | null; setWatch: (w: Watchlist) => void; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
+function WatchCard({ w, plan, ten, setWatch, editing, setEditing, reload }: { w: Watchlist; plan: ContributionPlan | null; ten: Tenencias; setWatch: (w: Watchlist) => void; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
   const [err, setErr] = useState<string | null>(null);
   const rows = [...w.rows].sort((a, b) => (a.verdict === b.verdict ? (b.score ?? -Infinity) - (a.score ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
   const rowFor = new Map(rows.map((r) => [r.symbol, r]));
@@ -266,21 +309,20 @@ function WatchCard({ w, plan, setWatch, editing, setEditing, reload }: { w: Watc
         <div style={{ width: 340 }}><SymbolSearch existing={new Set(w.items.map((i) => i.symbol))} onAdd={async (s) => { setErr(null); try { setWatch(await api.radar.addWatch(s)); window.dispatchEvent(new Event("watchlist:changed")); } catch (e) { setErr(String(e)); } }} /></div>
       </div>
       {err && <div className="err">{err}</div>}
-      {withoutRow.length > 0 && <div className="muted" style={{ marginTop: 6 }}>Sin datos todavía: {withoutRow.join(", ")} (se completan en el próximo refresco).</div>}
+      {withoutRow.length > 0 && <div className="muted" style={{ marginTop: 6 }}>Sin fila del Radar todavía: {withoutRow.join(", ")} (se completan en el próximo refresco de seguimiento).</div>}
       <table style={{ marginTop: 8 }}>
         <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="score" /><Th k="rank" /><Th k="precio" /><Th k="entrada" /><Th k="stop" /><Th k="objetivo" /><Th k="tamano" /><Th k="riesgo" /><Th k="etiquetas" /><th></th></tr></thead>
         <tbody>
           {rows.map((c) => (
             <tr key={c.symbol}>
-              <td><SymbolLink symbol={c.symbol} />{c.nthAppearance > 1 && <span className="muted"> ×{c.nthAppearance}</span>}</td>
+              {/* Lo que seguís y ya está en el ranking trae la fila del ranking (15/9): se dice, porque no es una fila de seguimiento. */}
+              <td><SymbolLink symbol={c.symbol} />{c.nthAppearance > 1 && <span className="muted"> ×{c.nthAppearance}</span>}{c.kind !== "watch" && <div className="muted" style={{ fontSize: 11 }} title="Este símbolo también está en el ranking del Radar: se muestra su fila de ahí, con el mismo veredicto y los mismos niveles.">del ranking</div>}</td>
               <td style={{ maxWidth: 320 }}><RadarVerdict symbol={c.symbol} verdict={c.verdict} plan={plan} /> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
               <td className="mono">{c.score === null ? <span className="muted" title="No está en el universo del Radar (o no pasó el quality bar): sin rank contra pares.">—</span> : f2(c.score)}</td>
               <td className="mono">{c.rankInGroup !== null ? `${c.rankInGroup}/${c.groupSize}` : "—"}</td>
               <td className="mono">{f2(c.close)}</td>
-              <td><EntryCell e={c.entry} fallback={c.entryLow !== null ? <span className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</span> : <span className="muted">—</span>} /></td>
-              <td className="mono">{f2(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
-              <td className="mono">{f2(c.target)}{c.target !== null && <span className="muted"> {pct(((c.target - (c.entryHigh ?? c.close)) / (c.entryHigh ?? c.close)) * 100)}</span>}</td>
-              <td className="mono">{c.sizeQty ?? "—"}{c.sizeUsd !== null && <span className="muted"> · {money(c.sizeUsd)}{c.entryHigh !== null && ` a ${f2(c.entryHigh)}`}</span>}</td>
+              <td><EntryCell e={c.entry} enPlan={planLoCompra(c.symbol, plan)} fallback={c.entryLow !== null ? <span className="mono">{f2(c.entryLow)}–{f2(c.entryHigh)}</span> : <span className="muted">—</span>} /></td>
+              <NivelesFila c={c} ten={ten} />
               <td className="mono">{c.riskScore !== null ? `${c.riskScore}/10` : "—"}</td>
               <td><TagChips tags={c.tags} /></td>
               <td className="row" style={{ gap: 4 }}>
@@ -298,7 +340,7 @@ function WatchCard({ w, plan, setWatch, editing, setEditing, reload }: { w: Watc
 }
 
 /** Argentina (etapa 3): macro del día, acciones de BYMA contra el Merval y CEDEARs contra el CCL. */
-function ArgentinaCard({ d, plan, editing, setEditing, reload }: { d: ArgentinaData; plan: ContributionPlan | null; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
+function ArgentinaCard({ d, plan, ten, editing, setEditing, reload }: { d: ArgentinaData; plan: ContributionPlan | null; ten: Tenencias; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
   const m = d.macro;
   // El anterior es el más reciente ESTRICTAMENTE anterior a la fecha del macro que se está mirando, no "el
   // penúltimo de la lista". En modo histórico el penúltimo podía ser posterior a la fecha vista, y aun en
@@ -357,9 +399,9 @@ function ArgentinaCard({ d, plan, editing, setEditing, reload }: { d: ArgentinaD
                 ? <td colSpan={4} className="muted" style={{ fontSize: 12 }} title="Este ADR también está en el ranking de acciones de EE.UU., que lo evalúa con fundamentals contra pares además de la tendencia. Esa evaluación es más completa y es la que se muestra.">del ranking de acciones: score {f2(c.score)} · {c.rankInGroup ?? "—"} de {c.groupSize ?? "—"} entre pares</td>
                 : <><td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td></>}
               <td className="mono">{f2(c.close)}</td>
-              <td><EntryCell e={c.entry} fallback={<span className="muted">—</span>} /></td>
-              <td className="mono">{f2(c.stop)}</td>
-              <td className="mono">{f2(c.target)}</td>
+              <td><EntryCell e={c.entry} enPlan={c.kind === "stock" && planLoCompra(c.symbol, plan)} fallback={<span className="muted">—</span>} /></td>
+              <td className="mono">{f2(c.stop)}<PctDesde valor={c.stop} base={baseCandidata(c, ten.tiene(c.symbol))} /></td>
+              <td className="mono">{f2(c.target)}<PctDesde valor={c.target} base={baseCandidata(c, ten.tiene(c.symbol))} /></td>
               <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void reload(); }} onCancel={() => setEditing(null)} />}</td>
             </tr>
           ))}
@@ -371,7 +413,7 @@ function ArgentinaCard({ d, plan, editing, setEditing, reload }: { d: ArgentinaD
         <summary style={{ cursor: "pointer" }}><b>Solo en pesos</b> <span className="muted">({acciones.length} acciones de BYMA sin ADR y {d.cedears.length} CEDEARs): para comprarlas necesitás pesos y un broker argentino</span></summary>
       <div style={{ marginTop: 12 }}><b>Acciones de BYMA sin ADR</b> <span className="muted">({acciones.length}) contra el Merval, en pesos: no tienen versión en Nueva York</span></div>
       <table style={{ marginTop: 6 }}>
-        <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3m">FR 3m</Th><Th k="frMerval">FR 6m</Th><Th k="fr12m">FR 12m</Th><Th k="sma200" /><Th k="precioArs" /><Th k="precioUsd" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
+        <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3mMerval">FR 3m</Th><Th k="frMerval">FR 6m</Th><Th k="fr12mMerval">FR 12m</Th><Th k="sma200" /><Th k="precioArs" /><Th k="precioUsd" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
         <tbody>
           {acciones.map((c) => (
             <tr key={c.symbol}>
@@ -381,7 +423,8 @@ function ArgentinaCard({ d, plan, editing, setEditing, reload }: { d: ArgentinaD
               <td className="mono" title={c.axes["velaDias"] ? `Cierre de una rueda ${c.axes["velaDias"]} día(s) anterior a la corrida del ${c.candidateDate}.` : undefined}>{ars(c.close)}{!!c.axes["velaDias"] && c.axes["velaDias"]! > 1 && <span className="muted"> ·{c.axes["velaDias"]}d</span>}</td>
               <td className="mono" title={c.axes["ccl"] ? `Convertido al CCL ${c.axes["ccl"]!.toFixed(2)} de la corrida del ${c.candidateDate}, que puede no ser el CCL de arriba.` : undefined}>{c.axes["closeUsd"] !== null && c.axes["closeUsd"] !== undefined ? `US$ ${c.axes["closeUsd"].toFixed(2)}` : "—"}{c.axes["ccl"] ? <span className="muted"> @{c.axes["ccl"]!.toFixed(0)}</span> : null}</td>
               <td className="mono">{ars(c.stop)}{c.stop !== null && <span className="muted"> {pct(((c.stop - c.close) / c.close) * 100)}</span>}</td>
-              <td className="mono">{ars(c.target)}{c.target !== null && <span className={c.target > c.close ? "ok" : "bad"}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
+              {/* Apagado como en el resto del Radar: el objetivo es 2× el riesgo, no un pronóstico (15/9: iba en verde). */}
+              <td className="mono">{ars(c.target)}{c.target !== null && <span className="muted" title={`desde el cierre (${ars(c.close)}): el plan en dólares no compra papeles en pesos, así que no hay franja de compra`}> {pct(((c.target - c.close) / c.close) * 100)}</span>}</td>
               <td><TagChips tags={c.tags} /></td>
               <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void reload(); }} onCancel={() => setEditing(null)} />}</td>
             </tr>
@@ -423,8 +466,8 @@ type PlanSort = "prioridad" | "conviccion" | "objetivo";
 // "objetivo" ordena por el doble de la distancia al stop: el nombre lo dice para que nadie lo lea como ganancia.
 const PLAN_SORT_LABEL: Record<PlanSort, string> = { prioridad: "prioridad de compra", conviccion: "convicción", objetivo: "distancia al stop (no es ganancia)" };
 const readPlanSort = (): PlanSort => { try { const v = localStorage.getItem("plan.sort"); return v === "conviccion" || v === "objetivo" ? v : "prioridad"; } catch { return "prioridad"; } };
-// Desde el techo de la franja, el mismo precio desde el que se calcula el objetivo (13/9); sin franja, desde el cierre.
-const gainPct = (l: PlanLine) => { const base = l.entryHigh ?? l.close; return l.target && base ? (l.target / base - 1) * 100 : null; };
+// Desde la base de la orden, la misma de la cantidad y el stop (15/9).
+const gainPct = (l: PlanLine) => pctDesde(l.target, baseLinea(l));
 function sortPlanLines(lines: PlanLine[], sort: PlanSort): PlanLine[] {
   if (sort === "prioridad") return lines;
   const KIND_ORDER: Record<PlanLine["kind"], number> = { comprar: 0, seguimiento: 1, sumar: 2, nucleo: 3 };
@@ -466,7 +509,16 @@ function ControlesDelPlan({ p }: { p: ContributionPlan }) {
       </div>
     );
   }
-  return <div className="muted" style={{ marginTop: 6, fontSize: 12 }} title="Después de cada corrida y de cada rearmado corren solos la auditoría de pantallas y la consistencia de filas. Con un error grave, el plan no se ejecuta.">✓ Controles automáticos al día ({horaLocal(k!.at)}): sin errores graves{k!.avisos ? ` · ${k!.avisos} avisos` : ""}.</div>;
+  const avisos = k!.findings.filter((f) => f.severity === "aviso");
+  const titulo = "Después de cada corrida y de cada rearmado corren solos la auditoría de pantallas y la consistencia de filas. Con un error grave, el plan no se ejecuta.";
+  // Los avisos se dicen cuáles son (15/9: "2 avisos" sin decir de qué).
+  if (!avisos.length) return <div className="muted" style={{ marginTop: 6, fontSize: 12 }} title={titulo}>✓ Controles automáticos al día ({horaLocal(k!.at)}): sin errores graves.</div>;
+  return (
+    <details className="muted" style={{ marginTop: 6, fontSize: 12 }} title={titulo}>
+      <summary style={{ cursor: "pointer" }}>✓ Controles automáticos al día ({horaLocal(k!.at)}): sin errores graves · {avisos.length === 1 ? "1 aviso" : `${avisos.length} avisos`} (no frenan el plan)</summary>
+      <ul style={{ margin: "4px 0 0 18px" }}>{avisos.map((f, i) => <li key={i}><span className="mono">{f.check}</span>{f.symbol ? ` ${f.symbol}` : ""}: {f.detail}</li>)}</ul>
+    </details>
+  );
 }
 
 const QUE_CAMBIO: Record<PlanChange["change"], string> = { entra: "entra", sale: "sale", monto: "cambia" };
@@ -508,18 +560,23 @@ function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; t
   const [why, setWhy] = useState<string | null>(null);
   const changeSort = (s: PlanSort) => { setSort(s); try { localStorage.setItem("plan.sort", s); } catch { /* sin almacenamiento: no pasa nada */ } };
   const lines = sortPlanLines(p.lines, sort);
-  const qty = (l: PlanLine) => (l.close ? Math.floor(l.amountUsd / l.close) : null);
-  const risk = p.lines.reduce((s, l) => s + (l.stop && l.close && l.stop < l.close ? (qty(l) ?? 0) * (l.close - l.stop) : 0), 0);
+  // Cantidad, riesgo y primer tramo contra la base de la orden, la misma del stop y el objetivo (15/9).
+  const risk = p.lines.reduce((s, l) => s + riesgoLinea(l), 0);
+  const tramos = p.tranches ?? 1;
   const pickOf = new Map((top?.picks ?? []).map((x) => [x.symbol, x]));
-  // Las notas que cambian QUÉ hacer o CUÁNDO van arriba de la tabla; las informativas, abajo.
-  const esInstruccion = (n: string) => /^La Fed decide|lugar(es)? de posiciones nuevas|^No se sumó|^Hoy se ejecutan/.test(n);
-  // Con el plan que se rearma solo después de cada corrida esto no debería pasar; si pasa, se dice.
-  const viejo = p.builtAt && radarDate ? p.builtAt.slice(0, 10) < radarDate : false;
+  // Las notas que cambian QUÉ hacer o CUÁNDO van arriba de la tabla; las informativas, abajo. Los tramos también: dicen
+  // cuánto se compra el primer día.
+  const esInstruccion = (n: string) => /^La Fed decide|lugar(es)? de posiciones nuevas|^No se sumó|^Hoy se ejecutan|tramos:/.test(n);
+  // Con el plan que se rearma solo después de cada corrida esto no debería pasar; si pasa, se dice. En fecha local.
+  const armado = p.builtAt ? fechaLocal(p.builtAt) : null;
+  const viejo = armado && radarDate ? armado < radarDate : false;
+  // De qué rueda son los precios (15/9: "candidatos del 15/9" con cierres del 14/9).
+  const ruedas = [...new Set(p.lines.map((l) => l.closeDate).filter((d): d is string => !!d))].sort();
   return (
     <div className="card" style={{ overflowX: "auto" }}>
       <div className="row">
         {/* La fecha de armado dice de cuándo es lo que se está mirando (13/9: "¿es el mismo plan que ayer?"). */}
-        <b style={{ fontSize: 16 }}>Qué comprar hoy</b> <span className="muted">plan de {money(p.totalUsd)}{p.builtAt && ` · armado el ${horaLocal(p.builtAt)}`}</span>
+        <b style={{ fontSize: 16 }}>Qué comprar hoy</b> <span className="muted">plan de {money(p.totalUsd)}{p.builtAt && ` · armado el ${horaLocal(p.builtAt)}`}{ruedas.length > 0 && ` · precios al cierre del ${ruedas.map(dm).join(" y ")}`}{tramos > 1 && ` · en ${tramos} tramos`}</span>
         <div style={{ flex: 1 }} />
         <span className="muted">Ordenar por</span>
         <select value={sort} onChange={(e) => changeSort(e.target.value as PlanSort)} title="Prioridad de compra: el orden en que el sistema asigna la plata (núcleo, sumar, nuevas por convicción, seguimiento). % al objetivo: ojo, es dos veces la distancia al stop, así que ordena por volatilidad.">
@@ -533,23 +590,23 @@ function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; t
       <CambiosDelPlan p={p} />
       {p.notes.filter(esInstruccion).map((n) => <div key={n} className="warn" style={{ marginTop: 6 }}>{n}</div>)}
       <table style={{ marginTop: 8 }}>
-        <thead><tr><Th k="simbolo" /><th>qué hacer</th><th>monto</th><Th k="cantidad" /><Th k="precio" /><Th k="cuandoEntrar" /><Th k="stopPlan" /><Th k="objetivoPlan" /><th>por qué</th><Th k="alpha30" /><Th k="alpha90" /></tr></thead>
+        <thead><tr><Th k="simbolo" /><th>qué hacer</th><th title={tramos > 1 ? "Total de la línea y, debajo, lo que se compra en el primer tramo." : undefined}>monto</th><Th k="cantidad" /><Th k="precio" /><Th k="cuandoEntrar" /><Th k="stopPlan" /><Th k="objetivoPlan" /><th>por qué</th><Th k="alpha30" /><Th k="alpha90" /></tr></thead>
         <tbody>
           {lines.map((l) => (
             <Fragment key={`${l.kind}:${l.symbol}`}>
             <tr>
               <td><SymbolLink symbol={l.symbol} /></td>
               <td><InstruccionChip ins={instruccionRadar(l.kind === "nucleo" ? "NUCLEO" : "COMPRAR", planStatusFor(l.symbol, p))} detail={false} /></td>
-              <td className="mono">{money(l.amountUsd)}</td>
-              <td className="mono">{qty(l) ?? "—"}</td>
-              <td className="mono">{f2(l.close)}</td>
+              <td className="mono">{money(l.amountUsd)}{(() => { const t = tramoLinea(l, tramos); return t ? <div className="muted" style={{ fontSize: 11 }} title={`Primer tramo de ${tramos}: ${money(t.usd)}${t.qty !== null ? `, ${t.qty} a ${f2(baseLinea(l).price)}` : ""}. Los otros, con dos o tres semanas entre cada uno.`}>1er tramo {money(t.usd)}</div> : null; })()}</td>
+              <td className="mono" title={`Contada ${baseLinea(l).label}.`}>{qtyLinea(l) ?? "—"}<span className="muted"> a {f2(baseLinea(l).price)}</span>{(() => { const t = tramoLinea(l, tramos); return t && t.qty !== null ? <div className="muted" style={{ fontSize: 11 }}>1er tramo {t.qty}</div> : null; })()}</td>
+              <td className="mono" title={l.closeDate ? `cierre del ${dm(l.closeDate)}` : undefined}>{f2(l.close)}</td>
               <td>
-                <EntryCell e={l.entry} fallback={l.entryHigh ? <span className="mono">hasta {f2(l.entryHigh)}</span> : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted" title="El núcleo se compra al precio que esté: es aporte periódico, no una operación.">a mercado</span> : <span className="muted">—</span>} />
+                <EntryCell e={l.entry} enPlan={planLoCompra(l.symbol, p)} fallback={l.entryHigh ? <span className="mono">hasta {f2(l.entryHigh)}</span> : l.kind === "nucleo" || l.kind === "sumar" ? <span className="muted" title="El núcleo se compra al precio que esté: es aporte periódico, no una operación.">a mercado</span> : <span className="muted">—</span>} />
                 {/* 14/9: APH cayó a 0,3 ATR del stop de su orden durante la rueda. Más abajo de este precio, el stop
                     queda dentro del ruido de un día: la orden espera a la corrida siguiente, que la rearma. */}
                 {l.minPrice ? <div className="warn" style={{ fontSize: 11 }} title="Si el precio está por debajo, no ejecutes: el stop quedaría a menos de 1 ATR y una rueda normal lo tocaría. Esperá a la corrida siguiente, que rearma la orden con el cierre nuevo.">no por debajo de <span className="mono">{f2(l.minPrice)}</span></div> : null}
               </td>
-              <td className="mono">{l.stop ? <>{f2(l.stop)}{l.close && <span className="muted"> {pct(((l.stop - l.close) / l.close) * 100)}</span>}</> : l.kind === "nucleo" ? <span className="muted" title="El núcleo no se vende por stop: se compra y se mantiene. Es la base de la cartera, no una apuesta.">sin stop</span> : "—"}</td>
+              <td className="mono">{l.stop ? <>{f2(l.stop)}<PctDesde valor={l.stop} base={baseLinea(l)} /></> : l.kind === "nucleo" ? <span className="muted" title="El núcleo no se vende por stop: se compra y se mantiene. Es la base de la cartera, no una apuesta.">sin stop</span> : "—"}</td>
               {/* El objetivo no es una ganancia esperada: es el doble de la distancia al stop, así que sigue a la
                   volatilidad y no a la empresa. Se muestra sin el % en verde, que se leía como pronóstico, y al
                   lado va el retorno real de 12 meses, que sí dice algo de la empresa. */}
@@ -563,7 +620,8 @@ function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; t
                   </>
                 ) : "—"}
                 {l.ret12mPct !== null && l.ret12mPct !== undefined && (
-                  <div className={l.ret12mPct >= 0 ? "ok" : "bad"} style={{ fontSize: 11 }} title="Retorno de los últimos 12 meses con dividendos. Es lo que pasó, no lo que va a pasar, pero al menos habla de la empresa.">{pct(l.ret12mPct)} 12 m</div>
+                  // Apagado (15/9): en verde o rojo se leía como una señal, y es lo que ya pasó.
+                  <div className="muted" style={{ fontSize: 11 }} title="Retorno de los últimos 12 meses con dividendos. Es lo que pasó, no lo que va a pasar, pero al menos habla de la empresa.">{pct(l.ret12mPct)} en 12 meses</div>
                 )}
               </td>
               <td>{l.rationale}{pickOf.has(l.symbol) && <> <button className="ghost" style={{ fontSize: 11 }} onClick={() => setWhy(why === l.symbol ? null : l.symbol)}>{why === l.symbol ? "cerrar" : "ver por qué"}</button></>}</td>
@@ -587,12 +645,12 @@ function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; t
       </table>
       {viejo && (
         <div className="warn" style={{ marginTop: 6 }}>
-          Este plan se armó el {p.builtAt!.slice(0, 10)} y el Radar ya tiene una corrida del {radarDate}. Se rearma solo después de cada corrida;
+          Este plan se armó el {dm(armado)} y el Radar ya tiene una corrida del {dm(radarDate)}. Se rearma solo después de cada corrida;
           si ves esto, la última no llegó a rearmarlo. Apretá "Armar plan con este monto" antes de comprar.
         </div>
       )}
-      {sort === "objetivo" && <div className="warn" style={{ marginTop: 6 }}>Ordenado por distancia al stop. El objetivo es exactamente dos veces esa distancia: medido sobre los 26 COMPRAR de hoy, la correlación entre los dos números es 1,0000. Ordena por volatilidad, no por calidad, y no dice nada de cuánto puede ganar la empresa. El orden de compra del sistema es "prioridad de compra".</div>}
-      {risk > 0 && <div className="muted" style={{ marginTop: 6 }}>Si todas las líneas con stop lo tocan, perdés {money(risk)}. Los ETFs de núcleo no llevan stop: se compran y se quedan.</div>}
+      {sort === "objetivo" && <div className="warn" style={{ marginTop: 6 }}>Ordenado por distancia al stop. El objetivo es exactamente dos veces esa distancia: medido sobre los 26 COMPRAR del 11/9, la correlación entre los dos números fue 1,0000. Ordena por volatilidad, no por calidad, y no dice nada de cuánto puede ganar la empresa. El orden de compra del sistema es "prioridad de compra".</div>}
+      {risk > 0 && <div className="muted" style={{ marginTop: 6 }} title="Cantidad de cada línea por la distancia de su precio de orden al stop.">Si todas las líneas con stop lo tocan, perdés {money(risk)}{tramos > 1 && ` (con el plan entero; el primer tramo arriesga un tercio)`}. Los ETFs de núcleo no llevan stop: se compran y se quedan.</div>}
       {p.leftOut && p.leftOut.length > 0 && (
         <details style={{ marginTop: 10 }}>
           <summary style={{ cursor: "pointer" }}><b>Candidatas que hoy NO se compran</b> <span className="muted">({p.leftOut.length}) pasan los filtros del Radar pero no entran al plan, y acá dice por qué</span></summary>
@@ -600,7 +658,9 @@ function PlanCard({ p, top, radarDate, onBuild, busy }: { p: ContributionPlan; t
         </details>
       )}
       {p.notes.filter((n) => !esInstruccion(n) && !n.startsWith("No entraron esta vez")).map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}
-      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>Regla: mientras el núcleo esté bajo su objetivo va el 60% del monto al núcleo; SUMAR hasta el 30% del resto; nuevas por convicción repartidas parejo, más una de tu seguimiento. Mirá "cuándo entrar" antes de ejecutar: lo que dice "esperar" se deja como orden limitada al precio indicado y se revisa a las 15 ruedas, no se compra a mercado. Cargá las operaciones en Cartera cuando las hagas.</div>
+      {/* Las reglas sin números fijos: los montos y los motivos están en cada línea y en las notas, que salen del plan. El
+          pie decía "60% al núcleo" y "repartidas parejo" cuando el núcleo recibía el 100% y el reparto es por convicción. */}
+      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>Cómo se arma: el núcleo recibe una parte fija mientras esté bajo su objetivo; después se suma a lo que Cartera propone, y lo que queda va a las compras nuevas por convicción, repartidas según la convicción, más una de tu seguimiento. Una acción entra solo si pasó la verificación web con el cuestionario vigente, la revisión antes de comprar y las reglas fijas (stop fuera del ruido, que diversifique, sin subas extremas); si no, su lugar va al núcleo y el motivo está en "Candidatas que hoy NO se compran". Antes de ejecutar mirá "cuándo entrar": "esperar" con orden limitada es un retroceso al precio indicado; "si cierra arriba de" es una compra solo si cierra arriba de ese nivel. Ninguna de las dos va a mercado. Cargá las operaciones en Cartera cuando las hagas.</div>
     </div>
   );
 }

@@ -105,3 +105,13 @@ describe("controles que frenan (15/9)", () => {
     expect(instruccionRadar("COMPRAR", planStatusFor("NBN", grave)).label).toBe("CANDIDATA");
   });
 });
+
+describe("tramos (auditoría del 15/9)", () => {
+  it("con tres tramos, el detalle dice el total y el primer tramo: la tabla de ETFs decía 'USD 24.000 en el plan de hoy' y el jueves se compran 8.000", () => {
+    const enTramos: ContributionPlan = { ...plan, tranches: 3, lines: plan.lines.map((l) => (l.symbol === "VTI" ? { ...l, amountUsd: 24_000, trancheUsd: 8_000 } : l)) };
+    expect(instruccionRadar("NUCLEO", planStatusFor("VTI", enTramos)).detail).toBe("USD 24.000 en el plan · 1er tramo USD 8.000");
+    // Un plan guardado sin la cifra del tramo (anterior al 15/9) la calcula igual que el plan.
+    expect(instruccionRadar("COMPRAR", planStatusFor("APH", { ...plan, tranches: 3 })).detail).toBe("USD 3.452 en el plan · 1er tramo USD 1.150");
+    expect(instruccionCartera("SUMAR", planStatusFor("NEM", { ...plan, tranches: 3 })).detail).toBe("USD 1.500 en el plan · 1er tramo USD 500");
+  });
+});

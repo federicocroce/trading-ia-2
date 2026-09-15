@@ -80,8 +80,13 @@ export function radarRoutes(c: Container) {
   const watchPayload = async (date?: string) => {
     const items = await store.watchlist();
     const set = new Set(items.map((i) => i.symbol));
-    const rows = (await withTags(date ? await store.candidatesForDate(date) : await store.latestCandidates())).filter((r) => r.kind === "watch" && set.has(r.symbol));
-    return { items, rows };
+    const todas = await withTags(date ? await store.candidatesForDate(date) : await store.latestCandidates());
+    const watch = todas.filter((r) => r.kind === "watch" && set.has(r.symbol));
+    // Lo que seguís y ya está en el ranking no tiene fila "watch" (desde el 14/9 el seguimiento no pisa la del ranking):
+    // va la del ranking. Sin esto la barra lo mostraba sin veredicto y la pestaña decía "sin datos todavía" (APH, 15/9).
+    const conFila = new Set(watch.map((r) => r.symbol));
+    const delRanking = todas.filter((r) => (r.kind === "stock" || r.kind === "etf" || r.kind === "adr") && set.has(r.symbol) && !conFila.has(r.symbol));
+    return { items, rows: [...watch, ...delRanking] };
   };
   app.get("/radar/watchlist", async (ctx) => ctx.json(await watchPayload(ctx.req.query("date"))));
   app.post("/radar/watchlist", async (ctx) => {

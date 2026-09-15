@@ -171,6 +171,21 @@ describe("/radar/watchlist", () => {
   });
 });
 
+describe("/radar/watchlist: lo que seguís y ya está en el ranking (auditoría del 15/9)", () => {
+  it("APH y TSM seguidos y rankeados: la lista trae su fila del ranking, no 'sin datos todavía'", async () => {
+    // Desde el 14/9 el seguimiento no pisa la fila del ranking, así que APH no tiene fila "watch": la barra la mostraba sin
+    // veredicto y la pestaña decía "sin datos todavía" de un símbolo que el Radar tenía completo.
+    const { a, store } = app();
+    const fila = (symbol: string, kind: "stock" | "watch") => ({ candidateDate: today, symbol, kind, verdict: "COMPRAR" as const, score: 1, axes: {}, peerGroup: [], rankInGroup: 1, groupSize: 10, close: 100, entryLow: 100, entryHigh: 102, stop: 90, target: 126, sizeUsd: 1000, sizeQty: 10, riskScore: 3, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
+    await store.upsertCandidates([fila("APH", "stock"), fila("MP", "watch")]);
+    await store.addWatch("APH", {});
+    await store.addWatch("MP", {});
+    await store.addWatch("ZZZ", {});
+    const list = await (await a.request("/radar/watchlist")).json();
+    expect(list.rows.map((r: { symbol: string; kind: string }) => `${r.symbol}:${r.kind}`).sort()).toEqual(["APH:stock", "MP:watch"]);
+  });
+});
+
 describe("/prices", () => {
   it("cotizaciones por lote con variación y marca de precio viejo; la cinta trae los que más se movieron entre lo que la app sigue", async () => {
     const { a, store } = app();

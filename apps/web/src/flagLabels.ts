@@ -35,6 +35,7 @@ const FLAG_LABEL: Record<string, string> = {
   verificacion_reservas: "verificación web: con reservas",
   verificacion_evitar: "verificación web: evitar",
   verificacion_pendiente: "verificación web pendiente",
+  verificacion_anterior: "verificación apta con el cuestionario anterior: se repite antes de comprar",
   consenso_en_precio: "objetivo de consenso a < 10% del precio",
   subio_mucho_12m: "subió > 100% en 12 meses",
   nucleo_por_calendario: "del núcleo: se compra por calendario, sin timing",
@@ -98,7 +99,8 @@ const NEUTRAS = new Set(["nucleo_por_calendario", "en_linea"]);
 /** Ni a favor ni en contra: falta un dato. No es un defecto de la empresa, es un límite de la fuente. */
 // `crecimiento_no_confiable`: el número de la fuente no sirve en bancos y el ranking ya no lo usa (NBN, 13/9).
 // `banco_sin_estados`: tampoco es un defecto del banco; es que la app no lo puede verificar, y por eso no lo compra (14/9).
-const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente", "fr_sin_dividendos", "crecimiento_no_confiable", "banco_sin_estados"]);
+// `verificacion_anterior`: apta con un cuestionario viejo; no es verde porque el plan no la compra hasta repetirla (15/9).
+const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente", "verificacion_anterior", "fr_sin_dividendos", "crecimiento_no_confiable", "banco_sin_estados"]);
 /** Las que llevan un dato adentro y también son límites de la fuente, no defectos de la empresa. */
 const LIMITACIONES_CON_DATO = new Set(["serie_con_salto"]);
 
@@ -114,10 +116,22 @@ export function flagTone(flag: string): FlagTone {
 }
 
 export const FLAG_TONE_TITULO: Record<FlagTone, string> = {
-  bueno: "A favor: suma a la convicción.",
-  salvedad: "Salvedad: resta convicción y, con dos de calidad, pasa a OBSERVAR.",
+  bueno: "A favor.",
+  salvedad: "Salvedad: juega en contra (resta convicción, cuenta para pasar a OBSERVAR o frena la compra).",
   limitacion: "Falta el dato o es neutra: ni a favor ni en contra.",
 };
+/** Las únicas a favor que suman a la convicción (+0,2 cada una, `conviction.ts`). Las demás son buenas noticias sin puntaje. */
+const SUMAN = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiva"]);
+
+/**
+ * El título de una bandera dice lo que hace (15/9): "verificación web: apta" y "dividendo" decían "suma a la convicción"
+ * y no suman nada. Una verificación apta es la condición para entrar al plan, no un premio.
+ */
+export function flagTitle(flag: string): string {
+  const t = flagTone(flag);
+  if (t !== "bueno") return FLAG_TONE_TITULO[t];
+  return SUMAN.has(flag) ? "A favor: suma 0,2 a la convicción." : "A favor: es un dato bueno, pero no suma a la convicción.";
+}
 
 /** Cuántas salvedades reales tiene, que es lo único que hay que contar para decidir. */
 export const countSalvedades = (flags: string[]): number => flags.filter((f) => flagTone(f) === "salvedad").length;

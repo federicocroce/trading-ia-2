@@ -859,6 +859,9 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     const r = candles.length >= 200 ? totalReturnPct(candles, Math.min(252, candles.length - 1)) : null;
     l.ret12mPct = r?.pct ?? null;
     l.ret12mPartial = r?.partial ?? null;
+    // De qué rueda es el precio de la línea: la última vela con ese cierre (15/9: "candidatos del 15/9" con cierres del
+    // 14/9 y nada lo decía). Si ninguna vela lo tiene, sin fecha antes que inventarla.
+    l.closeDate = l.close === null ? null : ([...candles].reverse().find((c) => Math.abs(c.close - l.close!) < 0.005)?.date ?? null);
   }
   // Por qué cambió el plan (15/9): con qué datos entró cada símbolo, comparado con la versión anterior. Se toman
   // también los que estaban en el plan anterior, para poder decir por qué salieron.

@@ -99,6 +99,8 @@ export interface PlanLine {
   ret12mPct?: number | null;
   /** true = se calculó sin dividendos (no había cierre ajustado): el número subestima lo que rindió. */
   ret12mPartial?: boolean | null;
+  /** De qué rueda es `close` (15/9): la pantalla decía "candidatos del 15/9" con cierres del 14/9. */
+  closeDate?: string | null;
   /** Prioridad con la que entró (convicción para acciones, −riesgo para seguimiento, FR 6m para ETFs). */
   priority?: number | null;
   /** Cuándo comprarla: ahora, o esperando un nivel. `entryHigh` es el techo de esa franja. */

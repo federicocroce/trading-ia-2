@@ -50,3 +50,18 @@ describe("buildNovedades", () => {
     expect(n).toMatchObject({ date: null, previousDate: null, verdictChanges: [], enteredBuy: [], leftBuy: [], watchResolved: [], proposedTheses: [], news: [], empty: true });
   });
 });
+
+describe("Hoy: nuevas en el Radar (auditoría del 15/9)", () => {
+  it("el seguimiento también cuenta, cada familia contra su propia corrida anterior, y lo que ya tenés se marca", async () => {
+    const store = new MemoryStore();
+    await store.upsertPosition({ symbol: "TSM", quantity: 10, avgCost: 300, currency: "USD", market: "adr", layer: "riesgo", notes: null });
+    // Acciones del 14 y el 15; el seguimiento se refrescó el 13 y el 15. Con una sola serie de fechas, las acciones del 14
+    // no tenían contra qué compararse y el seguimiento no aparecía nunca.
+    await store.upsertCandidates([cand("2026-09-14", "NVDA", "COMPRAR"), cand("2026-09-14", "TSM", "OBSERVAR")]);
+    await store.upsertCandidates([cand("2026-09-15", "NVDA", "COMPRAR"), cand("2026-09-15", "TSM", "COMPRAR")]);
+    await store.upsertCandidates([cand("2026-09-13", "MP", "OBSERVAR", "watch"), cand("2026-09-15", "MP", "COMPRAR", "watch")]);
+    const n = await buildNovedades(store, { today: "2026-09-15" });
+    expect(n.enteredBuy.map((x) => `${x.symbol}:${x.kind}:${x.held ? "tuya" : "nueva"}`).sort()).toEqual(["MP:watch:nueva", "TSM:stock:tuya"]);
+    expect(n.leftBuy).toEqual([]);
+  });
+});

@@ -12,7 +12,8 @@ export interface Novedades {
   verdictChanges: Array<{ symbol: string; from: VerdictRow["verb"]; to: VerdictRow["verb"]; reason: string }>;
   /** VENDER y REVISAR vigentes: lo que pide acción hoy. */
   alerts: Array<{ symbol: string; verb: VerdictRow["verb"]; reason: string }>;
-  enteredBuy: Array<{ symbol: string; kind: CandidateRow["kind"]; score: number | null }>;
+  /** `held`: ya la tenés (15/9: TSM entraba como "nueva en el Radar" sin decirlo). */
+  enteredBuy: Array<{ symbol: string; kind: CandidateRow["kind"]; score: number | null; held: boolean }>;
   leftBuy: Array<{ symbol: string; kind: CandidateRow["kind"]; now: string }>;
   watchResolved: Array<{ symbol: string; status: string; returnPct: number | null }>;
   proposedTheses: Array<{ id: string; ticker: string; eventType: Thesis["eventType"]; direction: Thesis["direction"]; edge: number; summary: string }>;
@@ -33,7 +34,8 @@ function recortar(texto: string, max: number): string {
 }
 
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * 86_400_000).toISOString().slice(0, 10);
-const isUs = (c: CandidateRow) => c.kind === "stock" || c.kind === "etf";
+/** Las familias del plan en dólares. Cada una se compara contra SU corrida anterior: el seguimiento se refresca aparte. */
+const FAMILIAS_US: Array<CandidateRow["kind"]> = ["stock", "etf", "watch"];
 
 export async function buildNovedades(store: Store & CarteraStore & RadarStore & TickerStore, opts: { today: string; at?: string | null }): Promise<Novedades> {
   // Histórico: "hoy" es la corrida pedida y se compara con la anterior a esa fecha.
@@ -51,15 +53,29 @@ export async function buildNovedades(store: Store & CarteraStore & RadarStore & 
     .sort((a, b) => a.symbol.localeCompare(b.symbol));
   const alerts = todayV.filter((v) => v.verb === "VENDER" || v.verb === "REVISAR").map((v) => ({ symbol: v.symbol, verb: v.verb, reason: v.reason }));
 
-  // Candidatos US: COMPRAR que entran y salen contra la fecha anterior.
-  const cands = (await store.allCandidates()).filter((c) => isUs(c) && (!cut || c.candidateDate <= cut));
-  const cDates = [...new Set(cands.map((c) => c.candidateDate))].sort();
-  const cLast = cDates.at(-1) ?? null;
-  const cPrev = cDates.at(-2) ?? null;
-  const todayC = cands.filter((c) => c.candidateDate === cLast);
-  const prevC = new Map(cands.filter((c) => c.candidateDate === cPrev).map((c) => [c.symbol, c]));
-  const enteredBuy = cPrev ? todayC.filter((c) => c.verdict === "COMPRAR" && prevC.get(c.symbol)?.verdict !== "COMPRAR").map((c) => ({ symbol: c.symbol, kind: c.kind, score: c.score })).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity)) : [];
-  const leftBuy = cPrev ? [...prevC.values()].filter((p) => p.verdict === "COMPRAR" && todayC.find((c) => c.symbol === p.symbol)?.verdict !== "COMPRAR").map((p) => ({ symbol: p.symbol, kind: p.kind, now: todayC.find((c) => c.symbol === p.symbol)?.verdict ?? "fuera" })) : [];
+  // Candidatos US: COMPRAR que entran y salen, cada familia contra SU corrida anterior (15/9). Con una sola serie de
+  // fechas el seguimiento, que se refresca aparte, no aparecía nunca, y un refresco suyo dejaba a las acciones sin
+  // corrida con qué compararse. Lo que ya tenés se marca.
+  const todas = (await store.allCandidates()).filter((c) => FAMILIAS_US.includes(c.kind) && (!cut || c.candidateDate <= cut));
+  const tenidas = new Set((await store.positions()).map((p) => p.symbol.toUpperCase()));
+  const enteredBuy: Novedades["enteredBuy"] = [];
+  const leftBuy: Novedades["leftBuy"] = [];
+  let cLast: string | null = null;
+  let cPrev: string | null = null;
+  for (const familia of FAMILIAS_US) {
+    const cands = todas.filter((c) => c.kind === familia);
+    const fechas = [...new Set(cands.map((c) => c.candidateDate))].sort();
+    const ultima = fechas.at(-1) ?? null;
+    const previa = fechas.at(-2) ?? null;
+    // El encabezado dice la corrida del ranking (acciones, la primera familia), que es la del día.
+    if (cLast === null && ultima) { cLast = ultima; cPrev = previa; }
+    if (!previa) continue;
+    const hoyC = cands.filter((c) => c.candidateDate === ultima);
+    const antes = new Map(cands.filter((c) => c.candidateDate === previa).map((c) => [c.symbol, c]));
+    for (const c of hoyC) if (c.verdict === "COMPRAR" && antes.get(c.symbol)?.verdict !== "COMPRAR" && !enteredBuy.some((x) => x.symbol === c.symbol)) enteredBuy.push({ symbol: c.symbol, kind: c.kind, score: c.score, held: tenidas.has(c.symbol.toUpperCase()) });
+    for (const p of antes.values()) if (p.verdict === "COMPRAR" && hoyC.find((c) => c.symbol === p.symbol)?.verdict !== "COMPRAR") leftBuy.push({ symbol: p.symbol, kind: p.kind, now: hoyC.find((c) => c.symbol === p.symbol)?.verdict ?? "fuera" });
+  }
+  enteredBuy.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
 
   // Seguimiento resuelto (pide revisión). Solo lo resuelto en la ventana de esta corrida: sin filtro de
   // fecha, una resolución de hace tres días seguía apareciendo como novedad para siempre, y en modo

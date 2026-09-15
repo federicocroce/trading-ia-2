@@ -1,4 +1,4 @@
-import { FLAG_TONE_TITULO, countSalvedades, flagLabel, flagTone, type FlagTone } from "./flagLabels";
+import { countSalvedades, flagLabel, flagTitle, flagTone, type FlagTone } from "./flagLabels";
 
 /**
  * Banderas del Radar, la parte que dibuja. La lógica de etiqueta y signo vive en `flagLabels.ts`, sin JSX,
@@ -20,7 +20,7 @@ export function Flags({ flags, inline = false }: { flags: string[]; inline?: boo
       {ordenadas.map((f) => {
         const t = flagTone(f);
         return (
-          <span key={f} className={`flag ${t}`} title={FLAG_TONE_TITULO[t]}>
+          <span key={f} className={`flag ${t}`} title={flagTitle(f)}>
             {inline ? "" : `${MARCA[t]} `}
             {flagLabel(f)}
           </span>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countSalvedades, flagLabel, flagTone } from "./flagLabels";
+import { countSalvedades, flagLabel, flagTitle, flagTone } from "./flagLabels";
 
 /**
  * Las banderas son lo que el dueño lee para decidir si le cree al veredicto, y ya fallaron dos veces por
@@ -65,5 +65,19 @@ describe("flagTone", () => {
 
   it("contar salvedades no cuenta ni las buenas ni las limitaciones", () => {
     expect(countSalvedades(["consenso_compra", "sin_estados", "nucleo_por_calendario", "evento_grave", "bajo_sma200"])).toBe(2);
+  });
+});
+
+describe("el título de cada bandera dice lo que hace (auditoría del 15/9)", () => {
+  it("'verificación apta' y 'dividendo' son a favor pero no suman a la convicción: el título decía que sí", () => {
+    expect(flagTitle("consenso_compra")).toMatch(/suma 0,2 a la convicción/);
+    expect(flagTitle("verificacion_apta")).toMatch(/no suma a la convicción/);
+    expect(flagTitle("dividendo")).toMatch(/no suma a la convicción/);
+    expect(flagTitle("evento_grave")).toMatch(/juega en contra/);
+  });
+  it("una apta con el cuestionario anterior no se pinta de verde: hay que repetirla antes de comprar", () => {
+    expect(flagTone("verificacion_anterior")).toBe("limitacion");
+    expect(flagLabel("verificacion_anterior")).toMatch(/cuestionario anterior/);
+    expect(countSalvedades(["verificacion_anterior"])).toBe(0);
   });
 });

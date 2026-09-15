@@ -11,7 +11,8 @@ import type { ContributionPlan, Verb } from "./api";
  * entra es CANDIDATA, con el motivo que da el plan. Ninguna pantalla muestra un veredicto sin pasar por acá.
  */
 export type PlanStatus =
-  | { kind: "comprar" | "seguimiento" | "sumar" | "nucleo"; amountUsd: number }
+  /** `trancheUsd`: el primer tramo, cuando el plan va en tramos (15/9). */
+  | { kind: "comprar" | "seguimiento" | "sumar" | "nucleo"; amountUsd: number; trancheUsd?: number }
   | { kind: "fuera"; reason: string }
   /** Está en el plan, pero los controles no dejan ejecutarlo (15/9). */
   | { kind: "frenado"; lineKind: "comprar" | "seguimiento" | "sumar" | "nucleo"; amountUsd: number; reason: string }
@@ -26,7 +27,11 @@ export interface Instruccion {
 }
 
 const usd = (n: number) => `USD ${Math.round(n).toLocaleString("es-AR")}`;
-const enPlan = (n: number) => `${usd(n)} en el plan de hoy`;
+/**
+ * Con tramos, el total y el primer tramo (15/9): la tabla de ETFs decía "USD 24.000 en el plan de hoy" y el jueves se
+ * compran 8.000. El monto del tramo es el del plan; un plan guardado sin él lo calcula con la misma regla.
+ */
+const enPlan = (s: { amountUsd: number; trancheUsd?: number }) => (s.trancheUsd !== undefined ? `${usd(s.amountUsd)} en el plan · 1er tramo ${usd(s.trancheUsd)}` : `${usd(s.amountUsd)} en el plan de hoy`);
 /** "5° por convicción: verificación web con reservas: …" → sin el lugar en la fila, que no le importa a quien lee. */
 const sinLugar = (reason: string) => reason.replace(/^(?:\d+° por convicción|seguimiento|ETF): /, "");
 
@@ -49,6 +54,12 @@ export function controlesBloquean(plan: ContributionPlan | null): string | null 
   return null;
 }
 
+/** El plan de hoy compra este símbolo y nada lo frena: la única condición para decir "comprar ahora" (15/9). */
+export function planLoCompra(symbol: string, plan: ContributionPlan | null): boolean {
+  const s = planStatusFor(symbol, plan);
+  return !!s && (s.kind === "comprar" || s.kind === "seguimiento" || s.kind === "sumar");
+}
+
 /** Dónde está el símbolo en el plan: una línea con monto, afuera con motivo, o nada (el plan no lo consideró). */
 export function planStatusFor(symbol: string, plan: ContributionPlan | null): PlanStatus {
   if (!plan) return null;
@@ -56,7 +67,9 @@ export function planStatusFor(symbol: string, plan: ContributionPlan | null): Pl
   const line = plan.lines.find((l) => l.symbol.toUpperCase() === sym);
   if (line) {
     const freno = controlesBloquean(plan);
-    return freno ? { kind: "frenado", lineKind: line.kind, amountUsd: line.amountUsd, reason: freno } : { kind: line.kind, amountUsd: line.amountUsd };
+    if (freno) return { kind: "frenado", lineKind: line.kind, amountUsd: line.amountUsd, reason: freno };
+    const tramos = plan.tranches ?? 1;
+    return tramos > 1 ? { kind: line.kind, amountUsd: line.amountUsd, trancheUsd: line.trancheUsd ?? Math.floor(line.amountUsd / tramos) } : { kind: line.kind, amountUsd: line.amountUsd };
   }
   const fuera = plan.leftOut?.find((x) => x.symbol.toUpperCase() === sym);
   if (fuera) return { kind: "fuera", reason: fuera.reason };
@@ -71,9 +84,9 @@ const esperar = (status: { amountUsd: number; reason: string }): Instruccion => 
 export function instruccionRadar(verdict: string, status: PlanStatus, context?: "argentina"): Instruccion {
   if (verdict === "OBSERVAR") return { label: "OBSERVAR", tone: "OBSERVAR", detail: null };
   if (status && status.kind === "frenado") return esperar(status);
-  if (verdict === "NUCLEO") return { label: "NÚCLEO", tone: "NUCLEO", detail: status && status.kind === "nucleo" ? enPlan(status.amountUsd) : null };
-  if (status && (status.kind === "comprar" || status.kind === "seguimiento")) return { label: "COMPRAR", tone: "COMPRAR", detail: enPlan(status.amountUsd) };
-  if (status && status.kind === "sumar") return { label: "SUMAR", tone: "SUMAR", detail: enPlan(status.amountUsd) };
+  if (verdict === "NUCLEO") return { label: "NÚCLEO", tone: "NUCLEO", detail: status && status.kind === "nucleo" ? enPlan(status) : null };
+  if (status && (status.kind === "comprar" || status.kind === "seguimiento")) return { label: "COMPRAR", tone: "COMPRAR", detail: enPlan(status) };
+  if (status && status.kind === "sumar") return { label: "SUMAR", tone: "SUMAR", detail: enPlan(status) };
   const detail = context === "argentina" ? "el plan en dólares no compra papeles argentinos" : status && status.kind === "fuera" ? `no se compra: ${sinLugar(status.reason)}` : "no está en el plan de hoy";
   return { label: "CANDIDATA", tone: "CANDIDATA", detail };
 }
@@ -82,6 +95,6 @@ export function instruccionRadar(verdict: string, status: PlanStatus, context?: 
 export function instruccionCartera(verb: Verb, status: PlanStatus): Instruccion {
   if (verb !== "SUMAR") return { label: verb, tone: verb, detail: null };
   if (status && status.kind === "frenado") return esperar(status);
-  if (status && status.kind === "sumar") return { label: "SUMAR", tone: "SUMAR", detail: enPlan(status.amountUsd) };
+  if (status && status.kind === "sumar") return { label: "SUMAR", tone: "SUMAR", detail: enPlan(status) };
   return { label: "MANTENER", tone: "MANTENER", detail: status && status.kind === "fuera" ? `no se suma hoy: ${sinLugar(status.reason)}` : "no se suma en el plan de hoy" };
 }

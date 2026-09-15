@@ -221,6 +221,13 @@ describe("plan y medición", () => {
     // Las dos nuevas se reparten por convicción (peso 1 + convicción): SA rankea mejor que SH y se lleva más.
     // Hasta el 14/9 las dos pagaban una penalidad por "moverse como VTI" (el núcleo) y el reparto era 2935/1615.
     expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 1950], ["SA", "comprar", 2862], ["SH", "comprar", 1688]]);
+    // De qué rueda es cada precio (15/9: "candidatos del 15/9" con cierres del 14/9 y nada lo decía).
+    for (const l of plan.lines) {
+      const vela = (await store.candles(l.symbol, "2000-01-01")).filter((c) => c.close === l.close).at(-1);
+      // SL lleva el cierre sintético de su veredicto (100), que no es de ninguna vela: sin fecha, en vez de inventarla.
+      expect(l.closeDate ?? null, l.symbol).toBe(vela?.date ?? null);
+    }
+    expect(plan.lines.find((l) => l.symbol === "SA")?.closeDate).toBe("2026-05-18");
     expect((await store.latestPlan())?.month).toBe("2026-05");
 
     // medición: velas hasta 2026-05-18 → un candidato del 2026-04-01 tiene 7 y 30 días de vela posterior
