@@ -405,7 +405,7 @@ describe("verificación con el cuestionario anterior (auditoría del 15/9)", () 
 });
 
 describe("la verificación de la fila es la guardada (auditoría del 15/9)", () => {
-  const guardada = { date: "2026-09-15", verdict: "con_reservas" };
+  const guardada = { date: "2026-09-15", verdict: "con_reservas" as const };
   it("BLBD: la tabla dice 'con reservas' y la fila 'pendiente'; en OBSERVAR es aviso, en COMPRAR es grave (el plan la usa)", () => {
     const observar = solo("verificacion_desfasada", checkConsistency({ rows: [fila({ symbol: "BLBD", verdict: "OBSERVAR", flags: ["verificacion_pendiente"], verification: null })], candles: {}, plan: null, verifications: { BLBD: guardada } }));
     expect(observar).toHaveLength(1);
