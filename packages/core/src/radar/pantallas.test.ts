@@ -215,3 +215,15 @@ describe("checkPantallas", () => {
     expect(f).toEqual([]);
   });
 });
+
+describe("plan atrasado con la fecha local (auditoría del 15/9)", () => {
+  it("un plan armado el 15/9 a las 22:30 de Argentina (16/9 en UTC) no es 'del 16' ni se compara como tal", () => {
+    const armado = new Date(2026, 8, 15, 22, 30).toISOString();
+    // Radar del 15: el plan del 15 a la noche está al día (en UTC ya es 16 y parecía "adelantado"; al revés, un Radar
+    // del 16 contra el plan del 15 a la noche tiene que decir que el plan es del 15).
+    expect(solo("plan_atrasado", checkPantallas({ ...base, plan: { builtAt: armado, lines: [] }, candidatos: [cand("X", { candidateDate: "2026-09-15" })] }))).toEqual([]);
+    const f = solo("plan_atrasado", checkPantallas({ ...base, plan: { builtAt: armado, lines: [] }, candidatos: [cand("X", { candidateDate: "2026-09-16" })] }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.detail).toMatch(/se armó el 2026-09-15/);
+  });
+});

@@ -1,4 +1,5 @@
 import type { Finding } from "./consistency.js";
+import { todayLocal } from "../fecha.js";
 
 /**
  * Coherencia ENTRE pantallas (2026-09-12). Puro.
@@ -114,8 +115,10 @@ export function checkPantallas(p: Pantallas): Finding[] {
   //     dice COMPRAR con la selección vieja. El 13/9 a la noche entraron ORRF y HSBC y el plan era de las 16:37.
   // Solo las familias que alimentan el plan: Argentina corre por su lado y no lo rearma.
   const ultimoRadar = p.candidatos.filter((c) => !c.kind || c.kind === "stock" || c.kind === "etf" || c.kind === "watch").map((c) => c.candidateDate ?? "").reduce((a, b) => (b > a ? b : a), "");
-  if (p.plan?.builtAt && ultimoRadar && p.plan.builtAt.slice(0, 10) < ultimoRadar) {
-    add("plan_atrasado", null, "grave", `el plan se armó el ${p.plan.builtAt.slice(0, 10)} y el Radar es del ${ultimoRadar}: se rearma solo después de cada corrida y esta vez no pasó`);
+  // La fecha del plan en hora local (15/9): `builtAt` es UTC, y un plan de las 22:30 figuraba "del día siguiente".
+  const armado = p.plan?.builtAt ? todayLocal(new Date(p.plan.builtAt)) : null;
+  if (armado && ultimoRadar && armado < ultimoRadar) {
+    add("plan_atrasado", null, "grave", `el plan se armó el ${armado} y el Radar es del ${ultimoRadar}: se rearma solo después de cada corrida y esta vez no pasó`);
   }
 
   // 3e. El gráfico diario tiene que llegar a la última sesión. APH el 14/9 terminaba en la vela del 11/9 (83,92)

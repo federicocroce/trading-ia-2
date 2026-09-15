@@ -291,7 +291,11 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       continue;
     }
     const amt = Math.floor(Math.min(remaining, sumarPool, maxLine, Math.max(0, equalTarget - s.valueUsd), capFor(s.symbol)));
-    if (amt < MIN_LINE_USD) continue;
+    if (amt < MIN_LINE_USD) {
+      // Toda exclusión con su motivo: sin esta nota, la fila decía "no está en el plan de hoy" sin decir por qué.
+      notes.push(`No se sumó ${s.symbol}: ya tiene su peso (${s.weightPct}% de la cartera, contra ${Math.round((equalTarget / total) * 100)}% igualitario o el tope del ${c.maxPositionPct}%).`);
+      continue;
+    }
     // Sumar con el precio pegado al stop de la posición es comprar lo que la próxima rueda puede vender (TSM, 14/9). Es
     // una regla fija: va antes que la verificación, para que el motivo que se muestra sea el que vale (15/9).
     const ruido = noiseBlock(i.closes[s.symbol], s.stop, s.atr);
@@ -331,6 +335,9 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     { kind: "etf", max: cfg.etfLinesMax, countsAsNew: true },
   ];
   const yaEnSumar = new Set(lines.filter((l) => l.kind === "sumar").map((l) => l.symbol));
+  // Lo que Cartera propone sumar ya se decidió en el paso 2, entre o no: no se vuelve a evaluar como compra nueva. El
+  // 15/9 TSM no se sumaba por QQQ en OBSERVAR y además quedaba afuera "con reservas" como compra: dos motivos distintos.
+  const decididoComoSumar = new Set(i.sumarCandidates.map((s) => s.symbol));
   const chosen: PlanInput["buyCandidates"] = [];
   const placeOf = new Map<string, string>();
   /** Todo COMPRAR que no entró, con su lugar en la fila y el motivo: el plan tiene que poder explicarse solo. */
@@ -355,6 +362,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         notes.push(`${b.symbol} entró como SUMAR y no se duplica: el Radar también lo tiene en COMPRAR (${place}).`);
         return;
       }
+      if (decididoComoSumar.has(b.symbol)) return;
       // Convicción negativa (15/9): el ranking la trae, pero sus salvedades pesan más que sus virtudes. No entra aunque sea
       // la única (PBT era "1° por convicción" con −0,98), y su lugar va al núcleo como el de una verificación que no pasó.
       if (pool.kind === "stock" && b.priority !== null && b.priority < 0) {

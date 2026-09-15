@@ -308,6 +308,24 @@ describe("convicción negativa y ETF satélite (15/9)", () => {
   });
 });
 
+describe("auditoría del 15/9: una posición que no se suma tiene un solo motivo", () => {
+  it("TSM: no se suma porque QQQ está en OBSERVAR, y no aparece además como compra nueva 'con reservas'", () => {
+    const p = planContribution({
+      ...base,
+      sumarCandidates: [{ symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 412.81, target: 470, caution: "el ETF de su tema (QQQ) está en OBSERVAR: bajo su stop dinámico" }],
+      buyCandidates: [{ symbol: "TSM", kind: "stock", priority: 1.2, score: 1.2, sizeUsd: 9_000, close: 428, stop: 412.81, verification: { verdict: "con_reservas", reason: "valuación", current: true } }],
+    }, c);
+    expect(p.leftOut?.some((x) => x.symbol === "TSM") ?? false).toBe(false);
+    expect(p.notes.filter((n) => n.includes("TSM"))).toEqual([expect.stringMatching(/^No se sumó TSM: el ETF de su tema \(QQQ\)/)]);
+    expect(p.lines.some((l) => l.symbol === "TSM")).toBe(false);
+  });
+  it("una posición que ya tiene su peso no se suma, y la nota lo dice", () => {
+    const p = planContribution({ ...base, sumarCandidates: [{ symbol: "GGAL", valueUsd: 28_000, weightPct: 28, stop: 50, target: 80, caution: null }] }, c);
+    expect(p.lines.some((l) => l.symbol === "GGAL")).toBe(false);
+    expect(p.notes.some((n) => /^No se sumó GGAL: ya tiene su peso/.test(n))).toBe(true);
+  });
+});
+
 describe("auditoría del 15/9: los datos de entrada dicen lo mismo que el motivo", () => {
   it("con reservas y con el cuestionario anterior: el dato dice 'con_reservas', como el motivo (LNC y DEC)", () => {
     expect(verificationLabel({ verdict: "con_reservas", reason: "x", current: false })).toBe("con_reservas");

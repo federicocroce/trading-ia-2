@@ -98,7 +98,7 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       // El dictamen guardado entra desde la primera decisión: si solo se pasara cuando queda COMPRAR, un
       // OBSERVAR conservaría la verificación en su columna y la perdería en las banderas.
       let verification: VerificationSummary | null | undefined = prev?.verification;
-      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym.toUpperCase()), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym.toUpperCase()), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate({ ...base, ...(verification ? { verification } : {}) }, policy);
       // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
       if (!("excluded" in d) && d.verdict === "COMPRAR" && deps.verifier) {

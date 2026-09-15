@@ -393,3 +393,13 @@ describe("checkConsistency", () => {
     expect(f).toEqual([]);
   });
 });
+
+describe("verificación con el cuestionario anterior (auditoría del 15/9)", () => {
+  it("una apta vieja lleva 'verificacion_anterior' y eso no es una bandera faltante", () => {
+    const f = solo("verificacion_sin_bandera", checkConsistency({
+      rows: [fila({ symbol: "LNC", flags: ["verificacion_anterior"], verification: { date: "2026-09-10", verdict: "apto", reason: "ok" } })],
+      candles: {}, plan: null,
+    }));
+    expect(f).toEqual([]);
+  });
+});

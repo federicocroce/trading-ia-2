@@ -68,6 +68,25 @@ export interface EtfDecision {
  * piden los ETFs del Radar. Los ADR argentinos usan este mismo motor y no lo piden: varios son posiciones que ya
  * tenés, y una posición tiene un solo stop, el de seguimiento que muestra Cartera.
  */
+/**
+ * El motivo de un ETF en palabras, para las notas del plan (15/9: "QQQ está en OBSERVAR: bajo_stop"). Las banderas
+ * siguen viajando como nombres estables; esto es solo para una oración que lee una persona.
+ */
+const ETF_REASON_TEXT: Record<string, string> = {
+  bajo_stop: "bajo su stop dinámico",
+  bajo_sma200: "bajo la media de 200 ruedas",
+  no_perseguir: "subió más de 15% en 21 ruedas",
+  stop_dentro_de_la_entrada: "el stop cae dentro de la franja de compra",
+  sin_historial: "sin 200 velas de historial",
+};
+export function etfReasonText(reason: string): string {
+  if (reason.startsWith("fr6m_negativa:")) {
+    const v = Number(reason.slice("fr6m_negativa:".length));
+    return `le perdió al SPY en 6 meses (${Number.isFinite(v) ? v.toFixed(1) : "—"}%)`;
+  }
+  return ETF_REASON_TEXT[reason] ?? reason;
+}
+
 export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: RadarPolicy["technical"], opts: { newEntry?: boolean } = {}): EtfDecision | { excluded: true; reasons: string[] } {
   if (candles.length < 200) return { excluded: true, reasons: ["sin_historial"] };
   // Un ETF también se divide: el mismo salto de escala rompe la fuerza relativa y la media de 200.

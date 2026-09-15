@@ -81,7 +81,7 @@ const FLAG_FOR_VERDICT: Record<string, string> = {
   con_reservas: "verificacion_reservas",
   evitar: "verificacion_evitar",
 };
-const VERIFICATION_FLAGS = new Set([...Object.values(FLAG_FOR_VERDICT), "verificacion_pendiente"]);
+const VERIFICATION_FLAGS = new Set([...Object.values(FLAG_FOR_VERDICT), "verificacion_pendiente", "verificacion_anterior"]);
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -146,7 +146,9 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     // 2. La verificación web y las banderas tienen que contar la misma historia. Si el dictamen está guardado
     //    pero la bandera no, la salvedad no resta convicción y la candidata entra al plan como si estuviera limpia.
     const esperada = row.verification ? FLAG_FOR_VERDICT[row.verification.verdict] : null;
-    if (esperada && !row.flags.includes(esperada)) {
+    // Una apta con el cuestionario anterior lleva su propia bandera (15/9): también muestra la verificación.
+    const valeComo = (f: string) => row.flags.includes(f) || (f === "verificacion_apta" && row.flags.includes("verificacion_anterior"));
+    if (esperada && !valeComo(esperada)) {
       const v = row.verification!.verdict;
       const efecto = v === "apto" ? "la fila no muestra que está verificada" : "esa salvedad no está restando convicción ni contando para pasar a OBSERVAR";
       add("verificacion_sin_bandera", row.symbol, "grave", `la verificación dice "${v}" pero las banderas no la muestran: ${efecto}`);

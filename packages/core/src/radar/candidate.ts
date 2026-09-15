@@ -53,11 +53,16 @@ export function consensusUpsidePct(close: number, analystTargets: AnalystTargets
   return median === null ? null : round2((median / close - 1) * 100);
 }
 
-/** Bandera de la verificación web. `undefined` = no hay verificador; `null` = hay pero todavía no respondió (pendiente). */
-export function verificationFlag(v: VerificationSummary | null | undefined): string | null {
+/**
+ * Bandera de la verificación web. `undefined` = no hay verificador; `null` = hay pero todavía no respondió (pendiente).
+ * Una apta hecha con otro cuestionario que el vigente (`currentVersion`) es `verificacion_anterior` (15/9): se pintaba
+ * en verde como "apta" y el plan igual no la compraba, porque hay que repetirla.
+ */
+export function verificationFlag(v: VerificationSummary | null | undefined, currentVersion?: string): string | null {
   if (v === undefined) return null;
   if (v === null) return "verificacion_pendiente";
-  return v.verdict === "apto" ? "verificacion_apta" : v.verdict === "con_reservas" ? "verificacion_reservas" : "verificacion_evitar";
+  if (v.verdict === "apto") return currentVersion && v.promptVersion && v.promptVersion !== currentVersion ? "verificacion_anterior" : "verificacion_apta";
+  return v.verdict === "con_reservas" ? "verificacion_reservas" : "verificacion_evitar";
 }
 
 export function sma(candles: Candle[], n: number): number | null {
@@ -152,7 +157,7 @@ export function buildFlags(
   gate: TechnicalGate,
   nthAppearance: number,
   chronicWeeks: number,
-  extra: { core?: CoreEarnings | null; events?: CandidateEvent[]; eventsUnclassified?: boolean; today?: string; verification?: VerificationSummary | null } = {},
+  extra: { core?: CoreEarnings | null; events?: CandidateEvent[]; eventsUnclassified?: boolean; today?: string; verification?: VerificationSummary | null; verificationVersion?: string } = {},
 ): string[] {
   const flags: string[] = [];
   if ((f.insiderBuys90d ?? 0) >= 1) flags.push("insiders_compran");
@@ -185,7 +190,7 @@ export function buildFlags(
   if (recent.some((e) => e.severity === "grave")) flags.push("evento_grave");
   else if (recent.some((e) => e.severity === "moderado")) flags.push("evento_moderado");
   if (extra.eventsUnclassified) flags.push("eventos_sin_clasificar");
-  const vf = verificationFlag(extra.verification);
+  const vf = verificationFlag(extra.verification, extra.verificationVersion);
   if (vf) flags.push(vf);
   return flags;
 }
@@ -223,6 +228,8 @@ export function decideCandidate(
     eventsUnclassified?: boolean;
     /** Verificación web: `undefined` sin verificador, `null` pendiente. */
     verification?: VerificationSummary | null;
+    /** Versión vigente del cuestionario: una apta con otra versión se marca como anterior. */
+    verificationVersion?: string;
     /** Objetivos de analistas de titulares (90 días), para la salvedad "consenso en el precio". */
     analystTargets?: AnalystTargets | null;
     /** Ya está en cartera: el stop es el de la posición (el de seguimiento), porque una posición tiene un solo stop. */
@@ -237,6 +244,7 @@ export function decideCandidate(
     ...(i.events !== undefined ? { events: i.events } : {}),
     ...(i.eventsUnclassified !== undefined ? { eventsUnclassified: i.eventsUnclassified } : {}),
     ...(i.verification !== undefined ? { verification: i.verification } : {}),
+    ...(i.verificationVersion !== undefined ? { verificationVersion: i.verificationVersion } : {}),
     today: i.today,
   });
   // Salvedades de precio (pieza 3): objetivo de consenso pegado al precio tras una subida, o subida de 12 meses que ya descuenta mucho.

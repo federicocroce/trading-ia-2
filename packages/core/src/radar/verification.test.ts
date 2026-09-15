@@ -81,3 +81,19 @@ describe("plan: la verificación con reservas no entra como posición nueva y la
     expect(plan.notes.join(" ")).toContain("HRTG (1° por convicción: verificación web con reservas: temporada de huracanes)");
   });
 });
+
+describe("verificación con el cuestionario anterior (auditoría del 15/9)", () => {
+  it("apta con el cuestionario anterior no es 'verificacion_apta': se ve como algo que falta repetir", () => {
+    const vieja = { date: "2026-09-10", verdict: "apto" as const, reason: "ok", promptVersion: "v1" };
+    expect(verificationFlag(vieja, "v2")).toBe("verificacion_anterior");
+    expect(verificationFlag({ ...vieja, promptVersion: "v2" }, "v2")).toBe("verificacion_apta");
+    // Con reservas sigue siendo una salvedad, sea del cuestionario que sea: el plan la frena por eso.
+    expect(verificationFlag({ ...vieja, verdict: "con_reservas" }, "v2")).toBe("verificacion_reservas");
+    // Sin saber la versión vigente no se puede decir que es vieja.
+    expect(verificationFlag(vieja)).toBe("verificacion_apta");
+    const d = decideCandidate({ ...base, verification: vieja, verificationVersion: "v2" }, policy);
+    if ("excluded" in d) expect.fail("la fixture tiene que pasar los filtros");
+    expect(d.flags).toContain("verificacion_anterior");
+    expect(d.flags).not.toContain("verificacion_apta");
+  });
+});

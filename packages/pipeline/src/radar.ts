@@ -35,6 +35,7 @@ import {
   type ContributionPlan,
   type PlanVerification,
   verificationLabel,
+  etfReasonText,
   type CandidateVerifier,
   type CoreEarnings,
   type VerificationSummary,
@@ -441,7 +442,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       const nth = await nthAppearanceFor(deps, sym, opts.today);
       const symCore = coreOf(sym);
       const ev = await scanCandidateEvents(deps, sym, opts.today, true);
-      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate(input, policy);
       if ("excluded" in d) {
         skipped.push({ symbol: sym, reason: d.reasons.join(",") });
@@ -566,7 +567,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     // La verificación guardada entra desde la PRIMERA decisión. Si se pasaba solo cuando el símbolo quedaba
     // COMPRAR, un OBSERVAR conservaba su dictamen en la columna y lo perdía en las banderas: la fila decía
     // "con reservas" en la ficha y no lo mostraba, y esa salvedad dejaba de contar (SOLV, TER y VIST el 11/9).
-    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(prev.verification ? { verification: prev.verification } : {}) };
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(prev.verification ? { verification: prev.verification } : {}) };
     let d = decideCandidate(input, policy);
     let verification: VerificationSummary | null | undefined = prev.verification;
     if (!("excluded" in d)) {
@@ -782,7 +783,9 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     const themes = new Set(tags[symbol]?.themes ?? []);
     if (!themes.size) return null;
     const hit = etfObserved.find((e) => (deps.etfs.find((cfg) => cfg.symbol === e.symbol)?.themes ?? []).some((t) => themes.has(t)));
-    return hit ? `el ETF de su tema (${hit.symbol}) está en OBSERVAR: ${hit.flags.join(", ") || "sin fuerza"}` : null;
+    // En palabras y solo los motivos (15/9: decía "QQQ está en OBSERVAR: bajo_stop", con el código crudo).
+    const motivos = hit ? hit.flags.filter((f) => f !== "fr_sin_dividendos").map(etfReasonText) : [];
+    return hit ? `el ETF de su tema (${hit.symbol}) está en OBSERVAR: ${motivos.join(", ") || "sin fuerza"}` : null;
   };
   const candidatePorSimbolo = new Map(candidates.map((c) => [c.symbol, c]));
   // Revisión antes de comprar (15/9): la de hoy, con el prompt vigente. Sin revisor no se exige (undefined); sin la de

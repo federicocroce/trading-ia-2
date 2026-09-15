@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atr, computeTrailingStop, decideEtf, ENTRY_STOP_ATR, relativeStrength, relativeStrengthDetail, type Candle, type EtfConfig } from "../index.js";
+import { atr, computeTrailingStop, decideEtf, ENTRY_STOP_ATR, etfReasonText, relativeStrength, relativeStrengthDetail, type Candle, type EtfConfig } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01"): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1_000_000 }));
@@ -126,5 +126,15 @@ describe("decideEtf", () => {
       // Si la serie no reproduce el caso, el test tiene que decirlo en vez de pasar vacío.
       expect.fail(`la serie no reprodujo el stop dentro de la franja: target ${d.target}, stop ${d.stop}, entrada ${JSON.stringify(d.entry)}`);
     }
+  });
+});
+
+describe("motivos de un ETF en palabras (auditoría del 15/9)", () => {
+  it("TSM decía 'QQQ está en OBSERVAR: bajo_stop'", () => {
+    expect(etfReasonText("bajo_stop")).toBe("bajo su stop dinámico");
+    expect(etfReasonText("bajo_sma200")).toBe("bajo la media de 200 ruedas");
+    expect(etfReasonText("fr6m_negativa:-3.456")).toBe("le perdió al SPY en 6 meses (-3.5%)");
+    expect(etfReasonText("no_perseguir")).toBe("subió más de 15% en 21 ruedas");
+    expect(etfReasonText("algo_nuevo")).toBe("algo_nuevo");
   });
 });
