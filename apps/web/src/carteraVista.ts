@@ -1,5 +1,34 @@
-import type { ContributionPlan, PlanLine, Position, Quote, Verdict } from "./api";
+import type { ContributionPlan, Measurement, PlanLine, Position, Quote, Verdict } from "./api";
 import type { Instruccion } from "./instruccion";
+
+/**
+ * Las dos volatilidades de la pantalla dicen su ventana (15/9). Hasta ese día la tarjeta de riesgo decía 31% y la curva
+ * 51,4% sin decir sobre qué: la primera es la de las últimas 63 ruedas con los pesos de hoy, la segunda la de las 292
+ * ruedas desde el 17/7/2025 con lo que tenías cada día. Miden cosas distintas y por eso no coinciden.
+ */
+export const rotuloVolatilidad = {
+  riesgo: (sesiones: number) => `volatilidad propia, últimas ${sesiones} ruedas con los pesos de hoy`,
+  curva: (sesiones: number, desde: string) => `volatilidad de las ${sesiones} ruedas desde ${desde}`,
+};
+
+/**
+ * Cuánto está medido, por horizonte (15/9). "72 veredictos, 72 pendientes de medir" con 8 ya medidos a 7 días: el
+ * contador sumaba como pendiente cualquier fila a la que le faltara algún horizonte. Lo que espera su cierre es lo normal;
+ * lo vencido sin medir, lo único que es un problema, se dice aparte.
+ */
+export function textoMedicion(m: Pick<Measurement, "total"> & { pending?: number; estado?: Measurement["estado"] }): string {
+  const partes = [`${m.total} veredictos.`];
+  if (!m.estado) return partes[0]!;
+  for (const [h, dias] of [["h7", 7], ["h30", 30]] as const) {
+    const e = m.estado[h];
+    const trozos = [`${e.medidas} medidos`];
+    if (e.esperando) trozos.push(`${e.esperando} esperando su cierre${e.primera ? ` (el próximo, el del ${e.primera})` : ""}`);
+    if (e.vencidas) trozos.push(`${e.vencidas} vencidos sin medir`);
+    const lista = trozos.length > 1 ? `${trozos.slice(0, -1).join(", ")} y ${trozos.at(-1)}` : trozos[0];
+    partes.push(`A ${dias} días: ${lista}.`);
+  }
+  return partes.join(" ");
+}
 
 /**
  * Valuación de una posición: precio vivo si llegó; si no, el cierre del veredicto (apagado). P&L en la moneda de la

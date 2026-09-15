@@ -6,7 +6,7 @@ import { SymbolLink } from "./SymbolLink";
 import { usePrices } from "./prices";
 import { CarteraVerdict, usePlan } from "./plan";
 import { instruccionCartera, planStatusFor } from "./instruccion";
-import { lineaSumar, pesosAhora, totals, valuation, vistaFila } from "./carteraVista";
+import { lineaSumar, pesosAhora, rotuloVolatilidad, textoMedicion, totals, valuation, vistaFila } from "./carteraVista";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -156,7 +156,7 @@ export function Cartera() {
         </table>
       </div>
       {risk && <Risk r={risk.report} date={risk.date} />}
-      {curve && <CurveCard r={curve} />}
+      {curve && <CurveCard r={curve} riskSessions={risk?.report.risk?.sessions ?? null} />}
       {measurement && <MeasurementCard m={measurement} />}
     </>
   );
@@ -251,7 +251,7 @@ function Risk({ r, date }: { r: RiskReport; date: string }) {
         <div className="kpi"><b>${money(r.totalValue)}</b><span>valor {cierre}</span></div>
         <div className="kpi"><b>{f2(r.portfolioBeta)}</b><span>beta vs SPY (63 ruedas)</span></div>
         {o?.portfolioVolPct !== null && o?.portfolioVolPct !== undefined && (
-          <div className="kpi"><b className={vecesSpy !== null && vecesSpy > 2 ? "bad" : ""}>{o.portfolioVolPct.toFixed(0)}%</b><span>volatilidad propia{o.spyVolPct !== null && <> · SPY {o.spyVolPct.toFixed(0)}%{vecesSpy !== null && ` (${vecesSpy.toFixed(1)}×)`}</>}</span></div>
+          <div className="kpi"><b className={vecesSpy !== null && vecesSpy > 2 ? "bad" : ""}>{o.portfolioVolPct.toFixed(0)}%</b><span>{rotuloVolatilidad.riesgo(o.sessions)}{o.spyVolPct !== null && <> · SPY {o.spyVolPct.toFixed(0)}%{vecesSpy !== null && ` (${vecesSpy.toFixed(1)}×)`}</>}</span></div>
         )}
         {o?.worstDayPct !== null && o?.worstDayPct !== undefined && (
           <div className="kpi"><b className="bad">{o.worstDayPct.toFixed(1)}%</b><span>peor rueda de las últimas {o.sessions}</span></div>
@@ -279,7 +279,7 @@ function Risk({ r, date }: { r: RiskReport; date: string }) {
 }
 
 /** Curva de la cartera real desde las operaciones: TWR, XIRR, volatilidad y drawdown contra SPY, con la lectura por regla. */
-function CurveCard({ r }: { r: CurveResponse }) {
+function CurveCard({ r, riskSessions }: { r: CurveResponse; riskSessions: number | null }) {
   if (r.error) return <div className="card"><b>Curva de la cartera</b> <span className="warn">no se pudo calcular: {r.error}</span></div>;
   const c = r.curve;
   if (!c) return null;
@@ -304,9 +304,13 @@ function CurveCard({ r }: { r: CurveResponse }) {
       <span className="muted">desde {c.from} · {c.sessions} ruedas · al cierre del {c.to} vale {usd(c.valueUsd)} sobre {usd(c.investedUsd)} aportados{ajuste ? ` (incluye ${usd(ajuste)} que un traspaso trae sin operación que lo explique)` : ""}{c.dividendsUsd ? ` · dividendos reinvertidos ${usd(c.dividendsUsd)}` : ""}{c.complete ? "" : " · incompleta"}</span>
       <div style={{ marginTop: 8 }}>{c.reading}</div>
       <table style={{ marginTop: 8 }}>
-        <thead><tr><th></th><th>total</th><th>anual (TWR)</th><th>XIRR</th><th>volatilidad</th><th>caída máx.</th></tr></thead>
+        <thead><tr><th></th><th>total</th><th>anual (TWR)</th><th>XIRR</th><th title={`${rotuloVolatilidad.curva(c.sessions, c.from)}, con lo que tenías cada día`}>volatilidad ({c.sessions} ruedas)</th><th>caída máx.</th></tr></thead>
         <tbody>{row("Tu cartera", c.portfolio)}{row("SPY", c.spy)}</tbody>
       </table>
+      {/* 15/9: esta volatilidad (51,4%) y la de la tarjeta de riesgo (31%) aparecían sin ventana y parecían contradecirse. */}
+      {riskSessions !== null && riskSessions > 0 && (
+        <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>La volatilidad de esta tabla es la de las {c.sessions} ruedas desde {c.from}, con lo que tenías cada día; la de la tarjeta de riesgo es la de las últimas {riskSessions} ruedas con los pesos de hoy. Miden cosas distintas: por eso no coinciden.</div>
+      )}
       {c.sameMoneyInSpy && <div style={{ marginTop: 6 }}>La misma plata puesta en SPY en las mismas fechas valdría al cierre del {c.to} <b>{usd(c.sameMoneyInSpy.valueUsd)}</b>; tu cartera, al mismo cierre, <b>{usd(c.valueUsd)}</b>.</div>}
       <CurveChart points={c.points} />
       {c.warnings.map((w) => <div key={w} className="warn" style={{ marginTop: 6 }}>⚠ {w}</div>)}
@@ -320,7 +324,8 @@ function MeasurementCard({ m }: { m: Measurement }) {
   const cell = (b: { n: number; hitRate: number | null; avgAlpha: number | null }) => (b.n ? `${b.n} · ${b.hitRate === null ? "—" : `${(b.hitRate * 100).toFixed(0)}%`} · ${pct(b.avgAlpha)}` : "—");
   return (
     <div className="card">
-      <b>Medición contra SPY</b> <span className="muted">{m.total} veredictos, {m.pending} pendientes de medir</span>
+      {/* 15/9: decía "72 veredictos, 72 pendientes de medir" con 8 ya medidos a 7 días. Ahora cuenta por horizonte. */}
+      <b>Medición contra SPY</b> <span className={m.estado && (m.estado.h7.vencidas || m.estado.h30.vencidas) ? "warn" : "muted"}>{textoMedicion(m)}</span>
       <table style={{ marginTop: 8 }}>
         <thead><tr><th>verbo</th><th>7 días (n · acierto · alpha medio)</th><th>30 días</th></tr></thead>
         <tbody>{verbs.map((v) => <tr key={v}><td><span className={`verb ${v}`}>{v}</span></td><td className="mono">{cell(m.byVerb[v].h7)}</td><td className="mono">{cell(m.byVerb[v].h30)}</td></tr>)}</tbody>

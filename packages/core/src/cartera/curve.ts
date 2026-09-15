@@ -338,6 +338,8 @@ export function readingFor(from: string, sessions: number, days: number, p: Curv
     return `Desde ${from} (${sessions} ruedas, sin anualizar): tu cartera ${signed(p.totalPct)}, SPY ${signed(s.totalPct)}. ${verdict} Caída máxima ${p.maxDrawdownPct.toFixed(1)}% contra ${s.maxDrawdownPct.toFixed(1)}% de SPY.`;
   }
   const months = Math.round(days / 30.44);
-  const vol = p.volPct !== null && s.volPct !== null ? ` Volatilidad ${p.volPct.toFixed(1)}% contra ${s.volPct.toFixed(1)}% de SPY;` : "";
+  // 15/9: esta volatilidad (51,4%, todas las ruedas) y la de la tarjeta de riesgo (31%, las últimas 63 con los pesos de
+  // hoy) aparecían en la misma pantalla sin decir sobre qué ventana: parecían dos medidas de lo mismo que no coincidían.
+  const vol = p.volPct !== null && s.volPct !== null ? ` Volatilidad de esas ${sessions} ruedas ${p.volPct.toFixed(1)}% contra ${s.volPct.toFixed(1)}% de SPY;` : "";
   return `Desde ${from} (${months} meses): tu cartera ${signed(p.annualPct)} anual, SPY ${signed(theirs)}. ${verdict}${vol} caída máxima ${p.maxDrawdownPct.toFixed(1)}% contra ${s.maxDrawdownPct.toFixed(1)}%.`;
 }

@@ -77,6 +77,16 @@ describe("/cartera", () => {
     expect(vs.find((v: { symbol: string }) => v.symbol === "TSM")).toMatchObject({ target: 533.92, holdTarget: 428.41 });
     expect(vs.find((v: { symbol: string }) => v.symbol === "GGAL")).toMatchObject({ target: 47.26, holdTarget: 47.26 });
   });
+  /** 15/9: "72 veredictos, 72 pendientes de medir" con 8 ya medidos a 7 días. La medición se cuenta por horizonte. */
+  it("la medición se cuenta por horizonte: medidos, esperando y vencidos", async () => {
+    const store = new MemoryStore();
+    await store.upsertVerdicts([{ ...ggal15, verdictDate: "2026-09-07", alpha7dPct: 1.2, close7d: 43 }, { ...ggal15, verdictDate: "2026-09-08" }, ggal15]);
+    // El 16/9 el del 8/9 ya tuvo su cierre (el del 15/9): si sigue sin medirse, está vencido.
+    const m = await (await app(store).request("/cartera/measurement?today=2026-09-16")).json();
+    expect(m.total).toBe(3);
+    expect(m.estado.h7).toEqual({ medidas: 1, esperando: 1, vencidas: 1, primera: "2026-09-22" });
+    expect(m.estado.h30).toMatchObject({ medidas: 0, esperando: 3 });
+  });
   it("una corrida nueva guarda la fecha de la vela y la API la sirve tal cual", async () => {
     const a = app();
     await post(a, "/cartera/positions", { symbol: "ypf", quantity: 100, avgCost: 30, market: "adr" });

@@ -120,9 +120,10 @@ export function carteraRoutes(c: Container) {
   // ?date=YYYY-MM-DD: histórico, tal como quedó esa corrida. Cada veredicto lleva `closeDate` y el riesgo `asOf`.
   app.get("/cartera/verdicts", async (ctx) => { const d = ctx.req.query("date"); return ctx.json(await veredictosConFecha(d ? await store.verdictsForDate(d) : await store.latestVerdicts())); });
   app.get("/cartera/risk", async (ctx) => { const d = ctx.req.query("date"); return ctx.json(await riesgoConFecha(d ? await store.riskForDate(d) : await store.latestRisk())); });
+  // Con `today` la medición sabe qué espera su cierre y qué venció sin medirse (15/9): "72 pendientes" con 8 medidos no.
   app.get("/cartera/measurement", async (ctx) => {
     const all = await store.allVerdicts();
-    return ctx.json({ total: all.length, ...summarizeMeasurement(all) });
+    return ctx.json({ total: all.length, ...summarizeMeasurement(all, ctx.req.query("today") ?? todayLocal()) });
   });
   return app;
 }

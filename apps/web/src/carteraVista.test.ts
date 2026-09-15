@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ContributionPlan, Position, Quote, Verdict } from "./api";
 import { instruccionCartera, planStatusFor } from "./instruccion";
-import { lineaSumar, pesosAhora, totals, valuation, vistaFila } from "./carteraVista";
+import { lineaSumar, pesosAhora, rotuloVolatilidad, textoMedicion, totals, valuation, vistaFila } from "./carteraVista";
 
 /**
  * TSM el 15/9, tal como estaba en la base y en el plan. El plan lo dejó afuera ("6° por convicción: verificación web
@@ -108,5 +108,32 @@ describe("peso y precio viejo: la misma base que la columna valor y el criterio 
     // Sin la marca del servidor no se afirma que sea de hoy.
     const sinMarca: Quote = { price: 42.5, prevClose: null, change: null, changePct: null, asOf: hace40h.asOf };
     expect(valuation(positions[0]!, verdicts.get("GGAL"), sinMarca).live).toBe(false);
+  });
+});
+
+/**
+ * 15/9 (B5). Dos volatilidades en la misma pantalla y ninguna decía sobre qué: 31% en la tarjeta de riesgo (las últimas
+ * 63 ruedas con los pesos de hoy) y 51,4% en la curva (las 292 ruedas desde el 17/7/2025 con lo que tenías cada día).
+ * Y la medición decía "72 veredictos, 72 pendientes de medir" con 8 ya medidos a 7 días.
+ */
+describe("ventanas de volatilidad y medición por horizonte", () => {
+  it("cada volatilidad dice su ventana", () => {
+    expect(rotuloVolatilidad.riesgo(63)).toBe("volatilidad propia, últimas 63 ruedas con los pesos de hoy");
+    expect(rotuloVolatilidad.curva(292, "2025-07-17")).toBe("volatilidad de las 292 ruedas desde 2025-07-17");
+  });
+
+  it("15/9: 8 medidos a 7 días y el resto esperando su cierre, no '72 pendientes'", () => {
+    const t = textoMedicion({ total: 72, pending: 72, estado: { h7: { medidas: 8, esperando: 64, vencidas: 0, primera: "2026-09-15" }, h30: { medidas: 0, esperando: 72, vencidas: 0, primera: "2026-10-07" } } });
+    expect(t).toBe("72 veredictos. A 7 días: 8 medidos y 64 esperando su cierre (el próximo, el del 2026-09-15). A 30 días: 0 medidos y 72 esperando su cierre (el próximo, el del 2026-10-07).");
+    expect(t).not.toContain("pendientes");
+  });
+
+  it("lo vencido sin medir se dice aparte, porque es lo único que es un problema", () => {
+    const t = textoMedicion({ total: 16, pending: 16, estado: { h7: { medidas: 8, esperando: 0, vencidas: 8, primera: null }, h30: { medidas: 0, esperando: 16, vencidas: 0, primera: "2026-10-07" } } });
+    expect(t).toContain("A 7 días: 8 medidos y 8 vencidos sin medir.");
+  });
+
+  it("una API anterior sin el estado por horizonte no inventa: dice el total", () => {
+    expect(textoMedicion({ total: 72, pending: 72 })).toBe("72 veredictos.");
   });
 });

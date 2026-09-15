@@ -219,7 +219,9 @@ describe("buildCurve", () => {
     const n = 366;
     const closes = Array.from({ length: n }, (_, i) => 100 + (10 * i) / (n - 1));
     const long = buildCurve({ transactions: [tx({ symbol: "AAA", type: "BUY", quantity: 10, price: 100, date: day(0) })], candles: { AAA: series(closes) }, spy: series(flat(n)), positions: [pos("AAA", 10)] })!;
-    expect(long.reading).toBe(`Desde ${day(0)} (12 meses): tu cartera +10.0% anual, SPY +0.0%. Le ganás por 10.0 puntos. Volatilidad 0.0% contra 0.0% de SPY; caída máxima 0.0% contra 0.0%.`);
+    // 15/9: la volatilidad de la curva (51,4%, 292 ruedas) y la de la tarjeta de riesgo (31%, 63 ruedas) aparecían sin
+    // ventana en la misma pantalla. Cada una dice sobre cuántas ruedas se midió.
+    expect(long.reading).toBe(`Desde ${day(0)} (12 meses): tu cartera +10.0% anual, SPY +0.0%. Le ganás por 10.0 puntos. Volatilidad de esas 366 ruedas 0.0% contra 0.0% de SPY; caída máxima 0.0% contra 0.0%.`);
   });
 
   it("sin velas de SPY no hay calendario: falla en vez de inventar", () => {

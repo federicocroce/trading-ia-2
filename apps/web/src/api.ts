@@ -40,7 +40,8 @@ export interface RiskReport {
   notes: string[];
 }
 interface Bucket { n: number; hitRate: number | null; avgAlpha: number | null }
-export interface Measurement { total: number; pending: number; byVerb: Record<Verb, { h7: Bucket; h30: Bucket }> }
+/** `estado`: medidas, esperando su cierre y vencidas sin medir, por horizonte (15/9); las mismas palabras que el Radar. */
+export interface Measurement { total: number; pending: number; byVerb: Record<Verb, { h7: Bucket; h30: Bucket }>; estado?: { h7: EstadoMedicion; h30: EstadoMedicion } }
 export interface CurveMetrics { totalPct: number; annualPct: number | null; xirrPct: number | null; volPct: number | null; maxDrawdownPct: number }
 export interface CurvePoint { date: string; value: number; index: number; spyIndex: number }
 export interface CurveReport { from: string; to: string; sessions: number; points: CurvePoint[]; portfolio: CurveMetrics; spy: CurveMetrics; valueUsd: number; investedUsd: number; dividendsUsd: number; /** Lo que un traspaso trae sin operación que lo explique, entrado como aporte (15/9). */ adjustmentsUsd?: number; sameMoneyInSpy: { valueUsd: number; xirrPct: number | null } | null; reading: string; complete: boolean; warnings: string[] }
