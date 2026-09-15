@@ -92,7 +92,7 @@ export function Cartera() {
   const cierres = risk?.report.asOf ?? verdicts.find((v) => v.closeDate)?.closeDate ?? null;
   const tot = totals(positions, vBy, quotes);
   const pesos = pesosAhora(positions, vBy, quotes);
-  const priced =Object.values(quotes).filter((q) => q !== null).length;
+  const priced = Object.values(quotes).filter((q) => q !== null).length;
   const quotesNote = quotesErr
     ? `precios vivos no disponibles (${quotesErr}); se usa el cierre del veredicto`
     : quotesAt
