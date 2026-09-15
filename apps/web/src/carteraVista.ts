@@ -1,5 +1,52 @@
-import type { ContributionPlan, PlanLine, Verdict } from "./api";
+import type { ContributionPlan, PlanLine, Position, Quote, Verdict } from "./api";
 import type { Instruccion } from "./instruccion";
+
+/**
+ * Valuación de una posición: precio vivo si llegó; si no, el cierre del veredicto (apagado). P&L en la moneda de la
+ * posición, misma cuenta que la ficha por ticker.
+ *
+ * "Vivo" lo decide el servidor (15/9): marca viejo lo de más de 30 horas, igual para la cinta, la watchlist y la ficha.
+ * Cartera tenía su propia cuenta de más de 3 días, y el mismo precio del viernes se veía vivo acá el lunes y gris en la
+ * cinta. Sin la marca del servidor no se afirma que sea de hoy.
+ */
+export function valuation(p: Position, v: Verdict | undefined, q: Quote | null) {
+  const price = q?.price ?? v?.close ?? null;
+  const live = q !== null && q.stale === false;
+  const cost = p.quantity * p.avgCost;
+  const value = price === null ? null : price * p.quantity;
+  const pnl = price === null ? null : (price - p.avgCost) * p.quantity;
+  const pnlPct = price === null ? null : ((price - p.avgCost) / p.avgCost) * 100;
+  return { price, live, cost, value, pnl, pnlPct };
+}
+
+/** Totales de la cartera en USD: suma solo las posiciones en USD con precio; avisa cuántas quedaron afuera. */
+export function totals(positions: Position[], vBy: Map<string, Verdict>, quotes: Record<string, Quote | null>) {
+  let value = 0, cost = 0, counted = 0, otherCurrency = 0, noPrice = 0;
+  for (const p of positions) {
+    if (p.currency !== "USD") { otherCurrency++; continue; }
+    const x = valuation(p, vBy.get(p.symbol), quotes[p.symbol] ?? null);
+    if (x.value === null) { noPrice++; continue; }
+    value += x.value; cost += x.cost; counted++;
+  }
+  const pnl = value - cost;
+  return { value, cost, pnl, pnlPct: cost > 0 ? (pnl / cost) * 100 : null, counted, otherCurrency, noPrice };
+}
+
+/**
+ * Peso de cada posición sobre el MISMO valor que muestran la columna "valor" y el total de arriba (15/9). Hasta ese día
+ * el peso era el del cierre guardado y el valor el del precio vivo: GGAL 25,04% contra 24,80% en la misma fila. El peso
+ * al cierre sigue siendo el que usa el veredicto y va en el título de la celda. null si no entra en el total (otra
+ * moneda o sin precio).
+ */
+export function pesosAhora(positions: Position[], vBy: Map<string, Verdict>, quotes: Record<string, Quote | null>): Record<string, number | null> {
+  const tot = totals(positions, vBy, quotes);
+  const out: Record<string, number | null> = {};
+  for (const p of positions) {
+    const x = valuation(p, vBy.get(p.symbol), quotes[p.symbol] ?? null);
+    out[p.symbol] = p.currency === "USD" && x.value !== null && tot.value > 0 ? (x.value / tot.value) * 100 : null;
+  }
+  return out;
+}
 
 /**
  * Qué muestra una fila de Cartera: objetivo, motivo y narración, siempre de acuerdo con la instrucción (15/9).

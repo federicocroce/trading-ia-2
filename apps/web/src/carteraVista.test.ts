@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { ContributionPlan, Verdict } from "./api";
+import type { ContributionPlan, Position, Quote, Verdict } from "./api";
 import { instruccionCartera, planStatusFor } from "./instruccion";
-import { lineaSumar, vistaFila } from "./carteraVista";
+import { lineaSumar, pesosAhora, totals, valuation, vistaFila } from "./carteraVista";
 
 /**
  * TSM el 15/9, tal como estaba en la base y en el plan. El plan lo dejó afuera ("6° por convicción: verificación web
@@ -68,5 +68,45 @@ describe("vistaFila: una fila de Cartera dice lo mismo que la instrucción", () 
     const ggal: Verdict = { ...tsm, symbol: "GGAL", verb: "MANTENER", reason: "Dejá correr. Tu stop sube solo a $40.81 y el objetivo es $47.26: salís solo si cierra abajo.", narrative: "Sin novedades.", close: 42.96, stop: 40.81, target: 47.26, holdTarget: 47.26 };
     const f = vistaFila(ggal, ins(plan, ggal), null);
     expect(f).toEqual({ objetivo: 47.26, siSumas: null, motivo: ggal.reason, narrativa: "Sin novedades." });
+  });
+});
+
+/**
+ * 15/9 (B4). La columna "valor" usaba el precio vivo y la de "peso" el cierre guardado: GGAL 25,04% contra 24,80% con
+ * el precio de ese momento, en la misma fila. Y "precio viejo" era una cuenta propia de más de 3 días, mientras el
+ * servidor (la cinta, la watchlist) marca viejo lo de más de 30 horas: el mismo precio se veía vivo acá y gris allá.
+ */
+describe("peso y precio viejo: la misma base que la columna valor y el criterio del servidor", () => {
+  const pos = (symbol: string, quantity: number, avgCost: number): Position => ({ symbol, quantity, avgCost, currency: "USD", market: "us", layer: "riesgo", notes: null });
+  // Las ocho posiciones reales y los cierres del 14/9 con que corrió el veredicto del 15/9.
+  const cartera: Array<[string, number, number, number, number]> = [
+    ["GGAL", 920.77279309, 34.6788, 42.96, 25.04], ["HUT", 149.65996595, 66.6845, 91.13, 8.63], ["MARA", 632.43161017, 7.8886, 11.5, 4.6], ["NEM", 44.49726912, 111.4931, 123.07, 3.47],
+    ["PAM", 367.13513249, 73.392, 86.65, 20.14], ["TSM", 26.52852693, 376.1988, 418.01, 7.02], ["VIST", 231.9381059, 43.0257, 76.41, 11.22], ["YPF", 557.35797034, 30.4379, 56.33, 19.88],
+  ];
+  const positions = cartera.map(([s, q, c]) => pos(s, q, c));
+  const verdicts = new Map(cartera.map(([s, , , close, w]) => [s, { ...tsm, symbol: s, verb: "MANTENER" as const, close, weightPct: w }]));
+  const vivo = (price: number): Quote => ({ price, prevClose: null, change: null, changePct: null, asOf: "2026-09-15T15:30:00Z", stale: false });
+
+  it("con el precio vivo de GGAL el peso es el de ese valor, no el 25,04% del cierre guardado", () => {
+    const quotes: Record<string, Quote | null> = Object.fromEntries(cartera.map(([s, , , close]) => [s, vivo(s === "GGAL" ? 42.5 : close)]));
+    const pesos = pesosAhora(positions, verdicts, quotes);
+    const tot = totals(positions, verdicts, quotes);
+    const ggal = valuation(positions[0]!, verdicts.get("GGAL"), quotes["GGAL"]!);
+    expect(pesos["GGAL"]).toBeCloseTo((ggal.value! / tot.value) * 100, 6);
+    expect(pesos["GGAL"]).toBeCloseTo(24.84, 2);
+    expect(Object.values(pesos).reduce((a: number, b) => a + (b ?? 0), 0)).toBeCloseTo(100, 6);
+  });
+
+  it("sin precio vivo, peso y valor usan el mismo cierre del veredicto: da el peso guardado", () => {
+    expect(pesosAhora(positions, verdicts, {})["GGAL"]).toBeCloseTo(25.04, 2);
+  });
+
+  it("precio viejo es lo que dice el servidor: un precio de hace 40 horas marcado viejo no se muestra como vivo", () => {
+    const hace40h: Quote = { price: 42.5, prevClose: null, change: null, changePct: null, asOf: new Date(Date.now() - 40 * 3_600_000).toISOString(), stale: true };
+    expect(valuation(positions[0]!, verdicts.get("GGAL"), hace40h).live).toBe(false);
+    expect(valuation(positions[0]!, verdicts.get("GGAL"), { ...hace40h, stale: false }).live).toBe(true);
+    // Sin la marca del servidor no se afirma que sea de hoy.
+    const sinMarca: Quote = { price: 42.5, prevClose: null, change: null, changePct: null, asOf: hace40h.asOf };
+    expect(valuation(positions[0]!, verdicts.get("GGAL"), sinMarca).live).toBe(false);
   });
 });

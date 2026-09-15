@@ -6,7 +6,7 @@ import { SymbolLink } from "./SymbolLink";
 import { usePrices } from "./prices";
 import { CarteraVerdict, usePlan } from "./plan";
 import { instruccionCartera, planStatusFor } from "./instruccion";
-import { lineaSumar, vistaFila } from "./carteraVista";
+import { lineaSumar, pesosAhora, totals, valuation, vistaFila } from "./carteraVista";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -15,36 +15,7 @@ const pct2 = (n: number | null | undefined) => (n === null || n === undefined ? 
 const usd = (n: number | null | undefined, d = 0) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: d, minimumFractionDigits: d })}`);
 const signed = (n: number | null | undefined) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : `${n > 0 ? "+" : ""}${usd(n)}`);
 const cls = (n: number | null | undefined) => (n === null || n === undefined || !Number.isFinite(n) ? "" : n >= 0 ? "ok" : "bad");
-/** Un precio de hace más de 3 días no es "de hoy": se muestra apagado, igual que en la ficha. */
-const stale = (asOf: string | null) => (asOf ? (Date.now() - Date.parse(asOf)) / 86_400_000 > 3 : false);
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
-
-/**
- * Valuación de una posición: precio vivo si llegó; si no, el cierre del veredicto (apagado). P&L en la moneda de
- * la posición, misma cuenta que la ficha por ticker.
- */
-function valuation(p: Position, v: Verdict | undefined, q: Quote | null) {
-  const price = q?.price ?? v?.close ?? null;
-  const live = q !== null && !stale(q.asOf);
-  const cost = p.quantity * p.avgCost;
-  const value = price === null ? null : price * p.quantity;
-  const pnl = price === null ? null : (price - p.avgCost) * p.quantity;
-  const pnlPct = price === null ? null : ((price - p.avgCost) / p.avgCost) * 100;
-  return { price, live, cost, value, pnl, pnlPct };
-}
-
-/** Totales de la cartera en USD: suma solo las posiciones en USD con precio; avisa cuántas quedaron afuera. */
-function totals(positions: Position[], vBy: Map<string, Verdict>, quotes: Record<string, Quote | null>) {
-  let value = 0, cost = 0, counted = 0, otherCurrency = 0, noPrice = 0;
-  for (const p of positions) {
-    if (p.currency !== "USD") { otherCurrency++; continue; }
-    const x = valuation(p, vBy.get(p.symbol), quotes[p.symbol] ?? null);
-    if (x.value === null) { noPrice++; continue; }
-    value += x.value; cost += x.cost; counted++;
-  }
-  const pnl = value - cost;
-  return { value, cost, pnl, pnlPct: cost > 0 ? (pnl / cost) * 100 : null, counted, otherCurrency, noPrice };
-}
 
 const EMPTY: Position = { symbol: "", quantity: 0, avgCost: 0, currency: "USD", market: "us", layer: "riesgo", notes: null };
 
@@ -63,7 +34,8 @@ export function Cartera() {
   const { prices: livePrices, live: liveStream, at: quotesAt } = usePrices();
   const quotesErr: string | null = null;
   // Precios vivos del hub (los mismos de la watchlist y la cinta), en la forma que ya usa la tabla.
-  const quotes = useMemo<Record<string, Quote | null>>(() => Object.fromEntries(positions.map((p) => { const r = livePrices.get(p.symbol.toUpperCase()); return [p.symbol, r ? { price: r.price, prevClose: r.prevClose, change: r.change, changePct: r.changePct, asOf: r.asOf, currency: r.currency } : null]; })), [positions, livePrices, livePrices.size, quotesAt]);
+  // `stale` viaja con el precio: lo decide el servidor (30 horas), el mismo criterio que la cinta y la watchlist (15/9).
+  const quotes = useMemo<Record<string, Quote | null>>(() => Object.fromEntries(positions.map((p) => { const r = livePrices.get(p.symbol.toUpperCase()); return [p.symbol, r ? { price: r.price, prevClose: r.prevClose, change: r.change, changePct: r.changePct, asOf: r.asOf, currency: r.currency, stale: r.stale } : null]; })), [positions, livePrices, livePrices.size, quotesAt]);
   const [editingTags, setEditingTags] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -119,7 +91,8 @@ export function Cartera() {
   // La corrida del 15/9 a las 07:49 usó los cierres del 14/9: la fecha del veredicto no es la del precio.
   const cierres = risk?.report.asOf ?? verdicts.find((v) => v.closeDate)?.closeDate ?? null;
   const tot = totals(positions, vBy, quotes);
-  const priced = Object.values(quotes).filter((q) => q !== null).length;
+  const pesos = pesosAhora(positions, vBy, quotes);
+  const priced =Object.values(quotes).filter((q) => q !== null).length;
   const quotesNote = quotesErr
     ? `precios vivos no disponibles (${quotesErr}); se usa el cierre del veredicto`
     : quotesAt
@@ -170,12 +143,12 @@ export function Cartera() {
       )}
       <div className="card" style={{ overflowX: "auto" }}>
         <table>
-          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>invertido</th><th>precio</th><th>valor</th><th>P&amp;L</th><th>P&amp;L %</th><th>peso</th><th>veredicto</th><th title="Si cierra por debajo, se vende: la tesis se anuló.">stop</th><th title="No es una ganancia esperada: es el doble de la distancia al stop. Un papel tranquilo muestra poco y uno volátil mucho, sin que eso diga cuál es mejor.">objetivo</th><th>etiquetas</th><th></th></tr></thead>
+          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>invertido</th><th>precio</th><th>valor</th><th>P&amp;L</th><th>P&amp;L %</th><th title="Sobre el valor de ahora, la misma base que la columna valor. El peso al cierre, con el que decide el veredicto, está en el título de cada celda.">peso</th><th>veredicto</th><th title="Si cierra por debajo, se vende: la tesis se anuló.">stop</th><th title="No es una ganancia esperada: es el doble de la distancia al stop. Un papel tranquilo muestra poco y uno volátil mucho, sin que eso diga cuál es mejor.">objetivo</th><th>etiquetas</th><th></th></tr></thead>
           <tbody>
             {positions.map((p) => {
               const v = vBy.get(p.symbol);
               return (
-                <Row key={p.symbol} p={p} v={v} q={quotes[p.symbol] ?? null} tags={tags[p.symbol] ?? null} open={open === p.symbol} onToggle={() => setOpen(open === p.symbol ? null : p.symbol)} onEdit={() => setForm({ ...p })} onRemove={() => remove(p.symbol)} editingTags={editingTags === p.symbol} onEditTags={() => setEditingTags(editingTags === p.symbol ? null : p.symbol)} onTagsSaved={() => { setEditingTags(null); void load(); }} />
+                <Row key={p.symbol} p={p} v={v} q={quotes[p.symbol] ?? null} peso={pesos[p.symbol] ?? null} tags={tags[p.symbol] ?? null} open={open === p.symbol} onToggle={() => setOpen(open === p.symbol ? null : p.symbol)} onEdit={() => setForm({ ...p })} onRemove={() => remove(p.symbol)} editingTags={editingTags === p.symbol} onEditTags={() => setEditingTags(editingTags === p.symbol ? null : p.symbol)} onTagsSaved={() => { setEditingTags(null); void load(); }} />
               );
             })}
             {!positions.length && <tr><td colSpan={14} className="muted">Sin posiciones. Agregá una o corré <span className="mono">pnpm import:v1</span>.</td></tr>}
@@ -189,7 +162,7 @@ export function Cartera() {
   );
 }
 
-function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onEditTags, onTagsSaved }: { p: Position; v: Verdict | undefined; q: Quote | null; tags: Tags | null; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void; editingTags: boolean; onEditTags: () => void; onTagsSaved: () => void }) {
+function Row({ p, v, q, peso, tags, open, onToggle, onEdit, onRemove, editingTags, onEditTags, onTagsSaved }: { p: Position; v: Verdict | undefined; q: Quote | null; peso: number | null; tags: Tags | null; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void; editingTags: boolean; onEditTags: () => void; onTagsSaved: () => void }) {
   const x = valuation(p, v, q);
   const plan = usePlan();
   // La misma instrucción que muestra la etiqueta (CarteraVerdict): objetivo, motivo y narración la siguen (15/9).
@@ -210,7 +183,9 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
         <td className="mono">{usd(x.value)}</td>
         <td className={`mono ${cls(x.pnl)}`}>{signed(x.pnl)}</td>
         <td className={`mono ${cls(x.pnlPct)}`}>{pct(x.pnlPct)}</td>
-        <td className="mono">{v ? `${v.weightPct.toFixed(1)}%` : "—"}</td>
+        {/* 15/9: el peso era el del cierre guardado y el valor el del precio vivo (GGAL 25,04% contra 24,80%). Ahora
+            el peso sale del mismo valor que la columna de al lado; el del cierre, con el que decide el veredicto, va en el título. */}
+        <td className="mono" title={`Sobre el valor de ahora, la misma base que la columna "valor".${v ? ` Al cierre${v.closeDate ? ` del ${v.closeDate}` : ""}: ${v.weightPct.toFixed(2)}%, el peso con el que decide el veredicto.` : ""}`}>{peso !== null ? `${peso.toFixed(1)}%` : v ? <span className="muted" title="Sin precio en dólares para compararlo con el total: peso al cierre del veredicto.">{v.weightPct.toFixed(1)}% al cierre</span> : "—"}</td>
         {/* SUMAR solo si el plan de hoy lo suma: TSM el 14/9 decía SUMAR acá y el plan no lo sumaba. */}
         <td style={{ maxWidth: 260 }}>{v ? <CarteraVerdict symbol={p.symbol} verb={v.verb} plan={plan} /> : <span className="muted">sin veredicto</span>}</td>
         <td className="mono">{f2(v?.stop)}</td>

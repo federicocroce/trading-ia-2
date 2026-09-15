@@ -112,7 +112,7 @@ export interface SymbolDescription { symbol: string; longName: string | null; su
 export interface NewsItem { symbol: string; date: string; headline: string; source: string | null; url: string; summary: string | null }
 export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" | "DIVIDEND" | "TRANSFER"; quantity: number; price: number; fees: number; date: string; currency: string; platform: string | null; externalId: string | null; notes: string | null }
 /** Precio vivo con la variación del día contra el cierre previo. */
-export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null }
+export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null; /** Marca del servidor (más de 30 horas): la misma para toda la app (15/9). */ stale?: boolean }
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
