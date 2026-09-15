@@ -115,6 +115,28 @@ describe("/catchup: estado por paso y corrida individual", () => {
   });
 });
 
+describe("/catchup: de dónde sale cada hora (C8, 15/9)", () => {
+  it("con job_runs viejo, 5 de 6 pasos mostraban \"—\": un paso fechado por la base dice que la hora no se conoce, el plan usa la hora en que se armó y la hora del botón dice de qué paso es", async () => {
+    const c = container();
+    const app = buildApp(c);
+    state.lastRun = null;
+    state.catchup = { running: false, last: null, current: null };
+    // Como el 15/9: el registro de corridas marca el 11/9 para Cartera, pero la base ya tiene los veredictos del 15/9.
+    await c.store.markJobRun("cartera", "2026-09-11", "8 veredictos, 0 errores");
+    await c.store.upsertVerdicts([{ verdictDate: "2026-09-15", symbol: "TSM", verb: "SUMAR", reason: "r", narrative: null, warning: null, close: 418.01, spot: 418.6, stop: 412.81, target: 533.92, gainPct: 11, weightPct: 7.02, spyClose: 500, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null }]);
+    await c.store.savePlan({ month: "2026-09", totalUsd: 40_000, lines: [], notes: [] } as never);
+    await c.store.markJobRun("tesis", "2026-09-15", "0 propuestas, 7 rechazadas, 0 errores");
+    const st = await (await app.request("/catchup")).json();
+    const paso = (id: string) => st.steps.find((s: { id: string }) => s.id === id);
+    expect(paso("cartera")).toMatchObject({ lastDate: "2026-09-15", ranAt: null, ranAtSource: "base" });
+    expect(paso("plan")).toMatchObject({ ranAt: (await c.store.latestPlan())!.builtAt, ranAtSource: "base" });
+    expect(paso("tesis").ranAtSource).toBe("registro");
+    expect(paso("scan")).toMatchObject({ lastDate: null, ranAt: null, ranAtSource: null });
+    // La hora del botón es la de un paso concreto, y la respuesta dice cuál.
+    expect(paso(st.lastRunStep).ranAt).toBe(st.lastRunAt);
+  });
+});
+
 describe("/catchup", () => {
   it("lista lo pendiente, corre solo eso, lo registra y no lo repite", async () => {
     const c = container();

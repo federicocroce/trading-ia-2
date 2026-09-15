@@ -2,8 +2,9 @@ import { useState } from "react";
 import { api, type CatchUpStatus, type UsageSummary } from "./api";
 import { goToTab } from "./SymbolLink";
 import { corteDelDia, cuotaDiaria } from "./usoTextos";
+import { fechaHoraAR, horaDelPaso, textoDelBoton } from "./corridasTextos";
 
-const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
+const fmt = (iso: string | null) => (iso ? fechaHoraAR(iso) : "—");
 const n = (v: number) => v.toLocaleString("es-AR");
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v)}%`);
 const usd = (v: number) => `USD ${v.toFixed(3)}`;
@@ -15,10 +16,11 @@ export function CorridasButton({ st, usage, onChanged }: { st: CatchUpStatus | n
   const due = st?.due.length ?? 0;
   const warn = usage?.warnings.length ?? 0;
   const cls = !st ? "muted" : st.running ? "warn" : errors ? "bad" : due || warn ? "warn" : "ok";
-  const text = !st ? "sin API" : st.running ? `corriendo ${st.current ? st.steps.find((s) => s.id === st.current)?.label ?? st.current : ""}…` : `última corrida ${fmt(st.lastRunAt)}`;
+  // No es "la última corrida" de todo: es cuántos pasos están al día y la hora conocida más nueva, con su paso (15/9).
+  const text = !st ? "sin API" : textoDelBoton(st);
   return (
     <>
-      <button className="ghost" onClick={() => setOpen(true)} title="Estado de cada paso del pipeline: cuándo corrió, con qué resultado, correrlo a mano; y cuánto se usó de cada fuente externa hoy.">
+      <button className="ghost" onClick={() => setOpen(true)} title="Estado de cada paso del pipeline: cuándo corrió, con qué resultado, correrlo a mano; y cuánto se usó de cada fuente externa hoy. Cada paso tiene su propia hora: abrí el panel para verlas.">
         <span className={cls}>●</span> {text}{errors > 0 && <span className="bad"> · {errors} con error</span>}{!errors && due > 0 && !st?.running && <span className="warn"> · {due} pendiente{due > 1 ? "s" : ""}</span>}{warn > 0 && <span className="warn" title={usage?.warnings.join("\n")}> · uso: {warn} aviso{warn > 1 ? "s" : ""}</span>}
       </button>
       {open && st && <CorridasModal st={st} usage={usage} onClose={() => setOpen(false)} onChanged={onChanged} />}
@@ -61,7 +63,7 @@ function CorridasModal({ st, usage, onClose, onChanged }: { st: CatchUpStatus; u
               <tr key={s.id}>
                 <td><b>{s.label}</b></td>
                 <td className="muted">{s.schedule}</td>
-                <td className="mono">{fmt(s.ranAt)}{s.lastDate && <span className="muted"> · cubre {s.lastDate}</span>}</td>
+                <td className="mono" title={s.ranAtSource === "base" ? "El registro de corridas (job_runs) está más viejo que los datos: la fecha sale de lo que hay en la base, que no guarda la hora (salvo el plan, que guarda cuándo se armó)." : undefined}>{s.ranAt ? fmt(s.ranAt) : <span className="muted">{horaDelPaso(s)}</span>}{s.ranAt && s.ranAtSource === "base" && <span className="muted"> (según la base)</span>}{s.lastDate && <span className="muted"> · cubre {s.lastDate}</span>}</td>
                 <td className="muted" style={{ maxWidth: 320 }}>{s.detail ?? "—"}</td>
                 <td className="bad" style={{ maxWidth: 260 }}>{s.lastError ? <span title={s.lastError}>{fmt(s.lastErrorAt)} · {s.lastError.slice(0, 80)}</span> : <span className="muted">—</span>}</td>
                 <td>{s.running ? <span className="verb OBSERVAR">corriendo</span> : s.due ? <span className="verb REVISAR" title={`esperada para ${s.expected}`}>pendiente</span> : <span className="ok">✓ al día</span>}</td>

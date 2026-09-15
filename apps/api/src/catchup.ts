@@ -22,6 +22,12 @@ export interface StepStatus {
   /** Última corrida buena: fecha que cubrió, hora en que corrió y resumen. */
   lastDate: string | null;
   ranAt: string | null;
+  /**
+   * De dónde sale la fecha (15/9): "registro" = `job_runs`, con hora; "base" = de los datos guardados, y la hora solo
+   * si los datos la tienen (el plan guarda cuándo se armó). null = nunca corrió. Con `job_runs` viejo hasta el 15/9,
+   * cinco de seis pasos mostraban "—" en la hora, que se leía como "no corrió".
+   */
+  ranAtSource: "registro" | "base" | null;
   detail: string | null;
   lastError: string | null;
   lastErrorAt: string | null;
@@ -32,11 +38,12 @@ export interface StepStatus {
 export interface CatchUpStatus {
   now: string;
   due: DueStep[];
-  last: Record<StepId, { lastDate: string; ranAt: string | null; detail: string | null } | null>;
+  last: Record<StepId, { lastDate: string; ranAt: string | null; ranAtSource: "registro" | "base"; detail: string | null } | null>;
   /** Vista por paso para el panel del encabezado. */
   steps: StepStatus[];
-  /** Hora de la última corrida buena de cualquier paso. */
+  /** Hora conocida más reciente de un paso, y de qué paso es: no es "la última corrida" de todo (15/9). */
   lastRunAt: string | null;
+  lastRunStep: StepId | null;
   running: boolean;
   current: string | null;
   lastResult: CatchUpResult | null;
@@ -129,14 +136,16 @@ async function lastDates(c: Container): Promise<CatchUpStatus["last"]> {
     plan: async () => (await store.latestPlan())?.month ?? null,
     tesis: async () => state.lastRun?.at.slice(0, 10) ?? null,
   };
+  // La única hora que los datos guardan: cuándo se armó el plan vigente. Lo demás tiene fecha, no hora.
+  const planBuiltAt = await store.latestPlan().then((p) => p?.builtAt ?? null).catch(() => null);
   for (const s of STEPS) {
     const j = jobs[s.id];
     const enBase = await fromData[s.id]().catch(() => null);
     // Manda la fecha MÁS NUEVA entre el registro de corridas y lo que hay en la base. Antes ganaba siempre
     // job_runs, así que una corrida lanzada por la CLI o por el agente de launchd era invisible: el 12/9 la
     // pantalla decía "última corrida 11/09, al día" mientras el Radar servía un ranking del 12.
-    if (j?.lastDate && (!enBase || j.lastDate >= enBase)) out[s.id] = { lastDate: j.lastDate, ranAt: j.ranAt, detail: j.detail };
-    else if (enBase) out[s.id] = { lastDate: enBase, ranAt: null, detail: j?.lastDate ? `corrida fuera del programador (el registro marca ${j.lastDate})` : "según lo que hay en la base" };
+    if (j?.lastDate && (!enBase || j.lastDate >= enBase)) out[s.id] = { lastDate: j.lastDate, ranAt: j.ranAt, ranAtSource: "registro", detail: j.detail };
+    else if (enBase) out[s.id] = { lastDate: enBase, ranAt: s.id === "plan" ? planBuiltAt : null, ranAtSource: "base", detail: j?.lastDate ? `corrida fuera del programador (el registro marca ${j.lastDate})` : "según lo que hay en la base" };
     else out[s.id] = null;
   }
   return out;
@@ -150,10 +159,12 @@ export async function catchUpStatus(c: Container, now = new Date()): Promise<Cat
     const l = last[s.id];
     const j = jobs[s.id];
     const d = due.find((x) => x.id === s.id);
-    return { id: s.id, label: s.label, schedule: SCHEDULE[s.id], lastDate: l?.lastDate ?? null, ranAt: l?.ranAt ?? null, detail: l?.detail ?? null, lastError: j?.lastError ?? null, lastErrorAt: j?.lastErrorAt ?? null, expected: d?.expected ?? expectedDate(s, now), due: !!d, running: state.catchup.current === s.id };
+    return { id: s.id, label: s.label, schedule: SCHEDULE[s.id], lastDate: l?.lastDate ?? null, ranAt: l?.ranAt ?? null, ranAtSource: l?.ranAtSource ?? null, detail: l?.detail ?? null, lastError: j?.lastError ?? null, lastErrorAt: j?.lastErrorAt ?? null, expected: d?.expected ?? expectedDate(s, now), due: !!d, running: state.catchup.current === s.id };
   });
-  const lastRunAt = steps.map((x) => x.ranAt).filter((x): x is string => !!x).sort().at(-1) ?? null;
-  return { now: now.toISOString(), due, last, steps, lastRunAt, running: state.catchup.running, current: state.catchup.current, lastResult: state.catchup.last };
+  // La hora más nueva que se conoce y de qué paso es. El 15/9 el botón decía "última corrida 15/09 10:24" con la hora de
+  // la tesis, como si fuera la de todo el pipeline, mientras los otros cinco pasos no tenían hora.
+  const conHora = steps.filter((x): x is StepStatus & { ranAt: string } => !!x.ranAt).sort((a, b) => a.ranAt.localeCompare(b.ranAt)).at(-1) ?? null;
+  return { now: now.toISOString(), due, last, steps, lastRunAt: conHora?.ranAt ?? null, lastRunStep: conHora?.id ?? null, running: state.catchup.running, current: state.catchup.current, lastResult: state.catchup.last };
 }
 
 /** Corre pasos concretos (uno o varios) en orden, registrando éxito o error. Devuelve lo que corrió. */
