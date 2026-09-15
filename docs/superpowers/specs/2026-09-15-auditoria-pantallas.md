@@ -105,3 +105,26 @@ Cada hallazgo:
 - vuelve a pasar `pnpm auditar` y `pnpm consistencia`.
 
 Los paquetes B y C trabajan en ramas propias y yo los integro. Nada llega a master sin el hook.
+
+## Estado al 15/9 a la noche (master e317594)
+
+La base única de la regla 1 quedó así: sin posición, el techo de la franja (en la confirmación la franja va del disparo
+a +2%); con posición, el precio de hoy. Vive en `apps/web/src/orden.ts` y en `PlanLine.orderPrice`.
+
+- **Paquete A:** hechos A1 a A15. De A16 solo el rótulo: el stop de los ADR argentinos sigue siendo el de seguimiento y
+  la columna lo dice. Cambiar la regla queda para decidir.
+- **Paquete B:** hecho. B6 (una tesis viva por evento) baja Propuestas de 15 a 7 y la corrida de tesis rechaza las
+  reemplazadas: falta que el dueño lo confirme.
+- **Paquete C:** hecho, y conectado en el Radar (comparables, verificación vigente, "comprar ahora" solo con plan).
+
+Lo que apareció al verificar con datos reales:
+
+- Hoy listaba a APH como nueva y como que salía: había pasado del seguimiento al ranking. Se compara el símbolo, y la
+  regla `novedad_contradictoria` lo detecta.
+- La fila del Radar copiaba la verificación de la fila anterior y no la guardada: BLBD decía "pendiente" y la ficha "con
+  reservas". Se lee de la tabla, y la regla `verificacion_desfasada` lo detecta.
+- La corrida de la mañana gastaba búsquedas en lo que una regla fija igual deja afuera (SNDK, bancos): ya no.
+- La ficha mostraba en tu posición el objetivo y el texto de sumar: usa `vistaFila`, como Cartera.
+- **Error mío:** corrí los tests de integración contra la base de la app y se borró el registro de uso del 14/9 00:33
+  al 15/9 17:15, sin respaldo. Ahora los tests usan `thesis_test` (`pnpm test:db`) y se niegan a correr contra la base
+  de la app.
