@@ -304,19 +304,23 @@ function CurveCard({ r }: { r: CurveResponse }) {
       <td className="mono bad">{m.maxDrawdownPct ? `-${m.maxDrawdownPct.toFixed(1)}%` : "0.0%"}</td>
     </tr>
   );
+  // 15/9: "valdría hoy 134.737; tenés 157.126" era el cierre del 14/9 sin decirlo, y con 901 GGAL en vez de las
+  // 920,77 de la posición (la curva no tomaba el traspaso ni los dividendos reinvertidos). Ahora cada valor dice
+  // de qué cierre es, y con las mismas acciones da lo mismo que la tarjeta de riesgo con ese cierre.
+  const ajuste = c.adjustmentsUsd ?? 0;
   return (
     <div className="card">
       <b>Curva de la cartera</b>{" "}
-      <span className="muted">desde {c.from} · {c.sessions} ruedas · vale {usd(c.valueUsd)} sobre {usd(c.investedUsd)} aportados{c.dividendsUsd ? ` · dividendos ${usd(c.dividendsUsd)}` : ""}{c.complete ? "" : " · incompleta"}</span>
+      <span className="muted">desde {c.from} · {c.sessions} ruedas · al cierre del {c.to} vale {usd(c.valueUsd)} sobre {usd(c.investedUsd)} aportados{ajuste ? ` (incluye ${usd(ajuste)} que un traspaso trae sin operación que lo explique)` : ""}{c.dividendsUsd ? ` · dividendos reinvertidos ${usd(c.dividendsUsd)}` : ""}{c.complete ? "" : " · incompleta"}</span>
       <div style={{ marginTop: 8 }}>{c.reading}</div>
       <table style={{ marginTop: 8 }}>
         <thead><tr><th></th><th>total</th><th>anual (TWR)</th><th>XIRR</th><th>volatilidad</th><th>caída máx.</th></tr></thead>
         <tbody>{row("Tu cartera", c.portfolio)}{row("SPY", c.spy)}</tbody>
       </table>
-      {c.sameMoneyInSpy && <div style={{ marginTop: 6 }}>La misma plata puesta en SPY en las mismas fechas valdría hoy <b>{usd(c.sameMoneyInSpy.valueUsd)}</b>; tenés <b>{usd(c.valueUsd)}</b>.</div>}
+      {c.sameMoneyInSpy && <div style={{ marginTop: 6 }}>La misma plata puesta en SPY en las mismas fechas valdría al cierre del {c.to} <b>{usd(c.sameMoneyInSpy.valueUsd)}</b>; tu cartera, al mismo cierre, <b>{usd(c.valueUsd)}</b>.</div>}
       <CurveChart points={c.points} />
       {c.warnings.map((w) => <div key={w} className="warn" style={{ marginTop: 6 }}>⚠ {w}</div>)}
-      <div className="muted" style={{ marginTop: 6 }}>TWR: retorno ponderado por tiempo, un aporte no cuenta como ganancia; anualizado solo con 60 ruedas o más. XIRR: retorno de tu plata con las fechas reales; el de SPY es la misma plata en las mismas fechas. Caída máxima sobre el índice, no sobre el valor: vender no es caer. SPY sin dividendos.</div>
+      <div className="muted" style={{ marginTop: 6 }}>TWR: retorno ponderado por tiempo, un aporte no cuenta como ganancia; anualizado solo con 60 ruedas o más. XIRR: retorno de tu plata con las fechas reales; el de SPY es la misma plata en las mismas fechas. Caída máxima sobre el índice, no sobre el valor: vender no es caer. Un traspaso entre plataformas es la foto del saldo, no una compra; los dividendos reinvertidos son acciones que quedan en la tenencia. SPY sin dividendos.</div>
     </div>
   );
 }

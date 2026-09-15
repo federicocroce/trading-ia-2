@@ -3,12 +3,14 @@ import type { Candle, Position, Transaction } from "./types.js";
 /**
  * Curva de la cartera real reconstruida desde las operaciones (puro, sin I/O).
  *
- * El calendario lo ponen las ruedas de SPY. Las tenencias salen de compras y ventas; los traspasos
- * se ignoran. Un aporte no es ganancia: el retorno diario se calcula contra el valor de ayer más lo
- * que entró hoy (retorno ponderado por tiempo). El índice base 100 encadena esos retornos.
+ * El calendario lo ponen las ruedas de SPY. Las tenencias salen de las operaciones con la misma regla que
+ * la ficha y el chequeo de pantallas (`aplicarMovimiento`): compras y dividendos reinvertidos suman, ventas
+ * restan y un traspaso es la foto del saldo. Un aporte no es ganancia: el retorno diario se calcula contra el
+ * valor de ayer más lo que entró hoy (retorno ponderado por tiempo). El índice base 100 encadena esos retornos.
  *
  * Fail-closed: un papel sin velas queda afuera y se dice; una operación que no cuadra con la posición
- * cargada se dice; nada se inventa.
+ * cargada se dice; lo que un traspaso trae sin operación que lo explique entra como aporte y se dice.
+ * Nada se inventa.
  */
 export interface CurveInput {
   transactions: Transaction[];
@@ -46,10 +48,17 @@ export interface CurveReport {
   portfolio: CurveMetrics;
   spy: CurveMetrics;
   valueUsd: number;
-  /** Aportes netos: compras (con comisiones) menos ventas. */
+  /** Aportes netos: compras (con comisiones) menos ventas, más el ajuste de los traspasos (`adjustmentsUsd`). */
   investedUsd: number;
+  /** Dividendos reinvertidos (acciones × precio de reinversión). Ya están en la tenencia: no son efectivo. */
   dividendsUsd: number;
-  /** Cada compra tuya simulada en SPY el mismo día con los mismos dólares (sin dividendos de SPY). */
+  /**
+   * Lo que los traspasos traen (o se llevan) sin una operación que lo explique, al precio del traspaso. Entra
+   * como aporte y no como ganancia: sin saber de dónde salieron esas acciones, contarlas como rendimiento sería
+   * inventarlo. Está incluido en `investedUsd` y cada caso tiene su aviso.
+   */
+  adjustmentsUsd: number;
+  /** Cada compra tuya (y cada ajuste de traspaso) simulada en SPY el mismo día con los mismos dólares (sin dividendos de SPY). */
   sameMoneyInSpy: { valueUsd: number; xirrPct: number | null } | null;
   /** Una línea en palabras, por regla. */
   reading: string;
@@ -67,6 +76,29 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const qty = (n: number) => Number(n.toFixed(4)).toString();
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
+
+/**
+ * Cómo mueve la tenencia de un papel cada operación. Una sola regla para la curva, la ficha y el chequeo de
+ * pantallas:
+ * - BUY suma y SELL resta;
+ * - DIVIDEND suma acciones: son dividendos reinvertidos (DRIP). Los cinco de GGAL traen 7,845 acciones y
+ *   ningún dólar;
+ * - TRANSFER no suma: es la FOTO del saldo al mudar de plataforma. El 18/4/2026 se traspasaron siete
+ *   posiciones de Buenbit a Nexo, y lo comprado antes ya está adentro de esa foto.
+ *
+ * Hasta el 15/9 la curva ignoraba los traspasos y trataba los dividendos como efectivo. Por eso contaba 901,28
+ * GGAL (solo las compras) cuando la posición tiene 920,77.
+ */
+export function aplicarMovimiento(saldo: number, t: Pick<Transaction, "type" | "quantity">): number {
+  if (t.type === "BUY" || t.type === "DIVIDEND") return saldo + t.quantity;
+  if (t.type === "SELL") return saldo - t.quantity;
+  return t.quantity;
+}
+
+/** Orden dentro de un mismo día: el traspaso va último porque es la foto del saldo al cierre de ese día. */
+const ORDEN_DEL_DIA: Record<Transaction["type"], number> = { BUY: 0, SELL: 1, DIVIDEND: 2, TRANSFER: 3 };
+/** Diferencia de acciones por debajo de la cual un traspaso "coincide" con las operaciones (ruido de redondeo). */
+const TRANSFER_EPSILON = 1e-6;
 
 /** Desvío muestral de retornos diarios anualizado, en %. null con pocas observaciones. */
 export function annualizedVolPct(returns: number[]): number | null {
@@ -113,7 +145,7 @@ export function buildCurve(i: CurveInput): CurveReport | null {
   if (!i.spy.length) throw new Error("sin velas de SPY: no hay calendario para la curva");
   const warnings: string[] = [];
   let complete = true;
-  const byDate = (a: Transaction, b: Transaction) => a.date.localeCompare(b.date);
+  const byDate = (a: Transaction, b: Transaction) => a.date.localeCompare(b.date) || ORDEN_DEL_DIA[a.type] - ORDEN_DEL_DIA[b.type];
 
   // 1. Moneda: la curva es en dólares (USDC cuenta). Lo demás queda afuera, con aviso.
   const usd = i.transactions.filter((t) => USD_LIKE.has(t.currency.toUpperCase()));
@@ -122,22 +154,24 @@ export function buildCurve(i: CurveInput): CurveReport | null {
     const who = [...new Set(other.map((t) => `${t.symbol} (${t.currency})`))].join(", ");
     warnings.push(`${other.length} ${plural(other.length, "operación en otra moneda queda", "operaciones en otra moneda quedan")} afuera: ${who}`);
   }
-  const allFlows = usd.filter((t) => t.type === "BUY" || t.type === "SELL").sort(byDate);
-  const allDivs = usd.filter((t) => t.type === "DIVIDEND").sort(byDate);
-  if (!allFlows.length) return null;
+  // Todas las operaciones mueven la tenencia (ver `aplicarMovimiento`); solo compras, ventas y traspasos abren
+  // un papel. Un dividendo reinvertido sin tenencia previa no arranca la curva.
+  const allMoves = [...usd].sort(byDate);
+  const openers = allMoves.filter((t) => t.type !== "DIVIDEND");
+  if (!openers.length) return null;
 
   // 2. Calendario: ruedas de SPY desde la primera operación.
-  const from = allFlows[0]!.date;
+  const from = openers[0]!.date;
   const calendar = i.spy.filter((c) => c.date >= from);
   if (!calendar.length) throw new Error(`sin velas de SPY desde la primera operación (${from})`);
   const to = calendar[calendar.length - 1]!.date;
   const sessionOnOrAfter = (date: string) => calendar.find((c) => c.date >= date)?.date ?? null;
 
-  // 3. Papeles sin velas hasta su primera operación quedan afuera (flujos y dividendos incluidos).
+  // 3. Papeles sin velas hasta su primera operación quedan afuera (todas sus operaciones incluidas).
   const excluded = new Set<string>();
-  for (const s of [...new Set(allFlows.map((t) => t.symbol))]) {
+  for (const s of [...new Set(openers.map((t) => t.symbol))]) {
     const c = i.candles[s] ?? [];
-    const first = allFlows.find((t) => t.symbol === s)!.date;
+    const first = openers.find((t) => t.symbol === s)!.date;
     const session = sessionOnOrAfter(first);
     if (session === null) continue; // todavía no hay rueda para medirla: se trata abajo como pendiente
     if (!c.length) warnings.push(`${s}: sin velas guardadas, queda afuera de la curva`);
@@ -146,17 +180,16 @@ export function buildCurve(i: CurveInput): CurveReport | null {
     excluded.add(s);
     complete = false;
   }
-  const flows = allFlows.filter((t) => !excluded.has(t.symbol));
-  const divs = allDivs.filter((t) => !excluded.has(t.symbol));
+  const moves = allMoves.filter((t) => !excluded.has(t.symbol));
 
   // 4. Operaciones posteriores a la última vela: no entran todavía, pero sí cuentan para el cuadre.
-  const pending = flows.filter((t) => t.date > to);
+  const pending = moves.filter((t) => t.date > to);
   if (pending.length) {
     warnings.push(`${pending.length} ${plural(pending.length, "operación posterior", "operaciones posteriores")} a la última vela (${to}) no ${plural(pending.length, "entra", "entran")} todavía: ${pending.map((t) => `${t.symbol} ${t.date}`).join(", ")}`);
   }
 
   // Cierre vigente por símbolo: el último conocido hasta la fecha (puntero que avanza con el calendario).
-  const symbols = [...new Set(flows.map((t) => t.symbol))];
+  const symbols = [...new Set(moves.map((t) => t.symbol))];
   const cursor: Record<string, number> = {};
   const lastClose: Record<string, number | null> = {};
   for (const s of symbols) {
@@ -177,8 +210,8 @@ export function buildCurve(i: CurveInput): CurveReport | null {
   let index = 100;
   let invested = 0;
   let dividends = 0;
+  let adjustments = 0;
   let f = 0;
-  let d = 0;
   const spy0 = calendar[0]!.close;
   const returns: number[] = [];
   const spyReturns: number[] = [];
@@ -187,35 +220,43 @@ export function buildCurve(i: CurveInput): CurveReport | null {
   let spyShares = 0;
   let prevSpy: number | null = null;
   for (const day of calendar) {
-    // Flujos del día: una compra entra a su costo (con comisiones); una venta sale a lo que dejó.
+    // Operaciones del día. Una compra entra a su costo (con comisiones) y una venta sale a lo que dejó: son
+    // flujos, no rendimiento. Un dividendo reinvertido suma acciones sin flujo: su valor es rendimiento del día
+    // y queda en la tenencia. Un traspaso fija el saldo; lo que trae de más o de menos es un flujo a su precio.
     let flow = 0;
-    while (f < flows.length && flows[f]!.date <= day.date) {
-      const t = flows[f]!;
-      const sign = t.type === "BUY" ? 1 : -1;
-      const usd = sign * t.quantity * t.price + t.fees;
-      holdings[t.symbol] = (holdings[t.symbol] ?? 0) + sign * t.quantity;
+    const cashIn = (usd: number) => {
       flow += usd;
       cash.push({ date: day.date, amount: -usd });
       spyCash.push({ date: day.date, amount: -usd });
       spyShares += usd / day.close;
+    };
+    while (f < moves.length && moves[f]!.date <= day.date) {
+      const t = moves[f]!;
+      const before = holdings[t.symbol] ?? 0;
+      holdings[t.symbol] = aplicarMovimiento(before, t);
+      if (t.type === "BUY" || t.type === "SELL") cashIn((t.type === "BUY" ? 1 : -1) * t.quantity * t.price + t.fees);
+      else if (t.type === "DIVIDEND") dividends += t.quantity * t.price;
+      else {
+        const delta = t.quantity - before;
+        if (Math.abs(delta) > TRANSFER_EPSILON) {
+          advance(t.symbol, day.date);
+          const price = t.price > 0 ? t.price : lastClose[t.symbol] ?? 0;
+          const usd = delta * price;
+          cashIn(usd);
+          adjustments += usd;
+          warnings.push(`${t.symbol}: el traspaso del ${t.date} dice ${qty(t.quantity)} y las operaciones registradas hasta ese día daban ${qty(before)} (compras, ventas y dividendos reinvertidos); la curva toma el traspaso y la diferencia de ${qty(Math.abs(delta))} entra como ${delta > 0 ? "aporte" : "retiro"} a ${price} (USD ${round2(Math.abs(usd))}), no como ${delta > 0 ? "ganancia" : "pérdida"}`);
+        }
+      }
       f++;
     }
     invested += flow;
-    // Dividendos cobrados hoy: retorno del día, aunque el efectivo no quede en lo que medimos.
-    let div = 0;
-    while (d < divs.length && divs[d]!.date <= day.date) {
-      div += divs[d]!.quantity * divs[d]!.price;
-      d++;
-    }
-    dividends += div;
-    if (div > 0) cash.push({ date: day.date, amount: div });
     let value = 0;
     for (const s of symbols) {
       advance(s, day.date);
       value += holdings[s]! * (lastClose[s] ?? 0);
     }
     const base = prevValue + flow;
-    const r = base > 0 ? (value + div) / base - 1 : 0;
+    const r = base > 0 ? value / base - 1 : 0;
     index *= 1 + r;
     // Para la volatilidad cuentan las ruedas con capital al arrancar el día (misma vara que SPY, que arranca en el primer cierre).
     if (prevValue > 0) returns.push(r);
@@ -227,7 +268,7 @@ export function buildCurve(i: CurveInput): CurveReport | null {
 
   // 5. Cuadre contra las posiciones cargadas (con las operaciones pendientes incluidas).
   const reconstructed: Record<string, number> = { ...holdings };
-  for (const t of pending) reconstructed[t.symbol] = (reconstructed[t.symbol] ?? 0) + (t.type === "BUY" ? 1 : -1) * t.quantity;
+  for (const t of pending) reconstructed[t.symbol] = aplicarMovimiento(reconstructed[t.symbol] ?? 0, t);
   for (const p of i.positions) {
     if (!USD_LIKE.has(p.currency.toUpperCase()) || excluded.has(p.symbol)) continue;
     const h = reconstructed[p.symbol];
@@ -279,6 +320,7 @@ export function buildCurve(i: CurveInput): CurveReport | null {
     valueUsd: last.value,
     investedUsd: round2(invested),
     dividendsUsd: round2(dividends),
+    adjustmentsUsd: round2(adjustments),
     sameMoneyInSpy: { valueUsd: spyValue, xirrPct: spy.xirrPct },
     reading: readingFor(from, sessions, days, portfolio, spy),
     complete,

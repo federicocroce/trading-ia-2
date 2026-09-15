@@ -41,7 +41,7 @@ interface Bucket { n: number; hitRate: number | null; avgAlpha: number | null }
 export interface Measurement { total: number; pending: number; byVerb: Record<Verb, { h7: Bucket; h30: Bucket }> }
 export interface CurveMetrics { totalPct: number; annualPct: number | null; xirrPct: number | null; volPct: number | null; maxDrawdownPct: number }
 export interface CurvePoint { date: string; value: number; index: number; spyIndex: number }
-export interface CurveReport { from: string; to: string; sessions: number; points: CurvePoint[]; portfolio: CurveMetrics; spy: CurveMetrics; valueUsd: number; investedUsd: number; dividendsUsd: number; sameMoneyInSpy: { valueUsd: number; xirrPct: number | null } | null; reading: string; complete: boolean; warnings: string[] }
+export interface CurveReport { from: string; to: string; sessions: number; points: CurvePoint[]; portfolio: CurveMetrics; spy: CurveMetrics; valueUsd: number; investedUsd: number; dividendsUsd: number; /** Lo que un traspaso trae sin operación que lo explique, entrado como aporte (15/9). */ adjustmentsUsd?: number; sameMoneyInSpy: { valueUsd: number; xirrPct: number | null } | null; reading: string; complete: boolean; warnings: string[] }
 export interface CurveResponse { curve: CurveReport | null; error: string | null; computedAt: string }
 export interface CarteraRun { date: string; verdicts: Verdict[]; risk: RiskReport; errors: Array<{ symbol: string; error: string }>; measured: { measured7: number; measured30: number } }
 
