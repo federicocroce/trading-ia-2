@@ -76,7 +76,8 @@ export function Radar() {
     const [c, p, m, s, o, t, a, w, pos, ver, risk] = await Promise.all([api.radar.candidates(q), api.radar.plan(), api.radar.measurement(), api.radar.scanStatus(), api.taxonomy.options(), api.radar.top(5), api.radar.argentina(), api.radar.watchlist(), api.cartera.positions().catch(() => []), api.cartera.verdicts().catch(() => []), api.cartera.risk().catch(() => null)]);
     // Lo que ya tenés se mide desde la posición: su objetivo es el de Cartera, y el tamaño de una compra nueva no aplica.
     const tenidas = new Set(pos.map((x) => x.symbol.toUpperCase()));
-    const objetivos = new Map(ver.map((v) => [v.symbol.toUpperCase(), v.target]));
+    // El objetivo de la posición es `holdTarget` (cierre + 2 × (cierre − stop), en core); en un SUMAR, `target` es el de la compra.
+    const objetivos = new Map(ver.map((v) => [v.symbol.toUpperCase(), v.holdTarget ?? v.target]));
     const pesos = new Map((risk?.report.weights ?? []).map((x) => [x.symbol.toUpperCase(), x.weightPct]));
     setTen({ tiene: (x) => tenidas.has(x.toUpperCase()), objetivo: (x) => objetivos.get(x.toUpperCase()) ?? null, peso: (x) => pesos.get(x.toUpperCase()) ?? null });
     setCands(c);
