@@ -1,5 +1,6 @@
 import type { CandidateRow, NewsItem, Thesis, VerdictRow } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
+import { tesisReemplazadas, todasLasTesis } from "./theses.js";
 
 /**
  * Novedades del día: qué cambió contra la corrida anterior, para leer a la mañana en un minuto.
@@ -74,8 +75,11 @@ export async function buildNovedades(store: Store & CarteraStore & RadarStore & 
     })
     .map((w) => ({ symbol: w.symbol, status: w.status, returnPct: w.resolutionReturn ?? w.lastReturn, date: (w.resolvedAt ?? w.lastEvaluatedAt ?? "").slice(0, 10) }));
 
-  // Tesis propuestas esperando decisión, creadas hasta la fecha de la corrida (en histórico no se adelanta).
+  // Tesis propuestas esperando decisión, creadas hasta la fecha de la corrida (en histórico no se adelanta). Una por
+  // evento, la misma regla que Propuestas (15/9): arriba de todo quedaba una lectura vieja de Vista con 25 puntos.
+  const reemplazadas = tesisReemplazadas(await todasLasTesis(store));
   const proposedTheses = (await store.thesesByStatus("proposed"))
+    .filter((t) => !reemplazadas.has(t.id))
     // Solo en modo histórico: mirando una corrida vieja no se pueden mostrar tesis creadas después.
     .filter((t) => !cut || t.createdAt.slice(0, 10) <= cut)
     .map((t) => ({ id: t.id, ticker: t.ticker, eventType: t.eventType, direction: t.direction, edge: t.edge, pMarketFromOptions: t.pMarketFromOptions ?? false, summary: recortar(t.reasoning, 160) }))

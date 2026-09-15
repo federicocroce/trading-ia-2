@@ -35,6 +35,18 @@ describe("buildNovedades", () => {
     expect(n.news.map((x) => `${x.symbol}:${x.headline}`).sort()).toEqual(["NVDA:no es tuya", "YPF:YPF recompra deuda"]);
     expect(n.empty).toBe(false);
   });
+  /**
+   * 15/9: Hoy y Propuestas tienen que decir lo mismo. Hoy ordenaba las propuestas por edge y arriba de todo quedaba la
+   * de Vista del 9/9 con 25 puntos, una lectura vieja del 6-K que la del 11/9 (15 puntos) ya había reemplazado.
+   */
+  it("las tesis propuestas son una por evento: la última lectura, aunque la corrida todavía no haya retirado las viejas", async () => {
+    const store = new MemoryStore();
+    const base = { rawEventId: "cb3536a7-112c-4ee5-b520-7da6f7784e6b", ticker: "VIST", eventType: "operational" as const, eventDate: null, direction: "long" as const, pEstimate: 0.65, pMarket: 0.5, instrument: "stock" as const, entryMax: 80, target: 88, invalidation: "Si el precio cierra por debajo del mínimo de la semana.", confidence: "med" as const, reasoning: "Lectura del 6-K de Vista, suficientemente larga para pasar la validación.", sources: ["s"], status: "proposed" as const, rejectionReason: null, promptVersion: "v-test" };
+    store.theses.set("vieja", { ...base, id: "vieja", edge: 0.25, createdAt: "2026-09-09T13:50:45.492Z", updatedAt: "2026-09-09T13:50:45.492Z" });
+    store.theses.set("nueva", { ...base, id: "nueva", edge: 0.15, createdAt: "2026-09-11T10:40:08.657Z", updatedAt: "2026-09-11T10:40:08.657Z" });
+    const n = await buildNovedades(store, { today: "2026-09-15" });
+    expect(n.proposedTheses.map((t) => [t.id, t.edge])).toEqual([["nueva", 0.15]]);
+  });
   it("histórico: con `at` compara esa corrida con la anterior a esa fecha", async () => {
     const store = new MemoryStore();
     await store.upsertVerdicts([verdict("2026-09-06", "YPF", "MANTENER"), verdict("2026-09-07", "YPF", "SUMAR"), verdict("2026-09-08", "YPF", "REVISAR")]);
