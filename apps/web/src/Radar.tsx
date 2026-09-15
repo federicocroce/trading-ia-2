@@ -384,7 +384,7 @@ function ArgentinaCard({ d, plan, ten, editing, setEditing, reload }: { d: Argen
         <b>Empresas argentinas que podés comprar en dólares</b> <span className="muted">({adrs.length}) su ADR en Nueva York, medido contra el SPY igual que el resto del Radar</span>
       </div>
       <table style={{ marginTop: 6 }}>
-        <thead><tr><Th k="simbolo">ADR</Th><th>acción local</th><Th k="veredicto" /><Th k="fr3m" /><Th k="fr6m" /><Th k="fr12m" /><Th k="sma200" /><Th k="precio">precio US$</Th><Th k="entrada" /><Th k="stop" /><Th k="objetivoEtf" /><th></th></tr></thead>
+        <thead><tr><Th k="simbolo">ADR</Th><th>acción local</th><Th k="veredicto" /><Th k="fr3m" /><Th k="fr6m" /><Th k="fr12m" /><Th k="sma200" /><Th k="precio">precio US$</Th><Th k="entrada" /><Th k="stopAdr">stop</Th><Th k="objetivoEtf" /><th></th></tr></thead>
         <tbody>
           {adrs.map((c) => (
             <tr key={c.symbol}>
