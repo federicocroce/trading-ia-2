@@ -19,6 +19,8 @@ export interface Thesis {
   pMarketFromOptions?: boolean;
   promptVersion: string;
   createdAt: string;
+  /** El mismo evento tiene una lectura más nueva (15/9): una tesis viva por evento. */
+  reemplazadaPor?: { id: string; createdAt: string; status: string; edge: number } | null;
 }
 
 export interface Position { symbol: string; quantity: number; avgCost: number; currency: string; market: "us" | "adr" | "ar"; layer: "riesgo" | "nucleo" | "cobertura"; notes: string | null }
@@ -164,6 +166,8 @@ async function j<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => j<{ ok: boolean; killSwitch: boolean; lastRun: { at: string; summary: Record<string, unknown> } | null }>("/health"),
   theses: (status: string) => j<Thesis[]>(`/theses?status=${status}`),
+  /** Cuántas tesis hay con esos estados y cuántas muestra la lista como máximo (15/9). */
+  thesesTotal: (status: string) => j<{ total: number; limit: number }>(`/theses/total?status=${status}`),
   thesis: (id: string) => j<{ thesis: Thesis; event: { title: string; source: string; payload: Record<string, unknown> } | null; orders: Array<{ side: string; qty: number; limitPrice: number; status: string; avgFillPrice: number | null; symbol: string }> }>(`/theses/${id}`),
   approve: (id: string) => j<{ ok: boolean }>(`/theses/${id}/approve`, { method: "POST" }),
   reject: (id: string, note: string) => j<{ ok: boolean }>(`/theses/${id}/reject`, { method: "POST", body: JSON.stringify({ note }) }),

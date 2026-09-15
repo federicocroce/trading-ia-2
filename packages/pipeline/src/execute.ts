@@ -1,6 +1,7 @@
 import { todayLocal } from "@thesis/core";
 import type { Broker, MarketData, Order, PortfolioSnapshot, RiskDecision, RiskEngine, Thesis } from "@thesis/core";
 import type { Store } from "./store.js";
+import { tesisReemplazadas, todasLasTesis } from "./theses.js";
 
 export interface ExecDeps {
   store: Store;
@@ -17,6 +18,10 @@ export async function approveAndExecute(thesisId: string, deps: ExecDeps): Promi
   const thesis = await deps.store.thesis(thesisId);
   if (!thesis) return { ok: false, reason: "not_found", detail: thesisId };
   if (thesis.status !== "proposed") return { ok: false, reason: "bad_status", detail: thesis.status };
+  // Una tesis viva por evento (15/9): una propuesta que el mismo evento ya reemplazó no se ejecuta, aunque la corrida
+  // todavía no la haya retirado. El 15/9 se podía aprobar cualquiera de las cinco de Vista.
+  const vigente = tesisReemplazadas((await todasLasTesis(deps.store)).filter((t) => t.rawEventId === thesis.rawEventId)).get(thesisId);
+  if (vigente) return { ok: false, reason: "superseded", detail: `el mismo evento tiene una lectura más nueva, la del ${vigente.createdAt.slice(0, 10)} (${vigente.status}); esa es la que vale` };
 
   await deps.store.setThesisStatus(thesisId, "approved", { humanDecision: "approve" });
   const approved: Thesis = { ...thesis, status: "approved" };

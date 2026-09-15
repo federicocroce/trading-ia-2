@@ -8,6 +8,7 @@ import { Uso } from "./Uso";
 import { Sidebar } from "./Sidebar";
 import { Tape } from "./Tape";
 import { CorridasButton } from "./Corridas";
+import { avisoTope, creadaEl, edgeEnPuntos, estadoTesis } from "./tesisVista";
 
 const TABS = ["hoy", "cartera", "radar", "proposed", "open", "history", "calibration", "uso"] as const;
 type Tab = (typeof TABS)[number];
@@ -155,16 +156,23 @@ export function App() {
 
 function ThesisList({ status, actions }: { status: string; actions: "review" | "close" | "none" }) {
   const [list, setList] = useState<Thesis[]>([]);
+  const [total, setTotal] = useState<{ total: number; limit: number } | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const load = useCallback(() => api.theses(status).then(setList).catch((e) => setErr(String(e))), [status]);
+  const load = useCallback(() => {
+    // El total aparte (15/9): el Historial mostraba 200 de 249 sin decirlo. Si no llega, la lista se muestra igual.
+    void api.thesesTotal(status).then(setTotal).catch(() => setTotal(null));
+    return api.theses(status).then(setList).catch((e) => setErr(String(e)));
+  }, [status]);
   useEffect(() => {
     void load();
   }, [load]);
 
   if (err) return <div className="err">{err}</div>;
   if (!list.length) return <div className="card muted">Nada por acá.</div>;
+  const tope = avisoTope(list.length, total);
   return (
     <>
+      {tope && <div className="card muted">{tope}</div>}
       {list.map((t) => (
         <ThesisCard key={t.id} t={t} actions={actions} onChange={load} />
       ))}
@@ -206,17 +214,19 @@ function ThesisCard({ t, actions, onChange }: { t: Thesis; actions: "review" | "
         <span className={`tag ${t.direction}`}>{t.direction}</span>
         <span className="tag">{t.instrument}</span>
         <span className="tag">{t.eventType}</span>
-        <span className="muted">{t.eventDate ?? "sin fecha"}</span>
+        {/* 15/9: sin fecha de creación no se veía que las cinco tesis de Vista eran lecturas del mismo filing en tres días. */}
+        <span className="muted">evento {t.eventDate ?? "sin fecha"} · creada el {creadaEl(t.createdAt)}</span>
         <span className="mono">
           pEst {pct(t.pEstimate)} · pMkt {pct(t.pMarket)}
           {t.pMarketFromOptions
             ? <span className="ok" title="pMarket salió de la cadena de opciones: el sistema la calculó, es auditable."> (de opciones)</span>
             : <span className="warn" title="No había cadena de opciones, así que pMarket lo estimó el modelo. El edge no mide una diferencia contra el mercado: mide contra una suposición."> (estimado, no de opciones)</span>}
-          {" · "}<b>edge {pct(t.edge)}</b> · conf {t.confidence}
+          {/* El edge en puntos, igual que en Hoy: es una diferencia de probabilidades, no un rendimiento (15/9 decía "15%" acá). */}
+          {" · "}<b title="Edge = probabilidad estimada menos la que descuenta el mercado. Es una diferencia de probabilidades, NO un rendimiento esperado.">edge {edgeEnPuntos(t.edge)}</b> · conf {t.confidence}
         </span>
         <span className="muted mono">entry ≤ {t.entryMax} → target {t.target}</span>
         <div className="spacer" style={{ flex: 1 }} />
-        <span className="tag">{t.status}{t.rejectionReason ? ` (${t.rejectionReason})` : ""}</span>
+        <span className="tag">{estadoTesis(t)}</span>
         <button className="ghost" onClick={() => setOpen(!open)}>
           {open ? "Cerrar" : "Ver"}
         </button>

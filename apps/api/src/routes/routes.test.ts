@@ -90,6 +90,49 @@ describe("API routes", () => {
   });
 });
 
+/**
+ * 15/9: el 6-K de Vista tenía cinco tesis propuestas vivas con objetivos de 82 a 88, y el Historial cortaba en 200 de
+ * 249 sin decirlo. Propuestas muestra una sola por evento (la última lectura) aunque la corrida todavía no haya
+ * retirado las viejas; el Historial las muestra como reemplazadas y dice cuántas hay en total.
+ */
+describe("/theses: una tesis viva por evento y el total del historial", () => {
+  const VIST = "cb3536a7-112c-4ee5-b520-7da6f7784e6b";
+  const t = (id: number, createdAt: string, o: Record<string, unknown> = {}) => ({
+    id: `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`, rawEventId: VIST, ticker: "VIST", eventType: "operational" as const, eventDate: null, direction: "long" as const, pEstimate: 0.65, pMarket: 0.5, edge: 0.15,
+    instrument: "stock" as const, entryMax: 80, target: 88, invalidation: "Si el precio cierra por debajo del mínimo de la semana.", confidence: "med" as const,
+    reasoning: "Razonamiento de prueba suficientemente largo para pasar la validación mínima de caracteres.", sources: ["s"], status: "proposed" as const, rejectionReason: null,
+    promptVersion: "v-test", createdAt, updatedAt: createdAt, ...o,
+  });
+
+  it("Propuestas: de las cinco de VIST queda la última; Historial: las otras cuatro, reemplazadas por esa", async () => {
+    const c = container();
+    const store = c.store as MemoryStore;
+    const vist = [t(1, "2026-09-08T15:34:36.425Z", { target: 82.6 }), t(2, "2026-09-09T13:50:45.492Z", { target: 85.5 }), t(3, "2026-09-09T14:18:30.334Z", { target: 84 }), t(4, "2026-09-09T14:36:07.517Z", { target: 82 }), t(5, "2026-09-11T10:40:08.657Z", { target: 88 })];
+    for (const x of vist) store.theses.set(x.id, x);
+    const app = buildApp(c);
+    const vivas = await (await app.request("/theses?status=proposed")).json();
+    expect(vivas.map((x: { target: number }) => x.target)).toEqual([88]);
+    const historial = await (await app.request("/theses?status=closed,rejected")).json();
+    expect(historial).toHaveLength(4);
+    for (const x of historial) expect(x.reemplazadaPor).toMatchObject({ id: vist[4]!.id, createdAt: "2026-09-11T10:40:08.657Z" });
+    expect(await (await app.request("/theses/total?status=closed,rejected")).json()).toEqual({ total: 4, limit: 200 });
+  });
+
+  it("el historial dice cuántas hay aunque muestre solo las 200 más nuevas (el 15/9: 200 de 249)", async () => {
+    const c = container();
+    const store = c.store as MemoryStore;
+    for (let i = 0; i < 249; i++) {
+      const x = t(1000 + i, new Date(Date.parse("2026-09-01T10:00:00Z") + i * 60_000).toISOString(), { rawEventId: `00000000-0000-4000-9000-${String(i).padStart(12, "0")}`, status: "rejected", rejectionReason: "edge_below_threshold" });
+      store.theses.set(x.id, x);
+    }
+    const app = buildApp(c);
+    const lista = await (await app.request("/theses?status=closed,rejected")).json();
+    expect(lista).toHaveLength(200);
+    expect(lista[0].createdAt > lista[199].createdAt).toBe(true);
+    expect(await (await app.request("/theses/total?status=closed,rejected")).json()).toEqual({ total: 249, limit: 200 });
+  });
+});
+
 describe("/catchup: estado por paso y corrida individual", () => {
   it("un paso que falla queda registrado con su error y sigue pendiente; se puede correr solo desde su botón", async () => {
     const c = container();
