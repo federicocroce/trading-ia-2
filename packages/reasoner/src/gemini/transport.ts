@@ -42,7 +42,7 @@ interface GenerateResponse {
   candidates?: Array<{
     content?: { parts?: Array<{ functionCall?: { name: string; args: unknown }; text?: string; thought?: boolean }> };
     finishReason?: string;
-    groundingMetadata?: { webSearchQueries?: string[]; groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> };
+    groundingMetadata?: { webSearchQueries?: string[]; groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>; groundingSupports?: Array<{ groundingChunkIndices?: number[] }> };
   }>;
   usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; toolUsePromptTokenCount?: number };
   error?: { status?: string; message?: string; details?: unknown[] };
@@ -164,9 +164,12 @@ export class GeminiToolCaller {
     if (finish === "MAX_TOKENS") this.log(`[gemini] ${model} key#${keyIndex + 1}: respuesta con búsqueda cortada por maxOutputTokens (${text.length} caracteres)`);
     const gm = data.candidates?.[0]?.groundingMetadata ?? {};
     const sources = (gm.groundingChunks ?? []).flatMap((c) => (c.web?.uri ? [{ title: c.web.title ?? c.web.uri, url: c.web.uri }] : []));
-    // Sin fuentes ni búsquedas, el modelo respondió de memoria (pasa cuando la cuota de búsqueda está agotada o el
-    // modelo no la tiene): eso no es una verificación. Se descarta y la rotación prueba el siguiente modelo o clave.
-    if (sources.length === 0 && (gm.webSearchQueries ?? []).length === 0) {
+    // Sin fuentes, búsquedas ni atribución, el modelo respondió de memoria (pasa cuando la cuota de búsqueda está
+    // agotada o el modelo no la tiene): eso no es una verificación. Se descarta y la rotación prueba otro modelo o clave.
+    // La atribución (groundingSupports) la pone el sistema de búsqueda de Google, no el modelo: el 15/9 la mayoría de
+    // las respuestas de 2.5-flash traían solo eso, sin la lista de fuentes, con datos del 10-Q de junio de 2026, y
+    // la guarda las descartaba todas.
+    if (sources.length === 0 && (gm.webSearchQueries ?? []).length === 0 && (gm.groundingSupports ?? []).length === 0) {
       this.recorder.record({ ...row, ...tokens, status: res.status, result: "validacion", ms: now() - t0 });
       throw new Error("gemini: respuesta con búsqueda sin fuentes ni búsquedas (respondió de memoria)");
     }

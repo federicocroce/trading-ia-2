@@ -120,6 +120,23 @@ describe("GeminiToolCaller: registro de uso", () => {
     await caller.call("s", "u", TOOL);
     expect(keys).toEqual(["k0", "k1", "k0"]);
   });
+  it("15/9: una respuesta con atribución de Google (groundingSupports) pero sin la lista de fuentes buscó: no es 'de memoria'", async () => {
+    // Forma real de las respuestas de 2.5-flash el 15/9 (PBT): 6 fragmentos atribuidos al fragmento 0, con datos del 10-Q
+    // de junio de 2026, y sin webSearchQueries ni groundingChunks. La guarda las descartaba todas como "de memoria".
+    const soloAtribucion = new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "DICTAMEN: CON RESERVAS — x" }] }, finishReason: "STOP", groundingMetadata: { groundingSupports: [{ segment: { startIndex: 0, endIndex: 10, text: "10-Q de junio de 2026" }, groundingChunkIndices: [0] }] } }] }), { status: 200 });
+    const { caller, rec } = mk([soloAtribucion]);
+    const r = await caller.callGrounded("s", "u", { purpose: "verificacion" });
+    expect(r.text).toContain("DICTAMEN");
+    expect(r.sources).toEqual([]);
+    expect(rec.rows.map((x) => x.result)).toEqual(["ok"]);
+  });
+  it("sin atribución, sin búsquedas y sin fuentes sí es de memoria: se descarta", async () => {
+    const deMemoria = new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "DICTAMEN: APTO — de memoria" }] }, finishReason: "STOP", groundingMetadata: {} }] }), { status: 200 });
+    const conFuentes = new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "STOP", groundingMetadata: { webSearchQueries: ["q"] } }] }), { status: 200 });
+    const { caller, rec } = mk([deMemoria, conFuentes]);
+    await caller.callGrounded("s", "u", { purpose: "verificacion" });
+    expect(rec.rows.map((x) => x.result)).toEqual(["validacion", "ok"]);
+  });
   it("503 registra saturado; respuesta sin functionCall registra validación; el error de red registra error", async () => {
     const { caller, rec } = mk([http(503, "high demand"), text(), ok({ e: 5 })]);
     await caller.call("s", "u", TOOL);
