@@ -20,7 +20,8 @@ export interface TickerDeps {
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
-  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency: string | null } | null;
+  /** `prevCloseDate`: el cambio del día se midió contra el cierre guardado de esa fecha; sin él, contra el de la fuente. */
+  quote: { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency: string | null; prevCloseDate?: string } | null;
   position: (Position & { valueUsd: number; pnlUsd: number; pnlPct: number; weightPct: number | null }) | null;
   verdict: VerdictRow | null;
   tags: Tags | null;
@@ -119,9 +120,30 @@ export async function comparables(store: Pick<RadarStore, "fundamentals">, own: 
 
 /** Del precio crudo a lo que muestra la UI: variación diaria en moneda y en % contra el cierre previo. */
 export type QuoteView = NonNullable<TickerPage["quote"]>;
-export function shapeQuote(q: LiveQuote): QuoteView {
-  const change = q.prevClose ? round2(q.price - q.prevClose) : null;
-  return { price: q.price, prevClose: q.prevClose, change, changePct: q.prevClose ? round2(((q.price - q.prevClose) / q.prevClose) * 100) : null, asOf: q.asOf, currency: q.currency ?? null };
+export function shapeQuote(q: LiveQuote, guardado?: { close: number; date: string } | null): QuoteView {
+  const prev = guardado?.close ?? q.prevClose;
+  const change = prev ? round2(q.price - prev) : null;
+  return { price: q.price, prevClose: prev, change, changePct: prev ? round2(((q.price - prev) / prev) * 100) : null, asOf: q.asOf, currency: q.currency ?? null, ...(guardado ? { prevCloseDate: guardado.date } : {}) };
+}
+
+const fechaNY = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+const habilAnterior = (iso: string) => {
+  let t = Date.parse(`${iso}T12:00:00Z`) - DAY;
+  while (new Date(t).getUTCDay() === 0 || new Date(t).getUTCDay() === 6) t -= DAY;
+  return new Date(t).toISOString().slice(0, 10);
+};
+
+/**
+ * Cierre guardado de la sesión anterior a la del precio (15/9). La cabecera de la ficha medía el cambio del día contra
+ * el cierre previo de Alpaca IEX (TSM 418,60) mientras las velas, el Radar y Cartera usan el de Yahoo guardado en la
+ * base (418,01): dos "cierres de ayer" en la misma pantalla. Se usa el guardado solo si es EXACTAMENTE la sesión hábil
+ * anterior a la del precio (hora de Nueva York); si falta (todavía no se guardó), null y queda el de la fuente, para no
+ * medir contra un cierre de hace dos ruedas. Una vela de hoy a medio armar no cuenta.
+ */
+export function closeAnterior(candles: Candle[], asOf: string | null, now = new Date()): { close: number; date: string } | null {
+  const sesion = fechaNY(asOf ? new Date(asOf) : now);
+  const vela = candles.filter((c) => c.date < sesion).sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+  return vela && vela.date === habilAnterior(sesion) ? { close: vela.close, date: vela.date } : null;
 }
 
 /**
@@ -235,10 +257,10 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     return fresh ?? [];
   });
 
-  const quoteP = guarded("precio", () => deps.quote(symbol)).then((q): TickerPage["quote"] => (q ? shapeQuote(q) : null));
+  const quoteP = guarded("precio", () => deps.quote(symbol));
 
   const dbStart = Date.now();
-  const [description, candles, news, quote, positions, verdicts, tags, fundamentals, candidates, theses, txs, filings, risk] = await Promise.all([
+  const [description, candles, news, liveQuote, positions, verdicts, tags, fundamentals, candidates, theses, txs, filings, risk] = await Promise.all([
     descriptionP,
     candlesP,
     newsP,
@@ -254,6 +276,8 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     store.latestRisk(),
   ]);
   timings["fuentes+base"] = Date.now() - dbStart;
+  // El cambio del día contra el mismo cierre que usan las velas, el Radar y Cartera (ver `closeAnterior`).
+  const quote: TickerPage["quote"] = liveQuote ? shapeQuote(liveQuote, closeAnterior(candles, liveQuote.asOf)) : null;
   const pos = positions.find((p) => p.symbol === symbol) ?? null;
   const price = quote?.price ?? candles[candles.length - 1]?.close ?? null;
   const position = pos && price !== null

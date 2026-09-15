@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, Fundamentals, SymbolDescription } from "@thesis/core";
 import { groupMedians, rankStocks } from "@thesis/core";
-import { MemoryStore, buildTicker, comparables, liveQuotes, type TickerDeps } from "../src/index.js";
+import { MemoryStore, buildTicker, closeAnterior, comparables, liveQuotes, type TickerDeps } from "../src/index.js";
 
 const series = (closes: number[], start = "2026-06-01"): Candle[] => closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c + 1, low: c - 1, close: c, volume: 1_000_000 }));
 const today = "2026-09-08";
@@ -187,6 +187,31 @@ describe("comparables (C4, 15/9)", () => {
     expect(t.medians?.["revenueGrowthTTMYoy"]).toBeNull();
     expect(t.ownExcluded).toEqual(["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy"]);
     expect(t.peers).toHaveLength(10);
+  });
+});
+
+describe("cierre anterior guardado (C6, 15/9)", () => {
+  // TSM: la base (Yahoo, el mismo cierre que usan las velas, el Radar y Cartera) tiene 433,24 el 11/9 y 418,01 el 14/9.
+  // Alpaca IEX decía que el cierre de ayer era 418,60: dos "cierres de ayer" en la misma pantalla.
+  const vela = (date: string, close: number): Candle => ({ date, open: close, high: close, low: close, close, volume: 1 });
+  const tsm = [vela("2026-09-10", 428.03), vela("2026-09-11", 433.24), vela("2026-09-14", 418.01)];
+  it("el cambio del día se mide contra el cierre guardado de la sesión anterior, y dice de qué fecha es", () => {
+    expect(closeAnterior(tsm, "2026-09-15T19:40:59.858Z")).toEqual({ close: 418.01, date: "2026-09-14" });
+    // El lunes, la sesión anterior es el viernes.
+    expect(closeAnterior(tsm.slice(0, 2), "2026-09-14T15:00:00Z")).toEqual({ close: 433.24, date: "2026-09-11" });
+    // Una vela de hoy a medio armar no es el cierre anterior.
+    expect(closeAnterior([...tsm, vela("2026-09-15", 414.66)], "2026-09-15T19:40:59.858Z")).toEqual({ close: 418.01, date: "2026-09-14" });
+  });
+  it("si falta la sesión anterior en la base no se usa una más vieja: queda el cierre de la fuente", () => {
+    expect(closeAnterior(tsm.slice(0, 2), "2026-09-15T19:40:59.858Z")).toBeNull();
+    expect(closeAnterior([], "2026-09-15T19:40:59.858Z")).toBeNull();
+  });
+  it("la ficha: TSM a 414,66 contra 418,01 guardado (−0,80%), no contra los 418,60 de IEX (−0,94%)", async () => {
+    const { store, deps } = setup();
+    await store.upsertCandles("TSM", tsm);
+    const d: TickerDeps = { ...deps, quote: async (s) => ({ symbol: s, price: 414.66, prevClose: 418.6, asOf: "2026-09-15T19:40:59.858Z" }) };
+    const t = await buildTicker(d, "TSM", { today: "2026-09-15" });
+    expect(t.quote).toMatchObject({ price: 414.66, prevClose: 418.01, prevCloseDate: "2026-09-14", change: -3.35, changePct: -0.8 });
   });
 });
 

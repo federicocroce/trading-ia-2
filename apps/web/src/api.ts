@@ -68,7 +68,8 @@ export interface MacroAr { date: string; oficial: number | null; mep: number | n
 export type WatchStatus = "live" | "triggered" | "invalidated" | "expired";
 export interface WatchItem { symbol: string; note: string | null; addedAt: string; entryPrice: number | null; entryAction: string | null; targetPrice: number | null; stopLoss: number | null; thesis: string | null; horizonDays: number; status: WatchStatus; lastPrice: number | null; lastReturn: number | null; lastEvaluatedAt: string | null; resolvedAt: string | null; resolutionPrice: number | null; resolutionReturn: number | null }
 export interface Watchlist { items: WatchItem[]; rows: Candidate[] }
-export interface PriceRow { symbol: string; price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; stale: boolean; currency: string | null }
+/** `prevCloseDate`: el cambio se mide contra el cierre guardado de esa fecha; null = contra el de la fuente (15/9). */
+export interface PriceRow { symbol: string; price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; stale: boolean; currency: string | null; prevCloseDate?: string | null }
 export interface SymbolHit { symbol: string; name: string; exchange: string; type: "accion_us" | "accion_ar" | "cedear" | "etf" | "cripto"; flag: string }
 export interface Tape { at: string; tracked: number; gainers: PriceRow[]; losers: PriceRow[] }
 /**
@@ -114,7 +115,7 @@ export interface SymbolDescription { symbol: string; longName: string | null; su
 export interface NewsItem { symbol: string; date: string; headline: string; source: string | null; url: string; summary: string | null }
 export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" | "DIVIDEND" | "TRANSFER"; quantity: number; price: number; fees: number; date: string; currency: string; platform: string | null; externalId: string | null; notes: string | null }
 /** Precio vivo con la variación del día contra el cierre previo. */
-export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null }
+export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null; prevCloseDate?: string | null }
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;

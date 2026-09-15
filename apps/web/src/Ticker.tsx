@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Candidate, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
-import { relacionDeLaOrden } from "./niveles";
+import { baseDelDia, relacionDeLaOrden } from "./niveles";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { EntryLine } from "./Entry";
@@ -49,7 +49,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const d = t.description;
   const hubRow = livePrices.get(t.symbol.toUpperCase());
   // Precio en vivo del hub si el símbolo está seguido; si no, el de la página.
-  const q = hubRow ? { price: hubRow.price, prevClose: hubRow.prevClose, change: hubRow.change, changePct: hubRow.changePct, asOf: hubRow.asOf, currency: hubRow.currency } : t.quote;
+  const q = hubRow ? { price: hubRow.price, prevClose: hubRow.prevClose, change: hubRow.change, changePct: hubRow.changePct, asOf: hubRow.asOf, currency: hubRow.currency, prevCloseDate: hubRow.prevCloseDate ?? null } : t.quote;
   const years = d?.firstTradeDate ? Math.floor((Date.now() - Date.parse(d.firstTradeDate)) / (365.25 * 86_400_000)) : null;
   const priceStale = stale(q?.asOf ?? null);
   const m = t.fundamentals?.metrics ?? {};
@@ -92,8 +92,8 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
             <div className="row" style={{ alignItems: "baseline" }}>
               <span style={{ fontSize: 30, fontWeight: 700, fontFamily: "ui-monospace, Menlo, monospace" }} className={priceStale ? "muted" : ""}>${q.price.toFixed(2)}</span>
               <span className="muted">{q.currency ?? "USD"}</span>
-              {q.change !== null && <span className={priceStale ? "muted" : q.change >= 0 ? "ok" : "bad"}>{q.change >= 0 ? "+" : ""}{q.change.toFixed(2)} ({pct(q.changePct)}){priceStale && " — de su última rueda, no de hoy"}</span>}
-              {period && <span className={period.changePercent >= 0 ? "ok" : "bad"}>· {period.label}: {pct(period.changePercent)}</span>}
+              {q.change !== null && <span className={priceStale ? "muted" : q.change >= 0 ? "ok" : "bad"} title={q.prevClose !== null ? `Cierre anterior ${f2(q.prevClose)}` : undefined}>{q.change >= 0 ? "+" : ""}{q.change.toFixed(2)} ({pct(q.changePct)}) <span className="muted">{baseDelDia(q.prevCloseDate)}</span>{priceStale && " — de su última rueda, no de hoy"}</span>}
+              {period && <span className={period.changePercent >= 0 ? "ok" : "bad"} title={`Base ${f2(period.base)}`}>· {period.label}: {pct(period.changePercent)} <span className="muted">{period.baseTexto}</span></span>}
               {priceStale && <span className="verb REVISAR">⚠ precio viejo: última operación {q.asOf?.slice(0, 10)}</span>}
             </div>
           ) : <span className="muted">Sin precio vivo.</span>}

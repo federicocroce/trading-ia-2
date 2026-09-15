@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AreaSeries, CandlestickSeries, ColorType, HistogramSeries, LineSeries, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import { api, type ChartBar } from "./api";
-import { notaVelaParcial } from "./niveles";
+import { cambioDelPeriodo, notaVelaParcial, type PeriodChange } from "./niveles";
 
 /**
  * Gráfico de precio portado de trading v1 (lightweight-charts). Velas/línea/área + volumen,
@@ -52,7 +52,7 @@ const TIMEFRAMES = [
   { label: "5A", range: "5y", interval: "1wk", periodDays: 0 },
 ] as const;
 type ChartType = "candle" | "line" | "area";
-export interface PeriodChange { label: string; change: number; changePercent: number }
+export type { PeriodChange };
 /** `stopLabel`: nombre de la línea del stop. Sin posición es "stop de compra", que no es el dinámico punteado. */
 export interface PriceLevels { avgCost?: number | null; stop?: number | null; target?: number | null; stopLabel?: string }
 /** Alto del panel de precio y del panel del RSI, que va aparte para no pisar las velas. */
@@ -97,10 +97,9 @@ export function PriceChart({ symbol, currentPrice, levels, onPeriodChange }: { s
   useEffect(() => {
     if (!onPeriodChange) return;
     if (!bars || window_.length < 2) { onPeriodChange(null); return; }
-    const first = window_[0]!.open;
-    const last = currentPrice ?? window_[window_.length - 1]!.close;
-    onPeriodChange({ label: tf.label, change: last - first, changePercent: ((last - first) / first) * 100 });
-  }, [bars, window_.length, currentPrice, tf.label, onPeriodChange]);
+    // Cierre contra cierre y con la base escrita (15/9: APH "1M −7,22%" era desde la apertura del 17/8, sin decirlo).
+    onPeriodChange(cambioDelPeriodo({ bars, desde: tf.periodDays ? Math.floor(Date.now() / 1000) - tf.periodDays * 86_400 : null, precio: currentPrice ?? null, label: tf.label, intradiario: isIntraday }));
+  }, [bars, window_.length, currentPrice, tf.label, tf.periodDays, isIntraday, onPeriodChange]);
 
   useEffect(() => {
     if (!containerRef.current || window_.length === 0) return;
