@@ -190,7 +190,7 @@ export function Radar() {
                     que hay que esperar. Sin la franja a la vista, el 2 a 1 parecía un error de la app. */}
                 <td><EntryCell e={c.entry} enPlan={planLoCompra(c.symbol, plan)} fallback={c.verdict === "NUCLEO" ? <span className="muted">a mercado</span> : <span className="muted">—</span>} /></td>
                 <td className="mono">{f2(c.stop)}<PctDesde valor={c.stop} base={baseCandidata(c, ten.tiene(c.symbol))} /></td>
-                <td className="mono">{f2(c.target)}<PctDesde valor={c.target} base={baseCandidata(c, ten.tiene(c.symbol))} /></td>
+                <td className="mono">{f2(c.target)}<PctDesde valor={c.target} base={baseCandidata(c, false)} /></td>
                 <td><TagChips tags={c.tags} /></td>
                 <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} />}</td>
               </tr>
@@ -215,12 +215,16 @@ function NivelesFila({ c, ten }: { c: Candidate; ten: Tenencias }) {
   const base = baseCandidata(c, tenida);
   const suyo = tenida ? ten.objetivo(c.symbol) : null;
   const peso = tenida ? ten.peso(c.symbol) : null;
+  // Lo que ya tenés: el objetivo principal es el de tu posición (el de Cartera), medido desde el precio de hoy; el de la
+  // fila es el de una compra nueva y va aparte, medido desde SU base (15/9: PAM mostraba "84,61 −2,4%", el objetivo de
+  // sumar medido desde el cierre, un número por debajo del precio que no se entendía).
+  const baseSumar = baseCandidata(c, false);
   return (
     <>
       <td className="mono">{f2(c.stop)}<PctDesde valor={c.stop} base={base} /></td>
       <td className="mono">
-        {f2(c.target)}<PctDesde valor={c.target} base={base} />
-        {tenida && <div className="muted" style={{ fontSize: 11 }} title="El objetivo de la fila es el de una compra nueva desde la franja. El de lo que ya tenés es el de tu posición, en Cartera.">si sumás desde {f2(c.entryHigh ?? c.close)}{suyo !== null && <> · tu posición: {f2(suyo)}</>}</div>}
+        {tenida && suyo !== null ? <>{f2(suyo)}<PctDesde valor={suyo} base={base} /></> : <>{f2(c.target)}<PctDesde valor={c.target} base={tenida ? baseSumar : base} /></>}
+        {tenida && c.target !== null && <div className="muted" style={{ fontSize: 11 }} title="El objetivo de tu posición es el de Cartera: cierre + 2 × (cierre − stop). El de sumar es el de una compra nueva, desde el techo de la franja.">{suyo !== null ? "tu posición · " : ""}si sumás desde {f2(baseSumar.price)}: {f2(c.target)}{pctDesde(c.target, baseSumar) !== null && ` (${pct(pctDesde(c.target, baseSumar))})`}</div>}
       </td>
       <td className="mono" title={tenida ? "Ya la tenés: el tamaño de una posición nueva no aplica. Cuánto sumar lo decide el plan, con el tope del 15% de la cartera por posición." : c.sizeQty && c.entryHigh ? `${c.sizeQty} acciones × ${f2(c.entryHigh)} (el techo de la franja de compra, que es lo que vas a pagar) = ${money(c.sizeUsd)}. Con el precio de hoy la cuenta no cierra, y por eso el precio va acá al lado.` : undefined}>
         {tenida ? <span className="muted">ya la tenés{peso !== null && ` (${peso.toFixed(1)}% de la cartera)`}</span> : <>{c.sizeQty ?? "—"} · {money(c.sizeUsd)}{c.sizeQty !== null && c.entryHigh !== null && <span className="muted"> a {f2(c.entryHigh)}</span>}</>}
@@ -403,7 +407,7 @@ function ArgentinaCard({ d, plan, ten, editing, setEditing, reload }: { d: Argen
               <td className="mono">{f2(c.close)}</td>
               <td><EntryCell e={c.entry} enPlan={c.kind === "stock" && planLoCompra(c.symbol, plan)} fallback={<span className="muted">—</span>} /></td>
               <td className="mono">{f2(c.stop)}<PctDesde valor={c.stop} base={baseCandidata(c, ten.tiene(c.symbol))} /></td>
-              <td className="mono">{f2(c.target)}<PctDesde valor={c.target} base={baseCandidata(c, ten.tiene(c.symbol))} /></td>
+              <td className="mono">{f2(c.target)}<PctDesde valor={c.target} base={baseCandidata(c, false)} /></td>
               <td><button className="ghost" onClick={() => setEditing(editing === c.symbol ? null : c.symbol)}>Etiquetas</button>{editing === c.symbol && <TagEditor symbol={c.symbol} current={c.tags} onSaved={() => { setEditing(null); void reload(); }} onCancel={() => setEditing(null)} />}</td>
             </tr>
           ))}
