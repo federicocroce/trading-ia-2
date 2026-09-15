@@ -3,8 +3,10 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { CandidateVerification } from "@thesis/core";
 import { Repo, createDb, schema } from "./index.js";
+import { testDatabaseUrl } from "./integracion.js";
 
-const url = process.env["DATABASE_URL"];
+// Una base aparte, nunca la de la app (15/9: este archivo borró el registro de uso real). Ver `integracion.ts`.
+const url = testDatabaseUrl();
 const d = url ? describe : describe.skip;
 
 d("Repo: verificación web (Postgres real)", () => {
