@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { todayLocal, AXES, AXIS_METRICS, assessRegime, groupMedians, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
-import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse } from "@thesis/pipeline";
+import { todayLocal, assessRegime, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
+import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, comparables, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
 
@@ -125,17 +125,12 @@ export function radarRoutes(c: Container) {
     if (!cand) return ctx.json({ error: "no es candidato vigente" }, 404);
     const since = new Date(Date.parse(today(ctx)) - 90 * 86_400_000).toISOString().slice(0, 10);
     const [fundamentals, tags, profile, statements, events, analystActions, newsScannedTo] = await Promise.all([store.fundamentals(symbol), store.tags(symbol), store.profile(symbol), store.statements(symbol), store.eventsFor(symbol, since), store.analystActions(symbol, since), store.newsScannedTo(symbol)]);
-    const keys = AXES.flatMap((a) => AXIS_METRICS[a].map((m) => m.key));
-    const peers: Array<{ symbol: string; metrics: Record<string, number | null> }> = [];
-    for (const p of cand.peerGroup) {
-      const f = await store.fundamentals(p);
-      if (f) peers.push({ symbol: p, metrics: Object.fromEntries(keys.map((k) => [k, f.metrics[k] ?? null])) });
-    }
+    // Los mismos comparables que la ficha, de un solo lugar (15/9): pares con su industria, la mediana del puntaje y lo
+    // que el ranking no usa en bancos. Antes se armaban acá sin la industria y las dos tablas no coincidían.
+    const { peers, medians, ownExcluded } = await comparables(store, fundamentals, cand.peerGroup);
     const verification = await store.verification(symbol).catch(() => null);
-    // La mediana del grupo sale del mismo cálculo que el puntaje (propia incluida, mismas reglas), no se
-    // recalcula en el navegador: ver `groupMedians`.
-    const medians = fundamentals ? groupMedians([fundamentals, ...peers]) : null;
-    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, medians, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions, newsScannedTo, verification });
+    const verificationCurrent = verification && deps.verifier ? verification.promptVersion === deps.verifier.promptVersion : null;
+    return ctx.json({ candidate: cand, fundamentals, tags: tags as Tags | null, profile: profile?.profile ?? null, peers, medians, ownExcluded, statements, events: events.filter((e) => e.severity !== "ruido"), analystActions, newsScannedTo, verification, verificationCurrent });
   });
   app.get("/radar/etfs", async (ctx) => ctx.json(await withTags((await candidatesAt(ctx)).filter((r) => r.kind === "etf"))));
 

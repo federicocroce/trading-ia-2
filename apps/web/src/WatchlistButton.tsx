@@ -13,7 +13,10 @@ export const isResolved = (s: WatchStatus) => s !== "live";
 export function WatchStatusBadge({ item, showReturn = true }: { item: WatchItem; showReturn?: boolean }) {
   const m = STATUS[item.status];
   const ret = item.status === "live" ? item.lastReturn : item.resolutionReturn;
-  const title = `${m.help} Alta ${item.addedAt.slice(0, 10)}${item.entryPrice ? ` a $${item.entryPrice.toFixed(2)}` : ""}${item.entryAction && item.entryAction !== "manual" ? ` (${item.entryAction})` : ""}${item.thesis ? `. ${item.thesis}` : ""}`;
+  // El chip se mide con los niveles del ALTA, no con los de hoy (15/9: APH decía "VIVA −0,6%" con el stop del alta,
+  // 77,81, mientras la ficha mostraba el de hoy): el title lo dice, con el stop y el objetivo del alta.
+  const niveles = [item.stopLoss ? `stop ${item.stopLoss.toFixed(2)}` : null, item.targetPrice ? `objetivo ${item.targetPrice.toFixed(2)}` : null].filter(Boolean).join(" y ");
+  const title = `${m.help} Alta ${item.addedAt.slice(0, 10)}${item.entryPrice ? ` a $${item.entryPrice.toFixed(2)}` : ""}${item.entryAction && item.entryAction !== "manual" ? ` (${item.entryAction})` : ""}. El % y el estado se miden contra el precio del alta${niveles ? ` y su ${niveles}` : ""}, no contra los niveles de hoy del Radar${item.thesis ? `. ${item.thesis}` : ""}`;
   return (
     <span className={`wbadge ${m.cls}`} title={title}>
       <span>{m.icon}</span><span>{m.label}</span>

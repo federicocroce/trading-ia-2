@@ -171,6 +171,24 @@ describe("/radar/watchlist", () => {
   });
 });
 
+describe("/radar/candidates/:symbol: los mismos comparables que la ficha (auditoría del 15/9)", () => {
+  it("NBN: el detalle del Radar arma los pares con su industria y marca el crecimiento que el ranking no usa en bancos", async () => {
+    // La ficha ya lo hacía con `comparables()`; el detalle del Radar armaba los pares sin la industria y pintaba en verde
+    // un crecimiento de 123,9% que el ranking descarta en bancos: dos tablas distintas para el mismo símbolo.
+    const { a, store } = app();
+    const fund = (symbol: string, ttm: number) => ({ symbol, asOf: today, metrics: { revenueGrowthTTMYoy: ttm, peTTM: 10 }, peers: [], industry: "Banking", mcapUsd: 1e9, dollarVolumeUsd: 1e7, priceUsd: 50, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null });
+    await store.saveFundamentals(fund("NBN", 123.9));
+    await store.saveFundamentals(fund("HFWA", 30.9));
+    await store.upsertCandidates([{ candidateDate: today, symbol: "NBN", kind: "stock", verdict: "COMPRAR", score: 1, axes: {}, peerGroup: ["HFWA"], rankInGroup: 1, groupSize: 2, close: 100, entryLow: 100, entryHigh: 102, stop: 90, target: 126, sizeUsd: 1000, sizeQty: 10, riskScore: 3, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null }]);
+    const d = await (await a.request("/radar/candidates/NBN")).json();
+    expect(d.ownExcluded).toContain("revenueGrowthTTMYoy");
+    expect(d.peers[0].excluded).toContain("revenueGrowthTTMYoy");
+    expect(d.medians.revenueGrowthTTMYoy).toBeNull();
+    // Sin verificador no se puede decir si la verificación es del cuestionario vigente.
+    expect(d.verificationCurrent).toBeNull();
+  });
+});
+
 describe("/radar/watchlist: lo que seguís y ya está en el ranking (auditoría del 15/9)", () => {
   it("APH y TSM seguidos y rankeados: la lista trae su fila del ranking, no 'sin datos todavía'", async () => {
     // Desde el 14/9 el seguimiento no pisa la fila del ranking, así que APH no tiene fila "watch": la barra la mostraba sin

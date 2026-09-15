@@ -278,8 +278,9 @@ function CandRow({ c, plan, ten, open, onToggle, editing, onEdit, onSaved }: { c
                     {detail.fundamentals.earningsSurprises?.length ? ` · sorpresas: ${detail.fundamentals.earningsSurprises.map((s) => `${s.period.slice(0, 7)} ${pct(s.surprisePercent)}`).join(", ")}` : ""}
                   </div>
                 )}
-                <VerificationSections statements={detail.statements} events={detail.events} analystActions={detail.analystActions} analystTargets={c.analystTargets} close={c.close} metricsRaw={detail.fundamentals?.metricsRaw} verification={detail.verification ?? null} newsScannedTo={detail.newsScannedTo ?? null} />
-                <PeersTable own={c.symbol} ownMetrics={detail.fundamentals?.metrics ?? {}} peers={detail.peers} medians={detail.medians ?? null} asOf={detail.fundamentals?.statementsAsOf ?? null} />
+                {/* Lo mismo que la ficha (15/9): si la verificación es vigente, la fila para leerla, y los comparables con lo que el ranking no usa. */}
+                <VerificationSections statements={detail.statements} events={detail.events} analystActions={detail.analystActions} analystTargets={c.analystTargets} close={c.close} metricsRaw={detail.fundamentals?.metricsRaw} verification={detail.verification ?? null} newsScannedTo={detail.newsScannedTo ?? null} verificationCurrent={detail.verificationCurrent ?? null} fila={{ verdict: c.verdict, flags: c.flags }} />
+                <PeersTable own={c.symbol} ownMetrics={detail.fundamentals?.metrics ?? {}} peers={detail.peers} medians={detail.medians ?? null} asOf={detail.fundamentals?.statementsAsOf ?? null} ownExcluded={detail.ownExcluded} />
               </>
             )}
           </td>

@@ -11,6 +11,7 @@ import { Flags } from "./flags";
 import { VerificationSections } from "./Verification";
 import { PeersTable } from "./Peers";
 import { CarteraVerdict, RadarVerdict, usePlan } from "./plan";
+import { planLoCompra } from "./instruccion";
 import { chipDeCabecera } from "./cabecera";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -213,7 +214,8 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           {t.candidate.whyRanks && <div><b>Por qué rankea:</b> {t.candidate.whyRanks}</div>}
           {t.candidate.mainRisk && <div><b>Riesgo principal:</b> {t.candidate.mainRisk}</div>}
           {t.candidate.moat && <div><b>Foso:</b> {t.candidate.moat}</div>}
-          <EntryLine e={t.candidate.entry} />
+          {/* "Comprar ahora" solo si el plan de hoy la compra (15/9: la ficha lo decía de SNDK). */}
+          <EntryLine e={t.candidate.entry} enPlan={planLoCompra(t.symbol, plan)} />
           <div className="muted mono" style={{ marginTop: 6 }}>ejes (z vs pares): {Object.entries(t.candidate.axes).map(([k, v]) => `${AXIS_LABEL[k] ?? k} ${f2(v)}`).join(" · ")} · entrada {f2(t.candidate.entryLow)}–{f2(t.candidate.entryHigh)} · stop {f2(t.candidate.stop)} · objetivo {f2(t.candidate.target)} · tamaño {t.candidate.sizeQty ?? "—"} ({money(t.candidate.sizeUsd)} pagando hasta {f2(t.candidate.entryHigh)})</div>
           <PeersTable own={t.symbol} ownMetrics={m} peers={t.peers} medians={t.medians ?? null} asOf={t.fundamentals?.asOf ?? null} ownExcluded={t.ownExcluded ?? []} />
         </div>
@@ -299,7 +301,7 @@ function EtfCard({ c }: { c: Candidate }) {
             : "Satélite: se decide por fuerza relativa contra el SPY, no por fundamentals. No se puntúa contra pares ni se le calcula riesgo, por eso acá no hay score ni ranking."}
       </div>
       {c.flags.length > 0 && <div style={{ marginTop: 6 }}><Flags flags={c.flags} /></div>}
-      {!nucleo && <EntryLine e={c.entry} />}
+      {!nucleo && <EntryLine e={c.entry} enPlan={!adr && planLoCompra(c.symbol, plan)} />}
       <div className="muted mono" style={{ marginTop: 6 }}>
         fuerza relativa contra SPY: 3m {pct(c.axes["rs3m"])} · 6m {pct(c.axes["rs6m"])} · 12m {pct(c.axes["rs12m"])} · contra su media de 200 {pct(c.axes["distSma200Pct"])} · movimiento diario típico {pct(c.axes["atrPct"])}
       </div>
