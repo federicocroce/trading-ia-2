@@ -11,6 +11,7 @@ import { Flags } from "./flags";
 import { VerificationSections } from "./Verification";
 import { PeersTable } from "./Peers";
 import { CarteraVerdict, RadarVerdict, usePlan } from "./plan";
+import { chipDeCabecera } from "./cabecera";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)}%`);
@@ -70,6 +71,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const stopLabel = rotuloDelStop({ desde: levelsFrom, target });
   const qty = t.position?.quantity ?? null;
   const usdAt = (level: number | null) => (px && level && qty ? money(qty * (level - px)) : null);
+  const chip = chipDeCabecera({ verdict: t.verdict, candidate: t.candidate });
 
   return (
     <>
@@ -101,7 +103,16 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               {priceStale && <span className="verb REVISAR">⚠ precio viejo: última operación {q.asOf?.slice(0, 10)}</span>}
             </div>
           ) : <span className="muted">Sin precio vivo.</span>}
-          {isNucleo && !t.verdict && <div className="row" style={{ marginTop: 8 }}><span className="verb NUCLEO">NUCLEO</span><span className="muted">ETF de base de la cartera: se compra por calendario con el aporte y se mantiene años. Sin stop ni objetivo: no se vende por precio.</span></div>}
+          {/* La instrucción va en la cabecera, con la misma etiqueta que el Radar y Cartera (15/9). VTI tenía "NUCLEO"
+              escrito a mano: ahora sale de `RadarVerdict` y dice ESPERAR si los controles frenan el plan. */}
+          {chip && (
+            <div className="row" style={{ marginTop: 8 }}>
+              {chip.fuente === "Cartera"
+                ? <CarteraVerdict symbol={t.symbol} verb={chip.verb} plan={plan} />
+                : <RadarVerdict symbol={t.symbol} verdict={chip.verdict} plan={chip.conPlan ? plan : null} {...(chip.context ? { context: chip.context } : {})} />}
+              {isNucleo && !t.verdict && <span className="muted">ETF de base de la cartera: se compra por calendario con el aporte y se mantiene años. Sin stop ni objetivo: no se vende por precio.</span>}
+            </div>
+          )}
           {px && (stop || target) && (
             <div className="row" style={{ marginTop: 8, gap: 16 }}>
               {stop && <span>{stopLabel.charAt(0).toUpperCase() + stopLabel.slice(1)} <b className="mono">{f2(stop)}</b> <span className={toStop !== null && toStop < 0 ? "bad" : "warn"}>{pct(toStop)}{usdAt(stop) && ` · ${usdAt(stop)}`}</span></span>}
@@ -109,8 +120,9 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               {rr && <span className="muted">{rr.texto}</span>}
               {dist && <span className="muted">{dist.texto}</span>}
               {dist?.aviso && <span className="warn">⚠ {dist.aviso}</span>}
-              {/* Con posición es una alerta de venta; sin posición es un hecho sobre la orden, no una instrucción. */}
-              {toStop !== null && toStop >= 0 && (qty ? <span className="verb VENDER">precio por debajo del stop</span> : <span className="warn">precio debajo del {stopLabel}</span>)}
+              {/* Un hecho, no una instrucción: la instrucción es la etiqueta de arriba (15/9). Con posición, Cartera vende
+                  solo si CIERRA abajo del stop; un chip rojo de VENDER al lado de MANTENER era doble discurso. */}
+              {toStop !== null && toStop >= 0 && <span className="warn">⚠ precio debajo del {stopLabel}{qty ? ": la venta se confirma con el cierre" : ""}</span>}
               <span className="muted">({levelsFrom}{qty ? `, sobre tu tenencia de ${f2(qty)}` : ", sin posición"})</span>
             </div>
           )}
