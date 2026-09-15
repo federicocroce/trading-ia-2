@@ -25,7 +25,7 @@ export interface PlanInput {
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva.
    *  `atr`: ATR de 14 ruedas al día de la fila, para medir si el stop quedó dentro del ruido (ver `noiseBlock`).
    *  `overlap`: la posición tuya con la que más se mueve; desde `OVERLAP_BLOCK_CORR` no entra como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   /** Fecha del plan y decisiones de la Fed (`config/fomc.json`): con una dentro de 3 días hábiles, el primer tramo va después. */
@@ -71,6 +71,16 @@ export function verificationBlock(v: PlanVerification | null | undefined): strin
   if (v.current === false) return "verificación hecha con el cuestionario anterior: se repite antes de comprarla";
   return null;
 }
+/**
+ * La verificación como dato de entrada del plan, en el MISMO orden que `verificationBlock` (15/9): LNC figuraba
+ * "anterior" en los datos y "con reservas" en el motivo. Sin verificador (undefined) no hay dato.
+ */
+export function verificationLabel(v: PlanVerification | null | undefined): string | null {
+  if (v === undefined) return null;
+  if (v === null) return "pendiente";
+  if (v.verdict !== "apto") return v.verdict;
+  return v.current === false ? "anterior" : v.verdict;
+}
 
 export interface PlanLine {
   symbol: string;
@@ -95,6 +105,16 @@ export interface PlanLine {
   entry?: EntryTiming | null;
   /** Debajo de este precio la orden no se ejecuta: el stop quedaría dentro del ruido de un día (stop + 1 ATR, 14/9). */
   minPrice?: number | null;
+  /**
+   * La base única de la orden (15/9): el precio contra el que se cuentan la cantidad, el riesgo y los % en todas las
+   * pantallas. En una compra, el techo de la franja (lo máximo que se paga); en el núcleo y en un SUMAR, el cierre.
+   * Hasta el 15/9 cada pantalla elegía la suya: APH mostraba stop −1,1% desde el cierre y objetivo +19,7% desde el techo.
+   */
+  orderPrice?: number | null;
+  /** Cantidad total y del primer tramo, contadas contra `orderPrice`; y el monto del primer tramo. */
+  qty?: number | null;
+  trancheUsd?: number | null;
+  trancheQty?: number | null;
 }
 export interface PlanOptions {
   /** Monto a repartir en vez del aporte mensual (plata líquida de una vez). */
@@ -124,12 +144,13 @@ const coma = (n: number, d: number) => n.toFixed(d).replace(".", ",");
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Motivo por el que el stop está dentro del ruido, o null si está lejos (o si falta un dato para medirlo). */
-export function noiseBlock(close: number | null | undefined, stop: number | null | undefined, atr: number | null | undefined): string | null {
+export function noiseBlock(close: number | null | undefined, stop: number | null | undefined, atr: number | null | undefined, etiqueta = "el precio"): string | null {
   if (close === null || close === undefined || stop === null || stop === undefined || !atr || atr <= 0) return null;
   const d = (close - stop) / atr;
   if (d >= STOP_NOISE_ATR) return null;
-  return `el precio (${coma(close, 2)}) está a ${coma(d, 1)} ATR del stop (${coma(stop, 2)}): dentro del ruido de un día, la orden espera a que se aleje (se revisa en cada corrida)`;
+  return `${etiqueta} (${coma(close, 2)}) está a ${coma(d, 1)} ATR del stop (${coma(stop, 2)}): dentro del ruido de un día, la orden espera a que se aleje (se revisa en cada corrida)`;
 }
+const miles = (n: number) => Math.round(n).toLocaleString("es-AR");
 /** Precio mínimo para ejecutar la orden: por debajo, el stop queda dentro del ruido. */
 export const minPriceFor = (stop: number | null | undefined, atr: number | null | undefined): number | null => (stop !== null && stop !== undefined && atr && atr > 0 ? round2(stop + STOP_NOISE_ATR * atr) : null);
 
@@ -161,6 +182,11 @@ export interface ContributionPlan {
   controles?: PlanControles | null;
   /** Lo que el plan compraría y todavía no pasó la revisión antes de comprar (15/9). Mientras haya, no se ejecuta. */
   reviewsPending?: string[];
+  /**
+   * Lo que solo la verificación web frena (pendiente o con el cuestionario anterior), en el orden del plan (15/9). Los
+   * reintentos verifican esto y nada más: verificar lo que igual frena una regla fija era gastar cuota en vano.
+   */
+  verificationsPending?: string[];
 }
 /** Resultado de los controles automáticos (auditoría de pantallas + consistencia de filas) sobre un plan. */
 export interface PlanControles {
@@ -200,10 +226,15 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   const maxLine = Math.round((c.maxLinePctOfContribution / 100) * aporte);
   let remaining = aporte;
 
-  /** Reparte `amount` entre los ETFs de núcleo por peso objetivo; el resto de redondeo va al último. */
+  /**
+   * Reparte `amount` entre los ETFs de núcleo por peso objetivo; el resto de redondeo va al último. Cada parte queda
+   * anotada con su motivo: el 15/9 la línea decía "60% del monto" y el núcleo recibía los 40.000.
+   */
+  const partesDelNucleo: Array<{ reason: string; amount: number }> = [];
   const allocateCore = (amount: number, rationale: string) => {
     const core = i.coreEtfs.filter((e) => e.role === "nucleo");
     if (!core.length || amount <= 0) return false;
+    partesDelNucleo.push({ reason: rationale, amount });
     const wsum = core.reduce((s, e) => s + (e.coreWeight ?? 1), 0);
     let used = 0;
     core.forEach((e, idx) => {
@@ -222,7 +253,11 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   // Escalonado: un monto grande entra en tramos para no comprar todo en un solo precio. No es plata en efectivo
   // esperando una corrección (eso es plata muerta), es el mismo plan ejecutado en dos o tres compras.
   const tranches = aporte >= TRANCHE_AT_MONTHS * c.monthlyUsd ? Math.min(3, Math.floor(aporte / (TRANCHE_AT_MONTHS * c.monthlyUsd)) + 1) : 1;
-  if (tranches > 1) notes.push(`Monto de ${Math.round(aporte / c.monthlyUsd)} aportes: conviene ejecutarlo en ${tranches} tramos de USD ${Math.round(aporte / tranches)}, con dos o tres semanas entre cada uno. Mismas líneas y mismas proporciones en cada tramo.`);
+  if (tranches > 1) {
+    const tramo = Math.floor(aporte / tranches);
+    const montos = [...Array(tranches - 1).fill(tramo), aporte - tramo * (tranches - 1)].map(miles);
+    notes.push(`Monto de ${Math.round(aporte / c.monthlyUsd)} aportes: conviene ejecutarlo en ${tranches} tramos: USD ${montos.slice(0, -1).join(", ")} y ${montos.at(-1)}, con dos o tres semanas entre cada uno. Mismas líneas y mismas proporciones en cada tramo.`);
+  }
   // Reunión de la Fed (13/9): con una decisión a 3 días hábiles o menos, se compra después del anuncio.
   const fed = i.fomc ? firstTrancheFrom(i.fomc.today, i.fomc.decisions) : null;
   if (fed) notes.push(`La Fed decide el ${dm(fed.decision)}: ${tranches > 1 ? "el primer tramo" : "la compra"} va desde el ${dm(fed.from)}, después del anuncio. Esperar hasta 3 días hábiles cuesta poco y evita comprar justo antes de una decisión que mueve todo el mercado.`);
@@ -234,12 +269,15 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   if (gap > 0) {
     // Sobre lo que queda después de la reserva (sin reserva es el aporte entero).
     const toCore = Math.min(Math.round(gap), Math.round((cfg.coreSharePctWhileBelowTarget / 100) * remaining), remaining);
-    if (i.coreEtfs.some((e) => e.role === "nucleo")) allocateCore(toCore, `núcleo al ${Math.round((coreValue / total) * 100)}% de la cartera, objetivo ${c.coreTargetPct}%: ${cfg.coreSharePctWhileBelowTarget}% del monto`);
+    if (i.coreEtfs.some((e) => e.role === "nucleo")) allocateCore(toCore, `el ${cfg.coreSharePctWhileBelowTarget}% del monto mientras el núcleo (${Math.round((coreValue / total) * 100)}% de la cartera) esté bajo su objetivo del ${c.coreTargetPct}%`);
     else notes.push(`Sin núcleo definido en config/etfs.json: faltan USD ${Math.round(gap)} para el objetivo del ${c.coreTargetPct}%.`);
   }
 
   /** Lo que entraría y espera la revisión antes de comprar. */
   const pendientes: string[] = [];
+  /** Lo que entraría y solo espera la verificación web. */
+  const porVerificar: string[] = [];
+  const faltaVerificar = (v: PlanVerification | null | undefined) => v === null || (v !== undefined && v.current === false);
 
   // 2. SUMAR de Cartera (subponderadas primero), hasta una parte de lo que queda.
   const satellites = i.positions.filter((p) => !isCore(p));
@@ -254,18 +292,20 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     }
     const amt = Math.floor(Math.min(remaining, sumarPool, maxLine, Math.max(0, equalTarget - s.valueUsd), capFor(s.symbol)));
     if (amt < MIN_LINE_USD) continue;
-    // Un SUMAR es una compra: la misma vara que una nueva (13/9). Pendiente en el Radar (null) no frena: lo decide Cartera.
-    const bloqueo = s.verification ? verificationBlock(s.verification) : null;
-    if (bloqueo) {
-      notes.push(`No se sumó ${s.symbol}: ${bloqueo}. Su parte (USD ${amt}) va al núcleo.`);
-      if (allocateCore(amt, `lo que iba a ${s.symbol}, que no pasó la verificación`)) sumarPool -= amt;
-      continue;
-    }
-    // Sumar con el precio pegado al stop de la posición es comprar lo que la próxima rueda puede vender (TSM, 14/9).
+    // Sumar con el precio pegado al stop de la posición es comprar lo que la próxima rueda puede vender (TSM, 14/9). Es
+    // una regla fija: va antes que la verificación, para que el motivo que se muestra sea el que vale (15/9).
     const ruido = noiseBlock(i.closes[s.symbol], s.stop, s.atr);
     if (ruido) {
       notes.push(`No se sumó ${s.symbol}: ${ruido}. Su parte (USD ${amt}) va al núcleo.`);
       if (allocateCore(amt, `lo que iba a ${s.symbol}, con el stop dentro del ruido`)) sumarPool -= amt;
+      continue;
+    }
+    // Un SUMAR es una compra: la misma vara que una nueva (13/9). Pendiente en el Radar (null) no frena: lo decide Cartera.
+    const bloqueo = s.verification ? verificationBlock(s.verification) : null;
+    if (bloqueo) {
+      if (faltaVerificar(s.verification)) porVerificar.push(s.symbol);
+      notes.push(`No se sumó ${s.symbol}: ${bloqueo}. Su parte (USD ${amt}) va al núcleo.`);
+      if (allocateCore(amt, `lo que iba a ${s.symbol}, que no pasó la verificación`)) sumarPool -= amt;
       continue;
     }
     // Un SUMAR también es una compra: pasa por la revisión antes de comprar (15/9).
@@ -322,32 +362,39 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         caidas.push(b.priority);
         return;
       }
-      // Una acción entra solo verificada, apta y con el cuestionario vigente (13/9). Con reservas, pendiente o con el
-      // cuestionario anterior queda en la fila con su motivo. Los ETFs no se verifican en la web.
-      const bloqueo = pool.kind === "etf" ? null : verificationBlock(b.verification);
-      if (bloqueo) {
-        leftOut.push({ symbol: b.symbol, reason: `${place}: ${bloqueo}` });
-        if (pool.kind === "stock") caidas.push(b.priority);
-        return;
-      }
-      // El stop dentro del ruido (APH, 14/9) o una posición que se mueve como algo que ya tenés (GFI con NEM): no entra,
-      // y como con la verificación, el lugar no lo toma la siguiente sin verificar ni un ETF: va al núcleo.
-      const ruido = noiseBlock(b.close, b.stop, b.atr);
-      const solapa = isNew && b.overlap && b.overlap.corr >= OVERLAP_BLOCK_CORR ? `se mueve como ${b.overlap.with} que ya tenés (correlación ${coma(b.overlap.corr, 2)}): no diversifica` : null;
-      if (ruido || solapa) {
-        leftOut.push({ symbol: b.symbol, reason: `${place}: ${ruido ?? solapa}` });
-        if (pool.kind === "stock") caidas.push(b.priority);
-        return;
-      }
+      // Primero las reglas fijas y después la verificación web (15/9): el motivo que se muestra tiene que ser el que vale
+      // (SNDK decía "verificación pendiente" y la frenaba igual haber subido más de 100%), y verificar lo que una regla
+      // frena de todos modos era gastar cuota.
       // Salvedades de precio (pieza 3) y banco sin estados legibles (14/9): tampoco entra como nueva, con el motivo.
       const blocker = (b.flags ?? []).find((f) => PLAN_BLOCKERS[f]);
       if (blocker) {
         leftOut.push({ symbol: b.symbol, reason: `${place}: ${PLAN_BLOCKERS[blocker]}` });
         return;
       }
+      // El stop dentro del ruido (APH, 14/9) o una posición que se mueve como algo que ya tenés (GFI con NEM): no entra,
+      // y el lugar no lo toma la siguiente sin verificar ni un ETF: va al núcleo. El ruido se mide contra lo más bajo
+      // que se puede pagar, el piso de la franja (15/9: PAM esperaba un retroceso a 81,96–82,79 con el stop en 81,88;
+      // medido al cierre de 86,65 pasaba, y su "no por debajo de" 84,22 quedaba arriba del techo: una orden imposible).
+      const piso = b.entryLow ?? b.close;
+      const ruido = noiseBlock(piso, b.stop, b.atr, b.entryLow !== null && b.entryLow !== undefined && b.entryLow !== b.close ? "el piso de la franja" : "el precio");
+      const solapa = isNew && b.overlap && b.overlap.corr >= OVERLAP_BLOCK_CORR ? `se mueve como ${b.overlap.with} que ya tenés (correlación ${coma(b.overlap.corr, 2)}): no diversifica` : null;
+      if (ruido || solapa) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${ruido ?? solapa}` });
+        if (pool.kind === "stock") caidas.push(b.priority);
+        return;
+      }
       // Ya está en el tope por posición (PAM 10/9: 15,8% de la cartera): no ocupa un lugar que otro puede usar.
       if (capFor(b.symbol) < MIN_LINE_USD) {
         leftOut.push({ symbol: b.symbol, reason: `${place}: ya está en el tope del ${c.maxPositionPct}% por posición` });
+        return;
+      }
+      // Una acción entra solo verificada, apta y con el cuestionario vigente (13/9). Con reservas, pendiente o con el
+      // cuestionario anterior queda en la fila con su motivo. Los ETFs no se verifican en la web.
+      const bloqueo = pool.kind === "etf" ? null : verificationBlock(b.verification);
+      if (bloqueo) {
+        if (faltaVerificar(b.verification)) porVerificar.push(b.symbol);
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${bloqueo}` });
+        if (pool.kind === "stock") caidas.push(b.priority);
         return;
       }
       // El lugar que dejó una acción que quedó afuera no lo toma un ETF satélite (15/9: CIBR tomaba el de PBT con 8.000 de
@@ -397,7 +444,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     const pesoVacante = caidas.slice(0, vacantes).reduce<number>((s, pr) => s + (pr !== null ? 1 + Math.max(0, pr) : avg), 0);
     const wsum = chosen.reduce((s, b) => s + weightOf(b), 0) + pesoVacante;
     const vacanteUsd = vacantes > 0 ? Math.floor((remaining * pesoVacante) / wsum) : 0;
-    if (vacantes > 0) notes.push(`${vacantes === 1 ? "Un lugar" : `${vacantes} lugares`} de posiciones nuevas ${vacantes === 1 ? "quedó vacío" : "quedaron vacíos"}: la acción que lo ocupaba quedó afuera (ver motivo abajo) y ninguna verificada la reemplazó. Esa parte (USD ${vacanteUsd}) va al núcleo; no se reparte entre las demás ni la toma un ETF.`);
+    if (vacantes > 0) notes.push(`${vacantes === 1 ? "Un lugar" : `${vacantes} lugares`} de posiciones nuevas ${vacantes === 1 ? "quedó vacío" : "quedaron vacíos"}: la acción que lo ocupaba quedó afuera (ver motivo abajo) y ninguna verificada la reemplazó. Esa parte (USD ${miles(vacanteUsd)}) va al núcleo; no se reparte entre las demás ni la toma un ETF.`);
     let used = 0;
     chosen.forEach((b, idx) => {
       const share = idx === chosen.length - 1 && vacantes === 0 ? remaining - used : Math.floor((remaining * weightOf(b)) / wsum);
@@ -413,6 +460,11 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       used += amt;
     });
     remaining -= used;
+    if (vacanteUsd > 0) allocateCore(Math.min(vacanteUsd, remaining), `lugares vacíos de acciones que quedaron afuera`);
+  } else if (vacantes > 0 && remaining >= 1) {
+    // Ninguna acción entró: todo lo de las posiciones nuevas va al núcleo, y la nota lo dice (antes quedaba sin explicar).
+    notes.push(`${vacantes === 1 ? "Un lugar" : `${vacantes} lugares`} de posiciones nuevas ${vacantes === 1 ? "quedó vacío" : "quedaron vacíos"}: ${vacantes === 1 ? "la acción que lo ocupaba quedó afuera (ver motivo abajo)" : "las acciones que los ocupaban quedaron afuera (ver motivos abajo)"}. Esa parte (USD ${miles(remaining)}) va al núcleo; no la toma un ETF.`);
+    allocateCore(remaining, `lugares vacíos de acciones que quedaron afuera`);
   }
   if (leftOut.length) {
     const shown = leftOut.slice(0, 5).map((x) => `${x.symbol} (${x.reason})`);
@@ -437,9 +489,21 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   const esperando = finales.filter((l) => l.entry && (l.entry.state === "esperar_retroceso" || l.entry.state === "esperar_confirmacion"));
   if (esperando.length) {
     const enEspera = Math.round(esperando.reduce((s, l) => s + l.amountUsd, 0));
-    const detalle = esperando.map((l) => `${l.symbol} ${l.entry!.state === "esperar_retroceso" ? "en" : "arriba de"} ${l.entry!.level}`).join(", ");
-    notes.push(`Hoy se ejecutan USD ${Math.round(aporte) - enEspera} de USD ${Math.round(aporte)}. Los otros USD ${enEspera} van como orden limitada, no a mercado: ${detalle}. Vale ${esperando[0]!.entry!.validSessions} ruedas; si no se da, esa plata se reasigna en la próxima corrida.`);
+    // Retroceso: orden limitada en el nivel. Confirmación: el nivel está ARRIBA del precio, así que una limitada se
+    // ejecutaría al instante; es una compra si cierra arriba del nivel (15/9: el pie decía "orden limitada" para las dos).
+    const detalle = esperando.map((l) => (l.entry!.state === "esperar_retroceso" ? `${l.symbol}: orden limitada en ${l.entry!.level}` : `${l.symbol}: comprar si cierra arriba de ${l.entry!.level}`)).join(", ");
+    notes.push(`Hoy se ejecutan USD ${miles(Math.round(aporte) - enEspera)} de USD ${miles(aporte)}. Los otros USD ${miles(enEspera)} esperan su nivel, no van a mercado: ${detalle}. Vale ${esperando[0]!.entry!.validSessions} ruedas; si no se da, esa plata se reasigna en la próxima corrida.`);
   }
   if (pendientes.length) notes.push(`Revisión antes de comprar pendiente: ${pendientes.join(", ")}. Mientras corre, el plan no se ejecuta; cuando termine se rearma solo.`);
-  return { month: i.month, totalUsd: aporte, lines: finales, notes, leftOut, tranches, reviewsPending: pendientes };
+  const totalNucleo = finales.filter((l) => l.kind === "nucleo").reduce((t, l) => t + l.amountUsd, 0);
+  const razonNucleo = `núcleo: recibe USD ${miles(totalNucleo)} de ${miles(aporte)} (${Math.round((totalNucleo / aporte) * 100)}%): ${partesDelNucleo.map((x) => `${x.reason} (USD ${miles(x.amount)})`).join(" + ")}`;
+  for (const l of finales) {
+    if (l.kind === "nucleo") l.rationale = razonNucleo;
+    const base = l.kind === "nucleo" || l.kind === "sumar" ? l.close : (l.entryHigh ?? l.close);
+    l.orderPrice = base ?? null;
+    l.qty = base ? Math.floor(l.amountUsd / base) : null;
+    l.trancheUsd = Math.floor(l.amountUsd / tranches);
+    l.trancheQty = base ? Math.floor(l.trancheUsd / base) : null;
+  }
+  return { month: i.month, totalUsd: aporte, lines: finales, notes, leftOut, tranches, reviewsPending: pendientes, verificationsPending: porVerificar };
 }

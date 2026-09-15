@@ -7,6 +7,9 @@ import type { Container } from "./container.js";
  * esa hora, las candidatas quedaban sin verificar hasta el día siguiente y el plan, sin acciones todo el día (el 15/9
  * APH, TSM y PBT fallaron por 503 a las 7:50). Ahora las de más convicción que no tienen la verificación vigente se
  * reintentan solas cada 15 minutos, de a dos y hasta 6 veces por día; las que salen bien refrescan su fila y el plan.
+ *
+ * Qué se verifica lo dice el plan (`verificationsPending`): lo que solo la verificación frena. Antes se tomaban las de
+ * más convicción sin verificar, y SNDK y NBN, que una regla fija dejaba afuera igual, se llevaban la cuota.
  */
 const REINTENTO_MS = 15 * 60_000;
 const INTENTOS_MAX = 6;
@@ -32,10 +35,15 @@ export async function asegurarVerificaciones(c: Container, opts: { hoy?: string;
     const hoy = opts.hoy ?? todayLocal();
     const ahora = (opts.ahora ?? Date.now)();
     const filas = await c.store.latestCandidates();
-    const falta = (r: (typeof filas)[number]) => r.verdict === "COMPRAR" && (!r.verification || r.verification.promptVersion !== verifier.promptVersion);
-    // Como el plan: acciones por convicción, seguimiento por menor riesgo.
-    const acciones = verificationOrder(filas.filter((r) => r.kind === "stock"), await c.store.allTags()).filter(falta).slice(0, ACCIONES);
-    const seguimiento = filas.filter((r) => r.kind === "watch" && falta(r)).sort((a, b) => (a.riskScore ?? 10) - (b.riskScore ?? 10)).slice(0, SEGUIMIENTO);
+    const sinVigente = (r: (typeof filas)[number]) => !r.verification || r.verification.promptVersion !== verifier.promptVersion;
+    const falta = (r: (typeof filas)[number]) => r.verdict === "COMPRAR" && sinVigente(r);
+    const plan = await c.store.latestPlan().catch(() => null);
+    const porSimbolo = new Map(filas.map((r) => [r.symbol, r]));
+    // La lista del plan ya viene en su orden (sumar, acciones por convicción, seguimiento). Se vuelve a mirar la fila:
+    // si la verificación llegó después de armar el plan, ya no toca. Un plan guardado antes de la lista usa el orden viejo.
+    const delPlan = plan?.verificationsPending?.map((s) => porSimbolo.get(s)).filter((r): r is (typeof filas)[number] => !!r && sinVigente(r));
+    const acciones = delPlan ? delPlan.filter((r) => r.kind !== "watch").slice(0, ACCIONES) : verificationOrder(filas.filter((r) => r.kind === "stock"), await c.store.allTags()).filter(falta).slice(0, ACCIONES);
+    const seguimiento = delPlan ? delPlan.filter((r) => r.kind === "watch").slice(0, SEGUIMIENTO) : filas.filter((r) => r.kind === "watch" && falta(r)).sort((a, b) => (a.riskScore ?? 10) - (b.riskScore ?? 10)).slice(0, SEGUIMIENTO);
     const toca = [...acciones, ...seguimiento]
       .map((r) => r.symbol)
       .filter((s) => ahora - (st.ultimoIntento.get(`${hoy}|${s}`) ?? -Infinity) >= REINTENTO_MS && (st.intentos.get(`${hoy}|${s}`) ?? 0) < INTENTOS_MAX)

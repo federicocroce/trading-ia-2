@@ -34,6 +34,7 @@ import {
   type CardWriter,
   type ContributionPlan,
   type PlanVerification,
+  verificationLabel,
   type CandidateVerifier,
   type CoreEarnings,
   type VerificationSummary,
@@ -820,7 +821,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       buyCandidates: candidates
         .filter((c): c is CandidateRow & { kind: "stock" | "etf" | "watch" } => c.verdict === "COMPRAR" && (c.kind === "stock" || c.kind === "etf" || c.kind === "watch"))
         .map((c) => ({
-          symbol: c.symbol, kind: c.kind, score: c.score, sizeUsd: c.sizeUsd, close: c.close, entryHigh: c.entryHigh, stop: c.stop, target: c.target,
+          symbol: c.symbol, kind: c.kind, score: c.score, sizeUsd: c.sizeUsd, close: c.close, entryLow: c.entryLow, entryHigh: c.entryHigh, stop: c.stop, target: c.target,
           priority: c.kind === "stock" ? (conviction.get(c.symbol) ?? null) : c.kind === "watch" ? -(c.riskScore ?? 10) : (c.axes["rs6m"] ?? null),
           // La salvedad que más pesa al comprar: si se mueve como algo tuyo, la línea del plan lo dice.
           cautions: overlap[c.symbol] ? [overlapCaution(overlap[c.symbol]!)] : [],
@@ -859,12 +860,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   // Por qué cambió el plan (15/9): con qué datos entró cada símbolo, comparado con la versión anterior. Se toman
   // también los que estaban en el plan anterior, para poder decir por qué salieron.
   const anterior = await store.latestPlan();
-  const verificacionDe = (c: CandidateRow): string | null => {
-    if (c.kind === "etf") return null;
-    if (!c.verification) return deps.verifier ? "pendiente" : null;
-    if (deps.verifier && c.verification.promptVersion !== deps.verifier.promptVersion) return "anterior";
-    return c.verification.verdict;
-  };
+  // El mismo orden que el motivo de la exclusión (15/9: LNC decía "anterior" acá y "con reservas" en la lista).
+  const verificacionDe = (c: CandidateRow): string | null => (c.kind === "etf" ? null : verificationLabel(planVerification(c.verification)));
   const inputs: Record<string, PlanSymbolInput> = {};
   const fueSumar = (sym: string) => [...plan.lines, ...(anterior?.lines ?? [])].some((l) => l.symbol === sym && l.kind === "sumar");
   for (const sym of new Set([...plan.lines, ...(plan.leftOut ?? []), ...(anterior?.lines ?? [])].map((x) => x.symbol))) {

@@ -252,6 +252,22 @@ describe("plan: el ATR y la correlación de cada compra llegan al plan (14/9)", 
   });
 });
 
+describe("plan: el ruido se mide contra el piso de la franja (15/9)", () => {
+  it("PAM: esperando un retroceso con el piso pegado al stop, no entra aunque el cierre esté lejos", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const antes = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
+    const compra = antes.lines.find((l) => l.kind === "comprar");
+    if (!compra) expect.fail(`el fixture necesita una compra: ${antes.lines.map((l) => `${l.symbol}:${l.kind}`).join(" ")}`);
+    const fila = (await store.latestCandidates()).find((c) => c.symbol === compra.symbol)!;
+    await store.upsertCandidates([{ ...fila, entryLow: fila.stop! + 0.01 }]);
+    const despues = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
+    expect(despues.lines.some((l) => l.symbol === compra.symbol)).toBe(false);
+    expect(despues.leftOut!.find((x) => x.symbol === compra.symbol)?.reason).toMatch(/el piso de la franja .* está a 0,0 ATR del stop/);
+  });
+});
+
 describe("plan: por qué cambió (15/9)", () => {
   it("NVDA el 15/9: si el Radar pasa una compra a OBSERVAR, el plan rearmado dice que salió y por qué; el primero no tiene cambios", async () => {
     const { store, d } = deps();

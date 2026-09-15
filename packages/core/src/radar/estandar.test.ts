@@ -148,7 +148,7 @@ describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000"
     expect(p.notes.some((n) => n.startsWith("Régimen macro al 2026-09-10: restrictivo"))).toBe(true);
     // Escalonado en vez de reserva: mismas líneas, ejecutadas en tramos.
     expect(p.tranches).toBe(3);
-    expect(p.notes.some((n) => n.includes("3 tramos de USD 13333"))).toBe(true);
+    expect(p.notes.some((n) => n.includes("3 tramos: USD 13.333, 13.333 y 13.334"))).toBe(true);
     // Núcleo: 60% del aporte entero, repartido 60/25/15.
     expect(by["nucleo:VTI"]).toBe(14_400);
     expect(by["nucleo:VEA"]).toBe(6_000);
@@ -162,7 +162,8 @@ describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000"
     expect(left["SOLV"]).toContain("verificación web con reservas");
     expect(left["PAM"]).toBe("6° por convicción: ya está en el tope del 15% por posición");
     expect(left["TER"]).toBe(`8° por convicción: ${PLAN_BLOCKERS["subio_mucho_12m"]}`);
-    expect(left["GLW"]).toContain("verificación web con reservas");
+    // La regla fija va primero (15/9): GLW subió más de 100% y eso la frena con o sin verificación.
+    expect(left["GLW"]).toBe(`seguimiento: ${PLAN_BLOCKERS["subio_mucho_12m"]}`);
     const comprar = p.lines.filter((l) => l.kind === "comprar");
     expect(comprar.reduce((s, l) => s + l.amountUsd, 0) + 24_000).toBe(40_000);
     expect(comprar[0]!.amountUsd).toBeGreaterThan(comprar[3]!.amountUsd); // más convicción, más plata

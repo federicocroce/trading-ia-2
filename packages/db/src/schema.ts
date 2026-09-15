@@ -354,6 +354,8 @@ export const contributionPlans = pgTable("contribution_plans", {
   controles: jsonb("controles"),
   /** Lo que el plan compraría y espera la revisión antes de comprar (15/9). */
   reviewsPending: jsonb("reviews_pending"),
+  /** Lo que solo la verificación web frena, en el orden del plan: es lo que reintentan los reintentos (15/9). */
+  verificationsPending: jsonb("verifications_pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 /** Eventos materiales detectados en noticias (spec verificación §5). Único por símbolo + URL; los `ruido` también se guardan. */

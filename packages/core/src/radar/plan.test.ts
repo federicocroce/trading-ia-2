@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planContribution, type EtfConfig, type PlanInput } from "../index.js";
+import { planContribution, verificationBlock, verificationLabel, type EtfConfig, type PlanInput } from "../index.js";
 
 const c = { monthlyUsd: 6500, coreTargetPct: 40, maxPositionPct: 15, maxNewPositionsPerMonth: 2, maxLinePctOfContribution: 50, coreSharePctWhileBelowTarget: 60, sumarSharePctOfRest: 30, watchLinesMax: 1, etfLinesMax: 1 };
 const core: EtfConfig[] = [
@@ -25,9 +25,18 @@ describe("planContribution", () => {
     }, c);
     const amd = p.lines.find((l) => l.symbol === "AMD")!;
     const nota = p.notes.find((n) => n.startsWith("Hoy se ejecutan"))!;
-    expect(nota).toContain(`USD ${Math.round(p.totalUsd) - Math.round(amd.amountUsd)} de USD ${Math.round(p.totalUsd)}`);
-    expect(nota).toContain("AMD en 150");
-    expect(nota).toContain("orden limitada, no a mercado");
+    const miles = (n: number) => Math.round(n).toLocaleString("es-AR");
+    expect(nota).toContain(`USD ${miles(Math.round(p.totalUsd) - Math.round(amd.amountUsd))} de USD ${miles(p.totalUsd)}`);
+    expect(nota).toContain("AMD: orden limitada en 150");
+    expect(nota).toContain("no van a mercado");
+  });
+
+  it("esperar confirmación NO es una orden limitada: el nivel está arriba del precio y se compra si cierra arriba (15/9)", () => {
+    const confirma = { state: "esperar_confirmacion" as const, level: 58.6, levelLabel: "máximo de 20 ruedas", low: 58.6, high: 59.77, validSessions: 10, sma20: 57, sma50: 56, atr14: 0.65, extensionAtr: 0, rangePct60: 40, why: "bajo su máximo" };
+    const p = planContribution({ ...base, buyCandidates: [{ symbol: "NVDA", kind: "stock", priority: 1.5, score: 1.5, sizeUsd: 9_000, close: 180, stop: 170, entry: { ...confirma, level: 185, low: 185, high: 187 } }] }, c);
+    const nota = p.notes.find((n) => n.startsWith("Hoy se ejecutan"))!;
+    expect(nota).toContain("NVDA: comprar si cierra arriba de 185");
+    expect(nota).not.toMatch(/NVDA: orden limitada/);
   });
 
   it("si todas las líneas se pueden comprar hoy no aparece la nota de espera", () => {
@@ -296,6 +305,73 @@ describe("convicción negativa y ETF satélite (15/9)", () => {
   it("sin ninguna acción candidata, el ETF satélite sí puede entrar (el lugar no era de nadie)", () => {
     const p = cuarenta([cibr]);
     expect(p.lines.find((l) => l.symbol === "CIBR")!.kind).toBe("comprar");
+  });
+});
+
+describe("auditoría del 15/9: los datos de entrada dicen lo mismo que el motivo", () => {
+  it("con reservas y con el cuestionario anterior: el dato dice 'con_reservas', como el motivo (LNC y DEC)", () => {
+    expect(verificationLabel({ verdict: "con_reservas", reason: "x", current: false })).toBe("con_reservas");
+    expect(verificationBlock({ verdict: "con_reservas", reason: "x", current: false })).toMatch(/con reservas/);
+    expect(verificationLabel({ verdict: "apto", reason: "x", current: false })).toBe("anterior");
+    expect(verificationLabel({ verdict: "apto", reason: "x", current: true })).toBe("apto");
+    expect(verificationLabel(null)).toBe("pendiente");
+    expect(verificationLabel(undefined)).toBeNull();
+  });
+});
+
+describe("auditoría del 15/9: una orden, una base, y el motivo definitivo primero", () => {
+  type Buy = PlanInput["buyCandidates"][number];
+  const apta = { verdict: "apto" as const, reason: "ok", current: true };
+  const compra = (symbol: string, priority: number, extra: Partial<Buy> = {}): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close: 100, entryLow: 100, entryHigh: 102, stop: 90, target: 126, verification: apta, atr: 2, ...extra });
+  const cuarenta = (buys: Buy[]) => planContribution({ ...base, closes: { ...base.closes, SNDK: 100, NBN: 100, BLBD: 100, SEZL: 100, PAM: 86.65, XLF: 57.03 }, buyCandidates: buys }, c, { amountUsd: 40_000 });
+
+  it("SNDK y NBN: el motivo que se muestra es la regla que igual la frena, no 'verificación pendiente'", () => {
+    const p = cuarenta([compra("SNDK", 1.45, { verification: null, flags: ["subio_mucho_12m"] }), compra("NBN", 0.95, { verification: { ...apta, current: false }, flags: ["banco_sin_estados"] })]);
+    expect(p.leftOut!.find((x) => x.symbol === "SNDK")!.reason).toMatch(/subió más de 100%/);
+    expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/banco sin estados/);
+    // Y no se gasta cuota verificando lo que igual queda afuera.
+    expect(p.verificationsPending).toEqual([]);
+  });
+  it("BLBD y SEZL: lo único que las frena es la verificación, y el plan lo anota para que se verifique", () => {
+    const p = cuarenta([compra("BLBD", 1.01, { verification: null }), compra("SEZL", 1.08, { verification: { ...apta, current: false } })]);
+    expect(p.verificationsPending).toEqual(["SEZL", "BLBD"]);
+    expect(p.leftOut!.find((x) => x.symbol === "BLBD")!.reason).toMatch(/verificación web pendiente/);
+  });
+  it("PAM: esperando un retroceso, el stop se mide contra el piso de la franja (81,96), no contra el cierre (86,65)", () => {
+    const retroceso = { state: "esperar_retroceso" as const, level: 82.79, levelLabel: "media de 20 ruedas", low: 81.96, high: 82.79, validSessions: 15, sma20: 82.79, sma50: 80, atr14: 2.33, extensionAtr: 2, rangePct60: 80, why: "estirada" };
+    const p = cuarenta([compra("PAM", 0.4, { close: 86.65, entryLow: 81.96, entryHigh: 82.79, stop: 81.88, target: 84.61, atr: 2.33, entry: retroceso })]);
+    expect(p.lines.some((l) => l.symbol === "PAM")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "PAM")!.reason).toMatch(/piso de la franja \(81,96\) está a 0,0 ATR del stop \(81,88\)/);
+  });
+  it("XLF: esperando confirmación, el piso es el disparo (58,60): a 3 ATR del stop no está en el ruido", () => {
+    const xlf: Buy = { symbol: "XLF", kind: "etf", priority: 1.1, score: null, sizeUsd: null, close: 57.03, entryLow: 58.6, entryHigh: 59.77, stop: 56.65, target: 65.99, atr: 0.65 };
+    const p = cuarenta([xlf]);
+    expect(p.leftOut?.find((x) => x.symbol === "XLF")?.reason ?? "").not.toMatch(/ruido/);
+    expect(p.lines.find((l) => l.symbol === "XLF")!.minPrice).toBe(57.3);
+  });
+  it("tramos: la nota los reparte sin perder un dólar y cada línea trae su primer tramo y su cantidad", () => {
+    const p = cuarenta([]);
+    expect(p.notes.join(" ")).toMatch(/3 tramos: USD 13\.333, 13\.333 y 13\.334/);
+    const vti = p.lines.find((l) => l.symbol === "VTI")!;
+    expect(vti.trancheUsd).toBe(Math.floor(vti.amountUsd / 3));
+    expect(vti.orderPrice).toBe(300);
+    expect(vti.qty).toBe(Math.floor(vti.amountUsd / 300));
+    expect(vti.trancheQty).toBe(Math.floor(vti.trancheUsd! / 300));
+  });
+  it("una acción del plan mide su cantidad contra el techo de la franja: nunca gasta de más", () => {
+    const p = cuarenta([compra("BLBD", 1.01, { close: 62.41, entryLow: 64.6, entryHigh: 65.89, stop: 59.29, target: 79.09, atr: 1.5, review: undefined })]);
+    const l = p.lines.find((x) => x.symbol === "BLBD")!;
+    expect(l.orderPrice).toBe(65.89);
+    expect(l.qty).toBe(Math.floor(l.amountUsd / 65.89));
+  });
+  it("el núcleo dice lo que recibe de verdad: 40.000 de 40.000, con los lugares vacíos, aunque no entre ninguna acción", () => {
+    // Como el 15/9: varias COMPRAR y ninguna verificada con el cuestionario vigente.
+    const p = cuarenta(["BLBD", "SEZL", "LNC", "DEC", "APH"].map((s, k) => compra(s, 1.2 - k / 10, { verification: null })));
+    const vti = p.lines.find((l) => l.symbol === "VTI")!;
+    expect(vti.rationale).toMatch(/USD 40\.000 de 40\.000 \(100%\)/);
+    expect(vti.rationale).toMatch(/lugares vacíos/);
+    expect(p.notes.join(" ")).toMatch(/4 lugares de posiciones nuevas quedaron vacíos/);
+    expect(p.lines.filter((l) => l.kind === "nucleo").reduce((t, l) => t + l.amountUsd, 0)).toBe(40_000);
   });
 });
 

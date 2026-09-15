@@ -39,6 +39,15 @@ describe("verificaciones pendientes (15/9)", () => {
     expect(m.llamadas).toEqual(["PBT", "APH"]);
     expect(m.refrescados).toEqual([["PBT", "APH"]]);
   });
+  it("verifica lo que el plan anotó como pendiente de verificación, no lo que igual frena una regla fija (15/9)", async () => {
+    // El 15/9 SNDK (subió más de 100% en 12 meses) y NBN (banco sin estados) eran de las de más convicción y se llevaban
+    // los reintentos: verificarlas no cambiaba nada, el plan igual las dejaba afuera. La cuota es de 20 por día.
+    const m = montar(async () => {});
+    await m.store.upsertCandidates([fila("SNDK", 3, { flags: ["subio_mucho_12m"] }), fila("NBN", 2.5, { flags: ["banco_sin_estados"] }), fila("SEZL", 1.1), fila("BLBD", 1)]);
+    await m.store.savePlan({ month: "2026-09", totalUsd: 40_000, lines: [], notes: [], verificationsPending: ["SEZL", "BLBD"] });
+    await asegurarVerificaciones(m.c, { hoy: HOY, ahora: () => 0, refrescar: m.refrescar });
+    expect(m.llamadas).toEqual(["SEZL", "BLBD"]);
+  });
   it("si Google falla, reintenta a los 15 minutos y no más de 6 veces por día", async () => {
     const m = montar(async () => { throw new Error("HTTP 503 high demand"); });
     await m.store.upsertCandidates([fila("PBT", 2)]);

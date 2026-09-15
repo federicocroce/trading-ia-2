@@ -465,11 +465,13 @@ export class Repo {
       previousBuiltAt: r.previousBuiltAt ?? null,
       controles: (r.controles as ContributionPlan["controles"]) ?? null,
       reviewsPending: (r.reviewsPending as string[] | null) ?? [],
+      // Null en los planes guardados antes de la columna: sin lista, los reintentos usan su orden propio.
+      ...(r.verificationsPending ? { verificationsPending: r.verificationsPending as string[] } : {}),
     };
   }
   async savePlan(p: ContributionPlan): Promise<void> {
     // Los controles son de una versión del plan: al rearmarlo se borran, y hasta que vuelvan a correr no se ejecuta.
-    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes, leftOut: p.leftOut ?? [], tranches: p.tranches ?? null, inputs: p.inputs ?? null, changes: p.changes ?? null, previousBuiltAt: p.previousBuiltAt ?? null, controles: null, reviewsPending: p.reviewsPending ?? [] };
+    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes, leftOut: p.leftOut ?? [], tranches: p.tranches ?? null, inputs: p.inputs ?? null, changes: p.changes ?? null, previousBuiltAt: p.previousBuiltAt ?? null, controles: null, reviewsPending: p.reviewsPending ?? [], verificationsPending: p.verificationsPending ?? null };
     // `createdAt` va en el set a propósito: sin él, el timestamp quedaba congelado en el PRIMER guardado del
     // mes y el plan podía rearmarse diez veces sin que nada lo dijera. El 13/9 la base decía que el plan era
     // del 7 mientras sus precios eran de hoy, y no había forma de saber cuándo se había armado de verdad.
