@@ -227,3 +227,12 @@ describe("plan atrasado con la fecha local (auditoría del 15/9)", () => {
     expect(f[0]!.detail).toMatch(/se armó el 2026-09-15/);
   });
 });
+
+describe("Hoy no se contradice (auditoría del 15/9)", () => {
+  it("APH figuraba a la vez como 'nueva en el Radar' y como 'deja de pasar los filtros'", () => {
+    const f = solo("novedad_contradictoria", checkPantallas({ ...base, novedades: { enteredBuy: [{ symbol: "APH" }], leftBuy: [{ symbol: "APH" }, { symbol: "GFI" }] } }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.symbol).toBe("APH");
+    expect(f[0]!.severity).toBe("grave");
+  });
+});

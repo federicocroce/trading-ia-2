@@ -58,8 +58,12 @@ export async function buildNovedades(store: Store & CarteraStore & RadarStore & 
   // corrida con qué compararse. Lo que ya tenés se marca.
   const todas = (await store.allCandidates()).filter((c) => FAMILIAS_US.includes(c.kind) && (!cut || c.candidateDate <= cut));
   const tenidas = new Set((await store.positions()).map((p) => p.symbol.toUpperCase()));
-  const enteredBuy: Novedades["enteredBuy"] = [];
-  const leftBuy: Novedades["leftBuy"] = [];
+  // Por símbolo, no por fila (15/9): un símbolo puede cambiar de familia. APH pasó del seguimiento al ranking y figuraba
+  // a la vez como "nueva en el Radar" y como "deja de pasar los filtros". Hoy = la última corrida de cada familia; antes
+  // = la fila más reciente del símbolo anterior a la de hoy, sea de la familia que sea.
+  const hoyC: CandidateRow[] = [];
+  const conPrevia = new Set<CandidateRow["kind"]>();
+  const previasC: CandidateRow[] = [];
   let cLast: string | null = null;
   let cPrev: string | null = null;
   for (const familia of FAMILIAS_US) {
@@ -69,13 +73,30 @@ export async function buildNovedades(store: Store & CarteraStore & RadarStore & 
     const previa = fechas.at(-2) ?? null;
     // El encabezado dice la corrida del ranking (acciones, la primera familia), que es la del día.
     if (cLast === null && ultima) { cLast = ultima; cPrev = previa; }
-    if (!previa) continue;
-    const hoyC = cands.filter((c) => c.candidateDate === ultima);
-    const antes = new Map(cands.filter((c) => c.candidateDate === previa).map((c) => [c.symbol, c]));
-    for (const c of hoyC) if (c.verdict === "COMPRAR" && antes.get(c.symbol)?.verdict !== "COMPRAR" && !enteredBuy.some((x) => x.symbol === c.symbol)) enteredBuy.push({ symbol: c.symbol, kind: c.kind, score: c.score, held: tenidas.has(c.symbol.toUpperCase()) });
-    for (const p of antes.values()) if (p.verdict === "COMPRAR" && hoyC.find((c) => c.symbol === p.symbol)?.verdict !== "COMPRAR") leftBuy.push({ symbol: p.symbol, kind: p.kind, now: hoyC.find((c) => c.symbol === p.symbol)?.verdict ?? "fuera" });
+    hoyC.push(...cands.filter((c) => c.candidateDate === ultima));
+    if (previa) { conPrevia.add(familia); previasC.push(...cands.filter((c) => c.candidateDate === previa)); }
+  }
+  /** ¿Estaba en COMPRAR en su última aparición anterior a `fecha`? null = nunca apareció antes. */
+  const comprabaAntes = (sym: string, fecha: string): boolean | null => {
+    const antes = todas.filter((c) => c.symbol === sym && c.candidateDate < fecha);
+    const ultima = antes.reduce((m, c) => (c.candidateDate > m ? c.candidateDate : m), "");
+    return ultima ? antes.some((c) => c.candidateDate === ultima && c.verdict === "COMPRAR") : null;
+  };
+  const compraHoy = new Set(hoyC.filter((c) => c.verdict === "COMPRAR").map((c) => c.symbol));
+  const enteredBuy: Novedades["enteredBuy"] = [];
+  for (const c of hoyC) {
+    if (c.verdict !== "COMPRAR" || enteredBuy.some((x) => x.symbol === c.symbol)) continue;
+    const antes = comprabaAntes(c.symbol, c.candidateDate);
+    // Sin corrida anterior en su familia ni aparición previa, es la primera corrida: no hay contra qué comparar.
+    if (antes === true || (antes === null && !conPrevia.has(c.kind))) continue;
+    enteredBuy.push({ symbol: c.symbol, kind: c.kind, score: c.score, held: tenidas.has(c.symbol.toUpperCase()) });
   }
   enteredBuy.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+  const leftBuy: Novedades["leftBuy"] = [];
+  for (const p of previasC) {
+    if (p.verdict !== "COMPRAR" || compraHoy.has(p.symbol) || leftBuy.some((x) => x.symbol === p.symbol)) continue;
+    leftBuy.push({ symbol: p.symbol, kind: p.kind, now: hoyC.find((c) => c.symbol === p.symbol)?.verdict ?? "fuera" });
+  }
 
   // Seguimiento resuelto (pide revisión). Solo lo resuelto en la ventana de esta corrida: sin filtro de
   // fecha, una resolución de hace tres días seguía apareciendo como novedad para siempre, y en modo

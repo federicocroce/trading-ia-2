@@ -64,4 +64,12 @@ describe("Hoy: nuevas en el Radar (auditoría del 15/9)", () => {
     expect(n.enteredBuy.map((x) => `${x.symbol}:${x.kind}:${x.held ? "tuya" : "nueva"}`).sort()).toEqual(["MP:watch:nueva", "TSM:stock:tuya"]);
     expect(n.leftBuy).toEqual([]);
   });
+  it("APH el 15/9: pasó de la fila de seguimiento a la del ranking; no es 'nueva' ni 'deja de pasar los filtros'", async () => {
+    const store = new MemoryStore();
+    await store.upsertCandidates([cand("2026-09-14", "NVDA", "COMPRAR"), cand("2026-09-14", "APH", "COMPRAR", "watch")]);
+    await store.upsertCandidates([cand("2026-09-15", "NVDA", "COMPRAR"), cand("2026-09-15", "APH", "COMPRAR")]);
+    const n = await buildNovedades(store, { today: "2026-09-15" });
+    expect(n.enteredBuy).toEqual([]);
+    expect(n.leftBuy).toEqual([]);
+  });
 });

@@ -22,7 +22,7 @@ export interface Pantallas {
   /** Cartera → veredicto por posición. */
   veredictos: Array<{ symbol: string; verb: string; close: number; stop: number | null; target?: number | null }>;
   /** Hoy → novedades. */
-  novedades?: { verdictChanges?: Array<{ symbol: string; from: string; to: string }> } | null;
+  novedades?: { verdictChanges?: Array<{ symbol: string; from: string; to: string }>; enteredBuy?: Array<{ symbol: string }>; leftBuy?: Array<{ symbol: string }> } | null;
   /** Radar → "lo que más recomienda hoy" (`/radar/top`): porcentajes y razones tal como se muestran. */
   top?: Array<{ symbol: string; gainPct: number; lossPct: number; reasons: string[] }>;
   /** Cartera → posiciones, tal como se muestran. */
@@ -167,6 +167,12 @@ export function checkPantallas(p: Pantallas): Finding[] {
   }
 
   // 8. Un cambio de veredicto anunciado en Hoy tiene que coincidir con lo que muestra el Radar.
+  // 8b. Un símbolo no puede entrar y salir del Radar el mismo día (15/9: APH pasó del seguimiento al ranking y Hoy lo
+  //     listaba como nueva y como "deja de pasar los filtros").
+  const salen = new Set((p.novedades?.leftBuy ?? []).map((x) => x.symbol));
+  for (const x of p.novedades?.enteredBuy ?? []) {
+    if (salen.has(x.symbol)) add("novedad_contradictoria", x.symbol, "grave", `Hoy lo muestra como nueva en el Radar y como que deja de pasar los filtros`);
+  }
   for (const ch of p.novedades?.verdictChanges ?? []) {
     const c = cand.get(ch.symbol);
     if (c && ch.to !== c.verdict) {
