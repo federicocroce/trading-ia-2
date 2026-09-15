@@ -44,7 +44,13 @@ export async function checkRun(deps: Pick<RadarDeps, "store" | "log">, opts: { t
   for (const r of rows) newsScannedTo[r.symbol] = await deps.store.newsScannedTo(r.symbol).catch(() => null);
   // Lo que está en cartera usa su stop de seguimiento: sin esta lista, `stop_dentro_del_ruido` no puede correr.
   const held = (await deps.store.positions().catch(() => null))?.map((p) => p.symbol);
-  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, industries, newsScannedTo, today: opts.today, ...(held ? { held } : {}) });
+  // La última verificación guardada de cada símbolo, la que muestra la ficha: la fila tiene que decir la misma.
+  const verifications: Record<string, { date: string; verdict: string } | null> = {};
+  for (const r of rows) {
+    const v = await deps.store.verification(r.symbol).catch(() => null);
+    verifications[r.symbol] = v ? { date: v.date, verdict: v.verdict } : null;
+  }
+  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, industries, newsScannedTo, verifications, today: opts.today, ...(held ? { held } : {}) });
   const { graves, avisos } = summarizeFindings(findings);
   if (findings.length === 0) deps.log?.(`[consistencia] ${rows.length} filas revisadas: sin contradicciones`);
   else {

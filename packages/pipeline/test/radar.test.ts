@@ -275,6 +275,49 @@ describe("plan: el ruido se mide contra el piso de la franja (15/9)", () => {
   });
 });
 
+describe("verificación: no se gasta en lo que una regla fija igual deja afuera (15/9)", () => {
+  it("SNDK (+100% en 12 meses) no se verifica en la corrida: el plan no la compra con o sin verificación", async () => {
+    // La cuota gratuita es de 20 búsquedas por día y la corrida de la mañana las repartía por convicción: SNDK y los
+    // bancos sin estados se llevaban las primeras.
+    priceLevel = 200;
+    try {
+      const { store, d } = deps();
+      const llamadas: string[] = [];
+      const verifier = { promptVersion: "v-test", verify: async ({ symbol }: { symbol: string }) => { llamadas.push(symbol); return { verdict: "apto" as const, reason: "ok", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [], researchText: "DICTAMEN: APTO — ok", model: "m" }; } };
+      await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+      await rankRadar({ ...d, verifier }, { today: TODAY, portfolioUsd: 100_000 });
+      const bloqueadas = (await store.latestCandidates()).filter((c) => c.flags.includes("subio_mucho_12m"));
+      if (!bloqueadas.length) expect.fail("el fixture necesita filas que subieron más de 100%");
+      for (const b of bloqueadas) expect(llamadas, b.symbol).not.toContain(b.symbol);
+    } finally {
+      priceLevel = 100;
+    }
+  });
+});
+
+describe("refresco: la verificación de la fila es la última guardada (15/9)", () => {
+  it("BLBD: verificada 'con reservas' y después OBSERVAR; la fila no puede seguir diciendo 'pendiente'", async () => {
+    // El refresco usaba la verificación de la fila anterior cuando la acción quedaba en OBSERVAR: la ficha (que lee la
+    // tabla de verificaciones) decía "con reservas" y la fila del Radar "verificación pendiente".
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const fila = (await store.latestCandidates()).find((c) => c.kind === "stock" && c.verdict === "COMPRAR");
+    if (!fila) expect.fail("el fixture necesita un COMPRAR");
+    const verifier = { promptVersion: "v-test", verify: async () => { throw new Error("no hace falta verificar de nuevo"); } };
+    await store.saveVerification({ symbol: fila.symbol, date: TODAY, verdict: "con_reservas", reason: "valuación alta", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [], researchText: "DICTAMEN: CON RESERVAS — valuación alta", promptVersion: "v-test", model: "m", detectedAt: `${TODAY}T20:24:35.036Z` });
+    // Reporta en 3 días: el refresco la deja en OBSERVAR, el caso en que no se volvía a leer la verificación.
+    const f = (await store.fundamentals(fila.symbol))!;
+    await store.saveFundamentals({ ...f, nextEarnings: "2026-05-22" });
+    await refreshRadar({ ...d, verifier }, { today: TODAY, portfolioUsd: 100_000, only: [fila.symbol] });
+    const despues = (await store.latestCandidates()).find((c) => c.symbol === fila.symbol)!;
+    expect(despues.verdict).toBe("OBSERVAR");
+    expect(despues.verification).toMatchObject({ verdict: "con_reservas", reason: "valuación alta" });
+    expect(despues.flags).toContain("verificacion_reservas");
+    expect(despues.flags).not.toContain("verificacion_pendiente");
+  });
+});
+
 describe("plan: por qué cambió (15/9)", () => {
   it("NVDA el 15/9: si el Radar pasa una compra a OBSERVAR, el plan rearmado dice que salió y por qué; el primero no tiene cambios", async () => {
     const { store, d } = deps();

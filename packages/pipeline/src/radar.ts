@@ -36,6 +36,7 @@ import {
   type PlanVerification,
   verificationLabel,
   etfReasonText,
+  PLAN_BLOCKERS,
   type CandidateVerifier,
   type CoreEarnings,
   type VerificationSummary,
@@ -62,7 +63,7 @@ import {
   totalReturnPct,
 } from "@thesis/core";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
-import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-verify.js";
+import { VERIFY_PER_RUN_DEFAULT, verificacionGuardada, verifyFor, type VerifyBudget } from "./radar-verify.js";
 import type { CarteraStore, RadarStore, TickerStore } from "./store.js";
 
 /**
@@ -449,7 +450,8 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
         continue;
       }
       // Verificación web solo para lo que ya es COMPRAR por reglas: el dictamen vuelve a pasar por las reglas.
-      const verification = await verifyIfBuy(deps, sym, d, opts.today, verifyBudget);
+      // Un OBSERVAR no se verifica, pero muestra la que ya tiene guardada, igual que en el refresco (15/9).
+      const verification = (await verifyIfBuy(deps, sym, d, opts.today, verifyBudget)) ?? (await verificacionGuardada(deps, sym));
       if (verification !== undefined) {
         const again = decideCandidate({ ...input, verification }, policy);
         if (!("excluded" in again)) d = again;
@@ -567,9 +569,11 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     // La verificación guardada entra desde la PRIMERA decisión. Si se pasaba solo cuando el símbolo quedaba
     // COMPRAR, un OBSERVAR conservaba su dictamen en la columna y lo perdía en las banderas: la fila decía
     // "con reservas" en la ficha y no lo mostraba, y esa salvedad dejaba de contar (SOLV, TER y VIST el 11/9).
-    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(prev.verification ? { verification: prev.verification } : {}) };
+    // Y es la de la tabla, no la copia de la fila anterior (15/9, BLBD): sin verificador, la de la fila.
+    const guardada = deps.verifier ? await verificacionGuardada(deps, prev.symbol) : prev.verification;
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(guardada ? { verification: guardada } : {}) };
     let d = decideCandidate(input, policy);
-    let verification: VerificationSummary | null | undefined = prev.verification;
+    let verification: VerificationSummary | null | undefined = guardada;
     if (!("excluded" in d)) {
       const v = await verifyIfBuy(deps, prev.symbol, d, opts.today, verifyBudget);
       if (v !== undefined) {
@@ -618,6 +622,9 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
  */
 async function verifyIfBuy(deps: RadarDeps, sym: string, d: { verdict: "COMPRAR" | "OBSERVAR"; flags: string[] }, today: string, budget: VerifyBudget): Promise<VerificationSummary | null | undefined> {
   if (!deps.verifier || d.verdict !== "COMPRAR") return undefined;
+  // Lo que una regla fija deja afuera del plan no se verifica (15/9): con 20 búsquedas por día, SNDK (subió más de 100%)
+  // y los bancos sin estados se llevaban las primeras de la mañana y el plan igual no los compraba. Queda la guardada.
+  if (d.flags.some((f) => PLAN_BLOCKERS[f])) return undefined;
   const profile = await deps.store.profile(sym).catch(() => null);
   const context = `banderas del Radar: ${d.flags.join(", ") || "ninguna"}`;
   return verifyFor(deps, sym, { today, name: profile?.profile.name ?? null, context, budget });

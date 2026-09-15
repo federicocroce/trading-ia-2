@@ -1,8 +1,8 @@
 import type { Candle, CandidateRow, Fundamentals, VerificationSummary, WatchItem } from "@thesis/core";
-import { computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
+import { PLAN_BLOCKERS, computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
 import { pruneFamilias, tagSymbol, universoDelRanking, type RadarDeps } from "./radar.js";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
-import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-verify.js";
+import { VERIFY_PER_RUN_DEFAULT, verificacionGuardada, verifyFor, type VerifyBudget } from "./radar-verify.js";
 
 /**
  * Lista de seguimiento: tickers elegidos a mano. Reciben todos los días el mismo tratamiento que un candidato
@@ -97,11 +97,13 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       const ev = deps.news ? await scanEventsFor({ store, news: deps.news, classifier: deps.eventClassifier ?? null, ...(deps.log ? { log: deps.log } : {}) }, sym, { today: opts.today, name: (await store.profile(sym).catch(() => null))?.profile.name ?? null }).catch((e): EventScan | null => { deps.log?.(`[seguimiento] noticias de ${sym} fallaron`, { error: errText(e) }); return null; }) : null;
       // El dictamen guardado entra desde la primera decisión: si solo se pasara cuando queda COMPRAR, un
       // OBSERVAR conservaría la verificación en su columna y la perdería en las banderas.
-      let verification: VerificationSummary | null | undefined = prev?.verification;
+      // La de la tabla, no la copia de la fila anterior (15/9): la misma que muestra la ficha.
+      let verification: VerificationSummary | null | undefined = deps.verifier ? await verificacionGuardada(deps, sym) : prev?.verification;
       const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym.toUpperCase()), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate({ ...base, ...(verification ? { verification } : {}) }, policy);
       // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
-      if (!("excluded" in d) && d.verdict === "COMPRAR" && deps.verifier) {
+      // Lo que una regla fija deja afuera del plan no gasta una búsqueda (15/9), como en el ranking.
+      if (!("excluded" in d) && d.verdict === "COMPRAR" && deps.verifier && !d.flags.some((f) => PLAN_BLOCKERS[f])) {
         const profile = await store.profile(sym).catch(() => null);
         verification = await verifyFor(deps, sym, { today: opts.today, name: profile?.profile.name ?? null, context: `lista de seguimiento · banderas: ${d.flags.join(", ") || "ninguna"}`, budget: verifyBudget });
         const again = decideCandidate({ ...base, verification }, policy);

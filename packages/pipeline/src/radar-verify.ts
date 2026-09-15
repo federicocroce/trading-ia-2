@@ -24,6 +24,17 @@ export interface VerifyBudget {
   left: number;
 }
 
+/**
+ * La última verificación guardada del símbolo: la misma que muestra la ficha (15/9). Sin verificador, `undefined`.
+ * Las filas la toman de acá y no de la fila anterior: BLBD quedó "con reservas" en la tabla y la fila, que pasó a
+ * OBSERVAR en el mismo refresco, seguía diciendo "verificación pendiente".
+ */
+export async function verificacionGuardada(deps: VerifyDeps, symbol: string): Promise<VerificationSummary | null | undefined> {
+  if (!deps.verifier) return undefined;
+  const v = await deps.store.verification(symbol.toUpperCase()).catch(() => null);
+  return v ? summary(v) : null;
+}
+
 export async function verifyFor(deps: VerifyDeps, symbol: string, opts: { today: string; name: string | null; context?: string | null; budget?: VerifyBudget }): Promise<VerificationSummary | null> {
   const verifier = deps.verifier;
   if (!verifier) return null;

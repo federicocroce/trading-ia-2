@@ -403,3 +403,19 @@ describe("verificación con el cuestionario anterior (auditoría del 15/9)", () 
     expect(f).toEqual([]);
   });
 });
+
+describe("la verificación de la fila es la guardada (auditoría del 15/9)", () => {
+  const guardada = { date: "2026-09-15", verdict: "con_reservas" };
+  it("BLBD: la tabla dice 'con reservas' y la fila 'pendiente'; en OBSERVAR es aviso, en COMPRAR es grave (el plan la usa)", () => {
+    const observar = solo("verificacion_desfasada", checkConsistency({ rows: [fila({ symbol: "BLBD", verdict: "OBSERVAR", flags: ["verificacion_pendiente"], verification: null })], candles: {}, plan: null, verifications: { BLBD: guardada } }));
+    expect(observar).toHaveLength(1);
+    expect(observar[0]!.severity).toBe("aviso");
+    const comprar = solo("verificacion_desfasada", checkConsistency({ rows: [fila({ symbol: "SEZL", flags: ["verificacion_anterior"], verification: { date: "2026-09-11", verdict: "apto", reason: "x" } })], candles: {}, plan: null, verifications: { SEZL: guardada } }));
+    expect(comprar).toHaveLength(1);
+    expect(comprar[0]!.severity).toBe("grave");
+  });
+  it("con la misma verificación en la fila y en la tabla no reporta nada", () => {
+    const f = solo("verificacion_desfasada", checkConsistency({ rows: [fila({ symbol: "LNC", flags: ["verificacion_reservas"], verification: { ...guardada, reason: "x" } })], candles: {}, plan: null, verifications: { LNC: guardada } }));
+    expect(f).toEqual([]);
+  });
+});

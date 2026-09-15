@@ -50,6 +50,8 @@ export interface ConsistencyInput {
   industries?: Record<string, string | null>;
   /** Símbolos en cartera. Una posición usa su stop de seguimiento; sin esto no corre `stop_dentro_del_ruido`. */
   held?: string[];
+  /** Última verificación guardada por símbolo (la que muestra la ficha). Sin esto no corre `verificacion_desfasada`. */
+  verifications?: Record<string, { date: string; verdict: string } | null>;
 }
 
 export const CONSISTENCY_THRESHOLDS = {
@@ -152,6 +154,12 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       const v = row.verification!.verdict;
       const efecto = v === "apto" ? "la fila no muestra que está verificada" : "esa salvedad no está restando convicción ni contando para pasar a OBSERVAR";
       add("verificacion_sin_bandera", row.symbol, "grave", `la verificación dice "${v}" pero las banderas no la muestran: ${efecto}`);
+    }
+    // 2b. La fila usa la última verificación guardada, la misma de la ficha (15/9: BLBD "con reservas" en la tabla y
+    //     "pendiente" en la fila). En COMPRAR es grave: el plan decide con la de la fila.
+    const tabla = i.verifications?.[row.symbol];
+    if (tabla && (row.kind === "stock" || row.kind === "watch") && (!row.verification || row.verification.date !== tabla.date || row.verification.verdict !== tabla.verdict)) {
+      add("verificacion_desfasada", row.symbol, row.verdict === "COMPRAR" ? "grave" : "aviso", `la verificación guardada es "${tabla.verdict}" del ${tabla.date} y la fila muestra ${row.verification ? `"${row.verification.verdict}" del ${row.verification.date}` : "ninguna"}: la ficha y el Radar dicen cosas distintas`);
     }
     const puestas = row.flags.filter((f) => VERIFICATION_FLAGS.has(f));
     if (puestas.length > 1) add("verificacion_duplicada", row.symbol, "grave", `dos banderas de verificación a la vez: ${puestas.join(", ")}`);
