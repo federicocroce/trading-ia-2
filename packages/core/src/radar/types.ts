@@ -170,6 +170,36 @@ export interface CandidateVerifier {
   verify(input: VerifierInput): Promise<VerifierResult>;
 }
 
+/**
+ * Revisión antes de comprar (15/9): una segunda búsqueda, independiente de la verificación, sobre lo que el plan
+ * compraría hoy. Busca razones para NO comprarla. Solo "sin_objeciones" deja comprar (ver `reviewBlock`).
+ */
+export interface PreTradeReviewInput {
+  symbol: string;
+  name: string | null;
+  today: string;
+  /** Lo que dijo la verificación, para que la revisión no la repita sino que la contraste. */
+  verification: { verdict: string; reason: string; date: string } | null;
+  line: { kind: string; close: number | null; stop: number | null };
+}
+export interface PreTradeReviewResult {
+  verdict: "sin_objeciones" | "objecion" | "no_pude_verificar";
+  reason: string;
+  sources: Array<{ title: string; url: string }>;
+  researchText: string;
+  model: string;
+}
+export interface PreTradeReviewer {
+  readonly promptVersion: string;
+  review(input: PreTradeReviewInput): Promise<PreTradeReviewResult>;
+}
+/** Una revisión guardada: una por símbolo y por día. */
+export interface PreTradeReview extends PreTradeReviewResult {
+  symbol: string;
+  date: string;
+  promptVersion: string;
+}
+
 /** Ficha de candidato escrita por el modelo (spec §9). El verbo ya está decidido; solo puede degradar. */
 export interface CardInput {
   symbol: string;

@@ -220,3 +220,45 @@ describe("antes de comprar: el stop fuera del ruido y una posición que diversif
     expect(sinAtr.lines.find((l) => l.symbol === "NVDA")!.minPrice).toBeNull();
   });
 });
+
+describe("revisión antes de comprar (15/9)", () => {
+  /*
+   * Una segunda búsqueda, independiente de la verificación, sobre lo que el plan va a comprar: razones para NO
+   * comprarla hoy. El 14/9 la verificación dio "apto" a GFI sin ver que la licencia de Tarkwa vence en abril de 2027.
+   * Solo "sin objeciones" deja comprar; lo que no se revisó todavía queda pendiente y el plan lo dice.
+   */
+  type Buy = PlanInput["buyCandidates"][number];
+  const apta = { verdict: "apto" as const, reason: "ok", current: true };
+  const sin = { verdict: "sin_objeciones" as const, reason: "sin objeciones" };
+  const compra = (symbol: string, priority: number, review: Buy["review"]): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close: 100, entryHigh: 102, stop: 90, target: 126, verification: apta, atr: 2, review });
+  const cuarenta = (buys: Buy[], sumar: PlanInput["sumarCandidates"] = []) => planContribution({ ...base, closes: { ...base.closes, APH: 100, GFI: 100, NVDA: 100 }, buyCandidates: buys, sumarCandidates: sumar }, c, { amountUsd: 40_000 });
+
+  it("con una objeción no entra, lo dice, y su lugar va al núcleo", () => {
+    const p = cuarenta([compra("GFI", 1.2, { verdict: "objecion", reason: "la licencia de Tarkwa vence en abril de 2027 y Ghana no respondió" }), compra("NVDA", 1.1, sin)]);
+    expect(p.lines.some((l) => l.symbol === "GFI")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "GFI")!.reason).toMatch(/revisión antes de comprar encontró una objeción: la licencia de Tarkwa/);
+    expect(p.lines.some((l) => l.symbol === "NVDA")).toBe(true);
+    expect(p.reviewsPending ?? []).toEqual([]);
+  });
+  it("sin revisar todavía: no entra y queda en la lista de pendientes (lo que el plan compraría si pasa)", () => {
+    const p = cuarenta([compra("APH", 1.3, null), compra("NVDA", 1.1, sin)]);
+    expect(p.lines.some((l) => l.symbol === "APH")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "APH")!.reason).toMatch(/revisión antes de comprar pendiente/);
+    expect(p.reviewsPending).toEqual(["APH"]);
+  });
+  it("'no pude verificar' tampoco deja comprar; sin revisor (undefined) no se exige", () => {
+    const p = cuarenta([compra("APH", 1.3, { verdict: "no_pude_verificar", reason: "no encontré el comunicado" })]);
+    expect(p.leftOut!.find((x) => x.symbol === "APH")!.reason).toMatch(/no pudo verificar/);
+    const q = cuarenta([compra("APH", 1.3, undefined)]);
+    expect(q.lines.some((l) => l.symbol === "APH")).toBe(true);
+  });
+  it("un SUMAR también pasa por la revisión: pendiente o con objeción, no se suma", () => {
+    const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 380, target: 498, verification: apta, atr: 11 };
+    const pendiente = cuarenta([], [{ ...tsm, review: null }]);
+    expect(pendiente.lines.some((l) => l.symbol === "TSM")).toBe(false);
+    expect(pendiente.reviewsPending).toEqual(["TSM"]);
+    const ok = cuarenta([], [{ ...tsm, review: sin }]);
+    expect(ok.lines.find((l) => l.symbol === "TSM")!.kind).toBe("sumar");
+  });
+});
+

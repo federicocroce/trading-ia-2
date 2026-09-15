@@ -29,7 +29,7 @@ describe("enum parity core <-> db", () => {
  */
 describe("paridad ContributionPlan <-> contribution_plans", () => {
   it("todo campo del plan tiene su columna", () => {
-    const plan: Required<ContributionPlan> = { month: "2026-09", totalUsd: 0, lines: [], notes: [], leftOut: [], tranches: 1, builtAt: "2026-09-13T00:00:00.000Z", inputs: {}, changes: [], previousBuiltAt: null, controles: null };
+    const plan: Required<ContributionPlan> = { month: "2026-09", totalUsd: 0, lines: [], notes: [], leftOut: [], tranches: 1, builtAt: "2026-09-13T00:00:00.000Z", inputs: {}, changes: [], previousBuiltAt: null, controles: null, reviewsPending: [] };
     const columnas = new Set(Object.keys(s.contributionPlans));
     // `builtAt` es la cara pública de `created_at`: el plan es una foto y la pantalla tiene que poder decir
     // de cuándo es. Lo vuelca `rowToPlan`; `savePlan` lo actualiza en cada rearmado.

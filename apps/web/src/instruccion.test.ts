@@ -96,6 +96,10 @@ describe("controles que frenan (15/9)", () => {
     expect(controlesBloquean({ ...plan, controles: { ...plan.controles!, error: "/radar/candidates respondió 500" } })).toMatch(/no pudieron correr: .*500/);
     expect(instruccionRadar("COMPRAR", planStatusFor("APH", { ...plan, controles: null })).label).toBe("ESPERAR");
   });
+  it("con la revisión antes de comprar en curso tampoco: faltan líneas que cambiarían los montos de las demás", () => {
+    expect(controlesBloquean({ ...plan, reviewsPending: ["APH", "TSM"] })).toMatch(/revisión antes de comprar en curso \(APH, TSM\)/);
+    expect(instruccionRadar("NUCLEO", planStatusFor("VTI", { ...plan, reviewsPending: ["APH"] })).label).toBe("ESPERAR");
+  });
   it("con los controles al día y sin graves, nada cambia; lo que no está en el plan sigue siendo CANDIDATA", () => {
     expect(controlesBloquean(plan)).toBeNull();
     expect(instruccionRadar("COMPRAR", planStatusFor("NBN", grave)).label).toBe("CANDIDATA");

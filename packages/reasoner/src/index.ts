@@ -10,6 +10,7 @@ export { PROMPT_VERSION, buildUserMessage, normalizeEventDate, parseProposal, pr
 export { GeminiReasoner, DEFAULT_GEMINI_MODELS, type GeminiReasonerOptions } from "./gemini/index.js";
 export { GeminiToolCaller, DEFAULT_RPM_PER_KEY, parseQuotaDetails, type CallMeta, type GeminiCallerOptions, type GroundedResult, type ToolSpec } from "./gemini/transport.js";
 export * from "./verifier.js";
+export * from "./review.js";
 export { GeminiHttpError, QuotaTracker, classifyAttemptError } from "./gemini/rotation.js";
 export * from "./narrator.js";
 

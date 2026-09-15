@@ -1,4 +1,4 @@
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, PreTradeReview, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge, familyOf } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -119,6 +119,9 @@ export interface RadarStore {
   latestPlan(): Promise<ContributionPlan | null>;
   /** Resultado de los controles automáticos sobre el plan del mes (15/9). */
   savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>): Promise<void>;
+  /** Revisión antes de comprar (15/9): una por símbolo y por día. */
+  savePreTradeReview(r: PreTradeReview): Promise<void>;
+  preTradeReviews(date: string): Promise<PreTradeReview[]>;
   plansToMeasure(before: string): Promise<ContributionPlan[]>;
   updatePlanLines(month: string, lines: PlanLine[]): Promise<void>;
   /** Etapa 3: contexto macro argentino, una fila por día. */
@@ -570,6 +573,13 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   async savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>) {
     const p = this.plans.get(month);
     if (p) this.plans.set(month, { ...p, controles });
+  }
+  private reviews = new Map<string, PreTradeReview>();
+  async savePreTradeReview(r: PreTradeReview) {
+    this.reviews.set(`${r.date}|${r.symbol.toUpperCase()}`, { ...r, symbol: r.symbol.toUpperCase() });
+  }
+  async preTradeReviews(date: string) {
+    return [...this.reviews.values()].filter((r) => r.date === date);
   }
   async latestPlan() {
     const m = [...this.plans.keys()].sort().at(-1);

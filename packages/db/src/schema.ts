@@ -244,6 +244,22 @@ export const statements = pgTable("statements", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 /** Verificación web por candidata (spec 2026-09-10): la última por símbolo; el informe completo queda para auditar. */
+/** Revisión antes de comprar (15/9): una por símbolo y por día, sobre lo que el plan compraría. */
+export const pretradeReviews = pgTable(
+  "pretrade_reviews",
+  {
+    symbol: text("symbol").notNull(),
+    reviewDate: date("review_date").notNull(),
+    verdict: text("verdict").notNull(),
+    reason: text("reason").notNull(),
+    sources: jsonb("sources").notNull().default([]),
+    researchText: text("research_text"),
+    model: text("model"),
+    promptVersion: text("prompt_version").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.reviewDate] })],
+);
 export const radarVerifications = pgTable("radar_verifications", {
   symbol: text("symbol").primaryKey(),
   date: date("date").notNull(),
@@ -336,6 +352,8 @@ export const contributionPlans = pgTable("contribution_plans", {
   previousBuiltAt: text("previous_built_at"),
   /** Controles automáticos sobre esta versión del plan; se borran al rearmarlo (15/9). */
   controles: jsonb("controles"),
+  /** Lo que el plan compraría y espera la revisión antes de comprar (15/9). */
+  reviewsPending: jsonb("reviews_pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 /** Eventos materiales detectados en noticias (spec verificación §5). Único por símbolo + URL; los `ruido` también se guardan. */

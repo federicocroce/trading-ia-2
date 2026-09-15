@@ -15,13 +15,16 @@ export const VERDICTS = ["apto", "con_reservas", "evitar"] as const;
  * SPNT, STNG, HSBC, CTRE quedaron fuera del plan por un artefacto de parseo, no por su negocio).
  */
 export const DICTAMEN_RE = /DICTAMEN:\s*(APTO|CON RESERVAS|EVITAR)/i;
+/** Un informe completo trae el dictamen arriba y la línea FALTANTES al final (15/9): sin ella, se cortó. */
+export const INFORME_COMPLETO_RE = /DICTAMEN:\s*(APTO|CON RESERVAS|EVITAR)[\s\S]*FALTANTES:/i;
+const FALTANTES_RE = /^\s*FALTANTES:\s*(.+?)\s*$/im;
 
 export const RESEARCH_SYSTEM = `Sos analista de renta variable con acceso a búsqueda web. Recibís UNA empresa listada en EE.UU. y la fecha de hoy. Investigá y escribí un informe en español de como máximo 600 palabras, con fechas concretas y sin inventar: si algo no se puede verificar, decilo.
 
 PRIMERA LÍNEA, obligatoria, antes de todo lo demás: "DICTAMEN: APTO" o "DICTAMEN: CON RESERVAS" o "DICTAMEN: EVITAR", seguido de " — " y UNA oración con el motivo. Después el cuestionario:
-1. Último trimestre reportado: fecha; ingresos contra el consenso (si quedaron por debajo, decilo); ganancia por acción contra el consenso; ítems no recurrentes (ganancias por venta o fusión, liberación de reservas, marcas a valor razonable, beneficios o créditos fiscales comprados, reversiones de contratos, cargos únicos) con su monto; la ganancia por acción LIMPIA, sin esos ítems, y si ESA le gana al consenso o solo le ganaba la reportada; guía dada, subida o retirada.
+1. Último trimestre reportado: fecha; ingresos contra el consenso (si quedaron por debajo, decilo); ganancia por acción contra el consenso; ítems no recurrentes, sacados del comunicado de resultados de la empresa (o su 8-K o 6-K), no de resúmenes (ganancias por venta o fusión, liberación de reservas, marcas a valor razonable, beneficios o créditos fiscales comprados, reversiones de contratos, cargos únicos) con su monto; la ganancia por acción LIMPIA, sin esos ítems, y si ESA le gana al consenso o solo le ganaba la reportada; guía dada, subida o retirada.
 2. Analistas en los últimos 90 días: fecha, firma, acción (inicia, sube, baja, mantiene) y objetivo. Objetivo de consenso y precio actual.
-3. Eventos materiales en los últimos 90 días: regulatorios, litigios (incluidas demandas de accionistas y su estado), investigaciones antimonopolio, ofertas de acciones o convertibles, cambios de CEO o CFO, informes de vendedores en corto, incidentes de ciberseguridad, adquisiciones grandes. Ventas de insiders: quién, monto, qué parte de su tenencia y si son ejercicio de opciones o acciones que ya tenía.
+3. Eventos materiales en los últimos 90 días: regulatorios, licencias, permisos o concesiones que vencen o están en revisión (en minería, energía, telecomunicaciones o salud: cuándo vencen y qué dijo el gobierno), litigios (incluidas demandas de accionistas y su estado), investigaciones antimonopolio, ofertas de acciones o convertibles, cambios de CEO o CFO, informes de vendedores en corto, incidentes de ciberseguridad, adquisiciones grandes. Ventas de insiders: quién, monto, qué parte de su tenencia y si son ejercicio de opciones o acciones que ya tenía.
 4. Valuación contra la historia propia de 5 años (P/E adelantado; en bancos, precio sobre valor libro tangible; en aseguradoras, precio sobre valor libro sin AOCI): el múltiplo actual y el mínimo y máximo de 5 años, con su fuente, y si está en el tercio superior o en su máximo. Si no encontrás esos números, decí "no encontrado". Contra los pares, en una línea. Subida de los últimos 12 meses.
 5. Si es un banco: inmobiliario comercial sobre capital (el regulador mira desde 300% del capital), préstamos sobre depósitos y peso del fondeo mayorista (adelantos del FHLB, depósitos por brokers) y cómo cambió en el año. Si es una aseguradora: ganancia operativa contra la GAAP y qué mueve la diferencia.
 6. Próxima fecha de resultados.
@@ -31,7 +34,8 @@ Criterio del dictamen, para tenerla 6 a 12 meses:
 - EVITAR: la ganancia reportada se explica por un ítem único (ganancia contable de fusión, venta de activos, beneficio fiscal) y sin él el negocio pierde o apenas gana; ingresos cayendo y guía sin sostén; evento binario en menos de 6 semanas (decisión regulatoria, panel, juicio); precio en o por encima del objetivo del consenso tras una subida mayor al 50% en 12 meses; catalizadores ya consumidos con núcleo débil.
 - CON RESERVAS: una salvedad seria que no invalida: la sorpresa del trimestre desaparece sin los ítems no recurrentes (solo si nombrás el ítem, su monto y la fuente, y la ganancia limpia queda en línea o debajo del consenso); valuación en su máximo de 5 años contra su propia historia sin que el crecimiento se acelere (solo con el múltiplo actual y el rango de 5 años del punto 4: sin esos números no es reserva); banco con inmobiliario comercial por encima de 300% del capital y fondeo mayorista creciendo; ganancia de pico de ciclo (fletes, reservas de seguros en temporada benigna); guía que no sube con precios presionados; insiders vendiendo fuerte acciones que ya tenían; cobertura de un solo analista; adquisición apalancada pendiente; demanda de accionistas con moción pendiente.
 - APTO: superó y sostuvo o subió la guía, negocio limpio, y precio con margen contra el consenso o valuación por debajo de su historia. NO son reserva por sí solas: una valuación premium que el crecimiento sostiene (28x adelantado con ventas +50% y pedidos +90% es APTO); ventas de directivos por ejercicio de opciones en una empresa que supera y sube la guía; una investigación antimonopolio sobre una operación puntual sin pedido de revertirla; la revisión anual de supuestos de una aseguradora (es rutina de cada tercer trimestre, no un evento binario); una pérdida esperada en una biotech en desarrollo.
-Una reserva vale solo con el dato que la sostiene: si no encontraste el número, decí que no lo encontraste y no la uses para el dictamen. Si te faltan datos para un punto, decilo en ese punto; el dictamen igual va en la primera línea.`;
+No inventes: una reserva vale solo con el dato que la sostiene, y un dato que no encontraste se escribe "no encontrado". Pero no encontrar un dato crítico no es una buena noticia. Datos críticos: (a) la ganancia por acción limpia contra el consenso y los ítems no recurrentes del último trimestre, del comunicado de resultados; (b) la guía; (c) riesgos regulatorios, de licencias, permisos o concesiones, y litigios materiales; (d) ofertas de acciones o convertibles de los últimos 90 días; (e) en bancos, inmobiliario comercial sobre capital y fondeo mayorista. Con un dato crítico sin encontrar, el dictamen no puede ser APTO.
+ÚLTIMA LÍNEA, obligatoria: "FALTANTES: ninguno", o "FALTANTES: " seguido de los datos críticos que no encontraste, separados por punto y coma.`;
 
 export const STRUCTURE_SYSTEM = `Recibís el informe de verificación de una empresa escrito por un analista. Volcalo a la tool candidate_verification sin agregar nada que no esté en el informe: fechas en YYYY-MM-DD cuando estén (si un ítem no tiene fecha, date null); números como números; lo que el informe no dice queda null o vacío. El dictamen y el motivo se copian de la primera línea del informe ("DICTAMEN: …"): apto, con_reservas o evitar; motivo: una oración, máximo 300 caracteres, en español. Si el informe está cortado, igual usá el dictamen de la primera línea.`;
 
@@ -105,6 +109,27 @@ export function parseVerification(args: unknown): Omit<VerifierResult, "sources"
   return VerificationSchema.parse(args);
 }
 
+/** Datos críticos que el informe dice no haber encontrado (su línea FALTANTES). `[]` si dice ninguno; null si no la trae. */
+export function faltantesDe(text: string): string[] | null {
+  const m = FALTANTES_RE.exec(text);
+  if (!m) return null;
+  const v = m[1]!.replace(/\.$/, "").trim();
+  if (/^(ninguno|ninguna|nada|-|—)$/i.test(v)) return [];
+  return v.split(";").map((x) => x.trim()).filter(Boolean).slice(0, 8);
+}
+
+/**
+ * Falla cerrado (15/9): un "apto" con datos críticos sin encontrar, o de un informe que no dice cuáles le faltan, se
+ * guarda como "con reservas". Lo decide el código, no el modelo: el 14/9 NBN y GFI salieron "apto" justamente por lo
+ * que la verificación no encontró. Con reservas o evitar no cambian: ya frenan.
+ */
+export function aplicarFaltantes<T extends { verdict: (typeof VERDICTS)[number]; reason: string }>(v: T, faltantes: string[] | null): T {
+  if (v.verdict !== "apto") return v;
+  if (faltantes === null) return { ...v, verdict: "con_reservas", reason: "el informe no dijo qué datos críticos no encontró: no se puede dar por apta" };
+  if (!faltantes.length) return v;
+  return { ...v, verdict: "con_reservas", reason: `falta verificar: ${faltantes.join("; ")}`.slice(0, 300) };
+}
+
 export function buildResearchMessage(i: VerifierInput): string {
   return [`# Empresa\n${i.symbol}${i.name ? ` — ${i.name}` : ""}`, `# Hoy\n${i.today}`, i.context ? `# Lo que ya sabe la app (contrastalo, no lo repitas)\n${i.context.slice(0, 2000)}` : null, "Respondé el cuestionario."].filter((x): x is string => x !== null).join("\n\n");
 }
@@ -125,10 +150,11 @@ export class GeminiCandidateVerifier implements CandidateVerifier {
   }
   async verify(input: VerifierInput): Promise<VerifierResult> {
     // Presupuesto amplio y pensamiento acotado: el informe de 600 palabras nunca tiene que salir cortado (10/9: 2.5 Flash gastaba 3.800 tokens pensando y dejaba 450 caracteres de informe).
-    const research = await this.caller.callGrounded(RESEARCH_SYSTEM, buildResearchMessage(input), { purpose: "verificacion", symbol: input.symbol }, { models: this.researchModels, maxOutputTokens: 12_000, thinkingBudget: 2048, requireText: DICTAMEN_RE });
+    // El informe tiene que venir entero: dictamen arriba y FALTANTES al final. Uno cortado se descarta y rota.
+    const research = await this.caller.callGrounded(RESEARCH_SYSTEM, buildResearchMessage(input), { purpose: "verificacion", symbol: input.symbol }, { models: this.researchModels, maxOutputTokens: 12_000, thinkingBudget: 2048, requireText: INFORME_COMPLETO_RE });
     const r = await this.caller.call(STRUCTURE_SYSTEM, `# Informe (${input.symbol}, ${input.today})\n${research.text}`, VERIFY_TOOL, { purpose: "verificacion_estructura", symbol: input.symbol });
     try {
-      const parsed = parseVerification(r.args);
+      const parsed = aplicarFaltantes(parseVerification(r.args), faltantesDe(research.text));
       return { ...parsed, sources: research.sources, researchText: research.text, model: research.model };
     } catch (e) {
       this.caller.markValidation(r.callId);

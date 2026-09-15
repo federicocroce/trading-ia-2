@@ -37,6 +37,8 @@ const sinLugar = (reason: string) => reason.replace(/^(?:\d+° por convicción|s
  */
 export function controlesBloquean(plan: ContributionPlan | null): string | null {
   if (!plan || !plan.lines.length) return null;
+  // Revisión antes de comprar en curso: lo que falta revisar cambiaría los montos de las demás líneas al rearmarse.
+  if (plan.reviewsPending?.length) return `revisión antes de comprar en curso (${plan.reviewsPending.join(", ")}): el plan se rearma solo cuando termina`;
   const k = plan.controles;
   if (!k || !plan.builtAt || k.planBuiltAt !== plan.builtAt) return "los controles automáticos todavía no revisaron este plan (tardan hasta un minuto)";
   if (k.error) return `los controles no pudieron correr: ${k.error}`;

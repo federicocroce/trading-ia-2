@@ -95,7 +95,7 @@ export interface PlanLine { symbol: string; kind: "nucleo" | "sumar" | "comprar"
 export interface PlanControles { at: string; planBuiltAt: string; graves: number; avisos: number; findings: Array<{ check: string; symbol: string | null; severity: "grave" | "aviso"; detail: string }>; error?: string }
 /** Qué cambió respecto del plan anterior y por qué (15/9). `usuario`: lo cambió una acción tuya, no el mercado. */
 export interface PlanChange { symbol: string; change: "entra" | "sale" | "monto"; fromUsd: number; toUsd: number; source: "mercado" | "verificacion" | "regla" | "usuario" | "reparto" | "monto"; cause: string }
-export interface ContributionPlan { month: string; totalUsd: number; lines: PlanLine[]; notes: string[]; leftOut?: Array<{ symbol: string; reason: string }>; builtAt?: string; controles?: PlanControles | null; changes?: PlanChange[]; previousBuiltAt?: string | null }
+export interface ContributionPlan { month: string; totalUsd: number; lines: PlanLine[]; notes: string[]; leftOut?: Array<{ symbol: string; reason: string }>; builtAt?: string; controles?: PlanControles | null; changes?: PlanChange[]; previousBuiltAt?: string | null; /** Lo que el plan compraría y espera la revisión antes de comprar (15/9). */ reviewsPending?: string[] }
 export interface ScanStatus { running: boolean; stopRequested: boolean; startedAt: string | null; progress: { done: number; total: number; stage: string } | null; last: { listed: number; prefiltered: number; fundamentalsOk: number; excluded: number; errors: number; stopped: boolean } | null; scanDate: string | null; status: Record<string, number> | null }
 interface RBucket { n: number; avgAlpha: number | null; hitRate: number | null }
 export type Horizonte = "h7" | "h30" | "h90";

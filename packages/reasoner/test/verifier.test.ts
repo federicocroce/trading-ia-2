@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UsageCallInput, UsageRecorder, UsageResult } from "@thesis/core";
-import { GeminiCandidateVerifier, GeminiToolCaller, RESEARCH_SYSTEM, VERIFY_TOOL, VERIFY_VERSION, buildResearchMessage, parseVerification } from "../src/index.js";
+import { GeminiCandidateVerifier, GeminiToolCaller, RESEARCH_SYSTEM, VERIFY_TOOL, VERIFY_VERSION, aplicarFaltantes, buildResearchMessage, faltantesDe, parseVerification } from "../src/index.js";
 
 function memRecorder() {
   const rows: Array<UsageCallInput & { id: string }> = [];
@@ -80,9 +80,54 @@ describe("verificador: prompts y parseo", () => {
   });
 });
 
+describe("verificador que falla cerrado (15/9)", () => {
+  /*
+   * El 13/9 agregué "si no encontraste el número, no uses la reserva para el dictamen" para frenar los datos
+   * inventados de LNC. Terminó al revés: el 14/9 NBN salió "apto" porque la verificación "no encontró" su inmobiliario
+   * comercial (485% del capital, en el mismo comunicado) ni sus ítems no recurrentes, y GFI salió "apto" sin ver que la
+   * licencia de Tarkwa vence en abril de 2027. No encontrar un dato crítico no es una buena noticia.
+   */
+  it("el cuestionario ya no convierte un dato faltante en aprobación, y pide licencias y el comunicado de resultados", () => {
+    expect(RESEARCH_SYSTEM).not.toContain("no la uses para el dictamen");
+    expect(RESEARCH_SYSTEM).toContain("no encontrar un dato crítico no es una buena noticia");
+    expect(RESEARCH_SYSTEM).toContain("licencias, permisos o concesiones");
+    expect(RESEARCH_SYSTEM).toContain("comunicado de resultados");
+    expect(RESEARCH_SYSTEM).toContain("FALTANTES:");
+    // Lo que frena los datos inventados sigue: una reserva de valuación necesita sus números.
+    expect(RESEARCH_SYSTEM).toContain("sin esos números no es reserva");
+  });
+  it("la línea FALTANTES se lee en el código: ninguno, una lista, o no está", () => {
+    expect(faltantesDe("DICTAMEN: APTO — x\n...\nFALTANTES: ninguno")).toEqual([]);
+    expect(faltantesDe("DICTAMEN: APTO — x\nFALTANTES: inmobiliario comercial sobre capital; ítems no recurrentes del trimestre.")).toEqual(["inmobiliario comercial sobre capital", "ítems no recurrentes del trimestre"]);
+    expect(faltantesDe("DICTAMEN: APTO — x\nsin la línea")).toBeNull();
+  });
+  it("un apto con datos críticos faltantes pasa a con reservas; los demás dictámenes no cambian", () => {
+    const apto = { verdict: "apto" as const, reason: "superó y subió la guía" };
+    expect(aplicarFaltantes(apto, ["licencia de Tarkwa (vence en abril de 2027)"])).toEqual({ verdict: "con_reservas", reason: "falta verificar: licencia de Tarkwa (vence en abril de 2027)" });
+    expect(aplicarFaltantes(apto, null).verdict).toBe("con_reservas");
+    expect(aplicarFaltantes(apto, [])).toEqual(apto);
+    expect(aplicarFaltantes({ verdict: "evitar" as const, reason: "x" }, ["y"]).verdict).toBe("evitar");
+  });
+  it("GFI el 14/9: el modelo dice APTO pero declara que no encontró el estado de la licencia; lo que se guarda es con reservas", async () => {
+    const ff = fakeFetch([grounded("DICTAMEN: APTO — primer semestre fuerte.\n## Informe GFI\n…\nFALTANTES: estado de la licencia de Tarkwa en Ghana"), call({ ...args, verdict: "apto", reason: "primer semestre fuerte" })]);
+    const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: ff.fetch });
+    const r = await v.verify({ symbol: "GFI", name: "Gold Fields", today: "2026-09-14" });
+    expect(r.verdict).toBe("con_reservas");
+    expect(r.reason).toContain("licencia de Tarkwa");
+  });
+  it("un informe sin la línea FALTANTES está incompleto (cortado): se rota, como el que no trae dictamen", async () => {
+    const ff = fakeFetch([grounded("DICTAMEN: APTO — x.\n1. Último trimestre… (se cortó)"), grounded("DICTAMEN: APTO — x.\n1. Último trimestre…\nFALTANTES: ninguno"), call(args)]);
+    const rec = memRecorder();
+    const v = new GeminiCandidateVerifier({ keys: ["k0", "k1"], models: ["A"], researchModels: ["A"], fetch: ff.fetch, recorder: rec });
+    const r = await v.verify({ symbol: "NVDA", name: null, today: "2026-09-15" });
+    expect(r.verdict).toBe("apto");
+    expect(rec.rows.map((x) => x.result)).toEqual(["validacion", "ok", "ok"]);
+  });
+});
+
 describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estructurar)", () => {
   it("investiga con google_search en el modelo de investigación, estructura con la tool, y registra ambas con su propósito", async () => {
-    const ff = fakeFetch([grounded("DICTAMEN: APTO — superó y subió guía.\n## Informe NVDA\nResultados del 26/8…\nFuentes: sec.gov, cnbc.com"), call(args)]);
+    const ff = fakeFetch([grounded("DICTAMEN: APTO — superó y subió guía.\n## Informe NVDA\nResultados del 26/8…\nFuentes: sec.gov, cnbc.com\nFALTANTES: ninguno"), call(args)]);
     const rec = memRecorder();
     const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["gemini-3.8-flash", "gemini-2.5-flash"], researchModels: ["gemini-2.5-flash"], fetch: ff.fetch, recorder: rec });
     const r = await v.verify({ symbol: "NVDA", name: "NVIDIA", today: "2026-09-10" });
@@ -101,7 +146,7 @@ describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estru
     expect(v.promptVersion).toBe(`${VERIFY_VERSION}-gemini`);
   });
   it("estructura inválida marca la segunda llamada como validación y lanza", async () => {
-    const ff = fakeFetch([grounded("DICTAMEN: APTO — motivo.\ninforme"), call({ ...args, verdict: "mmm" })]);
+    const ff = fakeFetch([grounded("DICTAMEN: APTO — motivo.\ninforme\nFALTANTES: ninguno"), call({ ...args, verdict: "mmm" })]);
     const rec = memRecorder();
     const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: ff.fetch, recorder: rec });
     await expect(v.verify({ symbol: "X", name: null, today: "2026-09-10" })).rejects.toThrow();
@@ -109,7 +154,7 @@ describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estru
   });
   it("un informe cortado (sin la línea DICTAMEN) se descarta y rota: nunca se guarda un 'con reservas' por parseo", async () => {
     const cut = grounded("## Informe LNC\n1. Último trimestre reportado: el 30 de julio de 2026 la compañía report");
-    const ff = fakeFetch([cut, grounded("DICTAMEN: APTO — 5x adelantado y 0,55x valor libro.\n1. Último trimestre…"), call({ ...args, verdict: "apto", reason: "5x adelantado" })]);
+    const ff = fakeFetch([cut, grounded("DICTAMEN: APTO — 5x adelantado y 0,55x valor libro.\n1. Último trimestre…\nFALTANTES: ninguno"), call({ ...args, verdict: "apto", reason: "5x adelantado" })]);
     const rec = memRecorder();
     const v = new GeminiCandidateVerifier({ keys: ["k0", "k1"], models: ["A"], researchModels: ["A"], fetch: ff.fetch, recorder: rec });
     const r = await v.verify({ symbol: "LNC", name: "Lincoln National", today: "2026-09-11" });

@@ -18,14 +18,14 @@ export interface PlanInput {
   positions: Array<{ symbol: string; valueUsd: number; assetClass: AssetClass; role?: EtfRole }>;
   /** `caution`: si el ETF del tema está en OBSERVAR (oro bajo la media de 200 con NEM subponderada), no se suma y la nota lo dice.
    *  `verification`: la del Radar si el símbolo está ahí. Un SUMAR es una compra: con reservas, evitar o con el cuestionario anterior no se suma. */
-  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null; caution?: string | null; verification?: PlanVerification | null | undefined; atr?: number | null }>;
+  sumarCandidates: Array<{ symbol: string; valueUsd: number; weightPct: number; stop?: number | null; target?: number | null; caution?: string | null; verification?: PlanVerification | null | undefined; atr?: number | null; review?: PlanReview | null | undefined }>;
   /** `cautions`: salvedades ya escritas (p. ej. "se mueve como YPF que ya tenés") que van a la razón de la línea.
    *  `verification`: veredicto de la verificación web. Una acción entra solo apta y con el cuestionario vigente;
    *  `null` = pendiente (no entra); `undefined` = no hay verificador (no se exige).
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva.
    *  `atr`: ATR de 14 ruedas al día de la fila, para medir si el stop quedó dentro del ruido (ver `noiseBlock`).
    *  `overlap`: la posición tuya con la que más se mueve; desde `OVERLAP_BLOCK_CORR` no entra como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   /** Fecha del plan y decisiones de la Fed (`config/fomc.json`): con una dentro de 3 días hábiles, el primer tramo va después. */
@@ -43,6 +43,24 @@ export interface PlanVerification {
   verdict: "apto" | "con_reservas" | "evitar";
   reason: string;
   current?: boolean;
+}
+
+/**
+ * Revisión antes de comprar (15/9): una segunda búsqueda, independiente de la verificación, de razones para NO comprar
+ * hoy lo que el plan compraría. El 14/9 la verificación dio "apto" a GFI sin ver que la licencia de Tarkwa vence en
+ * abril de 2027. Solo "sin objeciones" deja comprar.
+ */
+export interface PlanReview {
+  verdict: "sin_objeciones" | "objecion" | "no_pude_verificar";
+  reason: string;
+}
+/** Motivo por el que la revisión no deja comprar, o null si deja. `null` = pendiente; `undefined` = no hay revisor. */
+export function reviewBlock(r: PlanReview | null | undefined): string | null {
+  if (r === undefined) return null;
+  if (r === null) return "revisión antes de comprar pendiente: no entra hasta que se revise";
+  if (r.verdict === "sin_objeciones") return null;
+  if (r.verdict === "objecion") return `la revisión antes de comprar encontró una objeción: ${r.reason}`;
+  return `la revisión antes de comprar no pudo verificar: ${r.reason}`;
 }
 
 /** Motivo por el que una verificación no deja comprar, o null si deja. `undefined` = no hay verificador: no se exige. */
@@ -141,6 +159,8 @@ export interface ContributionPlan {
   previousBuiltAt?: string | null;
   /** Controles automáticos sobre este plan (15/9). Con un grave, o sin controles sobre este plan, no se ejecuta. */
   controles?: PlanControles | null;
+  /** Lo que el plan compraría y todavía no pasó la revisión antes de comprar (15/9). Mientras haya, no se ejecuta. */
+  reviewsPending?: string[];
 }
 /** Resultado de los controles automáticos (auditoría de pantallas + consistencia de filas) sobre un plan. */
 export interface PlanControles {
@@ -218,6 +238,9 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     else notes.push(`Sin núcleo definido en config/etfs.json: faltan USD ${Math.round(gap)} para el objetivo del ${c.coreTargetPct}%.`);
   }
 
+  /** Lo que entraría y espera la revisión antes de comprar. */
+  const pendientes: string[] = [];
+
   // 2. SUMAR de Cartera (subponderadas primero), hasta una parte de lo que queda.
   const satellites = i.positions.filter((p) => !isCore(p));
   const equalTarget = satellites.length ? (total * (1 - c.coreTargetPct / 100)) / satellites.length : 0;
@@ -243,6 +266,14 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     if (ruido) {
       notes.push(`No se sumó ${s.symbol}: ${ruido}. Su parte (USD ${amt}) va al núcleo.`);
       if (allocateCore(amt, `lo que iba a ${s.symbol}, con el stop dentro del ruido`)) sumarPool -= amt;
+      continue;
+    }
+    // Un SUMAR también es una compra: pasa por la revisión antes de comprar (15/9).
+    const revision = reviewBlock(s.review);
+    if (revision) {
+      if (s.review === null) pendientes.push(s.symbol);
+      notes.push(`No se sumó ${s.symbol}: ${revision}. Su parte (USD ${amt}) va al núcleo.`);
+      if (allocateCore(amt, `lo que iba a ${s.symbol}, sin la revisión antes de comprar`)) sumarPool -= amt;
       continue;
     }
     lines.push({ ...line(s.symbol, "sumar", amt, `subponderada (${s.weightPct}% vs ${Math.round((equalTarget / total) * 100)}% igualitario)`), stop: s.stop ?? null, target: s.target ?? null, minPrice: minPriceFor(s.stop, s.atr) });
@@ -320,6 +351,15 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         leftOut.push({ symbol: b.symbol, reason: vacantes > 0 ? `${place}: el lugar libre era de una acción que quedó afuera (no pasó la verificación, stop en el ruido o no diversifica), y esa parte va al núcleo` : `${place}: tope de ${maxNew} posiciones nuevas` });
         return;
       }
+      // Revisión antes de comprar (15/9), solo sobre lo que va a entrar: pendiente, con objeción o sin poder verificar no
+      // entra, y como con la verificación, su lugar va al núcleo. Los ETFs no se revisan: no tienen hechos de una empresa.
+      const revision = pool.kind === "etf" ? null : reviewBlock(b.review);
+      if (revision) {
+        if (b.review === null) pendientes.push(b.symbol);
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${revision}` });
+        if (pool.kind === "stock") caidas.push(b.priority);
+        return;
+      }
       chosen.push(b);
       if (pool.kind === "stock") placeOf.set(b.symbol, `${idx + 1}° por convicción de ${queue.length} COMPRAR del Radar`);
       taken++;
@@ -387,5 +427,6 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     const detalle = esperando.map((l) => `${l.symbol} ${l.entry!.state === "esperar_retroceso" ? "en" : "arriba de"} ${l.entry!.level}`).join(", ");
     notes.push(`Hoy se ejecutan USD ${Math.round(aporte) - enEspera} de USD ${Math.round(aporte)}. Los otros USD ${enEspera} van como orden limitada, no a mercado: ${detalle}. Vale ${esperando[0]!.entry!.validSessions} ruedas; si no se da, esa plata se reasigna en la próxima corrida.`);
   }
-  return { month: i.month, totalUsd: aporte, lines: finales, notes, leftOut, tranches };
+  if (pendientes.length) notes.push(`Revisión antes de comprar pendiente: ${pendientes.join(", ")}. Mientras corre, el plan no se ejecuta; cuando termine se rearma solo.`);
+  return { month: i.month, totalUsd: aporte, lines: finales, notes, leftOut, tranches, reviewsPending: pendientes };
 }

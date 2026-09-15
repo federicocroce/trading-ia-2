@@ -12,7 +12,7 @@ export const invalidatePlan = () => { cache = null; window.dispatchEvent(new Eve
 let reintento: ReturnType<typeof setTimeout> | null = null;
 const esperarControles = (p: ContributionPlan | null) => {
   if (reintento || !p || !p.lines.length) return;
-  const pendiente = !p.controles || p.controles.planBuiltAt !== p.builtAt;
+  const pendiente = !p.controles || p.controles.planBuiltAt !== p.builtAt || (p.reviewsPending?.length ?? 0) > 0;
   if (pendiente && controlesBloquean(p)) reintento = setTimeout(() => { reintento = null; invalidatePlan(); }, 15_000);
 };
 

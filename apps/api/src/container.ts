@@ -3,7 +3,7 @@ import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRss
 import { DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, todayLocal, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, eventUniverse, scanEventsFor, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
-import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
+import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiPreTradeReviewer, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
 import { KeyedRateLimiter, recordingFetch } from "@thesis/core";
 import { StoreUsageRecorder } from "@thesis/pipeline";
 import type { Config, ReasonerConfig } from "./config.js";
@@ -48,6 +48,8 @@ export interface Container {
   catchupRunners?: import("./catchup.js").Runners;
   /** Asegura los controles automáticos sobre el plan vigente (15/9). Lo arma el servidor; en los tests puede no estar. */
   controlar?: () => Promise<import("@thesis/core").PlanControles | null>;
+  /** Reintentos de la revisión antes de comprar (ver `revisiones.ts`). */
+  revisiones?: import("./revisiones.js").EstadoRevisiones;
   /** Página por ticker (etapa 2b): agregador + gráfico intradiario en vivo. */
   tickerDeps: TickerDeps & { chart: { bars(symbol: string, range: string, interval: string): Promise<import("@thesis/core").ChartBar[]> } };
   marketData: MarketData;
@@ -87,6 +89,12 @@ export function buildCardWriter(r: ReasonerConfig, shared: GeminiShared = {}): C
 export function buildVerifier(r: ReasonerConfig, shared: GeminiShared = {}): CandidateVerifier | null {
   if (r.kind !== "gemini") return null;
   return new GeminiCandidateVerifier({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
+}
+
+/** Revisión antes de comprar (15/9): solo con Gemini, como la verificación. Sin revisor, el plan no la exige. */
+export function buildReviewer(r: ReasonerConfig, shared: GeminiShared = {}): import("@thesis/core").PreTradeReviewer | null {
+  if (r.kind !== "gemini") return null;
+  return new GeminiPreTradeReviewer({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
 }
 
 export function buildEventClassifier(r: ReasonerConfig, shared: GeminiShared = {}): EventClassifier {
@@ -208,6 +216,7 @@ export function buildContainer(cfg: Config): Container {
     news: finnhub ? { companyNews: (s, from, to) => finnhub.companyNews(s, from, to) } : null,
     eventClassifier: buildEventClassifier(cfg.reasoner, gemini),
     verifier: buildVerifier(cfg.reasoner, gemini),
+    reviewer: buildReviewer(cfg.reasoner, gemini),
   };
 
   // Las noticias de las posiciones se leen con la misma cadena que las candidatas (Finnhub + clasificador):

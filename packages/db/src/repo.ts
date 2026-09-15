@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, lt, notInArray, sql } from "drizzle-orm";
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, Fundamentals, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, PreTradeReview, Fundamentals, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { CANDIDATE_FAMILIES, computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -464,11 +464,12 @@ export class Repo {
       ...(r.changes ? { changes: r.changes as NonNullable<ContributionPlan["changes"]> } : {}),
       previousBuiltAt: r.previousBuiltAt ?? null,
       controles: (r.controles as ContributionPlan["controles"]) ?? null,
+      reviewsPending: (r.reviewsPending as string[] | null) ?? [],
     };
   }
   async savePlan(p: ContributionPlan): Promise<void> {
     // Los controles son de una versión del plan: al rearmarlo se borran, y hasta que vuelvan a correr no se ejecuta.
-    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes, leftOut: p.leftOut ?? [], tranches: p.tranches ?? null, inputs: p.inputs ?? null, changes: p.changes ?? null, previousBuiltAt: p.previousBuiltAt ?? null, controles: null };
+    const v = { planMonth: p.month, totalUsd: str(p.totalUsd), lines: p.lines, notes: p.notes, leftOut: p.leftOut ?? [], tranches: p.tranches ?? null, inputs: p.inputs ?? null, changes: p.changes ?? null, previousBuiltAt: p.previousBuiltAt ?? null, controles: null, reviewsPending: p.reviewsPending ?? [] };
     // `createdAt` va en el set a propósito: sin él, el timestamp quedaba congelado en el PRIMER guardado del
     // mes y el plan podía rearmarse diez veces sin que nada lo dijera. El 13/9 la base decía que el plan era
     // del 7 mientras sus precios eran de hoy, y no había forma de saber cuándo se había armado de verdad.
@@ -477,6 +478,15 @@ export class Repo {
   async latestPlan(): Promise<ContributionPlan | null> {
     const r = (await this.db.select().from(s.contributionPlans).orderBy(desc(s.contributionPlans.planMonth)).limit(1))[0];
     return r ? this.rowToPlan(r) : null;
+  }
+  /** Revisión antes de comprar (15/9): una por símbolo y por día; la última del día manda. */
+  async savePreTradeReview(r: PreTradeReview): Promise<void> {
+    const v = { symbol: r.symbol.toUpperCase(), reviewDate: r.date, verdict: r.verdict, reason: r.reason, sources: r.sources, researchText: r.researchText, model: r.model, promptVersion: r.promptVersion };
+    await this.db.insert(s.pretradeReviews).values(v).onConflictDoUpdate({ target: [s.pretradeReviews.symbol, s.pretradeReviews.reviewDate], set: { ...v, createdAt: new Date() } });
+  }
+  async preTradeReviews(date: string): Promise<PreTradeReview[]> {
+    const rows = await this.db.select().from(s.pretradeReviews).where(eq(s.pretradeReviews.reviewDate, date));
+    return rows.map((r) => ({ symbol: r.symbol, date: String(r.reviewDate), verdict: r.verdict as PreTradeReview["verdict"], reason: r.reason, sources: (r.sources as PreTradeReview["sources"]) ?? [], researchText: r.researchText ?? "", model: r.model ?? "", promptVersion: r.promptVersion }));
   }
   /** Guarda el resultado de los controles en el plan del mes; `planBuiltAt` adentro dice a qué versión corresponde. */
   async savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>): Promise<void> {

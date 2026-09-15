@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { computeTrailingStop, coreEarnings, entryStop, verificationOrder, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
-import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, replan, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
+import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
   weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 },
@@ -271,6 +271,49 @@ describe("plan: por qué cambió (15/9)", () => {
     // Dice contra qué versión se comparó.
     expect(segundo.previousBuiltAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect((await store.latestPlan())?.changes?.some((c) => c.symbol === compra.symbol)).toBe(true);
+  });
+});
+
+describe("plan: revisión antes de comprar (15/9)", () => {
+  it("lo que el plan compraría queda pendiente hasta que se revisa; sin objeciones entra, con objeción no, y el cambio dice por qué", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const revisados: string[] = [];
+    const reviewer = {
+      promptVersion: "r-test",
+      review: async (i: { symbol: string }) => {
+        revisados.push(i.symbol);
+        return i.symbol === "SA"
+          ? { verdict: "objecion" as const, reason: "vence su licencia en abril", sources: [{ title: "x", url: "https://x" }], researchText: "REVISIÓN: OBJECIÓN — vence su licencia en abril", model: "m" }
+          : { verdict: "sin_objeciones" as const, reason: "nada material", sources: [], researchText: "REVISIÓN: SIN OBJECIONES — nada material", model: "m" };
+      },
+    };
+    const conRevisor = { ...d, reviewer };
+    const antes = await buildContributionPlan(conRevisor, { month: "2026-05", portfolioUsd: 100_000, today: TODAY });
+    expect(antes.reviewsPending?.length).toBeGreaterThan(0);
+    expect(antes.lines.some((l) => l.kind === "comprar")).toBe(false);
+    const r = await reviewPending(conRevisor, { today: TODAY });
+    expect(r.reviewed.sort()).toEqual([...antes.reviewsPending!].sort());
+    expect(revisados.sort()).toEqual([...antes.reviewsPending!].sort());
+    const despues = await buildContributionPlan(conRevisor, { month: "2026-05", portfolioUsd: 100_000, today: TODAY });
+    if (antes.reviewsPending!.includes("SA")) {
+      expect(despues.lines.some((l) => l.symbol === "SA")).toBe(false);
+      expect(despues.leftOut!.find((x) => x.symbol === "SA")?.reason).toMatch(/objeción: vence su licencia en abril/);
+    }
+    const entro = despues.lines.find((l) => l.kind === "comprar");
+    if (!entro) expect.fail(`nada entró después de revisar: ${JSON.stringify(despues.leftOut)}`);
+    expect(despues.changes?.find((c) => c.symbol === entro.symbol)?.cause).toMatch(/revisión antes de comprar/);
+    // Si la búsqueda falla, no revienta ni inventa una revisión: queda el error y sigue pendiente.
+    const caido = { ...d, reviewer: { promptVersion: "r-test-2", review: async () => { throw new Error("gemini: 429"); } } };
+    const pendientesCaido = (await buildContributionPlan(caido, { month: "2026-05", portfolioUsd: 100_000, today: TODAY })).reviewsPending!;
+    const fallo = await reviewPending(caido, { today: TODAY });
+    expect(fallo.reviewed).toEqual([]);
+    expect(fallo.errors.map((e) => e.symbol).sort()).toEqual([...pendientesCaido].sort());
+    expect(fallo.errors[0]!.error).toMatch(/429/);
+    // Sin revisor, no se exige (y nada queda pendiente).
+    const sinRevisor = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000, today: TODAY });
+    expect(sinRevisor.reviewsPending ?? []).toEqual([]);
   });
 });
 

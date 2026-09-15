@@ -7,6 +7,7 @@ import { buildApp } from "./routes/index.js";
 import { runCatchUp } from "./catchup.js";
 import { scheduleJobs } from "./jobs.js";
 import { asegurarControles, pedirEnProceso } from "./controles.js";
+import { asegurarRevisiones } from "./revisiones.js";
 import { PriceHub } from "./prices-hub.js";
 
 const cfg = await loadConfig();
@@ -19,9 +20,13 @@ const app = buildApp(c);
 // minuto se asegura que el plan vigente los tenga, así cubre también lo que rearma la CLI u otra sesión.
 const pedir = pedirEnProceso(app);
 c.controlar = () => asegurarControles(c, pedir);
-const controlar = () => c.controlar?.().catch((e: unknown) => console.error("[controles] fallaron", e));
-setTimeout(controlar, 20_000);
-setInterval(controlar, 60_000);
+// Antes de los controles, la revisión antes de comprar de lo que el plan dejó pendiente (se rearma si cambia algo).
+const vigilar = async () => {
+  await asegurarRevisiones(c).catch((e: unknown) => console.error("[revisión] falló", e));
+  await c.controlar?.().catch((e: unknown) => console.error("[controles] fallaron", e));
+};
+setTimeout(() => void vigilar(), 20_000);
+setInterval(() => void vigilar(), 60_000);
 
 // Sync de órdenes cada 15 min en horario de mercado.
 cron.schedule("*/15 9-17 * * 1-5", () => withUsageStep({ step: "ordenes" }, () => syncOrders(c.store, c.broker).catch((e) => console.error("[cron] sync failed", e))));

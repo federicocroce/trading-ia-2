@@ -15,6 +15,8 @@ export interface PlanSymbolInput {
   stop: number | null;
   /** apto | con_reservas | evitar | pendiente | anterior (cuestionario viejo); null si no se verifica. */
   verification: string | null;
+  /** Revisión antes de comprar: sin_objeciones | objecion | no_pude_verificar | pendiente. Ausente si no se revisa. */
+  review?: string;
 }
 /** De dónde viene el cambio. `usuario` se marca aparte: no lo movió el mercado. */
 export type PlanChangeSource = "mercado" | "verificacion" | "regla" | "usuario" | "reparto" | "monto";
@@ -63,6 +65,9 @@ export function explainPlanChange(prev: ContributionPlan | null, next: Contribut
     } else if (a && b && a.verification !== b.verification) {
       source = "verificacion";
       cause = `verificación web: ${a.verification ?? "sin verificar"} → ${b.verification ?? "sin verificar"}${reason ? ` (${reason})` : ""}`;
+    } else if (a && b && (a.review ?? null) !== (b.review ?? null)) {
+      source = "verificacion";
+      cause = `revisión antes de comprar: ${a.review ?? "sin revisar"} → ${b.review ?? "sin revisar"}${reason ? ` (${reason})` : ""}`;
     } else if (a && b && (a.close !== b.close || a.stop !== b.stop) && reason) {
       source = "mercado";
       cause = reason;

@@ -6,7 +6,10 @@ import {
   applyCoreMetrics,
   atr,
   explainPlanChange,
+  todayLocal,
+  type PlanReview,
   type PlanSymbolInput,
+  type PreTradeReviewer,
   sanitizeMetrics,
   assetClassFor,
   computeTrailingStop,
@@ -94,6 +97,8 @@ export interface RadarDeps {
   eventClassifier?: EventClassifier | null;
   /** Verificación web por candidata (spec 2026-09-10): solo para lo que queda COMPRAR. null = sin verificador. */
   verifier?: CandidateVerifier | null;
+  /** Revisión antes de comprar (15/9): segunda búsqueda sobre lo que el plan compraría. null = sin revisor, no se exige. */
+  reviewer?: PreTradeReviewer | null;
   log?: (msg: string, extra?: unknown) => void;
   onProgress?: (s: { done: number; total: number; stage: string }) => void;
   shouldStop?: () => boolean;
@@ -683,6 +688,39 @@ export async function replan(deps: RadarDeps, opts: { today: string; portfolioUs
   return buildContributionPlan(deps, { month: opts.today.slice(0, 7), portfolioUsd: opts.portfolioUsd, today: opts.today, amountUsd: last.totalUsd });
 }
 
+/**
+ * Revisión antes de comprar (15/9): revisa lo que el plan vigente dejó pendiente (`reviewsPending`) y lo guarda. Quien
+ * la llama rearma el plan después. `symbols` limita a cuáles (la API saltea los que fallaron hace poco).
+ */
+export async function reviewPending(deps: RadarDeps, opts: { today: string; symbols?: string[]; budget?: number }): Promise<{ reviewed: string[]; errors: Array<{ symbol: string; error: string }> }> {
+  const reviewer = deps.reviewer;
+  if (!reviewer) return { reviewed: [], errors: [] };
+  const plan = await deps.store.latestPlan();
+  const pendientes = (opts.symbols ?? plan?.reviewsPending ?? []).slice(0, opts.budget ?? 6);
+  const filas = new Map((await deps.store.latestCandidates()).map((c) => [c.symbol, c]));
+  const veredictos = await deps.store.latestVerdicts();
+  const reviewed: string[] = [];
+  const errors: Array<{ symbol: string; error: string }> = [];
+  for (const sym of pendientes) {
+    const c = filas.get(sym);
+    const v = veredictos.find((x) => x.symbol === sym);
+    try {
+      const name = (await deps.store.profile(sym).catch(() => null))?.profile.name ?? null;
+      const r = await reviewer.review({
+        symbol: sym, name, today: opts.today,
+        verification: c?.verification ? { verdict: c.verification.verdict, reason: c.verification.reason, date: c.verification.date } : null,
+        line: { kind: v?.verb === "SUMAR" ? "sumar" : "comprar", close: c?.close ?? v?.close ?? null, stop: c?.stop ?? v?.stop ?? null },
+      });
+      await deps.store.savePreTradeReview({ ...r, symbol: sym, date: opts.today, promptVersion: reviewer.promptVersion });
+      reviewed.push(sym);
+      deps.log?.(`[revisión] ${sym}: ${r.verdict} — ${r.reason}`);
+    } catch (e) {
+      errors.push({ symbol: sym, error: (e instanceof Error ? e.message : String(e)).slice(0, 200) });
+    }
+  }
+  return { reviewed, errors };
+}
+
 export async function buildContributionPlan(deps: RadarDeps, opts: { month: string; portfolioUsd: number | null; amountUsd?: number; today?: string }): Promise<ContributionPlan> {
   const { store, policy } = deps;
   const positions = await store.positions();
@@ -723,6 +761,15 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     return hit ? `el ETF de su tema (${hit.symbol}) está en OBSERVAR: ${hit.flags.join(", ") || "sin fuerza"}` : null;
   };
   const candidatePorSimbolo = new Map(candidates.map((c) => [c.symbol, c]));
+  // Revisión antes de comprar (15/9): la de hoy, con el prompt vigente. Sin revisor no se exige (undefined); sin la de
+  // hoy, pendiente (null): el plan no la compra y la anota en `reviewsPending` para que se corra.
+  const hoy = opts.today ?? todayLocal();
+  const revisiones = deps.reviewer ? new Map((await store.preTradeReviews(hoy)).filter((r) => r.promptVersion === deps.reviewer!.promptVersion).map((r) => [r.symbol.toUpperCase(), r])) : null;
+  const reviewOf = (sym: string): PlanReview | null | undefined => {
+    if (!revisiones) return undefined;
+    const r = revisiones.get(sym.toUpperCase());
+    return r ? { verdict: r.verdict, reason: r.reason } : null;
+  };
   // Verificación tal como la usa el plan (13/9): vigente = hecha con el cuestionario actual. Sin verificador no se
   // exige (undefined); con verificador y sin dictamen, pendiente (null), que no compra.
   const planVerification = (v: VerificationSummary | null | undefined): PlanVerification | null | undefined => {
@@ -743,7 +790,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       sumarCandidates: verdicts.filter((v) => v.verb === "SUMAR").map((v) => {
         const c = candidatePorSimbolo.get(v.symbol);
         // Un SUMAR también es una compra: si el Radar lo verificó, el dictamen vale igual que para una nueva.
-        return { symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: c ? c.stop : v.stop, target: c ? c.target : v.target, caution: sumarCaution(v.symbol), verification: c ? planVerification(c.verification) : undefined, atr: atrOf.get(v.symbol) ?? null };
+        return { symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: c ? c.stop : v.stop, target: c ? c.target : v.target, caution: sumarCaution(v.symbol), verification: c ? planVerification(c.verification) : undefined, atr: atrOf.get(v.symbol) ?? null, review: reviewOf(v.symbol) };
       }),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
       // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
@@ -763,6 +810,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           // Para no comprar con el stop en el ruido ni algo que se mueve como lo que ya tenés (14/9).
           atr: atrOf.get(c.symbol) ?? null,
           overlap: overlap[c.symbol] ?? null,
+          // Los ETFs no se revisan: no tienen hechos de una empresa que buscar.
+          review: c.kind === "etf" ? undefined : reviewOf(c.symbol),
         })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,
@@ -798,8 +847,10 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   for (const sym of new Set([...plan.lines, ...(plan.leftOut ?? []), ...(anterior?.lines ?? [])].map((x) => x.symbol))) {
     const c = candidatePorSimbolo.get(sym);
     const v = verdicts.find((x) => x.symbol === sym);
-    if (fueSumar(sym) && v) inputs[sym] = { kind: "posicion", verdict: v.verb, close: c ? c.close : v.close, stop: c ? c.stop : v.stop, verification: c ? verificacionDe(c) : null };
-    else if (c) inputs[sym] = { kind: c.kind, verdict: c.verdict, close: c.close, stop: c.stop, verification: verificacionDe(c) };
+    const rev = c?.kind === "etf" ? undefined : reviewOf(sym);
+    const review = rev === undefined ? undefined : rev === null ? "pendiente" : rev.verdict;
+    if (fueSumar(sym) && v) inputs[sym] = { kind: "posicion", verdict: v.verb, close: c ? c.close : v.close, stop: c ? c.stop : v.stop, verification: c ? verificacionDe(c) : null, ...(review ? { review } : {}) };
+    else if (c) inputs[sym] = { kind: c.kind, verdict: c.verdict, close: c.close, stop: c.stop, verification: verificacionDe(c), ...(review ? { review } : {}) };
   }
   const conEntradas: ContributionPlan = { ...plan, inputs };
   const final: ContributionPlan = { ...conEntradas, changes: explainPlanChange(anterior, conEntradas), previousBuiltAt: anterior?.builtAt ?? null };
