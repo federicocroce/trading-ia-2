@@ -315,6 +315,13 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         notes.push(`${b.symbol} entró como SUMAR y no se duplica: el Radar también lo tiene en COMPRAR (${place}).`);
         return;
       }
+      // Convicción negativa (15/9): el ranking la trae, pero sus salvedades pesan más que sus virtudes. No entra aunque sea
+      // la única (PBT era "1° por convicción" con −0,98), y su lugar va al núcleo como el de una verificación que no pasó.
+      if (pool.kind === "stock" && b.priority !== null && b.priority < 0) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: convicción negativa (${coma(b.priority, 2).replace("-", "−")}): sus salvedades pesan más que sus virtudes` });
+        caidas.push(b.priority);
+        return;
+      }
       // Una acción entra solo verificada, apta y con el cuestionario vigente (13/9). Con reservas, pendiente o con el
       // cuestionario anterior queda en la fila con su motivo. Los ETFs no se verifican en la web.
       const bloqueo = pool.kind === "etf" ? null : verificationBlock(b.verification);
@@ -343,12 +350,18 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         leftOut.push({ symbol: b.symbol, reason: `${place}: ya está en el tope del ${c.maxPositionPct}% por posición` });
         return;
       }
+      // El lugar que dejó una acción que quedó afuera no lo toma un ETF satélite (15/9: CIBR tomaba el de PBT con 8.000 de
+      // 40.000): va al núcleo. Un ETF entra solo si no había acciones para ese lugar.
+      if (pool.kind === "etf" && vacantes > 0) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: el lugar libre era de una acción que quedó afuera (no pasó la verificación, stop en el ruido, no diversifica o convicción negativa), y esa parte va al núcleo` });
+        return;
+      }
       if (taken >= pool.max) {
         leftOut.push({ symbol: b.symbol, reason: `${place}: tope de ${pool.max} ${POOL_LABEL[pool.kind]}` });
         return;
       }
       if (pool.countsAsNew && isNew && newCount >= maxNew) {
-        leftOut.push({ symbol: b.symbol, reason: vacantes > 0 ? `${place}: el lugar libre era de una acción que quedó afuera (no pasó la verificación, stop en el ruido o no diversifica), y esa parte va al núcleo` : `${place}: tope de ${maxNew} posiciones nuevas` });
+        leftOut.push({ symbol: b.symbol, reason: vacantes > 0 ? `${place}: el lugar libre era de una acción que quedó afuera (no pasó la verificación, stop en el ruido, no diversifica o convicción negativa), y esa parte va al núcleo` : `${place}: tope de ${maxNew} posiciones nuevas` });
         return;
       }
       // Revisión antes de comprar (15/9), solo sobre lo que va a entrar: pendiente, con objeción o sin poder verificar no

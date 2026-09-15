@@ -262,3 +262,40 @@ describe("revisión antes de comprar (15/9)", () => {
   });
 });
 
+describe("convicción negativa y ETF satélite (15/9)", () => {
+  /*
+   * El 15/9 el Radar tenía una sola acción en COMPRAR, PBT, con convicción −0,98: distribución de USD 0,0187 por unidad,
+   * Waddell Ranch sin ingresos y una fusión pendiente. Era "1° por convicción" por ser la única. Y como no estaba
+   * verificada, su lugar lo tomaba CIBR, un ETF de ciberseguridad, con 8.000 de 40.000. Aprobado por el dueño: la
+   * convicción negativa no entra, y el lugar de una acción que quedó afuera va al núcleo, no a un ETF.
+   */
+  type Buy = PlanInput["buyCandidates"][number];
+  const apta = { verdict: "apto" as const, reason: "ok", current: true };
+  const pbt = (over: Partial<Buy> = {}): Buy => ({ symbol: "PBT", kind: "stock", priority: -0.98, score: -0.4, sizeUsd: 20_000, close: 35.58, entryHigh: 36.29, stop: 32.52, target: 43.83, verification: apta, atr: 1, ...over });
+  const cibr: Buy = { symbol: "CIBR", kind: "etf", priority: 1.1, score: null, sizeUsd: null, close: 100.05, entryHigh: 102.05, stop: 92.5, target: 121.15, atr: 2 };
+  const cuarenta = (buys: Buy[]) => planContribution({ ...base, closes: { ...base.closes, PBT: 35.58, CIBR: 100.05 }, buyCandidates: buys }, c, { amountUsd: 40_000 });
+  const nucleo = (p: ReturnType<typeof planContribution>) => p.lines.filter((l) => l.kind === "nucleo").reduce((t, l) => t + l.amountUsd, 0);
+
+  it("PBT: una acción con convicción negativa no entra aunque sea la única, y su lugar va al núcleo", () => {
+    const p = cuarenta([pbt()]);
+    expect(p.lines.some((l) => l.symbol === "PBT")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "PBT")!.reason).toMatch(/convicción negativa \(−0,98\)/);
+    expect(nucleo(p)).toBe(40_000);
+  });
+  it("CIBR: si una acción quedó afuera (pendiente de verificación), el ETF satélite no toma su lugar", () => {
+    const p = cuarenta([pbt({ priority: 0.8, verification: null }), cibr]);
+    expect(p.lines.some((l) => l.symbol === "CIBR")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "CIBR")!.reason).toMatch(/lugar libre era de una acción que quedó afuera/);
+    expect(nucleo(p)).toBe(40_000);
+  });
+  it("tampoco con la acción afuera por convicción negativa: el lugar va al núcleo", () => {
+    const p = cuarenta([pbt(), cibr]);
+    expect(p.lines.some((l) => l.symbol === "CIBR")).toBe(false);
+    expect(nucleo(p)).toBe(40_000);
+  });
+  it("sin ninguna acción candidata, el ETF satélite sí puede entrar (el lugar no era de nadie)", () => {
+    const p = cuarenta([cibr]);
+    expect(p.lines.find((l) => l.symbol === "CIBR")!.kind).toBe("comprar");
+  });
+});
+
