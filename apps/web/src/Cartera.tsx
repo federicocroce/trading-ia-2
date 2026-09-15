@@ -5,6 +5,8 @@ import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { usePrices } from "./prices";
 import { CarteraVerdict, usePlan } from "./plan";
+import { instruccionCartera, planStatusFor } from "./instruccion";
+import { lineaSumar, pesosAhora, rotuloVolatilidad, textoMedicion, totals, valuation, vistaFila } from "./carteraVista";
 
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -13,36 +15,7 @@ const pct2 = (n: number | null | undefined) => (n === null || n === undefined ? 
 const usd = (n: number | null | undefined, d = 0) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: d, minimumFractionDigits: d })}`);
 const signed = (n: number | null | undefined) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : `${n > 0 ? "+" : ""}${usd(n)}`);
 const cls = (n: number | null | undefined) => (n === null || n === undefined || !Number.isFinite(n) ? "" : n >= 0 ? "ok" : "bad");
-/** Un precio de hace más de 3 días no es "de hoy": se muestra apagado, igual que en la ficha. */
-const stale = (asOf: string | null) => (asOf ? (Date.now() - Date.parse(asOf)) / 86_400_000 > 3 : false);
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
-
-/**
- * Valuación de una posición: precio vivo si llegó; si no, el cierre del veredicto (apagado). P&L en la moneda de
- * la posición, misma cuenta que la ficha por ticker.
- */
-function valuation(p: Position, v: Verdict | undefined, q: Quote | null) {
-  const price = q?.price ?? v?.close ?? null;
-  const live = q !== null && !stale(q.asOf);
-  const cost = p.quantity * p.avgCost;
-  const value = price === null ? null : price * p.quantity;
-  const pnl = price === null ? null : (price - p.avgCost) * p.quantity;
-  const pnlPct = price === null ? null : ((price - p.avgCost) / p.avgCost) * 100;
-  return { price, live, cost, value, pnl, pnlPct };
-}
-
-/** Totales de la cartera en USD: suma solo las posiciones en USD con precio; avisa cuántas quedaron afuera. */
-function totals(positions: Position[], vBy: Map<string, Verdict>, quotes: Record<string, Quote | null>) {
-  let value = 0, cost = 0, counted = 0, otherCurrency = 0, noPrice = 0;
-  for (const p of positions) {
-    if (p.currency !== "USD") { otherCurrency++; continue; }
-    const x = valuation(p, vBy.get(p.symbol), quotes[p.symbol] ?? null);
-    if (x.value === null) { noPrice++; continue; }
-    value += x.value; cost += x.cost; counted++;
-  }
-  const pnl = value - cost;
-  return { value, cost, pnl, pnlPct: cost > 0 ? (pnl / cost) * 100 : null, counted, otherCurrency, noPrice };
-}
 
 const EMPTY: Position = { symbol: "", quantity: 0, avgCost: 0, currency: "USD", market: "us", layer: "riesgo", notes: null };
 
@@ -61,7 +34,8 @@ export function Cartera() {
   const { prices: livePrices, live: liveStream, at: quotesAt } = usePrices();
   const quotesErr: string | null = null;
   // Precios vivos del hub (los mismos de la watchlist y la cinta), en la forma que ya usa la tabla.
-  const quotes = useMemo<Record<string, Quote | null>>(() => Object.fromEntries(positions.map((p) => { const r = livePrices.get(p.symbol.toUpperCase()); return [p.symbol, r ? { price: r.price, prevClose: r.prevClose, change: r.change, changePct: r.changePct, asOf: r.asOf, currency: r.currency } : null]; })), [positions, livePrices, livePrices.size, quotesAt]);
+  // `stale` viaja con el precio: lo decide el servidor (30 horas), el mismo criterio que la cinta y la watchlist (15/9).
+  const quotes = useMemo<Record<string, Quote | null>>(() => Object.fromEntries(positions.map((p) => { const r = livePrices.get(p.symbol.toUpperCase()); return [p.symbol, r ? { price: r.price, prevClose: r.prevClose, change: r.change, changePct: r.changePct, asOf: r.asOf, currency: r.currency, stale: r.stale } : null]; })), [positions, livePrices, livePrices.size, quotesAt]);
   const [editingTags, setEditingTags] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -85,7 +59,7 @@ export function Cartera() {
     setMsg(null);
     try {
       const s = await api.cartera.run();
-      setMsg(`${s.verdicts.length} veredictos para ${s.date}. Medidos: ${s.measured.measured7} a 7d, ${s.measured.measured30} a 30d.${s.errors.length ? ` Errores: ${s.errors.map((e) => `${e.symbol}: ${e.error}`).join(" · ")}` : ""}`);
+      setMsg(`${s.verdicts.length} veredictos para ${s.date}${s.risk.asOf ? `, con los cierres del ${s.risk.asOf}` : ""}. Medidos: ${s.measured.measured7} a 7d, ${s.measured.measured30} a 30d.${s.errors.length ? ` Errores: ${s.errors.map((e) => `${e.symbol}: ${e.error}`).join(" · ")}` : ""}`);
       await load();
     } catch (e) {
       setMsg(String(e));
@@ -114,7 +88,10 @@ export function Cartera() {
 
   const vBy = new Map(verdicts.map((v) => [v.symbol, v]));
   const date = verdicts[0]?.verdictDate;
+  // La corrida del 15/9 a las 07:49 usó los cierres del 14/9: la fecha del veredicto no es la del precio.
+  const cierres = risk?.report.asOf ?? verdicts.find((v) => v.closeDate)?.closeDate ?? null;
   const tot = totals(positions, vBy, quotes);
+  const pesos = pesosAhora(positions, vBy, quotes);
   const priced = Object.values(quotes).filter((q) => q !== null).length;
   const quotesNote = quotesErr
     ? `precios vivos no disponibles (${quotesErr}); se usa el cierre del veredicto`
@@ -127,7 +104,7 @@ export function Cartera() {
     <>
       <div className="card row">
         <b>Cartera real</b>
-        <span className="muted">{date ? `veredictos del ${date}` : "sin veredictos todavía"}</span>
+        <span className="muted">{date ? `veredictos del ${date}${cierres && cierres !== date ? `, con los cierres del ${cierres}` : ""}` : "sin veredictos todavía"}</span>
         <div className="spacer" style={{ flex: 1 }} />
         <button className="ghost" onClick={() => setForm({ ...EMPTY })} disabled={busy}>Agregar posición</button>
         {!isHistorical() && <button className="primary" onClick={run} disabled={busy}>{busy ? "Corriendo…" : "Actualizar veredictos"}</button>}
@@ -137,8 +114,9 @@ export function Cartera() {
         <div className="card">
           <div className="kpis">
             {/* Dos valores de cartera conviven en esta pantalla y hasta el 13/9 ninguno decía de cuándo era:
-                éste, al precio vivo de ahora, y el "valor a cierre" de la tarjeta de riesgo, que es el del
-                cierre de la última corrida. Que no coincidan es correcto; que no se sepa cuál es cuál, no. */}
+                éste, al precio vivo de ahora, y el "valor al cierre" de la tarjeta de riesgo, que es el de la
+                última vela que usó la corrida (el 15/9 decía "cierre del 15/9" con el del 14/9). Que no
+                coincidan es correcto; que no se sepa cuál es cuál, no. */}
             <div className="kpi"><b>{usd(tot.value)}</b><span>valor ahora{quotesAt ? `, ${hhmm(quotesAt)}` : ""}{totNote ? ` (sin ${totNote})` : ""}</span></div>
             <div className="kpi"><b>{usd(tot.cost)}</b><span>costo total</span></div>
             <div className="kpi"><b className={cls(tot.pnl)}>{signed(tot.pnl)}</b><span>P&amp;L</span></div>
@@ -165,12 +143,12 @@ export function Cartera() {
       )}
       <div className="card" style={{ overflowX: "auto" }}>
         <table>
-          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>invertido</th><th>precio</th><th>valor</th><th>P&amp;L</th><th>P&amp;L %</th><th>peso</th><th>veredicto</th><th title="Si cierra por debajo, se vende: la tesis se anuló.">stop</th><th title="No es una ganancia esperada: es el doble de la distancia al stop. Un papel tranquilo muestra poco y uno volátil mucho, sin que eso diga cuál es mejor.">objetivo</th><th>etiquetas</th><th></th></tr></thead>
+          <thead><tr><th>símbolo</th><th>cant.</th><th>costo</th><th>invertido</th><th>precio</th><th>valor</th><th>P&amp;L</th><th>P&amp;L %</th><th title="Sobre el valor de ahora, la misma base que la columna valor. El peso al cierre, con el que decide el veredicto, está en el título de cada celda.">peso</th><th>veredicto</th><th title="Si cierra por debajo, se vende: la tesis se anuló.">stop</th><th title="No es una ganancia esperada: es el doble de la distancia al stop. Un papel tranquilo muestra poco y uno volátil mucho, sin que eso diga cuál es mejor.">objetivo</th><th>etiquetas</th><th></th></tr></thead>
           <tbody>
             {positions.map((p) => {
               const v = vBy.get(p.symbol);
               return (
-                <Row key={p.symbol} p={p} v={v} q={quotes[p.symbol] ?? null} tags={tags[p.symbol] ?? null} open={open === p.symbol} onToggle={() => setOpen(open === p.symbol ? null : p.symbol)} onEdit={() => setForm({ ...p })} onRemove={() => remove(p.symbol)} editingTags={editingTags === p.symbol} onEditTags={() => setEditingTags(editingTags === p.symbol ? null : p.symbol)} onTagsSaved={() => { setEditingTags(null); void load(); }} />
+                <Row key={p.symbol} p={p} v={v} q={quotes[p.symbol] ?? null} peso={pesos[p.symbol] ?? null} tags={tags[p.symbol] ?? null} open={open === p.symbol} onToggle={() => setOpen(open === p.symbol ? null : p.symbol)} onEdit={() => setForm({ ...p })} onRemove={() => remove(p.symbol)} editingTags={editingTags === p.symbol} onEditTags={() => setEditingTags(editingTags === p.symbol ? null : p.symbol)} onTagsSaved={() => { setEditingTags(null); void load(); }} />
               );
             })}
             {!positions.length && <tr><td colSpan={14} className="muted">Sin posiciones. Agregá una o corré <span className="mono">pnpm import:v1</span>.</td></tr>}
@@ -178,15 +156,18 @@ export function Cartera() {
         </table>
       </div>
       {risk && <Risk r={risk.report} date={risk.date} />}
-      {curve && <CurveCard r={curve} />}
+      {curve && <CurveCard r={curve} riskSessions={risk?.report.risk?.sessions ?? null} />}
       {measurement && <MeasurementCard m={measurement} />}
     </>
   );
 }
 
-function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onEditTags, onTagsSaved }: { p: Position; v: Verdict | undefined; q: Quote | null; tags: Tags | null; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void; editingTags: boolean; onEditTags: () => void; onTagsSaved: () => void }) {
+function Row({ p, v, q, peso, tags, open, onToggle, onEdit, onRemove, editingTags, onEditTags, onTagsSaved }: { p: Position; v: Verdict | undefined; q: Quote | null; peso: number | null; tags: Tags | null; open: boolean; onToggle: () => void; onEdit: () => void; onRemove: () => void; editingTags: boolean; onEditTags: () => void; onTagsSaved: () => void }) {
   const x = valuation(p, v, q);
   const plan = usePlan();
+  // La misma instrucción que muestra la etiqueta (CarteraVerdict): objetivo, motivo y narración la siguen (15/9).
+  const ins = v ? instruccionCartera(v.verb, isHistorical() ? null : planStatusFor(p.symbol, plan)) : null;
+  const vista = v && ins ? vistaFila(v, ins, isHistorical() ? null : lineaSumar(plan, p.symbol)) : null;
   const priceTitle = !q ? "sin precio vivo: cierre del veredicto" : x.live ? `último precio${q.asOf ? ` ${new Date(q.asOf).toLocaleString("es-AR")}` : ""}` : "precio de su última rueda, no de hoy";
   return (
     <>
@@ -202,17 +183,23 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
         <td className="mono">{usd(x.value)}</td>
         <td className={`mono ${cls(x.pnl)}`}>{signed(x.pnl)}</td>
         <td className={`mono ${cls(x.pnlPct)}`}>{pct(x.pnlPct)}</td>
-        <td className="mono">{v ? `${v.weightPct.toFixed(1)}%` : "—"}</td>
+        {/* 15/9: el peso era el del cierre guardado y el valor el del precio vivo (GGAL 25,04% contra 24,80%). Ahora
+            el peso sale del mismo valor que la columna de al lado; el del cierre, con el que decide el veredicto, va en el título. */}
+        <td className="mono" title={`Sobre el valor de ahora, la misma base que la columna "valor".${v ? ` Al cierre${v.closeDate ? ` del ${v.closeDate}` : ""}: ${v.weightPct.toFixed(2)}%, el peso con el que decide el veredicto.` : ""}`}>{peso !== null ? `${peso.toFixed(1)}%` : v ? <span className="muted" title="Sin precio en dólares para compararlo con el total: peso al cierre del veredicto.">{v.weightPct.toFixed(1)}% al cierre</span> : "—"}</td>
         {/* SUMAR solo si el plan de hoy lo suma: TSM el 14/9 decía SUMAR acá y el plan no lo sumaba. */}
         <td style={{ maxWidth: 260 }}>{v ? <CarteraVerdict symbol={p.symbol} verb={v.verb} plan={plan} /> : <span className="muted">sin veredicto</span>}</td>
         <td className="mono">{f2(v?.stop)}</td>
         {/* El "objetivo" es el precio donde la operación paga dos veces lo que arriesga hasta el stop: es
-            aritmética sobre el stop, no una ganancia esperada. En el plan del Radar ya se corrigió; acá
-            mostraba el mismo número con el mismo rótulo engañoso. Se deja apagado y con su motivo. */}
+            aritmética sobre el stop, no una ganancia esperada. Es el de la POSICIÓN, medido desde el cierre: el
+            15/9 TSM decía MANTENER y mostraba 533,92, el de SUMAR medido desde el techo de la franja (453,18).
+            El de una compra nueva va aparte, rotulado "si sumás desde X", y solo si el plan suma. */}
         <td className="mono">
-          {f2(v?.target)}
-          {v?.target !== null && v?.target !== undefined && (
-            <div className="muted" style={{ fontSize: 11 }} title="No es una ganancia esperada ni un pronóstico: es el precio donde la operación paga dos veces lo que arriesga hasta el stop. Por eso acompaña a la distancia del stop y no a la empresa.">2× el riesgo</div>
+          {f2(vista?.objetivo)}
+          {vista?.objetivo !== null && vista?.objetivo !== undefined && (
+            <div className="muted" style={{ fontSize: 11 }} title="El de lo que ya tenés, medido desde el cierre. No es una ganancia esperada ni un pronóstico: es el precio donde la posición paga dos veces lo que arriesga hasta el stop. Por eso acompaña a la distancia del stop y no a la empresa.">de la posición · 2× el riesgo</div>
+          )}
+          {vista?.siSumas && (
+            <div className="muted" style={{ fontSize: 11 }} title="El objetivo de la compra nueva que propone el plan: dos veces el riesgo medido desde el precio que pagarías, el techo de la franja de compra.">si sumás{vista.siSumas.desde !== null ? ` desde ${f2(vista.siSumas.desde)}` : ""}: {f2(vista.siSumas.objetivo)}</div>
           )}
         </td>
         <td><TagChips tags={tags} /></td>
@@ -227,10 +214,11 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
       {open && v && (
         <tr>
           <td colSpan={14}>
-            <div><b>Por qué:</b> {v.reason}</div>
-            {v.narrative && <div style={{ marginTop: 6 }}><b>Modelo:</b> {v.narrative}{v.degradedBy && <span className="muted"> (degradó el veredicto)</span>}</div>}
+            <div><b>Por qué:</b> {vista?.motivo ?? v.reason}</div>
+            {vista?.narrativa && <div style={{ marginTop: 6 }}><b>Modelo:</b> {vista.narrativa}{v.degradedBy && <span className="muted"> (degradó el veredicto)</span>}</div>}
             {v.warning && <div className="warn" style={{ marginTop: 6 }}><b>Aviso:</b> {v.warning}</div>}
-            <div className="muted mono" style={{ marginTop: 6 }}>cierre {f2(v.close)} · spot {f2(v.spot)} · ganancia a esa fecha {pct(v.gainPct)} · SPY {f2(v.spyClose)} · {v.verdictDate}</div>
+            {/* 15/9: esta línea terminaba en la fecha de la corrida y se leía como la del cierre (era la del 14/9). */}
+            <div className="muted mono" style={{ marginTop: 6 }}>cierre {v.closeDate ? `del ${v.closeDate} ` : "(fecha de la vela no registrada) "}{f2(v.close)} · spot a la hora de la corrida {f2(v.spot)} · ganancia a ese cierre {pct(v.gainPct)} · SPY {f2(v.spyClose)} · veredicto del {v.verdictDate}</div>
           </td>
         </tr>
       )}
@@ -249,19 +237,21 @@ function Row({ p, v, q, tags, open, onToggle, onEdit, onRemove, editingTags, onE
  * explica realmente el SPY. Con un R² bajo ese −12,5% no es un techo de pérdida y hay que decirlo ahí mismo.
  */
 function Risk({ r, date }: { r: RiskReport; date: string }) {
-  // `date` es la fecha de la corrida que produjo este informe: todo lo de esta tarjeta es de ese cierre.
+  // `date` es la fecha de la CORRIDA; `r.asOf`, la de la vela con la que se valuó. El 15/9 la corrida de las 07:49
+  // usó el cierre del 14/9 y esta tarjeta decía "valor al cierre del 2026-09-15": son fechas distintas.
   const top = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(0)}%`).join(" · ");
   const o = r.risk;
   const explicaPoco = o?.r2VsSpy !== null && o?.r2VsSpy !== undefined && o.r2VsSpy < 0.5;
   const vecesSpy = o?.portfolioVolPct && o?.spyVolPct ? o.portfolioVolPct / o.spyVolPct : null;
+  const cierre = r.asOf ? `al cierre del ${r.asOf}` : `al último cierre que tenía la corrida del ${date}`;
   return (
     <div className="card">
-      <b>Riesgo de cartera</b> <span className="muted">({date})</span>
+      <b>Riesgo de cartera</b> <span className="muted">(corrida del {date}{r.asOf ? `, con los cierres del ${r.asOf}` : ""})</span>
       <div className="kpis" style={{ marginTop: 8 }}>
-        <div className="kpi"><b>${money(r.totalValue)}</b><span>valor al cierre del {date}</span></div>
+        <div className="kpi"><b>${money(r.totalValue)}</b><span>valor {cierre}</span></div>
         <div className="kpi"><b>{f2(r.portfolioBeta)}</b><span>beta vs SPY (63 ruedas)</span></div>
         {o?.portfolioVolPct !== null && o?.portfolioVolPct !== undefined && (
-          <div className="kpi"><b className={vecesSpy !== null && vecesSpy > 2 ? "bad" : ""}>{o.portfolioVolPct.toFixed(0)}%</b><span>volatilidad propia{o.spyVolPct !== null && <> · SPY {o.spyVolPct.toFixed(0)}%{vecesSpy !== null && ` (${vecesSpy.toFixed(1)}×)`}</>}</span></div>
+          <div className="kpi"><b className={vecesSpy !== null && vecesSpy > 2 ? "bad" : ""}>{o.portfolioVolPct.toFixed(0)}%</b><span>{rotuloVolatilidad.riesgo(o.sessions)}{o.spyVolPct !== null && <> · SPY {o.spyVolPct.toFixed(0)}%{vecesSpy !== null && ` (${vecesSpy.toFixed(1)}×)`}</>}</span></div>
         )}
         {o?.worstDayPct !== null && o?.worstDayPct !== undefined && (
           <div className="kpi"><b className="bad">{o.worstDayPct.toFixed(1)}%</b><span>peor rueda de las últimas {o.sessions}</span></div>
@@ -289,7 +279,7 @@ function Risk({ r, date }: { r: RiskReport; date: string }) {
 }
 
 /** Curva de la cartera real desde las operaciones: TWR, XIRR, volatilidad y drawdown contra SPY, con la lectura por regla. */
-function CurveCard({ r }: { r: CurveResponse }) {
+function CurveCard({ r, riskSessions }: { r: CurveResponse; riskSessions: number | null }) {
   if (r.error) return <div className="card"><b>Curva de la cartera</b> <span className="warn">no se pudo calcular: {r.error}</span></div>;
   const c = r.curve;
   if (!c) return null;
@@ -304,19 +294,27 @@ function CurveCard({ r }: { r: CurveResponse }) {
       <td className="mono bad">{m.maxDrawdownPct ? `-${m.maxDrawdownPct.toFixed(1)}%` : "0.0%"}</td>
     </tr>
   );
+  // 15/9: "valdría hoy 134.737; tenés 157.126" era el cierre del 14/9 sin decirlo, y con 901 GGAL en vez de las
+  // 920,77 de la posición (la curva no tomaba el traspaso ni los dividendos reinvertidos). Ahora cada valor dice
+  // de qué cierre es, y con las mismas acciones da lo mismo que la tarjeta de riesgo con ese cierre.
+  const ajuste = c.adjustmentsUsd ?? 0;
   return (
     <div className="card">
       <b>Curva de la cartera</b>{" "}
-      <span className="muted">desde {c.from} · {c.sessions} ruedas · vale {usd(c.valueUsd)} sobre {usd(c.investedUsd)} aportados{c.dividendsUsd ? ` · dividendos ${usd(c.dividendsUsd)}` : ""}{c.complete ? "" : " · incompleta"}</span>
+      <span className="muted">desde {c.from} · {c.sessions} ruedas · al cierre del {c.to} vale {usd(c.valueUsd)} sobre {usd(c.investedUsd)} aportados{ajuste ? ` (incluye ${usd(ajuste)} que un traspaso trae sin operación que lo explique)` : ""}{c.dividendsUsd ? ` · dividendos reinvertidos ${usd(c.dividendsUsd)}` : ""}{c.complete ? "" : " · incompleta"}</span>
       <div style={{ marginTop: 8 }}>{c.reading}</div>
       <table style={{ marginTop: 8 }}>
-        <thead><tr><th></th><th>total</th><th>anual (TWR)</th><th>XIRR</th><th>volatilidad</th><th>caída máx.</th></tr></thead>
+        <thead><tr><th></th><th>total</th><th>anual (TWR)</th><th>XIRR</th><th title={`${rotuloVolatilidad.curva(c.sessions, c.from)}, con lo que tenías cada día`}>volatilidad ({c.sessions} ruedas)</th><th>caída máx.</th></tr></thead>
         <tbody>{row("Tu cartera", c.portfolio)}{row("SPY", c.spy)}</tbody>
       </table>
-      {c.sameMoneyInSpy && <div style={{ marginTop: 6 }}>La misma plata puesta en SPY en las mismas fechas valdría hoy <b>{usd(c.sameMoneyInSpy.valueUsd)}</b>; tenés <b>{usd(c.valueUsd)}</b>.</div>}
+      {/* 15/9: esta volatilidad (51,4%) y la de la tarjeta de riesgo (31%) aparecían sin ventana y parecían contradecirse. */}
+      {riskSessions !== null && riskSessions > 0 && (
+        <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>La volatilidad de esta tabla es la de las {c.sessions} ruedas desde {c.from}, con lo que tenías cada día; la de la tarjeta de riesgo es la de las últimas {riskSessions} ruedas con los pesos de hoy. Miden cosas distintas: por eso no coinciden.</div>
+      )}
+      {c.sameMoneyInSpy && <div style={{ marginTop: 6 }}>La misma plata puesta en SPY en las mismas fechas valdría al cierre del {c.to} <b>{usd(c.sameMoneyInSpy.valueUsd)}</b>; tu cartera, al mismo cierre, <b>{usd(c.valueUsd)}</b>.</div>}
       <CurveChart points={c.points} />
       {c.warnings.map((w) => <div key={w} className="warn" style={{ marginTop: 6 }}>⚠ {w}</div>)}
-      <div className="muted" style={{ marginTop: 6 }}>TWR: retorno ponderado por tiempo, un aporte no cuenta como ganancia; anualizado solo con 60 ruedas o más. XIRR: retorno de tu plata con las fechas reales; el de SPY es la misma plata en las mismas fechas. Caída máxima sobre el índice, no sobre el valor: vender no es caer. SPY sin dividendos.</div>
+      <div className="muted" style={{ marginTop: 6 }}>TWR: retorno ponderado por tiempo, un aporte no cuenta como ganancia; anualizado solo con 60 ruedas o más. XIRR: retorno de tu plata con las fechas reales; el de SPY es la misma plata en las mismas fechas. Caída máxima sobre el índice, no sobre el valor: vender no es caer. Un traspaso entre plataformas es la foto del saldo, no una compra; los dividendos reinvertidos son acciones que quedan en la tenencia. SPY sin dividendos.</div>
     </div>
   );
 }
@@ -326,7 +324,8 @@ function MeasurementCard({ m }: { m: Measurement }) {
   const cell = (b: { n: number; hitRate: number | null; avgAlpha: number | null }) => (b.n ? `${b.n} · ${b.hitRate === null ? "—" : `${(b.hitRate * 100).toFixed(0)}%`} · ${pct(b.avgAlpha)}` : "—");
   return (
     <div className="card">
-      <b>Medición contra SPY</b> <span className="muted">{m.total} veredictos, {m.pending} pendientes de medir</span>
+      {/* 15/9: decía "72 veredictos, 72 pendientes de medir" con 8 ya medidos a 7 días. Ahora cuenta por horizonte. */}
+      <b>Medición contra SPY</b> <span className={m.estado && (m.estado.h7.vencidas || m.estado.h30.vencidas) ? "warn" : "muted"}>{textoMedicion(m)}</span>
       <table style={{ marginTop: 8 }}>
         <thead><tr><th>verbo</th><th>7 días (n · acierto · alpha medio)</th><th>30 días</th></tr></thead>
         <tbody>{verbs.map((v) => <tr key={v}><td><span className={`verb ${v}`}>{v}</span></td><td className="mono">{cell(m.byVerb[v].h7)}</td><td className="mono">{cell(m.byVerb[v].h30)}</td></tr>)}</tbody>

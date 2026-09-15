@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, Note, PositionNarrator, PriceHistory, Profiles } from "@thesis/core";
-import { MemoryStore, measureVerdicts, runCartera } from "../src/index.js";
+import { MemoryStore, carteraCurve, measureVerdicts, runCartera } from "../src/index.js";
 
 const mk = (closes: number[], start = "2026-06-01", volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c + 1, low: c - 1, close: c, volume }));
@@ -102,12 +102,44 @@ describe("runCartera", () => {
     expect(s.verdicts[0]!.narrative).toBeNull();
     expect(s.errors[0]!.error).toContain("503");
   });
+  /**
+   * 15/9: la corrida de las 07:49 guardó el riesgo con la fecha de la corrida y la pantalla decía "valor al
+   * cierre del 2026-09-15" con el cierre del 14/9. El informe guarda de qué vela sale cada precio.
+   */
+  it("el riesgo guardado dice de qué cierre es, no la fecha de la corrida", async () => {
+    const { store, deps } = setup(null);
+    await store.upsertPosition(pos("YPF", 100, 30, "adr"));
+    const s = await runCartera(deps, { today });
+    expect(s.risk.asOf).toBe("2026-09-07");
+    expect((await store.latestRisk())!.date).toBe(today);
+    expect((await store.latestRisk())!.report.asOf).toBe("2026-09-07");
+    expect((await store.latestRisk())!.report.weights[0]!.closeDate).toBe("2026-09-07");
+  });
   it("correr dos veces el mismo día reemplaza, no duplica", async () => {
     const { store, deps } = setup(null);
     await store.upsertPosition(pos("TSM", 10, 300));
     await runCartera(deps, { today });
     await runCartera(deps, { today });
     expect(await store.allVerdicts()).toHaveLength(1);
+  });
+});
+
+describe("carteraCurve", () => {
+  /**
+   * 15/9: la curva solo cargaba velas de los papeles con compras o ventas y arrancaba en la primera compra. Un
+   * papel que llegó por traspaso (la foto del saldo al mudar de plataforma) no tenía velas ni entraba en la curva.
+   */
+  it("un papel que solo tiene un traspaso también entra, con sus velas", async () => {
+    const store = new MemoryStore();
+    await store.upsertCandles("SPY", mk(days(20, 500)));
+    await store.upsertCandles("AAA", mk(days(20, 50)));
+    await store.upsertPosition(pos("AAA", 10, 49));
+    await store.insertTransactions([{ id: "t1", symbol: "AAA", type: "TRANSFER", quantity: 10, price: 49, fees: 0, date: "2026-06-03", currency: "USD", platform: "Nexo", externalId: null, notes: null }]);
+    const r = await carteraCurve(store);
+    expect(r.error).toBeNull();
+    expect(r.curve?.from).toBe("2026-06-03");
+    expect(r.curve?.valueUsd).toBe(500);
+    expect(r.curve?.investedUsd).toBe(490);
   });
 });
 

@@ -19,14 +19,18 @@ export interface Thesis {
   pMarketFromOptions?: boolean;
   promptVersion: string;
   createdAt: string;
+  /** El mismo evento tiene una lectura más nueva (15/9): una tesis viva por evento. */
+  reemplazadaPor?: { id: string; createdAt: string; status: string; edge: number } | null;
 }
 
 export interface Position { symbol: string; quantity: number; avgCost: number; currency: string; market: "us" | "adr" | "ar"; layer: "riesgo" | "nucleo" | "cobertura"; notes: string | null }
 export type Verb = "VENDER" | "REVISAR" | "MANTENER" | "SUMAR";
-export interface Verdict { verdictDate: string; symbol: string; verb: Verb; reason: string; narrative: string | null; warning: string | null; close: number; spot: number | null; stop: number | null; target: number | null; gainPct: number; weightPct: number; spyClose: number | null; degradedBy: string | null }
+export interface Verdict { verdictDate: string; symbol: string; verb: Verb; reason: string; narrative: string | null; warning: string | null; close: number; spot: number | null; stop: number | null; target: number | null; gainPct: number; weightPct: number; spyClose: number | null; degradedBy: string | null; /** Fecha de la vela de `close` (15/9): no es la fecha de la corrida. */ closeDate?: string | null; /** Objetivo de la posición, cierre + 2 × (cierre − stop), calculado en core (15/9). En SUMAR, `target` es el de la compra nueva. */ holdTarget?: number | null }
 export interface RiskReport {
   totalValue: number;
-  weights: Array<{ symbol: string; value: number; weightPct: number }>;
+  /** Fecha de la vela con que se valuó (15/9): no es la fecha de la corrida. */
+  asOf?: string | null;
+  weights: Array<{ symbol: string; value: number; weightPct: number; close?: number | null; closeDate?: string | null }>;
   concentration: { byCountry: Record<string, number>; byIndustry: Record<string, number>; bySector: Record<string, number>; byTheme: Record<string, number>; hhiCountry: number; hhiIndustry: number; warnings: string[] };
   correlatedPairs: Array<{ a: string; b: string; corr: number }>;
   betas: Record<string, number | null>;
@@ -38,10 +42,11 @@ export interface RiskReport {
   notes: string[];
 }
 interface Bucket { n: number; hitRate: number | null; avgAlpha: number | null }
-export interface Measurement { total: number; pending: number; byVerb: Record<Verb, { h7: Bucket; h30: Bucket }> }
+/** `estado`: medidas, esperando su cierre y vencidas sin medir, por horizonte (15/9); las mismas palabras que el Radar. */
+export interface Measurement { total: number; pending: number; byVerb: Record<Verb, { h7: Bucket; h30: Bucket }>; estado?: { h7: EstadoMedicion; h30: EstadoMedicion } }
 export interface CurveMetrics { totalPct: number; annualPct: number | null; xirrPct: number | null; volPct: number | null; maxDrawdownPct: number }
 export interface CurvePoint { date: string; value: number; index: number; spyIndex: number }
-export interface CurveReport { from: string; to: string; sessions: number; points: CurvePoint[]; portfolio: CurveMetrics; spy: CurveMetrics; valueUsd: number; investedUsd: number; dividendsUsd: number; sameMoneyInSpy: { valueUsd: number; xirrPct: number | null } | null; reading: string; complete: boolean; warnings: string[] }
+export interface CurveReport { from: string; to: string; sessions: number; points: CurvePoint[]; portfolio: CurveMetrics; spy: CurveMetrics; valueUsd: number; investedUsd: number; dividendsUsd: number; /** Lo que un traspaso trae sin operación que lo explique, entrado como aporte (15/9). */ adjustmentsUsd?: number; sameMoneyInSpy: { valueUsd: number; xirrPct: number | null } | null; reading: string; complete: boolean; warnings: string[] }
 export interface CurveResponse { curve: CurveReport | null; error: string | null; computedAt: string }
 export interface CarteraRun { date: string; verdicts: Verdict[]; risk: RiskReport; errors: Array<{ symbol: string; error: string }>; measured: { measured7: number; measured30: number } }
 
@@ -110,7 +115,7 @@ export interface SymbolDescription { symbol: string; longName: string | null; su
 export interface NewsItem { symbol: string; date: string; headline: string; source: string | null; url: string; summary: string | null }
 export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" | "DIVIDEND" | "TRANSFER"; quantity: number; price: number; fees: number; date: string; currency: string; platform: string | null; externalId: string | null; notes: string | null }
 /** Precio vivo con la variación del día contra el cierre previo. */
-export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null }
+export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null; /** Marca del servidor (más de 30 horas): la misma para toda la app (15/9). */ stale?: boolean }
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
@@ -161,6 +166,8 @@ async function j<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => j<{ ok: boolean; killSwitch: boolean; lastRun: { at: string; summary: Record<string, unknown> } | null }>("/health"),
   theses: (status: string) => j<Thesis[]>(`/theses?status=${status}`),
+  /** Cuántas tesis hay con esos estados y cuántas muestra la lista como máximo (15/9). */
+  thesesTotal: (status: string) => j<{ total: number; limit: number }>(`/theses/total?status=${status}`),
   thesis: (id: string) => j<{ thesis: Thesis; event: { title: string; source: string; payload: Record<string, unknown> } | null; orders: Array<{ side: string; qty: number; limitPrice: number; status: string; avgFillPrice: number | null; symbol: string }> }>(`/theses/${id}`),
   approve: (id: string) => j<{ ok: boolean }>(`/theses/${id}/approve`, { method: "POST" }),
   reject: (id: string, note: string) => j<{ ok: boolean }>(`/theses/${id}/reject`, { method: "POST", body: JSON.stringify({ note }) }),

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { todayLocal, CloseReason } from "@thesis/core";
-import { approveAndExecute, calibrationReport, closeThesis, dailyRun, tesisSince, rejectByHuman, syncOrders, buildNovedades, withUsageStep, STEPS, type StepId } from "@thesis/pipeline";
+import { approveAndExecute, calibrationReport, closeThesis, dailyRun, tesisSince, rejectByHuman, syncOrders, buildNovedades, withUsageStep, STEPS, tesisReemplazadas, todasLasTesis, type StepId } from "@thesis/pipeline";
 import { dailyUsage, summarizeUsage } from "@thesis/core";
 import { z } from "zod";
 import type { Container } from "../container.js";
@@ -76,11 +76,23 @@ export function buildApp(c: Container) {
   });
 
   // ---- tesis ----
-  app.get("/theses", async (ctx) => {
-    const status = ctx.req.query("status") ?? "proposed";
-    const list = await c.store.thesesByStatus(status.split(",") as never);
-    return ctx.json(list);
-  });
+  /**
+   * Una tesis viva por evento (15/9). El 6-K de Vista tenía cinco propuestas vivas con objetivos de 82 a 88. La corrida
+   * retira las viejas (`retirarReemplazadas`), pero la pantalla no espera a la corrida: una propuesta que el mismo evento
+   * ya reemplazó va al historial, con `reemplazadaPor`, aunque la base todavía diga "proposed".
+   */
+  const TESIS_POR_PAGINA = 200;
+  async function tesisPedidas(status: string) {
+    const pedidos = status.split(",");
+    const todas = await todasLasTesis(c.store);
+    const reemplazos = tesisReemplazadas(todas);
+    return todas
+      .map((t) => { const r = reemplazos.get(t.id); return { ...t, reemplazadaPor: r ? { id: r.id, createdAt: r.createdAt, status: r.status, edge: r.edge } : null }; })
+      .filter((t) => pedidos.includes(t.reemplazadaPor ? "rejected" : t.status));
+  }
+  app.get("/theses", async (ctx) => ctx.json((await tesisPedidas(ctx.req.query("status") ?? "proposed")).slice(0, TESIS_POR_PAGINA)));
+  /** Cuántas hay en total (15/9): el historial cortaba en 200 de 249 sin decirlo. Antes de `/theses/:id`. */
+  app.get("/theses/total", async (ctx) => ctx.json({ total: (await tesisPedidas(ctx.req.query("status") ?? "proposed")).length, limit: TESIS_POR_PAGINA }));
   app.get("/theses/:id", async (ctx) => {
     const t = await c.store.thesis(ctx.req.param("id"));
     if (!t) return ctx.json({ error: "not found" }, 404);

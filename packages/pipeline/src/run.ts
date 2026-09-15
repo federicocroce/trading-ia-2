@@ -2,6 +2,7 @@ import { impliedProbability, type Filter, type Ingestor, type MarketData, type R
 import type { BundleWithMarket } from "@thesis/reasoner";
 import type { DocumentProvider } from "./documents.js";
 import type { Store } from "./store.js";
+import { retirarReemplazadas } from "./theses.js";
 
 export interface RunDeps {
   store: Store;
@@ -22,6 +23,8 @@ export interface RunSummary {
   dropped: number;
   proposed: Thesis[];
   rejected: Thesis[];
+  /** Propuestas retiradas porque el mismo evento tiene una lectura más nueva (15/9): una tesis viva por evento. */
+  reemplazadas: Array<{ id: string; ticker: string; por: string }>;
   errors: Array<{ eventId: string; error: string }>;
 }
 
@@ -42,7 +45,7 @@ export const tesisSince = (now = Date.now()) => new Date(now - TESIS_VENTANA_DIA
 /** Ingesta → filtro → razonamiento → persistencia. Una corrida = un día. */
 export async function dailyRun(deps: RunDeps, opts: { since: string; today: string }): Promise<RunSummary> {
   const log = deps.log ?? (() => {});
-  const summary: RunSummary = { ingested: 0, newEvents: 0, passed: 0, dropped: 0, proposed: [], rejected: [], errors: [] };
+  const summary: RunSummary = { ingested: 0, newEvents: 0, passed: 0, dropped: 0, proposed: [], rejected: [], reemplazadas: [], errors: [] };
 
   // 1. Ingesta
   for (const ing of deps.ingestors) {
@@ -86,6 +89,12 @@ export async function dailyRun(deps: RunDeps, opts: { since: string; today: stri
       log(`reason failed`, { eventId: event.id, error: String(e) });
     }
   }
+
+  // 4. Una tesis viva por evento (15/9): lo que el mismo evento ya tenía propuesto queda reemplazado por la lectura más
+  //    nueva. El 15/9 el 6-K de Vista tenía cinco propuestas vivas con objetivos de 82 a 88. Idempotente: también
+  //    limpia lo que quedó de antes.
+  summary.reemplazadas = await retirarReemplazadas(deps.store);
+  if (summary.reemplazadas.length) log("theses superseded", { n: summary.reemplazadas.length, tickers: summary.reemplazadas.map((r) => r.ticker) });
   return summary;
 }
 

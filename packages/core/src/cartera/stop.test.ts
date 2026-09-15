@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTarget, computeTrailingStop, ENTRY_STOP_ATR, entryStop, type Candle } from "./index.js";
+import { computeTarget, computeTrailingStop, decideVerb, ENTRY_STOP_ATR, entryStop, holdTargetOf, type Candle } from "./index.js";
 
 /** 30 velas planas en 100 con rango diario 2 (high 101, low 99): ATR = 2. */
 const flat = (n: number, close = 100): Candle[] =>
@@ -50,4 +50,24 @@ describe("entryStop (stop de una compra nueva, 2026-09-13)", () => {
 describe("computeTarget (RR 2:1)", () => {
   it("close + 2 × (close − stop)", () => expect(computeTarget(100, 95)).toBe(110));
   it("null sin stop", () => expect(computeTarget(100, null)).toBeNull());
+});
+
+/**
+ * 15/9: el plan relabeló a TSM como MANTENER y Cartera seguía mostrando el objetivo de SUMAR, 533,92, medido desde
+ * el techo de la franja de compra (453,18). Lo que ya tenés se mide desde el cierre, no desde un precio que no pagaste.
+ */
+describe("holdTargetOf (objetivo de la posición)", () => {
+  it("TSM del 15/9: 418,01 + 2 × (418,01 − 412,81) = 428,41, no el 533,92 de la compra", () => {
+    expect(holdTargetOf({ close: 418.01, stop: 412.81 })).toBe(428.41);
+  });
+  it("sin stop no hay objetivo", () => expect(holdTargetOf({ close: 418.01, stop: null })).toBeNull());
+  it("un veredicto que no es SUMAR ya trae este mismo objetivo: una sola cuenta", () => {
+    const v = decideVerb({ candles: flat(30), spot: 100, avgCost: 80, layer: "riesgo", weightPct: 20, positionsCount: 5, today: "2026-01-31" });
+    expect(v.verb).toBe("MANTENER");
+    expect(v.target).toBe(holdTargetOf(v));
+    const sumar = decideVerb({ candles: flat(30), spot: 100, avgCost: 80, layer: "riesgo", weightPct: 10, positionsCount: 5, today: "2026-01-31" });
+    expect(sumar.verb).toBe("SUMAR");
+    expect(sumar.target).not.toBe(holdTargetOf(sumar));
+    expect(holdTargetOf(sumar)).toBe(110);
+  });
 });

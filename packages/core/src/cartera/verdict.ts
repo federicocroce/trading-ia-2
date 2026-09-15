@@ -1,5 +1,5 @@
 import { entryTiming } from "../radar/entry.js";
-import { computeTarget, computeTrailingStop } from "./stop.js";
+import { computeTarget, computeTrailingStop, holdTargetOf } from "./stop.js";
 import { noticiasLeidas, tesisAlerts, type TesisInput } from "./tesis.js";
 import type { Candle, Layer, Verb } from "./types.js";
 
@@ -63,7 +63,8 @@ export function decideVerb(i: VerdictInput): PositionVerdict {
   }
   const close = last.close;
   const stop = computeTrailingStop(i.candles);
-  const target = computeTarget(close, stop);
+  // El objetivo de la posición; solo SUMAR (una compra) lo reemplaza por el de la compra.
+  const target = holdTargetOf({ close, stop });
   const gainPct = round2(((close - i.avgCost) / i.avgCost) * 100);
   const base = { close, stop, target, gainPct, stale: false };
 
