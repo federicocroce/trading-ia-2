@@ -178,7 +178,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
         <div className="card">
           <b>Verificación y estados</b>
           {!t.candidate && <span className="muted"> · no es candidata del Radar hoy, pero esto es lo que la app sabe del negocio</span>}
-          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} newsScannedTo={t.candidate?.kind === "etf" ? undefined : t.newsScannedTo} />
+          <VerificationSections statements={t.statements} events={t.events} analystActions={t.analystActions} analystTargets={t.candidate?.analystTargets} close={t.quote?.price ?? t.candidate?.close ?? null} metricsRaw={t.fundamentals?.metricsRaw} verification={t.verification ?? null} newsScannedTo={t.candidate?.kind === "etf" ? undefined : t.newsScannedTo} verificationCurrent={t.verificationCurrent ?? null} fila={t.candidate ? { verdict: t.candidate.verdict, flags: t.candidate.flags } : null} />
         </div>
       )}
       {t.candidate && (t.candidate.kind === "etf" || t.candidate.kind === "adr") && <EtfCard c={t.candidate} />}

@@ -31,7 +31,8 @@ export function tickerRoutes(c: Container) {
     if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) return ctx.json({ error: "símbolo inválido" }, 400);
     // ?live=0: modo rápido, solo lo guardado; lo que falta se completa atrás y la UI vuelve a pedir.
     const live = ctx.req.query("live") !== "0";
-    return ctx.json(await buildTicker(deps, symbol, { today: today(ctx.req.query("today")), live }));
+    // El cuestionario vigente es el del verificador del Radar: una verificación de otro no se muestra como vigente (15/9).
+    return ctx.json(await buildTicker(deps, symbol, { today: today(ctx.req.query("today")), live, verifierPromptVersion: c.radarDeps?.verifier?.promptVersion ?? null }));
   });
 
   app.get("/ticker/:symbol/chart", async (ctx) => {

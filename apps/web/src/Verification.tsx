@@ -1,24 +1,27 @@
 import type { AnalystAction, AnalystTargets, CandidateVerification, RadarEvent, Statements } from "./api";
 import { EXTRAORDINARIOS_AYUDA, extraordinarioLabel } from "./extraordinarios";
-import { peNucleo } from "./verificacionTextos";
+import { estadoVerificacion, fuentesTexto, peNucleo } from "./verificacionTextos";
 
 const M = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${(v / 1e6).toFixed(1)}M`);
 const f1 = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toFixed(1));
 const pctOf = (a: number | null | undefined, b: number | null | undefined) => (a === null || a === undefined || !b ? "—" : `${((a / b) * 100).toFixed(1)}%`);
 const signedPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(0)}%`;
 
-/** Tres secciones de la verificación (spec verificación §9): estados con núcleo contra reportado, eventos materiales, analistas de 90 días. */
-const VERDICT_LABEL: Record<CandidateVerification["verdict"], string> = { apto: "APTA", con_reservas: "CON RESERVAS", evitar: "EVITAR" };
+/** Cuántos enlaces se muestran de entrada; el resto, al abrir "ver todas". */
+const FUENTES_VISIBLES = 8;
 
-/** Verificación web por candidata (spec 2026-09-10): dictamen del modelo con búsqueda, con sus datos y fuentes. */
-function WebVerification({ v, close }: { v: CandidateVerification | null | undefined; close: number | null }) {
-  if (!v) return <div className="muted">sin verificación web: se verifica solo lo que queda COMPRAR por reglas, una vez por semana</div>;
-  const cls = v.verdict === "apto" ? "verb COMPRAR" : v.verdict === "con_reservas" ? "verb OBSERVAR" : "bad";
+/**
+ * Verificación web por candidata (spec 2026-09-10): dictamen del modelo con búsqueda, con sus datos y fuentes. Cómo se
+ * lee (vigente, del cuestionario anterior, pendiente o sin verificar) sale de `estadoVerificacion` (15/9).
+ */
+function WebVerification({ v, close, current, fila }: { v: CandidateVerification | null | undefined; close: number | null; current?: boolean | null | undefined; fila?: { verdict: string; flags: string[] } | null | undefined }) {
+  const e = estadoVerificacion({ v, current, fila });
+  if (!v) return <div className={e.kind === "pendiente" ? "warn" : "muted"}>{e.nota}</div>;
   const lq = v.lastQuarter;
 
   return (
     <>
-      <div><span className={cls}>{VERDICT_LABEL[v.verdict]}</span> <span className="muted mono">{v.date}</span> · {v.reason}</div>
+      <div><span className={e.chip!.className}>{e.chip!.label}</span>{e.nota && <span className="warn"> {e.nota}</span>} <span className="muted mono">{v.date}</span> · {v.reason}</div>
       {lq && <div className="muted mono">Último trimestre{lq.reportDate ? ` (${lq.reportDate})` : ""}: ingresos {lq.revenueVsConsensus ?? "—"} · EPS {lq.epsVsConsensus ?? "—"}{lq.oneOffs.length ? ` · únicos: ${lq.oneOffs.join("; ")}` : ""}{lq.guidance ? ` · guía: ${lq.guidance}` : ""}</div>}
       {(v.consensusTarget !== null || v.analysts.length > 0) && (
         <div className="muted mono">
@@ -29,7 +32,9 @@ function WebVerification({ v, close }: { v: CandidateVerification | null | undef
       {v.events.map((e) => <div key={`${e.date}|${e.headline}`} className="mono"><span className="warn">{e.date}</span> · {e.kind} · {e.headline}</div>)}
       {v.valuation && <div className="muted">Valuación: {v.valuation}</div>}
       {v.nextEarnings && <div className="muted">Próximos resultados: {v.nextEarnings}</div>}
-      {v.sources.length > 0 && <div className="muted">Fuentes: {v.sources.slice(0, 8).map((s, i) => <span key={s.url}>{i > 0 ? " · " : ""}<a href={s.url} target="_blank" rel="noreferrer">{s.title}</a></span>)}</div>}
+      {/* Cuántas fuentes tuvo, siempre (15/9: APH con 0 guardadas no decía nada; TSM con 42 mostraba 8 sin decirlo). */}
+      <div className={v.sources.length ? "muted" : "warn"}>{fuentesTexto(v.sources.length, FUENTES_VISIBLES)} {v.sources.slice(0, FUENTES_VISIBLES).map((s, i) => <span key={s.url}>{i > 0 ? " · " : ""}<a href={s.url} target="_blank" rel="noreferrer">{s.title}</a></span>)}</div>
+      {v.sources.length > FUENTES_VISIBLES && <details><summary className="muted">ver las {v.sources.length} fuentes</summary><div className="muted">{v.sources.map((s, i) => <span key={s.url}>{i > 0 ? " · " : ""}<a href={s.url} target="_blank" rel="noreferrer">{s.title}</a></span>)}</div></details>}
       <details><summary className="muted">informe completo del modelo</summary><pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>{v.researchText}</pre></details>
     </>
   );
@@ -66,7 +71,11 @@ function EstadoDelBarrido({ scannedTo }: { scannedTo: string | null | undefined 
   return <div className="muted" style={{ fontSize: 12 }}>Noticias leídas del {desdeHace(VENTANA_DIAS)} al {scannedTo}.</div>;
 }
 
-export function VerificationSections({ statements, events, analystActions, analystTargets, close, metricsRaw, verification, newsScannedTo }: { statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[]; analystTargets?: AnalystTargets | null; close: number | null; metricsRaw?: Record<string, number | null> | null; verification?: CandidateVerification | null; newsScannedTo?: string | null }) {
+/**
+ * `verificationCurrent`: si la verificación es del cuestionario vigente (la ficha lo sabe; sin el dato se muestra como
+ * vigente). `fila`: veredicto y banderas de la fila del Radar, para decir "pendiente" en lo que queda COMPRAR (15/9).
+ */
+export function VerificationSections({ statements, events, analystActions, analystTargets, close, metricsRaw, verification, newsScannedTo, verificationCurrent, fila }: { statements: Statements | null; events: RadarEvent[]; analystActions: AnalystAction[]; analystTargets?: AnalystTargets | null; close: number | null; metricsRaw?: Record<string, number | null> | null; verification?: CandidateVerification | null; newsScannedTo?: string | null; verificationCurrent?: boolean | null; fila?: { verdict: string; flags: string[] } | null }) {
   const core = statements?.core ?? null;
   const last4 = statements?.quarters.slice(-4) ?? [];
   // Con la misma banda que el núcleo: SNDK el 15/9 daba "P/E núcleo 0,1" por un trimestre con 1.000.000 de acciones.
@@ -77,7 +86,7 @@ export function VerificationSections({ statements, events, analystActions, analy
     <>
       <div style={{ marginTop: 10 }}>
         <b>Verificación web (modelo con búsqueda)</b>
-        <WebVerification v={verification} close={close} />
+        <WebVerification v={verification} close={close} current={verificationCurrent} fila={fila} />
       </div>
       <div style={{ marginTop: 10 }}>
         <b>Estados (SEC)</b>

@@ -189,4 +189,14 @@ describe("buildTicker: verificación", () => {
     expect(page.events.map((e) => e.headline)).toEqual(["EMA"]);
     expect(page.analystActions[0]?.target).toBe(24);
   });
+  it("C5 (15/9): NBN estaba APTA con el cuestionario anterior y la ficha la pintaba en verde; la página dice si la verificación es del cuestionario vigente", async () => {
+    const store = new MemoryStore();
+    const d: TickerDeps = { store, history: { candles: async () => [] }, descriptions: { description: async () => null }, news: { companyNews: async () => [] }, quote: async () => null };
+    await store.saveVerification({ symbol: "NBN", date: "2026-09-14", verdict: "apto", reason: "r", lastQuarter: null, analysts: [], consensusTarget: null, events: [], valuation: null, nextEarnings: null, sources: [{ title: "a", url: "https://a" }], researchText: "", promptVersion: "v1-c12a96012ca5-gemini", model: "gemini-2.5-flash", detectedAt: "2026-09-14T11:07:13.886Z" });
+    const vieja = await buildTicker(d, "NBN", { today: "2026-09-15", timeoutMs: 1000, verifierPromptVersion: "v1-07c33234178c-gemini" });
+    expect(vieja.verificationCurrent).toBe(false);
+    expect((await buildTicker(d, "NBN", { today: "2026-09-15", timeoutMs: 1000, verifierPromptVersion: "v1-c12a96012ca5-gemini" })).verificationCurrent).toBe(true);
+    // Sin verificador configurado no se afirma nada.
+    expect((await buildTicker(d, "NBN", { today: "2026-09-15", timeoutMs: 1000 })).verificationCurrent).toBeNull();
+  });
 });

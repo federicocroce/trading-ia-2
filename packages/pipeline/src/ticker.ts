@@ -41,6 +41,11 @@ export interface TickerPage {
   newsScannedTo: string | null;
   /** Verificación web del candidato (spec 2026-09-10), si existe. */
   verification: CandidateVerification | null;
+  /**
+   * ¿La verificación es del cuestionario vigente? null = no hay verificación o no hay verificador para comparar. El
+   * 15/9 NBN y NVDA estaban APTAS con el cuestionario anterior, que el plan ya no acepta, y la ficha las pintaba en verde.
+   */
+  verificationCurrent: boolean | null;
   theses: Thesis[];
   transactions: Transaction[];
   transactionSummary: {
@@ -117,7 +122,7 @@ export async function liveQuotes(quote: TickerDeps["quote"], symbols: string[], 
  * Con `live: false` (modo rápido) ni siquiera se espera lo que falta: se dispara atrás y se marca en `pending`,
  * para que la UI pinte lo guardado ya y complete con una segunda llamada.
  */
-export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { today: string; timeoutMs?: number; live?: boolean }): Promise<TickerPage> {
+export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { today: string; timeoutMs?: number; live?: boolean; verifierPromptVersion?: string | null }): Promise<TickerPage> {
   const symbol = symbolRaw.toUpperCase();
   const { store } = deps;
   const errors: string[] = [];
@@ -275,6 +280,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     analystActions,
     newsScannedTo,
     verification,
+    verificationCurrent: verification && opts.verifierPromptVersion ? verification.promptVersion === opts.verifierPromptVersion : null,
     theses,
     transactions: mine,
     transactionSummary: { buys, sells, dividends, dividendShares, invested: round2(buys.total - sells.total) },

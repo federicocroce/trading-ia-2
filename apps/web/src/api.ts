@@ -133,6 +133,8 @@ export interface TickerPage {
   /** Hasta qué fecha se leyeron las noticias. null = nunca: una lista de eventos vacía no prueba nada. */
   newsScannedTo: string | null;
   verification?: CandidateVerification | null;
+  /** ¿La verificación es del cuestionario vigente? null = no se sabe (15/9: NBN estaba APTA con el anterior). */
+  verificationCurrent?: boolean | null;
   theses: Thesis[];
   transactions: Transaction[];
   transactionSummary: { buys: { count: number; total: number }; sells: { count: number; total: number }; dividends: { count: number; total: number }; dividendShares?: number; invested: number };
