@@ -26,6 +26,7 @@ describe("revisión antes de comprar (15/9)", () => {
     expect(m).toContain("GFI — Gold Fields");
     expect(m).toContain("apto (2026-09-14): primer semestre fuerte");
     expect(m).toContain("Usá la búsqueda de Google");
+    expect(m).toContain('"GFI news September 2026"');
   });
   it("la primera línea decide, en el código: sin objeciones, objeción (con la principal) o no pude verificar", () => {
     expect(parseReview("REVISIÓN: SIN OBJECIONES — nada material en 30 días.\n...")).toEqual({ verdict: "sin_objeciones", reason: "nada material en 30 días." });

@@ -132,6 +132,10 @@ describe("que busque en vez de contestar de memoria (15/9)", () => {
     const m = buildResearchMessage({ symbol: "PBT", name: null, today: "2026-09-15" });
     expect(m).toContain("Usá la búsqueda de Google");
     expect(m).toContain("sin búsquedas se descarta");
+    // Con búsquedas concretas el modelo las hace: con la instrucción general sola buscó en 1 de cada 4 intentos (15/9).
+    expect(m).toContain('"PBT earnings release 2026"');
+    expect(m).toContain('"PBT guidance 2026"');
+    expect(m).toContain('"PBT lawsuit OR investigation OR license 2026"');
     expect(VERIFY_VERSION).toBe(antes);
   });
 });

@@ -137,8 +137,23 @@ export function aplicarFaltantes<T extends { verdict: (typeof VERDICTS)[number];
  */
 export const BUSCAR = "Usá la búsqueda de Google para cada punto, con datos de este año: una respuesta sin búsquedas se descarta.";
 
+const MESES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+/**
+ * Búsquedas concretas, en inglés, para empresas listadas en EE.UU. Con la instrucción general sola, 2.5-flash buscó en
+ * 1 de cada 4 intentos el 15/9 (PBT nunca): con la lista a la vista, las hace.
+ */
+/** "2026-09-15" → "September 2026", para las búsquedas en inglés. */
+export const mesEnIngles = (today: string) => `${MESES[Number(today.slice(5, 7)) - 1] ?? ""} ${today.slice(0, 4)}`;
+
+export function busquedasPara(symbol: string, today: string, extra: string[] = []): string {
+  const anio = today.slice(0, 4);
+  const mes = MESES[Number(today.slice(5, 7)) - 1] ?? "";
+  const q = [`${symbol} earnings release ${anio}`, `${symbol} guidance ${anio}`, `${symbol} lawsuit OR investigation OR license ${anio}`, `${symbol} analyst price target ${mes} ${anio}`, ...extra];
+  return `# Búsquedas que tenés que hacer (como mínimo)\n${q.map((x) => `- "${x}"`).join("\n")}`;
+}
+
 export function buildResearchMessage(i: VerifierInput): string {
-  return [`# Empresa\n${i.symbol}${i.name ? ` — ${i.name}` : ""}`, `# Hoy\n${i.today}`, i.context ? `# Lo que ya sabe la app (contrastalo, no lo repitas)\n${i.context.slice(0, 2000)}` : null, BUSCAR, "Respondé el cuestionario."].filter((x): x is string => x !== null).join("\n\n");
+  return [`# Empresa\n${i.symbol}${i.name ? ` — ${i.name}` : ""}`, `# Hoy\n${i.today}`, i.context ? `# Lo que ya sabe la app (contrastalo, no lo repitas)\n${i.context.slice(0, 2000)}` : null, busquedasPara(i.symbol, i.today), BUSCAR, "Respondé el cuestionario."].filter((x): x is string => x !== null).join("\n\n");
 }
 
 export interface GeminiVerifierOptions extends GeminiCallerOptions {
