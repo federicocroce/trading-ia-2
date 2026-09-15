@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Candidate, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
-import { baseDelDia, distanciaAlStop, relacionDeLaOrden, rotuloDelStop } from "./niveles";
+import { baseDelDia, distanciaAlStop, notaDelSeguimiento, relacionDeLaOrden, rotuloDelStop } from "./niveles";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { EntryLine } from "./Entry";
@@ -72,6 +72,9 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const qty = t.position?.quantity ?? null;
   const usdAt = (level: number | null) => (px && level && qty ? money(qty * (level - px)) : null);
   const chip = chipDeCabecera({ verdict: t.verdict, candidate: t.candidate });
+  // El chip de la lista ("VIVA −0,6%") se mide con el stop del alta y el último cierre, no con los de la cabecera (15/9: APH).
+  const watchItem = watchItems.find((i) => i.symbol === t.symbol.toUpperCase());
+  const seguimiento = watchItem ? notaDelSeguimiento(watchItem, { precio: px, stopHoy: stop, velas: t.candles }) : null;
 
   return (
     <>
@@ -84,6 +87,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           <WatchlistButton symbol={t.symbol} items={watchItems} onChanged={() => { void loadWatch(); window.dispatchEvent(new Event("watchlist:changed")); }} />
           <button className="ghost" onClick={() => setEditingTags(!editingTags)}>Etiquetas</button>
         </div>
+        {seguimiento && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Lista de seguimiento: {seguimiento.texto}.{seguimiento.aviso && <span className="warn"> ⚠ {seguimiento.aviso}.</span>}</div>}
         {editingTags && <TagEditor symbol={t.symbol} current={t.tags} onSaved={() => { setEditingTags(false); void load(); }} onCancel={() => setEditingTags(false)} />}
         {d ? (
           <div className="muted" style={{ marginTop: 8, borderLeft: "2px solid var(--line)", paddingLeft: 10 }}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baseDelDia, cambioDelPeriodo, distanciaAlStop, notaVelaParcial, relacionDeLaOrden, rotuloDelStop } from "./niveles";
+import { baseDelDia, cambioDelPeriodo, distanciaAlStop, notaDelSeguimiento, notaVelaParcial, relacionDeLaOrden, rotuloDelStop } from "./niveles";
 
 describe("relacionDeLaOrden", () => {
   it("APH el 14/9: la ficha decía 18,0 a 1 midiendo desde el precio en vivo (79,04, a 1,6% del stop); la orden del Radar es 2 a 1 desde el techo", () => {
@@ -90,6 +90,22 @@ describe("baseDelDia (C6, 15/9)", () => {
   it("sin cierre guardado de la sesión anterior, dice que es el de la fuente", () => {
     expect(baseDelDia(null)).toBe("contra el cierre previo de la fuente (todavía no guardado)");
     expect(baseDelDia(undefined)).toBe("contra el cierre previo de la fuente (todavía no guardado)");
+  });
+});
+
+describe("notaDelSeguimiento (C9, 15/9)", () => {
+  // APH en la lista de seguimiento el 15/9: alta el 14/9 a 79,025 con stop 77,81; evaluada con el cierre del 14/9 (78,55).
+  const aph = { status: "live" as const, stopLoss: 77.81, lastPrice: 78.55, addedAt: "2026-09-14T17:00:48.529Z" };
+  const velas = [{ date: "2026-09-11", close: 83.92 }, { date: "2026-09-14", close: 78.55 }];
+  it("APH: \"VIVA −0,6%\" sale de tu nivel del alta (77,81) y del cierre del 14/9, mientras la cabecera dice 77,67 y el precio ya está debajo de los dos", () => {
+    const n = notaDelSeguimiento(aph, { precio: 77.52, stopHoy: 77.67, velas })!;
+    expect(n.texto).toBe("el estado de la lista se mide con tu nivel del alta (stop 77,81, del 14/9), no con el stop de hoy (77,67), y con el cierre del 14/9 (78,55)");
+    expect(n.aviso).toBe("el precio de ahora (77,52) ya está debajo de tu nivel del alta: si cierra así, la lista la marca INVALIDADA");
+  });
+  it("con el precio arriba no hay aviso; resuelta o sin stop del alta, no hay nota", () => {
+    expect(notaDelSeguimiento(aph, { precio: 79, stopHoy: 77.67, velas })!.aviso).toBeNull();
+    expect(notaDelSeguimiento({ ...aph, status: "invalidated" }, { precio: 79, stopHoy: 77.67, velas })).toBeNull();
+    expect(notaDelSeguimiento({ ...aph, stopLoss: null }, { precio: 79, stopHoy: 77.67, velas })).toBeNull();
   });
 });
 

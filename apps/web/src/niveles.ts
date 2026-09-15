@@ -53,6 +53,28 @@ export function rotuloDelStop(i: { desde: "Radar" | "Cartera" | null; target: nu
   return i.target === null || i.target === undefined ? "stop dinámico" : "stop de compra";
 }
 
+const diaAR = (iso: string) => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", day: "numeric", month: "numeric" }).formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${p["day"]}/${p["month"]}`;
+};
+const diaDeFecha = (ymd: string) => { const [, m, d] = ymd.split("-"); return `${Number(d)}/${Number(m)}`; };
+
+/**
+ * Qué mide el chip de la lista de seguimiento ("VIVA −0,6%"). Se evalúa con la foto del ALTA (el stop que tenía cuando
+ * lo seguiste) contra el último cierre, no con el stop de hoy ni con el precio de ahora. El 15/9 APH decía VIVA con su
+ * stop del alta 77,81 y el cierre del 14/9, mientras la cabecera mostraba el stop de hoy 77,67 y el precio (77,52) ya
+ * estaba debajo de los dos. La nota rotula ese stop como "tu nivel del alta" y avisa si el precio ya lo perforó.
+ */
+export function notaDelSeguimiento(item: { status: "live" | "triggered" | "invalidated" | "expired"; stopLoss: number | null; lastPrice: number | null; addedAt: string }, hoy: { precio: number | null; stopHoy: number | null; velas: Array<{ date: string; close: number }> }): { texto: string; aviso: string | null } | null {
+  if (item.status !== "live" || item.stopLoss === null) return null;
+  const alta = `tu nivel del alta (stop ${coma(item.stopLoss, 2)}, del ${diaAR(item.addedAt)})`;
+  const deHoy = hoy.stopHoy !== null && Math.abs(hoy.stopHoy - item.stopLoss) >= 0.005 ? `, no con el stop de hoy (${coma(hoy.stopHoy, 2)})` : "";
+  const vela = item.lastPrice !== null ? [...hoy.velas].reverse().find((v) => Math.abs(v.close - item.lastPrice!) < 0.005) : undefined;
+  const cierre = item.lastPrice !== null ? `, y con el cierre${vela ? ` del ${diaDeFecha(vela.date)}` : ""} (${coma(item.lastPrice, 2)})` : "";
+  const aviso = hoy.precio !== null && hoy.precio <= item.stopLoss ? `el precio de ahora (${coma(hoy.precio, 2)}) ya está debajo de tu nivel del alta: si cierra así, la lista la marca INVALIDADA` : null;
+  return { texto: `el estado de la lista se mide con ${alta}${deHoy}${cierre}`, aviso };
+}
+
 /**
  * Contra qué cierre se mide el cambio del día de la cabecera (15/9). Había dos "cierres de ayer": el de Alpaca IEX
  * (TSM 418,60) en la cabecera y el de Yahoo guardado (418,01) en las velas, el Radar y Cartera. El servidor ahora mide
