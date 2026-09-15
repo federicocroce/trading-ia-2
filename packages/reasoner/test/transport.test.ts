@@ -104,6 +104,22 @@ describe("GeminiToolCaller: registro de uso", () => {
     expect(tracker.isExhausted("A", 0)).toBe(true);
     expect(tracker.isExhausted("A", 1)).toBe(false);
   });
+  it("15/9: un 429 sin detalle se registra como 'limite', no como cuota diaria (la pantalla de Uso decía 'agotada hoy')", async () => {
+    const { caller, rec } = mk([http(429, "You exceeded your current quota"), ok({ g: 7 })]);
+    await caller.call("s", "u", TOOL);
+    expect(rec.rows.map((x) => x.result)).toEqual(["limite", "ok"]);
+  });
+  it("15/9: una búsqueda rechazada con 429 no deja afuera al modelo para las llamadas comunes", async () => {
+    // Con claves gratis, los 3.x no tienen búsqueda de Google: el 429 de una verificación dejaba 3.6 y 3.8 fuera hasta
+    // la medianoche del Pacífico para TODO (narrador, tesis, fichas), y la app entera cargaba sobre 2.5, saturado.
+    const grounded = (t: string) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: t }] }, finishReason: "STOP", groundingMetadata: { webSearchQueries: ["q"], groundingChunks: [{ web: { uri: "https://x", title: "x" } }] } }] }), { status: 200 });
+    const { caller, keys, tracker } = mk([http(429, "You exceeded your current quota"), grounded("con fuentes"), ok({ f: 6 })]);
+    await caller.callGrounded("s", "u", { purpose: "verificacion" });
+    expect(tracker.isExhausted("busqueda:A", 0)).toBe(true);
+    expect(tracker.isExhausted("A", 0)).toBe(false);
+    await caller.call("s", "u", TOOL);
+    expect(keys).toEqual(["k0", "k1", "k0"]);
+  });
   it("503 registra saturado; respuesta sin functionCall registra validación; el error de red registra error", async () => {
     const { caller, rec } = mk([http(503, "high demand"), text(), ok({ e: 5 })]);
     await caller.call("s", "u", TOOL);

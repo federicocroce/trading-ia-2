@@ -138,6 +138,7 @@ export class GeminiToolCaller {
       log: this.log,
       ...(this.now ? { now: this.now } : {}),
       ...(this.sleep ? { sleep: this.sleep } : {}),
+      scope: "busqueda",
       attempt: (m, key, k) => this.generateGrounded(m, key, k, system, user, meta, opts.maxOutputTokens ?? this.maxOutputTokens, opts.thinkingBudget, opts.requireText),
     });
     this.log(`[gemini] ${model} key#${keyIndex + 1} ok con búsqueda (${result.usage}; ${result.queries.length} búsquedas, ${result.sources.length} fuentes)`);
@@ -205,7 +206,9 @@ export class GeminiToolCaller {
     if (!res.ok) {
       const message = `HTTP ${res.status} ${data.error?.status ?? ""} ${data.error?.message ?? ""}`.trim();
       const q = res.status === 429 ? parseQuotaDetails(data.error?.details, message) : {};
-      const result: UsageResult = res.status === 429 ? (q.quotaKind === "rpm" ? "rpm" : "rpd") : res.status === 503 || res.status === 502 ? "saturado" : "error";
+      // Un 429 sin detalle no es "cuota diaria": el 15/9 eran búsquedas en 3.x, que el plan gratis no tiene, y la
+      // pantalla de Uso decía "agotada hoy" con dos llamadas en el día.
+      const result: UsageResult = res.status === 429 ? (q.quotaKind === "rpm" ? "rpm" : q.quotaKind === "rpd" ? "rpd" : "limite") : res.status === 503 || res.status === 502 ? "saturado" : "error";
       this.recorder.record({ ...row, status: res.status, result, ms: now() - t0 });
       throw new GeminiHttpError(message, res.status, q.quotaKind, q.retryDelayMs);
     }

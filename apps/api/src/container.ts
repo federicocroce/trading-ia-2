@@ -50,6 +50,8 @@ export interface Container {
   controlar?: () => Promise<import("@thesis/core").PlanControles | null>;
   /** Reintentos de la revisión antes de comprar (ver `revisiones.ts`). */
   revisiones?: import("./revisiones.js").EstadoRevisiones;
+  /** Reintentos de la verificación web de lo que el plan compraría (ver `verificaciones.ts`). */
+  verificaciones?: import("./verificaciones.js").EstadoVerificaciones;
   /** Página por ticker (etapa 2b): agregador + gráfico intradiario en vivo. */
   tickerDeps: TickerDeps & { chart: { bars(symbol: string, range: string, interval: string): Promise<import("@thesis/core").ChartBar[]> } };
   marketData: MarketData;

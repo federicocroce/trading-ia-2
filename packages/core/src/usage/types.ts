@@ -9,11 +9,12 @@ export type UsageSource = "gemini" | "finnhub" | "alpaca" | "sec" | "yahoo" | "o
  * - ok: respondió y se pudo usar.
  * - rpm: 429 por límite por minuto (se espera y se reintenta).
  * - rpd: 429 por cuota diaria (la clave queda fuera hasta el reinicio de Google).
+ * - limite: 429 sin decir qué límite (15/9: búsqueda en un modelo que el plan gratis no tiene). No es cuota diaria.
  * - saturado: 503 "alta demanda" u otro transitorio del proveedor.
  * - validacion: respondió, pero la salida no pasó la validación (llamada desperdiciada).
  * - error: cualquier otra falla (red, 4xx, parseo).
  */
-export type UsageResult = "ok" | "rpm" | "rpd" | "saturado" | "validacion" | "error";
+export type UsageResult = "ok" | "rpm" | "rpd" | "limite" | "saturado" | "validacion" | "error";
 
 export interface UsageCall {
   id: string;

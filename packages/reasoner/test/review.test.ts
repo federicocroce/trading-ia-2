@@ -33,6 +33,12 @@ describe("revisión antes de comprar (15/9)", () => {
     // Sin la línea no hay revisión: no se inventa un "sin objeciones".
     expect(() => parseReview("informe sin la línea")).toThrow();
   });
+  it("por defecto busca solo con gemini-2.5-flash (15/9)", async () => {
+    const saturado = () => new Response(JSON.stringify({ error: { code: 503, message: "high demand", status: "UNAVAILABLE" } }), { status: 503 });
+    const ff = fakeFetch([saturado()]);
+    await expect(new GeminiPreTradeReviewer({ keys: ["k0"], fetch: ff.fetch }).review({ symbol: "APH", name: null, today: "2026-09-15", verification: null, line: { kind: "comprar", close: 1, stop: 1 } })).rejects.toThrow();
+    expect(ff.calls.map((c) => c.model)).toEqual(["gemini-2.5-flash"]);
+  });
   it("GFI el 14/9: con búsqueda de Google, devuelve la objeción con su fuente", async () => {
     const ff = fakeFetch([grounded("REVISIÓN: OBJECIÓN — la licencia de Tarkwa vence en abril de 2027 y la empresa dice que un mal resultado tendría 'material and adverse impact'.\n1. ...")]);
     const r = await new GeminiPreTradeReviewer({ keys: ["k0"], models: ["A"], reviewModels: ["A"], fetch: ff.fetch }).review({ symbol: "GFI", name: "Gold Fields", today: "2026-09-15", verification: null, line: { kind: "comprar", close: 43.09, stop: 38 } });

@@ -9,8 +9,8 @@ const SOURCES = ["gemini", "finnhub", "alpaca", "sec", "yahoo", "otro"] as const
 /** Paleta categórica en orden fijo (slots 1–6, validada en claro y oscuro con el validador de dataviz). */
 const LIGHT: Record<string, string> = { gemini: "#2a78d6", finnhub: "#eb6834", alpaca: "#1baf7a", sec: "#eda100", yahoo: "#e87ba4", otro: "#008300" };
 const DARK: Record<string, string> = { gemini: "#3987e5", finnhub: "#d95926", alpaca: "#199e70", sec: "#c98500", yahoo: "#d55181", otro: "#008300" };
-const RESULTS = ["ok", "rpm", "rpd", "saturado", "validacion", "error"] as const;
-const RESULT_LABEL: Record<string, string> = { ok: "ok", rpm: "429 por minuto", rpd: "429 por día", saturado: "503 saturado", validacion: "no validó", error: "error" };
+const RESULTS = ["ok", "rpm", "rpd", "limite", "saturado", "validacion", "error"] as const;
+const RESULT_LABEL: Record<string, string> = { ok: "ok", rpm: "429 por minuto", rpd: "429 por día", limite: "429 sin detalle", saturado: "503 saturado", validacion: "no validó", error: "error" };
 
 const n = (v: number) => v.toLocaleString("es-AR");
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v)}%`);

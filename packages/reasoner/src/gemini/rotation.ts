@@ -129,6 +129,11 @@ export interface RotationOptions<T, M extends string> {
   now?: () => number;
   /** Espera ante un 429 por minuto. Inyectable para testear. */
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Alcance del registro de agotados (15/9). Las búsquedas usan el suyo: con claves gratis los 3.x no tienen búsqueda
+   * de Google, y su 429 dejaba al modelo fuera hasta la medianoche del Pacífico también para las llamadas comunes.
+   */
+  scope?: string;
 }
 
 /** Recorre modelo+key hasta que uno responda. Marca cuota/muerto; el 429 por minuto espera y reintenta; todo lo demás pasa al siguiente. */
@@ -139,8 +144,9 @@ export async function withRotation<T, M extends string>(o: RotationOptions<T, M>
   let lastError: Error | null = null;
   let skipped = 0;
   const retryableByModel = new Map<string, number>();
+  const tk = (m: string) => (o.scope ? `${o.scope}:${m}` : m);
   for (const { model, keyIndex } of attemptOrder(o.models, o.keys.length)) {
-    if (o.tracker.isExhausted(model, keyIndex)) {
+    if (o.tracker.isExhausted(tk(model), keyIndex)) {
       skipped++;
       continue;
     }
@@ -161,14 +167,14 @@ export async function withRotation<T, M extends string>(o: RotationOptions<T, M>
           await sleep(wait);
           continue;
         }
-        if (kind === "muerto") o.tracker.markExhausted(model, keyIndex, new Date(now() + MUERTO_MS));
-        else if (kind === "quota") o.tracker.markExhausted(model, keyIndex, dailyResetAt(new Date(now())));
+        if (kind === "muerto") o.tracker.markExhausted(tk(model), keyIndex, new Date(now() + MUERTO_MS));
+        else if (kind === "quota") o.tracker.markExhausted(tk(model), keyIndex, dailyResetAt(new Date(now())));
         else if (kind === "retryable") {
           const n = (retryableByModel.get(model) ?? 0) + 1;
           retryableByModel.set(model, n);
           if (n === o.keys.length) {
             log(`[gemini] ${model} saturado con todas las keys: pausa ${RETRYABLE_COOLDOWN_MS / 60_000} min`);
-            for (let k = 0; k < o.keys.length; k++) o.tracker.markExhausted(model, k, new Date(now() + RETRYABLE_COOLDOWN_MS));
+            for (let k = 0; k < o.keys.length; k++) o.tracker.markExhausted(tk(model), k, new Date(now() + RETRYABLE_COOLDOWN_MS));
           }
         }
         lastError = err;

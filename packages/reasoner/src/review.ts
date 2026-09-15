@@ -53,7 +53,8 @@ export class GeminiPreTradeReviewer implements PreTradeReviewer {
   constructor(opts: GeminiReviewerOptions) {
     const { reviewModels, ...rest } = opts;
     this.caller = new GeminiToolCaller({ maxOutputTokens: 4000, ...rest });
-    this.models = reviewModels ?? ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-3.8-flash"];
+    // Solo 2.5-flash: con claves gratis es el único modelo con búsqueda de Google (ver `GeminiCandidateVerifier`).
+    this.models = reviewModels ?? ["gemini-2.5-flash"];
   }
   async review(input: PreTradeReviewInput): Promise<PreTradeReviewResult> {
     const r = await this.caller.callGrounded(REVIEW_SYSTEM, buildReviewMessage(input), { purpose: "revision_compra", symbol: input.symbol }, { models: this.models, maxOutputTokens: 8_000, thinkingBudget: 1024, requireText: REVISION_RE });

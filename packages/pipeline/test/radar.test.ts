@@ -317,6 +317,29 @@ describe("plan: revisión antes de comprar (15/9)", () => {
   });
 });
 
+describe("refresco parcial (15/9): solo los símbolos recién verificados", () => {
+  it("con la corrida del día hecha, refresca solo esos y el resto sigue en el Radar", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const antes = await store.latestCandidates();
+    const uno = antes.find((c) => c.kind === "stock")!.symbol;
+    const r = await refreshRadar(d, { today: TODAY, portfolioUsd: 100_000, only: [uno] });
+    expect(r.refreshed).toBe(1);
+    expect((await store.latestCandidates()).map((c) => c.symbol).sort()).toEqual(antes.map((c) => c.symbol).sort());
+  });
+  it("si la última corrida no es de hoy, no toca nada: una fila con fecha nueva dejaría sola a esa en el Radar", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const antes = await store.latestCandidates();
+    const r = await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000, only: [antes[0]!.symbol] });
+    expect(r.refreshed).toBe(0);
+    expect((await store.latestCandidates()).length).toBe(antes.length);
+    expect((await store.latestCandidates()).every((c) => c.candidateDate === TODAY)).toBe(true);
+  });
+});
+
 describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
   it("TSM del 13/9: stop y objetivo salen de la misma fila del Radar, no el stop de un lado y el objetivo del otro", async () => {
     const { store, d } = deps();

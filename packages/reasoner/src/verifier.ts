@@ -146,7 +146,9 @@ export class GeminiCandidateVerifier implements CandidateVerifier {
   constructor(opts: GeminiVerifierOptions) {
     const { researchModels, ...rest } = opts;
     this.caller = new GeminiToolCaller({ maxOutputTokens: 4000, ...rest });
-    this.researchModels = researchModels ?? ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-3.8-flash"];
+    // Solo 2.5-flash (15/9): con claves gratis es el único modelo con búsqueda de Google (500 por día por proyecto);
+    // en los 3.x la búsqueda "Not available" y cada intento era un 429 seguro.
+    this.researchModels = researchModels ?? ["gemini-2.5-flash"];
   }
   async verify(input: VerifierInput): Promise<VerifierResult> {
     // Presupuesto amplio y pensamiento acotado: el informe de 600 palabras nunca tiene que salir cortado (10/9: 2.5 Flash gastaba 3.800 tokens pensando y dejaba 450 caracteres de informe).

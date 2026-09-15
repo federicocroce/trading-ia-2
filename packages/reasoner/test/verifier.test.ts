@@ -125,6 +125,16 @@ describe("verificador que falla cerrado (15/9)", () => {
   });
 });
 
+describe("búsqueda solo en 2.5-flash (15/9)", () => {
+  it("por defecto el verificador busca solo con gemini-2.5-flash: con claves gratis los 3.x no tienen búsqueda", async () => {
+    const saturado = () => new Response(JSON.stringify({ error: { code: 503, message: "high demand", status: "UNAVAILABLE" } }), { status: 503 });
+    const ff = fakeFetch([saturado(), saturado()]);
+    const v = new GeminiCandidateVerifier({ keys: ["k0", "k1"], fetch: ff.fetch });
+    await expect(v.verify({ symbol: "APH", name: null, today: "2026-09-15" })).rejects.toThrow();
+    expect(ff.calls.map((c) => c.model)).toEqual(["gemini-2.5-flash", "gemini-2.5-flash"]);
+  });
+});
+
 describe("GeminiCandidateVerifier: dos llamadas (investigar con búsqueda, estructurar)", () => {
   it("investiga con google_search en el modelo de investigación, estructura con la tool, y registra ambas con su propósito", async () => {
     const ff = fakeFetch([grounded("DICTAMEN: APTO — superó y subió guía.\n## Informe NVDA\nResultados del 26/8…\nFuentes: sec.gov, cnbc.com\nFALTANTES: ninguno"), call(args)]);

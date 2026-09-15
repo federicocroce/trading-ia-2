@@ -22,6 +22,8 @@ export interface UsageGeminiRow {
   ok: number;
   rpm: number;
   rpd: number;
+  /** 429 sin decir qué límite: no es cuota diaria (15/9). */
+  limite: number;
   saturado: number;
   validacion: number;
   error: number;
@@ -148,7 +150,7 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
       const gk = `${model}#${keyIndex}`;
       let g = gem.get(gk);
       if (!g) {
-        g = { model, keyIndex, calls: 0, ok: 0, rpm: 0, rpd: 0, saturado: 0, validacion: 0, error: 0, tokensIn: 0, tokensOut: 0, tokensThink: 0, costUsd: 0, limitPerDay: limits.gemini.perDay, pctDay: null };
+        g = { model, keyIndex, calls: 0, ok: 0, rpm: 0, rpd: 0, limite: 0, saturado: 0, validacion: 0, error: 0, tokensIn: 0, tokensOut: 0, tokensThink: 0, costUsd: 0, limitPerDay: limits.gemini.perDay, pctDay: null };
         gem.set(gk, g);
       }
       g.calls++;
@@ -181,6 +183,7 @@ export function summarizeUsage(calls: UsageCall[], opts: SummarizeOptions): Usag
       // la evidencia manda: un 429 diario en el día = agotada (100%).
       g.pctDay = g.rpd > 0 ? 100 : pct(g.calls, g.limitPerDay);
       if (g.rpd > 0) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: cuota diaria agotada (429 por día) tras ${g.calls} llamadas`);
+      if (g.limite > 0) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.limite} rechazos 429 sin detalle (no es la cuota diaria; con claves gratis, por ejemplo, los 3.x no tienen búsqueda)`);
       else if (g.pctDay !== null && g.pctDay >= warnAt) warnings.push(`gemini ${g.model} clave ${g.keyIndex}: ${g.calls} llamadas hoy (${g.pctDay}% de ${g.limitPerDay})`);
       return g;
     })

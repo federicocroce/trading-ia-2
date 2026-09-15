@@ -47,9 +47,12 @@ async function evaluateLifecycle(store: RadarDeps["store"], item: WatchItem, clo
   await store.updateWatchEval(item.symbol, { status: r.status, lastPrice: close, lastReturn: r.returnPct, lastEvaluatedAt: now, resolvedAt: resolved ? now : null, resolutionPrice: resolved ? close : null, resolutionReturn: resolved ? r.returnPct : null });
 }
 
-export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null }): Promise<{ symbols: number; rows: number; errors: Array<{ symbol: string; error: string }> }> {
+export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null; only?: string[] }): Promise<{ symbols: number; rows: number; errors: Array<{ symbol: string; error: string }> }> {
   const { store, policy } = deps;
-  const items = await store.watchlist();
+  // Refresco parcial (15/9): como en `refreshRadar`, nunca cambia la fecha de la familia ni borra a las demás.
+  const soloEstos = opts.only ? new Set(opts.only.map((s) => s.toUpperCase())) : null;
+  if (soloEstos && (await store.latestCandidates()).some((r) => r.kind === "watch" && r.candidateDate !== opts.today)) return { symbols: 0, rows: 0, errors: [] };
+  const items = (await store.watchlist()).filter((i) => !soloEstos || soloEstos.has(i.symbol.toUpperCase()));
   if (!items.length) return { symbols: 0, rows: 0, errors: [] };
   const errors: Array<{ symbol: string; error: string }> = [];
 
@@ -125,8 +128,9 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
   }
   if (rows.length) {
     await store.upsertCandidates(rows);
-    // Un símbolo que sacaste de la lista no puede seguir apareciendo con la fila de la corrida de la mañana.
-    await pruneFamilias(store, opts.today, rows);
+    // Un símbolo que sacaste de la lista no puede seguir apareciendo con la fila de la corrida de la mañana. En un
+    // refresco parcial no se poda: las filas que no se tocaron siguen siendo de la lista.
+    if (!soloEstos) await pruneFamilias(store, opts.today, rows);
   }
   return { symbols: items.length, rows: rows.length, errors };
 }

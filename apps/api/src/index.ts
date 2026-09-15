@@ -8,6 +8,7 @@ import { runCatchUp } from "./catchup.js";
 import { scheduleJobs } from "./jobs.js";
 import { asegurarControles, pedirEnProceso } from "./controles.js";
 import { asegurarRevisiones } from "./revisiones.js";
+import { asegurarVerificaciones } from "./verificaciones.js";
 import { PriceHub } from "./prices-hub.js";
 
 const cfg = await loadConfig();
@@ -20,8 +21,10 @@ const app = buildApp(c);
 // minuto se asegura que el plan vigente los tenga, así cubre también lo que rearma la CLI u otra sesión.
 const pedir = pedirEnProceso(app);
 c.controlar = () => asegurarControles(c, pedir);
-// Antes de los controles, la revisión antes de comprar de lo que el plan dejó pendiente (se rearma si cambia algo).
+// Cada minuto, en orden: reintentar la verificación web de lo que el plan compraría (Google suele saturarse un rato),
+// la revisión antes de comprar de lo que quedó pendiente, y los controles sobre la versión vigente del plan.
 const vigilar = async () => {
+  await asegurarVerificaciones(c).catch((e: unknown) => console.error("[verificación] falló", e));
   await asegurarRevisiones(c).catch((e: unknown) => console.error("[revisión] falló", e));
   await c.controlar?.().catch((e: unknown) => console.error("[controles] fallaron", e));
 };
