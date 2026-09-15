@@ -1,6 +1,6 @@
 import type { Candle, CandidateRow, Fundamentals, VerificationSummary, WatchItem } from "@thesis/core";
 import { computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
-import { pruneFamilias, tagSymbol, type RadarDeps } from "./radar.js";
+import { pruneFamilias, tagSymbol, universoDelRanking, type RadarDeps } from "./radar.js";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-verify.js";
 
@@ -11,7 +11,6 @@ import { VERIFY_PER_RUN_DEFAULT, verifyFor, type VerifyBudget } from "./radar-ve
  * de seguimiento. Lo que el ranking de hoy ya eligió conserva su fila del Radar (ver `refreshWatchlist`).
  */
 const HISTORY_DAYS = 400;
-const FRESH_DAYS = 14;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 160);
 
@@ -57,8 +56,9 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
   const errors: Array<{ symbol: string; error: string }> = [];
 
   // Rank contra pares con el universo fresco (puro, barato). Quien no está en el universo queda sin score.
-  const fresh = await store.freshFundamentals(FRESH_DAYS, opts.today);
-  const all = new Map(fresh.map((f) => [f.symbol, f]));
+  // El mismo universo que el ranking, con la frescura contada desde el barrido (15/9): contada desde hoy, a mitad de
+  // semana los pares se quedaban sin fundamentales y el rank de cada ticker seguido salía contra un grupo vacío.
+  const { all } = await universoDelRanking(deps, opts.today);
   const byRank = new Map(rankStocks(all, policy.weights).ranked.map((r) => [r.symbol, r]));
 
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
@@ -87,7 +87,8 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
         await evaluateLifecycle(store, item, close, opts.today);
         continue;
       }
-      const f = all.get(sym) ?? stubFundamentals(sym, close);
+      // Lo que está fuera del universo del barrido igual usa sus propias fundamentales guardadas (industria, métricas).
+      const f = all.get(sym) ?? (await store.fundamentals(sym).catch(() => null)) ?? stubFundamentals(sym, close);
       const prev = previous.find((p) => p.symbol === sym);
       const nth = prev ? (prev.candidateDate === opts.today ? prev.nthAppearance : prev.nthAppearance + 1) : 1;
       // Noticias y analistas, igual que una candidata del ranking. Faltaban: los 15 símbolos de seguimiento

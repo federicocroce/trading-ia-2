@@ -295,12 +295,23 @@ export interface RankSummary {
 }
 
 /** Fundamentals frescos, restringidos a lo aprobado en el último barrido (lo excluido después no rankea aunque siga fresco). */
-async function rankableFundamentals(deps: RadarDeps, today: string): Promise<Map<string, Fundamentals>> {
-  const fresh = await deps.store.freshFundamentals(FRESH_DAYS, today);
+/**
+ * El universo del ranking: lo que el último barrido dejó bien, con fundamentales frescas CONTADAS DESDE EL BARRIDO.
+ * El 15/9 se contaban desde hoy: las del barrido del 7/9 (el del 13/9 no las volvió a pedir porque tenían 6 días)
+ * quedaron viejas a mitad de semana, y un ranking tomó 37 empresas en vez de 2.724: el Radar pasó de 38 acciones a 5.
+ */
+export async function universoDelRanking(deps: Pick<RadarDeps, "store">, today: string): Promise<{ all: Map<string, Fundamentals>; scanDate: string | null; scanOk: number }> {
   const scanDate = await deps.store.latestScanDate();
-  const ok = scanDate ? new Set(await deps.store.scanSymbols(scanDate, "finnhub_ok")) : null;
-  return new Map(fresh.filter((f) => !ok || ok.has(f.symbol)).map((f) => [f.symbol, f]));
+  const fresh = await deps.store.freshFundamentals(FRESH_DAYS, scanDate && scanDate < today ? scanDate : today);
+  const okList = scanDate ? await deps.store.scanSymbols(scanDate, "finnhub_ok") : null;
+  const ok = okList ? new Set(okList) : null;
+  return { all: new Map(fresh.filter((f) => !ok || ok.has(f.symbol)).map((f) => [f.symbol, f])), scanDate, scanOk: okList?.length ?? 0 };
 }
+async function rankableFundamentals(deps: RadarDeps, today: string): Promise<Map<string, Fundamentals>> {
+  return (await universoDelRanking(deps, today)).all;
+}
+/** Por debajo de esta fracción del barrido, el universo está roto (fundamentales viejas) y el ranking no pisa el Radar. */
+const UNIVERSO_MINIMO = 0.5;
 
 /** Escribe la ficha de un candidato y aplica sus efectos (degradar, temas). Devuelve null si el modelo falló. */
 async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: { flags: string[]; close: number; stop: number | null; target: number | null; riskScore: number }, ins: { buys: number; sells: number } | null, extra: { core?: CoreEarnings | null; quarters?: QuarterStatement[] | undefined; events?: CandidateEvent[] | undefined } = {}): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
@@ -377,7 +388,13 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   const log = deps.log ?? (() => {});
   const { store, policy } = deps;
   const held = await heldSymbols(store);
-  const all = await rankableFundamentals(deps, opts.today);
+  const { all, scanDate, scanOk } = await universoDelRanking(deps, opts.today);
+  // Con el universo roto no se rearma nada: una lista chica reemplazaría a la buena (15/9: 37 de 2.724, Radar de 38 a 5).
+  if (scanOk > 0 && all.size < scanOk * UNIVERSO_MINIMO) {
+    const error = `universo rankeable: ${all.size} de ${scanOk} del barrido del ${scanDate}; faltan fundamentales frescas, así que no se rearma el Radar`;
+    log(`[radar] ${error}`);
+    return { candidates: [], skipped: [], errors: [{ symbol: "*", error }] };
+  }
   // Dos pasadas (spec verificación §4): la primera con Finnhub elige a quién pedirle estados; la segunda rankea con la ganancia núcleo.
   const first = rankStocks(all, policy.weights).ranked.slice(0, policy.candidates.preselect);
   const cores = await withStatements(deps, all, first.flatMap((r) => [r.symbol, ...r.group]), opts.today);

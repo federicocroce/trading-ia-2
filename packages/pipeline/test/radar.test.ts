@@ -340,6 +340,36 @@ describe("refresco parcial (15/9): solo los símbolos recién verificados", () =
   });
 });
 
+describe("universo del ranking (15/9)", () => {
+  /*
+   * El 15/9 un ranking a mitad de semana tomó 37 empresas en vez de 2.724. Las fundamentales eran del barrido del 7/9
+   * (el del 13/9 no las volvió a pedir porque tenían 6 días) y el ranking exigía 7 días contados desde HOY. El Radar
+   * pasó de 38 acciones a 5, y el plan quedó todo en núcleo.
+   */
+  it("a mitad de semana, las fundamentales del último barrido siguen siendo el universo (la frescura se cuenta desde el barrido)", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-10", today: "2026-05-10" });
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 }); // 9 días después del barrido
+    expect(r.candidates.filter((c) => c.kind === "stock").length).toBeGreaterThan(2);
+    expect((await store.latestCandidates()).some((c) => c.kind === "stock")).toBe(true);
+  });
+  it("si el universo rankeable cae a menos de la mitad del barrido, el ranking no pisa el Radar y lo dice", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const antes = (await store.latestCandidates()).filter((c) => c.kind === "stock").map((c) => c.symbol).sort();
+    // Las fundamentales de casi todo el universo quedan viejas: el barrido dijo que estaban bien, pero no hay datos frescos.
+    for (const s of symbols.slice(2)) {
+      const f = (await store.fundamentals(s))!;
+      await store.saveFundamentals({ ...f, asOf: "2026-04-01" });
+    }
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    expect(r.candidates).toEqual([]);
+    expect(r.errors[0]?.error).toMatch(/universo rankeable: 2 de 12/);
+    expect((await store.latestCandidates()).filter((c) => c.kind === "stock").map((c) => c.symbol).sort()).toEqual(antes);
+  });
+});
+
 describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
   it("TSM del 13/9: stop y objetivo salen de la misma fila del Radar, no el stop de un lado y el objetivo del otro", async () => {
     const { store, d } = deps();
