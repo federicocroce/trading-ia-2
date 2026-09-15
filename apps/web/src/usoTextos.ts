@@ -27,13 +27,14 @@ export function cuotaDiaria(g: { rpd: number; exhausted: boolean; lastRpdAt: str
 }
 
 /**
- * Cuánto del día cubre el registro. Del 10 al 13/9 la tabla no registraba (empieza el 14/9 a las 00:33) y la
- * pestaña dibujaba esos días como cero llamadas: un hueco presentado como un resultado.
+ * Cuánto del día cubre el registro. Del 10 al 13/9 la tabla no tenía filas y la pestaña dibujaba esos días como cero
+ * llamadas: un hueco presentado como un resultado. El mismo 15/9, a las 17:15, la tabla se vació: no se dice "el
+ * registro empieza", se dice lo que hay, que es no tener llamadas guardadas antes de esa hora.
  */
 export function coberturaTexto(state: "completo" | "parcial" | "sin_registro", desde: string | null): string | null {
   if (state === "completo" || !desde) return null;
-  if (state === "sin_registro") return `sin registro: el registro de uso empieza el ${diaAR(desde)} a las ${horaAR(desde)}`;
-  return `registro desde las ${horaAR(desde)} (antes no se registraba)`;
+  if (state === "sin_registro") return `sin registro: no hay llamadas guardadas antes del ${diaAR(desde)} a las ${horaAR(desde)}`;
+  return `registro desde las ${horaAR(desde)}: antes de esa hora no hay llamadas guardadas`;
 }
 
 /** El día de la pantalla se corta a la medianoche de acá; la cuota de Gemini, a la de California (04:00 o 05:00 acá). */

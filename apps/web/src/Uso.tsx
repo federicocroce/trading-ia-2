@@ -51,7 +51,8 @@ function DailyChart({ days, colors, selected, onPick }: { days: UsageDay[]; colo
         ))}
         {days.map((d, i) => {
           const x = PAD.l + i * iw + (iw - bw) / 2;
-          // Día anterior al registro (10 al 13/9): no es cero, no hay datos. Se marca con un contorno punteado.
+          // Día sin llamadas guardadas (10 al 13/9, y lo anterior a las 17:15 del 15/9 cuando se vació la tabla): no es
+          // cero, no hay datos. Se marca con un contorno punteado.
           if (d.coverage === "sin_registro") {
             return (
               <g key={d.date} onMouseEnter={() => setHover({ i, x: x + bw / 2 })} onMouseLeave={() => setHover(null)}>
@@ -79,8 +80,8 @@ function DailyChart({ days, colors, selected, onPick }: { days: UsageDay[]; colo
       </svg>
       {hover && days[hover.i] && (
         <div className="card" style={{ position: "absolute", left: `${(hover.x / W) * 100}%`, top: 0, transform: "translateX(-50%)", padding: "6px 10px", fontSize: 12, pointerEvents: "none", whiteSpace: "nowrap" }}>
-          {days[hover.i]!.coverage === "sin_registro" ? <><b>{days[hover.i]!.date}</b> · sin registro: ese día no se registraban las llamadas</> : <>
-            <b>{days[hover.i]!.date}</b> · {n(days[hover.i]!.calls)} llamadas · {n(days[hover.i]!.errors)} con error · {usd(days[hover.i]!.costUsd)}{days[hover.i]!.coverage === "parcial" && " · el registro empezó ese día"}
+          {days[hover.i]!.coverage === "sin_registro" ? <><b>{days[hover.i]!.date}</b> · sin registro: no hay llamadas guardadas de ese día</> : <>
+            <b>{days[hover.i]!.date}</b> · {n(days[hover.i]!.calls)} llamadas · {n(days[hover.i]!.errors)} con error · {usd(days[hover.i]!.costUsd)}{days[hover.i]!.coverage === "parcial" && " · solo desde la primera llamada guardada de ese día"}
             {SOURCES.filter((s) => (days[hover.i]!.bySource[s] ?? 0) > 0).map((s) => <div key={s}><span style={{ color: colors[s] }}>●</span> {s} {n(days[hover.i]!.bySource[s] ?? 0)}</div>)}
           </>}
         </div>

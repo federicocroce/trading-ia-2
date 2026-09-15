@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KeyedRateLimiter, REGISTRO_USO_DESDE, RateLimiter, dailyUsage, estimateCostUsd, geminiQuotaResetWithin, recordingFetch, resultForStatus, sourceForHost, summarizeUsage, type UsageCall, type UsageCallInput, type UsageRecorder, type UsageResult } from "./index.js";
+import { KeyedRateLimiter, RateLimiter, dailyUsage, estimateCostUsd, geminiQuotaResetWithin, inicioDelRegistro, recordingFetch, resultForStatus, sourceForHost, summarizeUsage, type UsageCall, type UsageCallInput, type UsageRecorder, type UsageResult } from "./index.js";
 
 function memRecorder() {
   const rows: Array<UsageCallInput & { id: string }> = [];
@@ -196,8 +196,18 @@ describe("summarizeUsage", () => {
     const s = summarizeUsage([g1("12:00:00", "limite"), g1("12:01:00", "ok")], { date: "2026-09-15" });
     expect(s.gemini.rows[0]).toMatchObject({ calls: 2, ok: 1, limite: 1, rpd: 0, exhausted: false });
   });
-  it("C7: un día anterior al registro dice \"sin registro\", no cero (el registro empieza el 14/9 a las 00:33)", () => {
-    expect(REGISTRO_USO_DESDE).toBe("2026-09-14T03:33:52.384Z");
+  it("C7: el inicio del registro sale de los datos, no de una fecha fija (15/9: la tabla se vació a las 17:15 y una fecha fija habría mentido)", () => {
+    // Antes del vaciado: el 13/9 no tiene filas y la primera de la ventana es del 14/9 a las 00:33.
+    expect(inicioDelRegistro({ antes: [], ventana: [call({ at: "2026-09-14T03:33:52.384Z" }), call({ at: "2026-09-15T15:00:00.000Z" })], hasta: "2026-09-16T03:00:00.000Z" })).toBe("2026-09-14T03:33:52.384Z");
+    // Después: la tabla empieza el 15/9 a las 17:15 (hora de acá).
+    expect(inicioDelRegistro({ antes: [], ventana: [call({ at: "2026-09-15T20:15:26.357Z" })], hasta: "2026-09-16T03:00:00.000Z" })).toBe("2026-09-15T20:15:26.357Z");
+    // Con filas el día anterior a la ventana, el registro ya corría: no falta nada.
+    expect(inicioDelRegistro({ antes: [call({ at: "2026-09-13T12:00:00.000Z" })], ventana: [], hasta: "2026-09-16T03:00:00.000Z" })).toBeNull();
+    // Nada en la ventana ni antes: toda la ventana es sin registro.
+    expect(inicioDelRegistro({ antes: [], ventana: [], hasta: "2026-09-14T03:00:00.000Z" })).toBe("2026-09-14T03:00:00.000Z");
+  });
+  it("C7: un día anterior al registro dice \"sin registro\", no cero (el registro empezaba el 14/9 a las 00:33)", () => {
+    const REGISTRO_USO_DESDE = "2026-09-14T03:33:52.384Z";
     const ba = (iso: string) => new Date(new Date(iso).getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
     const dias = dailyUsage([call({ at: "2026-09-14T12:00:00.000Z" })], ["2026-09-12", "2026-09-13", "2026-09-14", "2026-09-15"], ba, { registroDesde: REGISTRO_USO_DESDE });
     expect(dias.map((d) => [d.date, d.coverage])).toEqual([["2026-09-12", "sin_registro"], ["2026-09-13", "sin_registro"], ["2026-09-14", "parcial"], ["2026-09-15", "completo"]]);

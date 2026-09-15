@@ -78,11 +78,19 @@ export interface UsageSummary {
 export type UsageCoverage = "completo" | "parcial" | "sin_registro";
 
 /**
- * Primera fila de `external_calls`: el 14/9 a las 00:33 de Buenos Aires. La tabla existe desde el 10/9, pero la
- * API que corría (la de launchd) no registraba hasta ese momento; del 10 al 13/9 no hay datos, y la pestaña Uso
- * los dibujaba como días con cero llamadas. Lo anterior a esta fecha, o al vencimiento de la retención, es "sin registro".
+ * Desde cuándo hay registro, visto desde una ventana de días (15/9). Del 10 al 13/9 la tabla no tenía filas (la API que
+ * corría no registraba hasta el 14/9 a las 00:33) y la pestaña Uso dibujaba esos días como cero llamadas. Ese mismo 15/9,
+ * a las 17:15, la tabla se vació entera: una fecha fija de inicio habría seguido mostrando ceros donde no hay datos.
+ *
+ * Por eso sale de los datos. `antes`: las filas del día anterior a la ventana. Si hay, el registro ya corría y no falta
+ * nada (null). Si no, el registro empieza en la primera fila de la ventana; sin ninguna, en `hasta` (toda la ventana
+ * queda sin registro). Mientras la API corre, el hub de precios registra un pedido por minuto: un día sin filas es un
+ * día sin datos, no un día sin uso.
  */
-export const REGISTRO_USO_DESDE = "2026-09-14T03:33:52.384Z";
+export function inicioDelRegistro(i: { antes: UsageCall[]; ventana: UsageCall[]; hasta: string }): string | null {
+  if (i.antes.length) return null;
+  return i.ventana.reduce<string | null>((m, c) => (m === null || c.at < m ? c.at : m), null) ?? i.hasta;
+}
 
 export interface SummarizeOptions {
   date: string;

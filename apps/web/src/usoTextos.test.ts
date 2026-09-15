@@ -35,9 +35,11 @@ describe("horaAR", () => {
 
 describe("coberturaTexto", () => {
   it("el 13/9 no hay registro: la pantalla lo dice en vez de mostrar cero llamadas", () => {
-    expect(coberturaTexto("sin_registro", "2026-09-14T03:33:52.384Z")).toBe("sin registro: el registro de uso empieza el 14/9 a las 00:33");
-    expect(coberturaTexto("parcial", "2026-09-14T03:33:52.384Z")).toBe("registro desde las 00:33 (antes no se registraba)");
+    expect(coberturaTexto("sin_registro", "2026-09-14T03:33:52.384Z")).toBe("sin registro: no hay llamadas guardadas antes del 14/9 a las 00:33");
     expect(coberturaTexto("completo", "2026-09-14T03:33:52.384Z")).toBeNull();
+  });
+  it("15/9: la tabla se vació a las 17:15 y quedó con filas desde esa hora; el día dice desde cuándo hay datos", () => {
+    expect(coberturaTexto("parcial", "2026-09-15T20:15:26.357Z")).toBe("registro desde las 17:15: antes de esa hora no hay llamadas guardadas");
   });
 });
 

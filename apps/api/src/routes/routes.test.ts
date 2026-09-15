@@ -213,4 +213,14 @@ describe("/usage: registro de uso de fuentes externas", () => {
     // La cuota gratis de Gemini se reinicia a la medianoche de California: 04:00 de Buenos Aires en septiembre.
     expect(s15.quotaResetAt).toBe("2026-09-15T07:00:00.000Z");
   });
+  it("C7 (15/9, 17:15): la tabla se vació y quedó con filas desde esa hora; la pantalla lo dice en vez de mostrar ceros a la mañana", async () => {
+    const c = container();
+    const app = buildApp(c);
+    const row = (at: string) => ({ id: String(Math.random()), at, source: "alpaca", step: "precios", purpose: null, symbol: null, endpoint: "e", model: null, keyIndex: null, status: 200, result: "ok", tokensIn: null, tokensOut: null, tokensThink: null, ms: 8 });
+    await c.store.insertCalls([row("2026-09-15T20:15:26.357Z"), row("2026-09-15T20:16:12.000Z")] as never);
+    const s15 = await (await app.request("/usage?date=2026-09-15")).json();
+    expect(s15.coverage).toEqual({ state: "parcial", from: "2026-09-15T20:15:26.357Z" });
+    const daily = await (await app.request("/usage/daily?days=2&date=2026-09-15")).json();
+    expect(daily.map((d: { date: string; coverage: string }) => [d.date, d.coverage])).toEqual([["2026-09-14", "sin_registro"], ["2026-09-15", "parcial"]]);
+  });
 });
