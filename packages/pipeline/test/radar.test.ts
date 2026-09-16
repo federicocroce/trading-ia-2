@@ -706,6 +706,9 @@ describe("explorarMercado", () => {
     expect(primera.verdict).toMatch(/COMPRAR|OBSERVAR/);
     expect(primera.stop).toBeLessThan(primera.close!);
     expect(primera.rankInGroup).not.toBeNull();
+    // El puesto en el ranking general explica por qué la app la ve o no: corta en `candidates.preselect`.
+    expect(m.filas.map((f) => f.posicionRanking)).toEqual([...m.filas.map((f) => f.posicionRanking)].sort((a, b) => (a ?? 1e9) - (b ?? 1e9)));
+    expect(primera.posicionRanking).toBeGreaterThan(0);
     // Cada exclusión con su motivo, la regla de la casa.
     expect(m.descartadas.every((x) => !!x.motivo)).toBe(true);
     // De solo lectura: el Radar sigue vacío (nadie corrió el ranking).

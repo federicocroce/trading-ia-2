@@ -16,6 +16,11 @@ export interface FilaMercado {
   symbol: string;
   /** Puntaje contra pares y posición en el grupo; null si el símbolo no está en el universo del barrido. */
   score: number | null;
+  /**
+   * Puesto en el ranking general por puntaje (1 = el mejor de 2.684). Es el número que explica por qué la app la ve o
+   * no: el Radar preselecciona `candidates.preselect` (150) y se queda con `candidates.top` (40).
+   */
+  posicionRanking: number | null;
   rankInGroup: number | null;
   groupSize: number | null;
   peerGroup: string[];
@@ -85,6 +90,7 @@ export async function explorarMercado(
   // Puntaje contra pares: puro y barato, sobre el universo entero.
   const { ranked, skipped } = rankStocks(all, policy.weights);
   const porSimbolo = new Map(ranked.map((r) => [r.symbol, r]));
+  const puesto = new Map(ranked.map((r, i) => [r.symbol, i + 1]));
   const pedidos = opts.symbols?.map((s) => s.toUpperCase());
   if (!pedidos) for (const s of skipped) descartadas.push({ symbol: s.symbol, etapa: "ranking", motivo: s.reason });
 
@@ -122,6 +128,7 @@ export async function explorarMercado(
     filas.push({
       symbol: sym,
       score: r?.score ?? null,
+      posicionRanking: puesto.get(sym) ?? null,
       rankInGroup: r?.rankInGroup ?? null,
       groupSize: r?.groupSize ?? null,
       peerGroup: r?.group ?? [],
