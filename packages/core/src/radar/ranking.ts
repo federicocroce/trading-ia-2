@@ -19,7 +19,13 @@ export interface Fundamentals {
   insiderBuys90d: number | null;
   insiderSells90d: number | null;
   analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null;
-  earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null;
+  /**
+   * `actual` y `estimate` son los números con los que el proveedor calculó `surprisePercent`. Se guardan desde el
+   * 16/9 porque sin ellos la fila afirmaba "el último resultado decepcionó" y no había con qué contrastarlo: SPNT
+   * marcaba −10,85% y en su comunicado había superado (0,67 operativa contra 0,65 de consenso), mientras que
+   * (0,58 contable − 0,65) / 0,65 = −10,77%. Opcionales: las corridas guardadas antes de esa fecha no los tienen.
+   */
+  earningsSurprises: Array<{ period: string; actual?: number | null; estimate?: number | null; surprisePercent: number | null }> | null;
   /** Métricas de Finnhub originales cuando `metrics` fue recalculado con la ganancia núcleo (spec verificación §4). */
   metricsRaw?: FinnhubMetrics | null;
   /** Fin del último trimestre usado; null = se intentó y no hay estados (IFRS, sin CIK, sin resultado operativo). */

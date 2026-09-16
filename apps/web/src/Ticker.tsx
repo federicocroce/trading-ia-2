@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, isHistorical, type Candidate, type TickerPage, type WatchItem } from "./api";
 import { PriceChart, type PeriodChange } from "./PriceChart";
 import { baseDelDia, distanciaAlStop, notaDelSeguimiento, relacionDeLaOrden, rotuloDelStop } from "./niveles";
+import { sorpresasTexto } from "./sorpresas";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { EntryLine } from "./Entry";
@@ -229,7 +230,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
       {t.fundamentals && (t.fundamentals.analyst || t.fundamentals.earningsSurprises?.length || t.fundamentals.insiderBuys90d !== null) && (
         <div className="card muted">
           {t.fundamentals.analyst && <span>Analistas ({t.fundamentals.analyst.period}): {t.fundamentals.analyst.strongBuy + t.fundamentals.analyst.buy} compran · {t.fundamentals.analyst.hold} mantienen · {t.fundamentals.analyst.sell + t.fundamentals.analyst.strongSell} venden. </span>}
-          {t.fundamentals.earningsSurprises?.length ? <span>Sorpresas de resultados: {t.fundamentals.earningsSurprises.map((s) => `${s.period.slice(0, 7)} ${pct(s.surprisePercent)}`).join(", ")}. </span> : null}
+          {sorpresasTexto(t.fundamentals.earningsSurprises) ? <span>{sorpresasTexto(t.fundamentals.earningsSurprises)} </span> : null}
           {t.fundamentals.insiderBuys90d !== null && <span>Insiders 90 días: {t.fundamentals.insiderBuys90d} compras, {t.fundamentals.insiderSells90d ?? 0} ventas.</span>}
         </div>
       )}

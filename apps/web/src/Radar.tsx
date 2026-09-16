@@ -9,6 +9,7 @@ import { EntryCell } from "./Entry";
 import { HELP, RadarHelpModal, Th } from "./RadarHelp";
 import { SymbolSearch } from "./SymbolSearch";
 import { Flags, countSalvedades } from "./flags";
+import { sorpresaTexto } from "./sorpresas";
 import { VerificationSections } from "./Verification";
 import { PeersTable } from "./Peers";
 
@@ -279,7 +280,7 @@ function CandRow({ c, plan, ten, open, onToggle, editing, onEdit, onSaved }: { c
                   <div className="muted mono" style={{ marginTop: 6 }}>
                     cap. {money(detail.fundamentals.mcapUsd)} · volumen {money(detail.fundamentals.dollarVolumeUsd)}/día · próximos resultados {detail.fundamentals.nextEarnings ?? "—"} · insiders 90d compras {detail.fundamentals.insiderBuys90d ?? "—"} / ventas {detail.fundamentals.insiderSells90d ?? "—"}
                     {detail.fundamentals.analyst && ` · analistas: ${detail.fundamentals.analyst.strongBuy + detail.fundamentals.analyst.buy} compran, ${detail.fundamentals.analyst.hold} mantienen, ${detail.fundamentals.analyst.sell + detail.fundamentals.analyst.strongSell} venden`}
-                    {detail.fundamentals.earningsSurprises?.length ? ` · sorpresas: ${detail.fundamentals.earningsSurprises.map((s) => `${s.period.slice(0, 7)} ${pct(s.surprisePercent)}`).join(", ")}` : ""}
+                    {detail.fundamentals.earningsSurprises?.length ? ` · sorpresas: ${detail.fundamentals.earningsSurprises.map(sorpresaTexto).join(", ")}` : ""}
                   </div>
                 )}
                 {/* Lo mismo que la ficha (15/9): si la verificación es vigente, la fila para leerla, y los comparables con lo que el ranking no usa. */}

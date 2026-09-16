@@ -53,7 +53,7 @@ describe("FinnhubFundamentals", () => {
     "https://finnhub.io/api/v1/stock/metric?symbol=NONE": { metric: {}, series: {} },
     "https://finnhub.io/api/v1/stock/peers?symbol=TSM": ["TSM", "2330.TW", "NVDA", "AMD"],
     "https://finnhub.io/api/v1/stock/recommendation?symbol=TSM": [{ symbol: "TSM", period: "2026-09-01", strongBuy: 12, buy: 29, hold: 2, sell: 0, strongSell: 0 }, { symbol: "TSM", period: "2026-08-01", strongBuy: 10, buy: 30, hold: 3, sell: 0, strongSell: 0 }],
-    "https://finnhub.io/api/v1/stock/earnings?symbol=TSM": [{ period: "2026-06-30", surprisePercent: 10.92 }, { period: "2026-03-31", surprisePercent: 4.44 }, { period: "2025-12-31", surprisePercent: null }, { period: "2025-09-30", surprisePercent: 1 }, { period: "2025-06-30", surprisePercent: 2 }],
+    "https://finnhub.io/api/v1/stock/earnings?symbol=TSM": [{ period: "2026-06-30", actual: 2.44, estimate: 2.2, surprisePercent: 10.92 }, { period: "2026-03-31", actual: 2.12, estimate: 2.03, surprisePercent: 4.44 }, { period: "2025-12-31", surprisePercent: null }, { period: "2025-09-30", actual: 1.01, estimate: 1, surprisePercent: 1 }, { period: "2025-06-30", surprisePercent: 2 }],
     "https://finnhub.io/api/v1/stock/insider-transactions?symbol=TSM": { data: [{ transactionCode: "P", transactionDate: "2026-08-03", change: 1000 }, { transactionCode: "S", transactionDate: "2026-07-01", change: -500 }, { transactionCode: "P", transactionDate: "2026-01-01", change: 100 }, { transactionCode: "A", transactionDate: "2026-08-20", change: 5000 }] },
     "https://finnhub.io/api/v1/calendar/earnings?from=2026-09-07&to=2027-01-05&symbol=TSM": { earningsCalendar: [{ date: "2026-10-16", symbol: "TSM" }, { date: "2027-01-15", symbol: "TSM" }] },
     "https://finnhub.io/api/v1/calendar/earnings?from=2026-09-07&to=2027-01-05&symbol=NONE": { earningsCalendar: [] },
@@ -69,6 +69,17 @@ describe("FinnhubFundamentals", () => {
   it("pares sin el propio símbolo", async () => expect(await f.peers("TSM")).toEqual(["2330.TW", "NVDA", "AMD"]));
   it("consenso: el período más reciente", async () => expect((await f.recommendation("TSM"))!.period).toBe("2026-09-01"));
   it("sorpresas: últimas 4", async () => expect((await f.earningsSurprises("TSM"))!.map((s) => s.period)).toEqual(["2026-06-30", "2026-03-31", "2025-12-31", "2025-09-30"]));
+  /**
+   * 16/9: la app guardaba sólo el porcentaje, así que "el último resultado decepcionó" no se podía contrastar con
+   * nada. SPNT marcaba −10,85% y en el comunicado había superado (0,67 operativa contra 0,65 de consenso); la cuenta
+   * (0,58 contable − 0,65) / 0,65 = −10,77% dice que el proveedor compara la contable contra un consenso operativo.
+   * Con los dos números guardados, la pantalla muestra contra qué se está midiendo.
+   */
+  it("sorpresas: guarda con qué números se calculó el porcentaje", async () => {
+    const s = (await f.earningsSurprises("TSM"))!;
+    expect(s[0]).toEqual({ period: "2026-06-30", actual: 2.44, estimate: 2.2, surprisePercent: 10.92 });
+    expect(s[2]).toEqual({ period: "2025-12-31", actual: null, estimate: null, surprisePercent: null });
+  });
   it("insiders: solo P y S dentro de la ventana", async () => expect(await f.insiders("TSM", 90, today)).toEqual({ buys: 1, sells: 1 }));
   it("próximos resultados: primera fecha ≥ hoy; null si no hay", async () => {
     expect(await f.nextEarnings("TSM", today)).toBe("2026-10-16");

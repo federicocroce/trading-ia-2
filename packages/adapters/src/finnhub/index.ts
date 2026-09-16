@@ -69,9 +69,10 @@ export class FinnhubFundamentals implements Profiles {
     return { strongBuy: latest.strongBuy, buy: latest.buy, hold: latest.hold, sell: latest.sell, strongSell: latest.strongSell, period: latest.period };
   }
   async earningsSurprises(symbol: string): Promise<Fundamentals["earningsSurprises"]> {
-    const r = await this.get<Array<{ period: string; surprisePercent: number | null }>>(`stock/earnings?symbol=${symbol.toUpperCase()}`);
+    const r = await this.get<Array<{ period: string; actual?: number | null; estimate?: number | null; surprisePercent: number | null }>>(`stock/earnings?symbol=${symbol.toUpperCase()}`);
     if (!Array.isArray(r) || !r.length) return null;
-    return [...r].sort((a, b) => b.period.localeCompare(a.period)).slice(0, 4).map((s) => ({ period: s.period, surprisePercent: s.surprisePercent ?? null }));
+    // Con qué números se calculó el porcentaje: sin ellos la fila afirmaba "decepcionó" y no había con qué comprobarlo.
+    return [...r].sort((a, b) => b.period.localeCompare(a.period)).slice(0, 4).map((s) => ({ period: s.period, actual: s.actual ?? null, estimate: s.estimate ?? null, surprisePercent: s.surprisePercent ?? null }));
   }
   /** Compras (P) y ventas (S) en mercado abierto dentro de la ventana. */
   async insiders(symbol: string, days: number, today: string): Promise<{ buys: number; sells: number }> {
