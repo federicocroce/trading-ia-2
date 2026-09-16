@@ -257,7 +257,7 @@ export async function scanUniverse(deps: RadarDeps, opts: { scanDate: string; to
 
 // ---------- candidatos ----------
 
-async function candlesFor(deps: RadarDeps, symbols: string[]): Promise<{ candles: Record<string, Candle[]>; errors: Array<{ symbol: string; error: string }> }> {
+export async function candlesFor(deps: RadarDeps, symbols: string[]): Promise<{ candles: Record<string, Candle[]>; errors: Array<{ symbol: string; error: string }> }> {
   const candles: Record<string, Candle[]> = {};
   const errors: Array<{ symbol: string; error: string }> = [];
   for (let i = 0; i < symbols.length; i += 10) {

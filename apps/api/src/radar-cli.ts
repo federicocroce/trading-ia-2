@@ -1,9 +1,10 @@
+import { writeFile } from "node:fs/promises";
 import { todayLocal } from "@thesis/core";
-import { buildContributionPlan, checkRun, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
+import { buildContributionPlan, checkRun, explorarMercado, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
 import { loadConfig } from "./config.js";
 import { buildContainer } from "./container.js";
 
-/** Uso: tsx src/radar-cli.ts scan | rank | refresh | plan | measure | argentina | consistencia */
+/** Uso: tsx src/radar-cli.ts scan | rank | refresh | plan | measure | argentina | consistencia | mercado */
 const cmd = process.argv[2];
 const cfg = await loadConfig();
 const c = buildContainer(cfg);
@@ -14,7 +15,7 @@ process.on("SIGINT", () => { stop = true; console.log("\n[radar] deteniendo al t
 const deps = { ...c.radarDeps, shouldStop: () => stop, onProgress: (p: { done: number; total: number; stage: string }) => console.log(`[radar] ${p.stage}: ${p.done}/${p.total}`) };
 
 // El registro de uso atribuye cada pedido al mismo paso que en "ponerme al día" (scan/rank → scan; refresh/measure → radar).
-const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera" };
+const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar" };
 let code = 0;
 await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   if (cmd === "scan") console.log(await scanUniverse(deps, { scanDate: today, today }));
@@ -42,8 +43,24 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       quedan--;
     }
   }
+  // mercado [--preselect N] [--top N] [SÍMBOLOS...]: el embudo del comando /mercado con las reglas de la app, de solo
+  // lectura sobre el Radar (guarda velas y estados, que son caché). Con símbolos, evalúa solo esos.
+  else if (cmd === "mercado") {
+    const args = process.argv.slice(3);
+    const num = (bandera: string) => { const i = args.indexOf(bandera); const v = i >= 0 ? Number(args[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : undefined; };
+    const symbols = args.filter((a, i) => /^[A-Z][A-Z0-9.-]{0,9}$/.test(a) && !(args[i - 1] ?? "").startsWith("--"));
+    const preselect = num("--preselect");
+    const top = num("--top");
+    const m = await explorarMercado(deps, { today, portfolioUsd, ...(preselect ? { preselect } : {}), ...(top ? { top } : {}), ...(symbols.length ? { symbols } : {}), ...(args.includes("--sin-estados") ? { conEstados: false } : {}) });
+    // El log del ranking va por la salida estándar, así que el JSON entero se guarda aparte: `--salida <archivo>`.
+    const i = args.indexOf("--salida");
+    const salida = i >= 0 ? args[i + 1] : undefined;
+    if (salida) await writeFile(salida, JSON.stringify(m, null, 2), "utf8");
+    else console.log(JSON.stringify(m, null, 2));
+    console.error(`[mercado] universo ${m.universo.conFundamentales} de ${m.universo.barrido} del barrido · rankeadas ${m.rankeadas} · preseleccionadas ${m.preseleccionadas} · con velas ${m.conVelas} · pasan ${m.filas.length} · descartadas ${m.descartadas.length}`);
+  }
   else if (cmd === "argentina") { const r = await refreshArgentina(c.argentinaDeps, { today }); console.log(JSON.stringify({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors }, null, 2)); }
-  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | verificar-cartera [n]"); code = 1; }
+  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--salida archivo] [SÍMBOLOS...]"); code = 1; }
 });
 // Lo encolado por el registro de uso se escribe antes de salir: process.exit no espera al volcado.
 await c.usage?.flush();

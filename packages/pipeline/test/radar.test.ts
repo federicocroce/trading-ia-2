@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { computeTrailingStop, coreEarnings, entryStop, verificationOrder, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
-import { MemoryStore, applyTaxonomy, buildContributionPlan, measureRadar, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
+import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
   weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 },
@@ -686,3 +686,58 @@ describe("rankRadar y refreshRadar con noticias", () => {
     expect(sa).toBeDefined();
   });
 });
+
+/**
+ * `/mercado` (16/9): el mismo embudo de la app sobre TODO el universo, no sobre las 40 que muestra el Radar, y de solo
+ * lectura: no pisa el Radar ni el plan, así se puede correr con el mercado abierto. Las reglas son las mismas funciones
+ * del núcleo (puntaje contra pares, filtro técnico, niveles): una sola vara, o serían dos apps diciendo cosas distintas.
+ */
+describe("explorarMercado", () => {
+  it("recorre el universo entero con las reglas de la app, dice por qué cae cada una y no toca el Radar", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const m = await explorarMercado(d, { today: TODAY, portfolioUsd: 100_000, preselect: 12, top: 4 });
+    expect(m.universo.conFundamentales).toBe(12);
+    expect(m.filas.length).toBeGreaterThan(0);
+    expect(m.filas.length).toBeLessThanOrEqual(4);
+    // Ordenadas por puntaje contra pares, con sus niveles y sin inventar nada.
+    expect(m.filas.map((f) => f.score)).toEqual([...m.filas.map((f) => f.score)].sort((a, b) => (b ?? -Infinity) - (a ?? -Infinity)));
+    const primera = m.filas[0]!;
+    expect(primera.verdict).toMatch(/COMPRAR|OBSERVAR/);
+    expect(primera.stop).toBeLessThan(primera.close!);
+    expect(primera.rankInGroup).not.toBeNull();
+    // Cada exclusión con su motivo, la regla de la casa.
+    expect(m.descartadas.every((x) => !!x.motivo)).toBe(true);
+    // De solo lectura: el Radar sigue vacío (nadie corrió el ranking).
+    expect(await store.latestCandidates()).toEqual([]);
+    expect(await store.latestPlan()).toBeNull();
+  });
+
+  it("la pasada ancha puede ir sin estados de la SEC: miles de pedidos para elegir 600 no se justifican", async () => {
+    const pedidos: string[] = [];
+    const statements = { quarters: async (sym: string) => { pedidos.push(sym); return null; } };
+    const { d } = deps({ statements });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await explorarMercado(d, { today: TODAY, portfolioUsd: 100_000, preselect: 12, conEstados: false });
+    expect(pedidos).toEqual([]);
+    // Con estados (la pasada angosta), sí los pide.
+    await explorarMercado(d, { today: TODAY, portfolioUsd: 100_000, symbols: ["SA"] });
+    expect(pedidos.length).toBeGreaterThan(0);
+  });
+
+  it("evalúa símbolos sueltos con las mismas reglas, incluso fuera del universo, y avisa del que no tiene datos", async () => {
+    const base = deps();
+    // ZZZ no existe para la fuente de precios, como cualquier símbolo mal escrito que traiga una búsqueda.
+    const { store, d } = deps({ history: { candles: async (sym: string) => { if (sym === "ZZZ") throw new Error("sin datos"); return base.d.history.candles(sym, 260); } }, store: base.store });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const m = await explorarMercado(d, { today: TODAY, portfolioUsd: 100_000, symbols: ["SA", "ZZZ"] });
+    const sa = m.filas.find((f) => f.symbol === "SA");
+    if (!sa) expect.fail(`SA tendría que estar: ${JSON.stringify(m.descartadas)}`);
+    expect(sa.entryHigh).toBeGreaterThan(0);
+    expect(sa.sizeUsd).not.toBeNull();
+    // ZZZ no existe para las fuentes: queda descartada con el motivo, no se inventa una fila.
+    expect(m.descartadas.some((x) => x.symbol === "ZZZ" && /sin velas|sin datos/.test(x.motivo))).toBe(true);
+    expect(await store.latestCandidates()).toEqual([]);
+  });
+});
+
