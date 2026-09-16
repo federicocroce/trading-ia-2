@@ -1,6 +1,6 @@
 ---
 name: mercado
-description: Propone tickers recorriendo TODO el mercado, no las 40 filas del Radar. Embudo con las reglas de la app sobre el universo entero, más búsqueda en internet para lo que la app no ve (temas, resultados, riesgos), y análisis profundo de los finalistas. Usar cuando el dueño escribe /mercado o pide ideas más allá del Radar.
+description: Propone tickers recorriendo TODO el mercado, no las 40 filas del Radar. Embudo con las reglas de la app sobre el universo entero, más búsqueda en internet para lo que la app no ve (temas, resultados, riesgos), y análisis profundo de los finalistas. NO modifica nada: es un informe en paralelo, y cada diferencia con la app se vuelve un cambio propuesto para que la app llegue sola al mismo resultado. Usar cuando el dueño escribe /mercado o pide ideas más allá del Radar.
 ---
 
 # /mercado — el embudo del mercado entero
@@ -24,8 +24,10 @@ parte de los números; la búsqueda, la parte de los hechos.
    búsqueda también va escrito, con su razón.
 4. **Sin fuente no se afirma.** Cada hecho del informe lleva enlace y fecha. Lo que no se pudo verificar se escribe como
    "no verificado" y no entra en la tesis.
-5. **No se toca el Radar ni el plan.** `mercado` es de solo lectura sobre el Radar (guarda velas y estados, que son
-   caché). Nunca correr `rank` ni `refresh` para esto, y menos con el mercado abierto.
+5. **No se modifica nada.** El comando no escribe ni el Radar, ni el plan, ni la lista de seguimiento, ni siquiera
+   caché (16/9, el dueño: "que no modifique nada, la idea es que la app llegue hasta el output de ese reporte,
+   idéntico"). Nunca correr `rank` ni `refresh` para esto, ni dar de alta símbolos en seguimiento. Si una corrida
+   necesita la caché para ser más rápida, se pide con `--guardar` y se avisa.
 6. **Lo que ya tenés no es una idea nueva.** El comando lo marca (`enCartera`): se mide contra tu posición, no como
    compra nueva. Lo que ya está en el Radar (`enElRadar`) tampoco es un hallazgo: decilo.
 7. **La cuota de Gemini no se toca.** Las búsquedas de este comando las hacés vos con tu buscador. Los 20 pedidos
@@ -46,6 +48,8 @@ La app ya calcula el régimen de tasas: mirá `regime` en `GET /radar/top` antes
 ```bash
 pnpm --filter @thesis/api exec tsx src/radar-cli.ts mercado --preselect 600 --sin-estados --top 120 --salida /tmp/mercado-ancho.json
 ```
+
+No escribe nada: ni el Radar, ni el plan, ni caché.
 
 Devuelve, con las reglas de la app: universo, cuántas rankearon, cuántas pasaron el filtro técnico, las que quedan
 ordenadas por puntaje contra pares (con franja, stop, objetivo, tamaño, riesgo y momento de entrada) y **cada descarte
@@ -108,20 +112,39 @@ Para cada finalista, del JSON del comando: franja de compra, stop, objetivo, "no
 entrada (`en_zona`, `retroceso`, `esperar_retroceso` con orden limitada, `esperar_confirmacion` que es comprar solo si
 cierra arriba del nivel). Esos son los números que van al informe.
 
-### Paso 7 — la salida
+### Paso 7 — la salida: un informe, y nada más
 
-1. **Informe** en `docs/mercado/<fecha>.md`: la foto del mercado, el embudo con sus números (cuántas entraron y
-   salieron en cada etapa), los finalistas con tesis, riesgo principal, niveles y momento de entrada, y la lista de lo
-   descartado con su motivo. Corto y sin adornos.
-2. **A seguimiento**: agregá los finalistas que valgan la pena con
-   `curl -s -X POST localhost:3002/radar/watchlist -H 'Content-Type: application/json' -d '{"symbol":"XXX","note":"/mercado <fecha>: <tesis en una línea>"}'`.
-   Desde ahí la app los evalúa todos los días con las mismas reglas, los verifica en la web y el plan puede tomar uno
-   como línea de seguimiento.
-3. **Decile al dueño qué va a pasar**: el plan se rearma solo; una de seguimiento puede entrar mañana con su monto.
+**Informe** en `docs/mercado/<fecha>.md`, con:
+
+1. la foto del mercado;
+2. el embudo con sus números (cuántas entraron y salieron en cada etapa, y por qué);
+3. los finalistas: tesis en tres líneas, riesgo principal, niveles y momento de entrada (los de la app), cada hecho con
+   su fuente y su fecha;
+4. lo descartado con su motivo;
+5. **"lo que la app no ve"**: para cada finalista que el Radar no muestra, POR QUÉ no lo muestra. Las causas posibles
+   son pocas y concretas: quedó fuera del universo del barrido, no tiene fundamentales frescas, cayó en la preselección
+   de 150 por puntaje, una regla lo excluye (media de 200, no perseguir, resultados cerca, subió más de 100%), o la app
+   no mira ese dato (un hecho que solo aparece en una noticia).
+
+### Paso 8 — cerrar el círculo: que la app llegue sola
+
+El informe no es el producto final: el producto es que **la app llegue al mismo resultado sin el informe**. Por cada
+diferencia del punto 5, proponé el cambio concreto en la app y esperá la aprobación del dueño antes de tocar nada:
+
+- ¿el barrido no lo lista? → revisar el filtro del universo (`isEligibleAsset`, pre-filtro de precio y volumen);
+- ¿no tenía fundamentales frescas? → revisar la frescura y la cadencia del barrido;
+- ¿se cayó en el corte de 150? → discutir `candidates.preselect` y `candidates.top` con el dueño, con el número real
+  ("con 150 se pierden estas 8 que pasan todos los filtros");
+- ¿una regla lo excluyó y el hecho dice lo contrario? → eso es una regla a revisar, con su caso real y su test;
+- ¿la app no mira ese dato? → proponer de dónde sacarlo y en qué pantalla se vería.
+
+Cada cambio aprobado va con su test y su caso real, como cualquier otra regla ([[feedback-no-cambiar-sin-regla]]). Y en
+la corrida siguiente de `/mercado` se verifica que la app ahora sí lo encuentra: si el informe y el Radar dicen lo
+mismo, el comando dejó de hacer falta para ese caso, que es el objetivo.
 
 ## Cuánto cuesta
 
-- Paso 1: gratis y rápido (2-4 min con 600 símbolos, la mayoría de las velas ya están guardadas).
+- Paso 1: 2-6 min con 600 símbolos (sin caché baja las velas cada vez; con `--guardar` es más rápido pero deja rastro).
 - Pasos 2 y 5: entre 60 y 120 búsquedas en una corrida profunda; menos de 20 en una rápida.
 - La app no gasta cuota de Gemini acá; sí la gasta después, cuando verifica lo que quedó en seguimiento.
 

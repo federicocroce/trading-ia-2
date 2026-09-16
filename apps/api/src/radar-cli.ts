@@ -43,15 +43,15 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       quedan--;
     }
   }
-  // mercado [--preselect N] [--top N] [SÍMBOLOS...]: el embudo del comando /mercado con las reglas de la app, de solo
-  // lectura sobre el Radar (guarda velas y estados, que son caché). Con símbolos, evalúa solo esos.
+  // mercado [...] [SÍMBOLOS...]: el embudo del comando /mercado con las reglas de la app. NO escribe nada: ni el Radar,
+  // ni el plan, ni caché (con --guardar deja la caché de velas y estados). Con símbolos, evalúa solo esos.
   else if (cmd === "mercado") {
     const args = process.argv.slice(3);
     const num = (bandera: string) => { const i = args.indexOf(bandera); const v = i >= 0 ? Number(args[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : undefined; };
     const symbols = args.filter((a, i) => /^[A-Z][A-Z0-9.-]{0,9}$/.test(a) && !(args[i - 1] ?? "").startsWith("--"));
     const preselect = num("--preselect");
     const top = num("--top");
-    const m = await explorarMercado(deps, { today, portfolioUsd, ...(preselect ? { preselect } : {}), ...(top ? { top } : {}), ...(symbols.length ? { symbols } : {}), ...(args.includes("--sin-estados") ? { conEstados: false } : {}) });
+    const m = await explorarMercado(deps, { today, portfolioUsd, ...(preselect ? { preselect } : {}), ...(top ? { top } : {}), ...(symbols.length ? { symbols } : {}), ...(args.includes("--sin-estados") ? { conEstados: false } : {}), ...(args.includes("--guardar") ? { guardar: true } : {}) });
     // El log del ranking va por la salida estándar, así que el JSON entero se guarda aparte: `--salida <archivo>`.
     const i = args.indexOf("--salida");
     const salida = i >= 0 ? args[i + 1] : undefined;
@@ -60,7 +60,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
     console.error(`[mercado] universo ${m.universo.conFundamentales} de ${m.universo.barrido} del barrido · rankeadas ${m.rankeadas} · preseleccionadas ${m.preseleccionadas} · con velas ${m.conVelas} · pasan ${m.filas.length} · descartadas ${m.descartadas.length}`);
   }
   else if (cmd === "argentina") { const r = await refreshArgentina(c.argentinaDeps, { today }); console.log(JSON.stringify({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors }, null, 2)); }
-  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--salida archivo] [SÍMBOLOS...]"); code = 1; }
+  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...]"); code = 1; }
 });
 // Lo encolado por el registro de uso se escribe antes de salir: process.exit no espera al volcado.
 await c.usage?.flush();

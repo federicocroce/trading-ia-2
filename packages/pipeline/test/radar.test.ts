@@ -725,6 +725,26 @@ describe("explorarMercado", () => {
     expect(pedidos.length).toBeGreaterThan(0);
   });
 
+  it("por defecto no escribe una sola fila: ni velas, ni estados, ni fundamentales", async () => {
+    // 16/9, el dueño: "que no modifique nada, la idea es que la app llegue hasta el output de ese reporte, idéntico".
+    // El informe es en paralelo y no deja rastro; guardar la caché es explícito (`guardar: true`).
+    const escrituras: string[] = [];
+    const statements = { quarters: async () => null };
+    const { store, d } = deps({ statements });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const velasAntes = (await store.candles("SA", "2000-01-01")).length;
+    const fundAntes = JSON.stringify(await store.fundamentals("SA"));
+    const espiado = { ...d, store: new Proxy(store, { get(t, p, r) { if (p === "upsertCandles" || p === "saveStatements" || p === "saveFundamentals") { escrituras.push(String(p)); } const v = Reflect.get(t, p, r); return typeof v === "function" ? v.bind(t) : v; } }) } as unknown as RadarDeps;
+    const m = await explorarMercado(espiado, { today: TODAY, portfolioUsd: 100_000, preselect: 12 });
+    expect(m.filas.length).toBeGreaterThan(0);
+    expect(escrituras).toEqual([]);
+    expect((await store.candles("SA", "2000-01-01")).length).toBe(velasAntes);
+    expect(JSON.stringify(await store.fundamentals("SA"))).toBe(fundAntes);
+    // Con `guardar: true` sí deja la caché, que es lo único que puede querer guardarse.
+    await explorarMercado(espiado, { today: TODAY, portfolioUsd: 100_000, preselect: 12, guardar: true });
+    expect(escrituras.length).toBeGreaterThan(0);
+  });
+
   it("evalúa símbolos sueltos con las mismas reglas, incluso fuera del universo, y avisa del que no tiene datos", async () => {
     const base = deps();
     // ZZZ no existe para la fuente de precios, como cualquier símbolo mal escrito que traiga una búsqueda.

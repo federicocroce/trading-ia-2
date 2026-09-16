@@ -6,8 +6,8 @@ import { candlesFor, heldSymbols, universoDelRanking, withStatements, type Radar
  * que muestra el Radar.
  *
  * Por qué acá y no en `rankRadar`: el ranking escribe el Radar y rearma el plan, así que no se puede correr con el
- * mercado abierto ni con un universo más ancho sin cambiar lo que el dueño ve. Esto es de SOLO LECTURA sobre el Radar
- * (guarda velas y estados, que son caché) y devuelve el embudo entero con el motivo de cada caída.
+ * mercado abierto ni con un universo más ancho sin cambiar lo que el dueño ve. Esto NO ESCRIBE NADA (ver `sinEscribir`)
+ * y devuelve el embudo entero con el motivo de cada caída.
  *
  * Las reglas no se copian: son las funciones del núcleo (`rankStocks` para el puntaje contra pares, `decideCandidate`
  * para el filtro técnico, los niveles y el tamaño). Una sola vara, o serían dos apps diciendo cosas distintas.
@@ -48,6 +48,22 @@ export interface EmbudoMercado {
   descartadas: Array<{ symbol: string; etapa: "ranking" | "velas" | "tecnica"; motivo: string }>;
 }
 
+/**
+ * Una vista del almacén que no escribe. Es lo que usa el embudo POR DEFECTO (16/9): "que no modifique nada, la idea es
+ * que la app llegue hasta el output de ese reporte, idéntico". Escribiendo dejaría caché de velas, estados de la SEC y
+ * las fundamentales con la ganancia núcleo aplicada; eso último es la misma transformación que hace la corrida de la
+ * mañana, pero sobre más símbolos, así que podría mover el puntaje de alguno en el ranking del día siguiente. Con
+ * `guardar: true` se acepta ese rastro a cambio de que la próxima corrida sea más rápida.
+ */
+const sinEscribir = <T extends object>(store: T): T =>
+  new Proxy(store, {
+    get(t, p, r) {
+      if (p === "upsertCandles" || p === "saveStatements" || p === "saveFundamentals") return async () => {};
+      const v = Reflect.get(t, p, r);
+      return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(t) : v;
+    },
+  });
+
 /** Fundamentales mínimas para evaluar un símbolo fuera del universo: solo técnica, sin puntaje contra pares. */
 const sinFundamentales = (symbol: string, close: number): Fundamentals => ({
   symbol, asOf: "", metrics: {}, peers: [], industry: null, mcapUsd: null, dollarVolumeUsd: 0, priceUsd: close,
@@ -56,8 +72,10 @@ const sinFundamentales = (symbol: string, close: number): Fundamentals => ({
 
 export async function explorarMercado(
   deps: RadarDeps,
-  opts: { today: string; portfolioUsd: number | null; preselect?: number; top?: number; symbols?: string[]; conEstados?: boolean },
+  opts: { today: string; portfolioUsd: number | null; preselect?: number; top?: number; symbols?: string[]; conEstados?: boolean; guardar?: boolean },
 ): Promise<EmbudoMercado> {
+  // Sin rastro salvo que se pida lo contrario: ni caché de velas, ni estados, ni fundamentales reescritas.
+  if (!opts.guardar) deps = { ...deps, store: sinEscribir(deps.store) };
   const { store, policy } = deps;
   const { all, scanOk } = await universoDelRanking(deps, opts.today);
   const held = await heldSymbols(store);
