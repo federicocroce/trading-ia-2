@@ -54,6 +54,9 @@ const FLAG_CON_DATO: Record<string, (dato: string) => string> = {
   serie_con_salto: (fecha) => `la serie de precios da un salto de escala el ${fecha}: un split que la fuente no ajustó`,
   fr6m_negativa: (v) => `le perdió al SPY en 6 meses (${redondear(v)}%)`,
   fr6m_negativa_merval: (v) => `le perdió al Merval en 6 meses (${redondear(v)}%)`,
+  // 16/9: decía sólo "dividendo" y el campo del que salía estaba mal (HSBC figuraba con 5,55% y paga 0,78%).
+  // Con el número a la vista se puede contrastar contra lo que declara la empresa.
+  dividendo: (v) => `paga ${redondear(v)}% de dividendo (12 meses)`,
 };
 /** Los motores guardan el número completo; en pantalla, un decimal alcanza y sobra. */
 const redondear = (v: string) => {
@@ -103,12 +106,15 @@ const NEUTRAS = new Set(["nucleo_por_calendario", "en_linea"]);
 const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente", "verificacion_anterior", "fr_sin_dividendos", "crecimiento_no_confiable", "banco_sin_estados"]);
 /** Las que llevan un dato adentro y también son límites de la fuente, no defectos de la empresa. */
 const LIMITACIONES_CON_DATO = new Set(["serie_con_salto"]);
+/** Las que llevan un dato adentro y son a favor. `dividendo:` desde el 16/9. */
+const BUENAS_CON_DATO = new Set(["dividendo"]);
 
 /** Todo lo que no está declarado como bueno o como límite cuenta como salvedad: el default seguro. */
 export function flagTone(flag: string): FlagTone {
   if (BUENAS.has(flag)) return "bueno";
   if (LIMITACIONES.has(flag) || NEUTRAS.has(flag)) return "limitacion";
   const i = flag.indexOf(":");
+  if (i > 0 && BUENAS_CON_DATO.has(flag.slice(0, i))) return "bueno";
   if (i > 0 && LIMITACIONES_CON_DATO.has(flag.slice(0, i))) return "limitacion";
   // Misma neutralidad para la escritura vieja del núcleo, que sigue en las corridas guardadas.
   if (flag.startsWith("núcleo: ")) return "limitacion";

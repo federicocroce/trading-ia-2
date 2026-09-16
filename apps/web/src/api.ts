@@ -129,6 +129,12 @@ export interface TickerPage {
   verdict: Verdict | null;
   tags: Tags | null;
   fundamentals: { asOf: string; metrics: Record<string, number | null>; metricsRaw?: Record<string, number | null> | null; statementsAsOf?: string | null; peers: string[]; mcapUsd: number | null; dollarVolumeUsd: number; nextEarnings: string | null; insiderBuys90d: number | null; insiderSells90d: number | null; analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null; earningsSurprises: Array<{ period: string; surprisePercent: number | null }> | null } | null;
+  /**
+   * Rendimiento por dividendo de los últimos doce meses: lo que la empresa PAGÓ sobre el precio guardado. La ficha
+   * mostraba `dividendYieldIndicatedAnnual`, que el 16/9 decía 3,44% en MCY (paga 1,25%) y 1,83% en HCI (paga 0,85%).
+   * null = no hay dividendo pagado con el que comprobarlo.
+   */
+  dividendYieldPct: number | null;
   candidate: Candidate | null;
   /** `excluded`: métricas que el puntaje no usa para ese par (15/9: en bancos, el crecimiento de ingresos de Finnhub). */
   peers: Array<{ symbol: string; metrics: Record<string, number | null>; excluded?: string[] }>;

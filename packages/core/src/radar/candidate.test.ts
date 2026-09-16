@@ -66,9 +66,25 @@ describe("buildFlags", () => {
     expect(buildFlags(f({ analyst: { strongBuy: 0, buy: 1, hold: 2, sell: 3, strongSell: 2, period: "p" } }), gate, 1, 4)).toContain("consenso_venta");
     expect(buildFlags(f({ earningsSurprises: [{ period: "q", surprisePercent: 8 }] }), gate, 1, 4)).toContain("sorpresa_positiva");
     expect(buildFlags(f({ earningsSurprises: [{ period: "q", surprisePercent: -8 }] }), gate, 1, 4)).toContain("sorpresa_negativa");
-    expect(buildFlags(f({ metrics: { dividendYieldIndicatedAnnual: 3 } }), gate, 1, 4)).toContain("dividendo");
+    expect(buildFlags(f({ priceUsd: 100, metrics: { dividendPerShareTTM: 3 } }), gate, 1, 4)).toContain("dividendo:3");
     expect(buildFlags(f(), gate, 4, 4)).toContain("residente_cronico");
     expect(buildFlags(f(), gate, 1, 4)).toEqual([]);
+  });
+  it("MCY del 16/9: el rendimiento sale del dividendo que la empresa pagó, no del 'indicado' de Finnhub", () => {
+    // El 16/9/2026 la base decía dividendYieldIndicatedAnnual 3,44% para MCY, y MCY paga 0,3175 por trimestre:
+    // 1,27 al año sobre 101,93 = 1,25%. En HCI decía 1,83% y paga 1,60 al año sobre 188,06 = 0,85%. La bandera se
+    // pintaba verde con el campo equivocado en 148 de las 1.335 empresas que tienen los dos datos.
+    const mcy = f({ symbol: "MCY", priceUsd: 101.93, metrics: { dividendYieldIndicatedAnnual: 3.44453, dividendPerShareTTM: 1.27 } });
+    expect(buildFlags(mcy, gate, 1, 4).some((x) => x.startsWith("dividendo"))).toBe(false);
+    const hci = f({ symbol: "HCI", priceUsd: 188.06, metrics: { dividendYieldIndicatedAnnual: 1.83045, dividendPerShareTTM: 1.6236 } });
+    expect(buildFlags(hci, gate, 1, 4).some((x) => x.startsWith("dividendo"))).toBe(false);
+    // MO el mismo día: 4,2153 sobre 68,87 = 6,1%. Ésa sí paga.
+    const mo = f({ symbol: "MO", priceUsd: 68.87, metrics: { dividendYieldIndicatedAnnual: 9.45262, dividendPerShareTTM: 4.2153 } });
+    // La bandera lleva el número para poder contrastarlo: 4,2153 sobre 68,87 = 6,12%.
+    expect(buildFlags(mo, gate, 1, 4)).toContain("dividendo:6.12");
+  });
+  it("sin el dividendo pagado no se afirma que paga, aunque el campo 'indicado' diga que sí", () => {
+    expect(buildFlags(f({ metrics: { dividendYieldIndicatedAnnual: 6 } }), gate, 1, 4).some((x) => x.startsWith("dividendo"))).toBe(false);
   });
   it("NBN del 14/9: un banco sin estados de la SEC legibles lleva banco_sin_estados (no entra al plan)", () => {
     // La verificación web del 14/9 la dio "apta" diciendo que no hubo extraordinarios (hubo créditos fiscales comprados

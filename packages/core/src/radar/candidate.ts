@@ -152,6 +152,23 @@ export function riskScore(i: { beta: number | null; atrPct: number | null; debtT
   return Math.min(10, r);
 }
 
+/**
+ * Rendimiento por dividendo: lo que la empresa PAGÓ en los últimos doce meses sobre el precio que la app tiene.
+ *
+ * No se usa `dividendYieldIndicatedAnnual`. Ese campo del proveedor no dice lo que parece: el 16/9/2026 daba 3,44%
+ * para MCY, que paga 0,3175 por trimestre (1,27 al año sobre 101,93 = 1,25%), y 1,83% para HCI, que paga 1,60 (0,85%).
+ * Sobre las 1.335 empresas con los dos datos, 148 recibían la bandera verde sin llegar al 2% real y 92 la merecían sin
+ * tenerla; la relación entre los dos campos no es constante, así que no hay factor que lo corrija.
+ *
+ * Sin el dividendo pagado devuelve null: no se afirma que paga lo que no se puede comprobar.
+ */
+export function dividendYieldPct(f: Pick<Fundamentals, "metrics" | "priceUsd">): number | null {
+  const dps = f.metrics["dividendPerShareTTM"];
+  if (typeof dps !== "number" || !Number.isFinite(dps) || dps <= 0) return null;
+  if (!Number.isFinite(f.priceUsd) || f.priceUsd <= 0) return null;
+  return (dps / f.priceUsd) * 100;
+}
+
 export function buildFlags(
   f: Fundamentals,
   gate: TechnicalGate,
@@ -172,8 +189,8 @@ export function buildFlags(
     if (last > 5) flags.push("sorpresa_positiva");
     if (last < -5) flags.push("sorpresa_negativa");
   }
-  const dy = f.metrics["dividendYieldIndicatedAnnual"];
-  if (dy !== null && dy !== undefined && dy > 2) flags.push("dividendo");
+  const dy = dividendYieldPct(f);
+  if (dy !== null && dy > 2) flags.push(`dividendo:${round2(dy)}`);
   flags.push(...gate.reasons);
   if (nthAppearance >= chronicWeeks) flags.push("residente_cronico");
   if (extra.core === null) flags.push("sin_estados");

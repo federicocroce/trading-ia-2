@@ -169,7 +169,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               <div className="kpi"><b>{f2(m["revenueGrowthTTMYoy"], 1)}%</b><span>crec. ingresos (12m)</span></div>
               <div className="kpi"><b>{f2(m["epsGrowthTTMYoy"], 1)}%</b><span>crec. EPS (12m)</span></div>
               <div className="kpi"><b>{f2(m["totalDebt/totalEquityAnnual"])}</b><span>deuda / patrimonio</span></div>
-              <div className="kpi"><b>{f2(m["dividendYieldIndicatedAnnual"], 2)}%</b><span>dividendo</span></div>
+              <div className="kpi" title="Lo que la empresa pagó en los últimos doce meses sobre el precio guardado. No es el &quot;indicado&quot; del proveedor: el 16/9 ese campo decía 3,44% en MCY, que paga 1,25%."><b>{f2(t.dividendYieldPct, 2)}%</b><span>dividendo (12m)</span></div>
               <div className="kpi"><b>{f2(m["beta"])}</b><span>beta</span></div>
               <div className="kpi"><b>{f2(m["52WeekLow"], 0)} – {f2(m["52WeekHigh"], 0)}</b><span>rango 52 semanas</span></div>
               <div className="kpi"><b>{big(t.fundamentals.dollarVolumeUsd)}</b><span>volumen / día</span></div>

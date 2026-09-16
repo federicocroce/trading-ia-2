@@ -1,5 +1,5 @@
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
-import { AXES, AXIS_METRICS, atr, groupMedians, holdTargetOf, unreliableGrowthKeys } from "@thesis/core";
+import { AXES, AXIS_METRICS, atr, dividendYieldPct, groupMedians, holdTargetOf, unreliableGrowthKeys } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
 /**
@@ -26,6 +26,12 @@ export interface TickerPage {
   verdict: (VerdictRow & { holdTarget: number | null }) | null;
   tags: Tags | null;
   fundamentals: Fundamentals | null;
+  /**
+   * Rendimiento por dividendo de los últimos doce meses, calculado con `dividendYieldPct` (lo que la empresa pagó
+   * sobre el precio que la app tiene). La ficha mostraba `dividendYieldIndicatedAnnual`, que decía 3,44% en MCY
+   * cuando paga 1,25%, y 1,83% en HCI cuando paga 0,85% (16/9). null = no se puede comprobar lo que pagó.
+   */
+  dividendYieldPct: number | null;
   candidate: CandidateRow | null;
   peers: PeerRowView[];
   /** Mediana de cada métrica en el grupo completo, la propia incluida: la referencia exacta del puntaje. */
@@ -325,6 +331,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     verdict: (() => { const v = verdicts.find((x) => x.symbol === symbol); return v ? { ...v, holdTarget: holdTargetOf(v) } : null; })(),
     tags,
     fundamentals,
+    dividendYieldPct: fundamentals ? dividendYieldPct(fundamentals) : null,
     candidate,
     peers,
     medians,

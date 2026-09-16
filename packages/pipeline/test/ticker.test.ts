@@ -190,6 +190,24 @@ describe("comparables (C4, 15/9)", () => {
   });
 });
 
+describe("dividendo de la ficha (16/9)", () => {
+  // La ficha mostraba `dividendYieldIndicatedAnnual`: 3,44% en MCY, que paga 0,3175 por trimestre (1,27 al año sobre
+  // 101,93 = 1,25%). La página ahora manda el rendimiento calculado y la pantalla no vuelve a leer el campo crudo.
+  const fund = (symbol: string, priceUsd: number, metrics: Record<string, number>): Fundamentals => ({ symbol, asOf: "2026-09-07", metrics, peers: [], industry: "Insurance", mcapUsd: 5e9, dollarVolumeUsd: 1e7, priceUsd, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null });
+  it("MCY: la ficha dice 1,25%, no el 3,44% del campo indicado", async () => {
+    const { store, deps } = setup();
+    await store.saveFundamentals(fund("MCY", 101.93, { dividendYieldIndicatedAnnual: 3.44453, dividendPerShareTTM: 1.27 }));
+    const t = await buildTicker(deps, "MCY", { today });
+    expect(t.dividendYieldPct).toBeCloseTo(1.246, 2);
+  });
+  it("sin el dividendo pagado la ficha no inventa un rendimiento", async () => {
+    const { store, deps } = setup();
+    await store.saveFundamentals(fund("ZZZ", 50, { dividendYieldIndicatedAnnual: 6 }));
+    const t = await buildTicker(deps, "ZZZ", { today });
+    expect(t.dividendYieldPct).toBeNull();
+  });
+});
+
 describe("cierre anterior guardado (C6, 15/9)", () => {
   // TSM: la base (Yahoo, el mismo cierre que usan las velas, el Radar y Cartera) tiene 433,24 el 11/9 y 418,01 el 14/9.
   // Alpaca IEX decía que el cierre de ayer era 418,60: dos "cierres de ayer" en la misma pantalla.

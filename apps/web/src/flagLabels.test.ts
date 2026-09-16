@@ -27,6 +27,16 @@ describe("flagLabel", () => {
     expect(flagLabel("serie_con_salto:2026-08-03")).toContain("2026-08-03");
   });
 
+  /**
+   * 16/9: la bandera decía sólo "dividendo" y salía de un campo del proveedor que estaba mal (HSBC figuraba con
+   * 5,55% y paga 0,78%). Ahora lleva el número que se puede contrastar contra la empresa.
+   */
+  it("la bandera de dividendo muestra cuánto paga, para poder verificarlo", () => {
+    expect(flagLabel("dividendo:6.9512")).toBe("paga 7.0% de dividendo (12 meses)");
+    expect(flagTone("dividendo:6.9512")).toBe("bueno");
+    expect(flagTitle("dividendo:6.9512")).toMatch(/no suma a la convicción/);
+  });
+
   /** Las corridas anteriores al 13/9 siguen guardadas y el encabezado permite mirarlas con ?date=. */
   it("sigue entendiendo las escrituras viejas, para que el histórico no se degrade", () => {
     expect(flagLabel("bajo SMA200")).toBe("bajo la SMA200");
