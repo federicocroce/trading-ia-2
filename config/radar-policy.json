@@ -25,7 +25,7 @@
   },
   "candidates": {
     "top": 40,
-    "preselect": 150,
+    "preselect": 300,
     "chronicWeeks": 4,
     "maxRows": 80
   },
