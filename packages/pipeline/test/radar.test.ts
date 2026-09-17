@@ -49,7 +49,7 @@ function deps(over: Partial<RadarDeps> = {}) {
   // ^TNX (10 años) sin historia: sin régimen macro, para que el plan de estos tests no lleve reserva.
   const history = { candles: async (s: string) => (s === "^TNX" ? [] : series(s === "XLE" ? ramp(80, priceLevel * 1.25) : ramp(80, priceLevel).map((c) => (s === "SPY" ? c * 5 : c)))) };
   const cardWriter: CardWriter = { promptVersion: "card-test", write: async (i: CardInput): Promise<Card> => ({ summary: `${i.symbol} hace cosas`, whyRanks: "rankea", mainRisk: "riesgo", moat: "moderado", themes: ["IA"], degrade: i.symbol === "SB", ...(i.symbol === "SB" ? { degradeReason: "6-K: guidance recortado" } : {}) }) };
-  const d: RadarDeps = { store, assets: { list: async () => assets, snapshots }, fundamentals, history, cardWriter, taxonomy, etfs, policy, filings: async () => ["8-K algo"], ...over };
+  const d: RadarDeps = { store, assets: { list: async () => assets, snapshots }, fundamentals, history, cardWriter, taxonomy, etfs, policy, filings: async () => ["8-K algo"], filingsDeOferta: async () => [], ...over };
   return { store, d, finnhubCalls };
 }
 

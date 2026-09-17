@@ -1,6 +1,7 @@
 import { atr, computeTarget, computeTrailingStop, entryStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
 import { UNRELIABLE_GROWTH_INDUSTRY, unreliableGrowthKeys, type Fundamentals } from "./ranking.js";
+import { bajoOfertaDeCompra } from "./oferta.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
 import { earningsQualityFlags, hasExtraordinary } from "./statements.js";
 import { crossesSplit } from "./split.js";
@@ -174,7 +175,7 @@ export function buildFlags(
   gate: TechnicalGate,
   nthAppearance: number,
   chronicWeeks: number,
-  extra: { core?: CoreEarnings | null; events?: CandidateEvent[]; eventsUnclassified?: boolean; today?: string; verification?: VerificationSummary | null; verificationVersion?: string } = {},
+  extra: { core?: CoreEarnings | null; events?: CandidateEvent[]; eventsUnclassified?: boolean; today?: string; verification?: VerificationSummary | null; verificationVersion?: string; filings?: readonly string[] } = {},
 ): string[] {
   const flags: string[] = [];
   if ((f.insiderBuys90d ?? 0) >= 1) flags.push("insiders_compran");
@@ -209,6 +210,10 @@ export function buildFlags(
   if (extra.eventsUnclassified) flags.push("eventos_sin_clasificar");
   const vf = verificationFlag(extra.verification, extra.verificationVersion);
   if (vf) flags.push(vf);
+  // AES (16/9): COMPRAR con objetivo 15,93 contra una fusión en efectivo a 15,00 ya votada. El retorno está topado
+  // por contrato y las señales del Radar apuntan todas al lado equivocado. Lo prueba el formulario, no el titular.
+  const oferta = bajoOfertaDeCompra(extra.filings ?? []);
+  if (oferta) flags.push("bajo_oferta_de_compra");
   return flags;
 }
 
@@ -251,6 +256,8 @@ export function decideCandidate(
     analystTargets?: AnalystTargets | null;
     /** Ya está en cartera: el stop es el de la posición (el de seguimiento), porque una posición tiene un solo stop. */
     held?: boolean;
+    /** Títulos de filings recientes de la SEC: de ahí sale si la empresa está bajo una oferta de compra (AES, 16/9). */
+    filings?: readonly string[];
   },
   p: Pick<RadarPolicy, "technical" | "sizing" | "candidates">,
 ): CandidateDecision | { excluded: true; reasons: string[] } {
@@ -262,6 +269,7 @@ export function decideCandidate(
     ...(i.eventsUnclassified !== undefined ? { eventsUnclassified: i.eventsUnclassified } : {}),
     ...(i.verification !== undefined ? { verification: i.verification } : {}),
     ...(i.verificationVersion !== undefined ? { verificationVersion: i.verificationVersion } : {}),
+    ...(i.filings !== undefined ? { filings: i.filings } : {}),
     today: i.today,
   });
   // Salvedades de precio (pieza 3): objetivo de consenso pegado al precio tras una subida, o subida de 12 meses que ya descuenta mucho.

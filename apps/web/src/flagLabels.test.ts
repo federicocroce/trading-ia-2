@@ -31,6 +31,11 @@ describe("flagLabel", () => {
    * 16/9: la bandera decía sólo "dividendo" y salía de un campo del proveedor que estaba mal (HSBC figuraba con
    * 5,55% y paga 0,78%). Ahora lleva el número que se puede contrastar contra la empresa.
    */
+  it("AES del 16/9: una empresa bajo oferta de compra se lee y juega en contra", () => {
+    expect(flagLabel("bajo_oferta_de_compra")).toMatch(/oferta de compra/);
+    expect(flagTone("bajo_oferta_de_compra")).toBe("salvedad");
+  });
+
   it("la bandera de dividendo muestra cuánto paga, para poder verificarlo", () => {
     expect(flagLabel("dividendo:6.9512")).toBe("paga 7.0% de dividendo (12 meses)");
     expect(flagTone("dividendo:6.9512")).toBe("bueno");

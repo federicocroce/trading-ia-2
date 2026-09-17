@@ -26,6 +26,27 @@ describe("EdgarIngestor", () => {
     expect(evs[0]?.eventType).toBe("operational");
     expect(evs[0]?.payload["url"]).toBe("https://www.sec.gov/Archives/edgar/data/1234567/000123456726000010/xxxx-8k.htm");
   });
+  /**
+   * AES, 16/9/2026. Una fusión firmada hace meses sigue fijando el precio hoy, pero la ventana de ingesta es de 30
+   * días: con la regla vieja, el DEFM14A del 15/5 no entraba nunca y el Radar seguía calculándole un objetivo al
+   * doble del riesgo contra un acuerdo en efectivo a 15,00.
+   *
+   * No cuesta un pedido más: el JSON de submissions ya viene entero, sólo se dejaba de mirar lo viejo.
+   */
+  it("AES: los formularios de oferta de compra entran aunque sean de hace meses; el DEF 14A anual no", async () => {
+    const h = fixtureHttpClient({
+      "https://www.sec.gov/files/company_tickers.json": E.companyTickersAES,
+      "https://data.sec.gov/submissions/CIK0000874761.json": E.submissionsAES,
+    });
+    const evs = await new EdgarIngestor({ http: h, universe: ["AES"] }).fetch("2026-09-01T00:00:00Z");
+    const formularios = evs.map((e) => e.payload["form"]);
+    expect(formularios).toContain("DEFM14A");
+    expect(formularios).toContain("PREM14A");
+    // El 8-K del 16/9 entra por la ventana normal; el 10-Q de agosto y el poder anual de marzo no.
+    expect(formularios).toContain("8-K");
+    expect(formularios).not.toContain("10-Q");
+    expect(formularios).not.toContain("DEF 14A");
+  });
   it("el universo puede ser una función (posiciones + seguimiento + plan que cambian solos)", async () => {
     const ing = new EdgarIngestor({ http, universe: async () => ["XXXX"] });
     expect((await ing.fetch("2026-08-01T00:00:00Z")).length).toBe(2);

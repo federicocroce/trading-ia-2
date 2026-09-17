@@ -154,6 +154,13 @@ describe("planContribution", () => {
       expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/banco sin estados/);
       expect(p.lines.some((l) => l.symbol === "NBN")).toBe(false);
     });
+    it("AES del 16/9: una empresa bajo oferta de compra no entra al plan aunque el puntaje y la técnica la aprueben", () => {
+      // Objetivo 15,93 "al doble del riesgo" contra una fusión en efectivo a 15,00 ya votada: el retorno está
+      // topado por contrato y lo que queda son 1,28%, contra 5,01% del bono a 10 años sin riesgo de ruptura.
+      const p = cuarenta([{ ...stock("AES", 1.63, apta), flags: ["bajo_oferta_de_compra"] }, stock("APH", 1.58, apta)]);
+      expect(p.leftOut!.find((x) => x.symbol === "AES")!.reason).toMatch(/oferta de compra/);
+      expect(p.lines.some((l) => l.symbol === "AES")).toBe(false);
+    });
     it("una acción con la verificación pendiente tampoco entra", () => {
       const p = cuarenta([stock("NBN", 1.63, null), stock("APH", 1.58, apta)]);
       expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/pendiente/);

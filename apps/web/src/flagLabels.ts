@@ -14,6 +14,9 @@ const FLAG_LABEL: Record<string, string> = {
   sorpresa_positiva: "sorpresa positiva",
   sorpresa_negativa: "sorpresa negativa",
   dividendo: "dividendo",
+  // AES (16/9): el Radar le calculaba objetivo 15,93 "al doble del riesgo" contra una fusión en efectivo a 15,00 ya
+  // votada por los accionistas. Lo prueba un formulario de la SEC (DEFM14A, PREM14A, SC 14D9 o 425).
+  bajo_oferta_de_compra: "está bajo una oferta de compra: el precio lo fija el acuerdo, no el mercado",
   no_perseguir: "no perseguir (+15% en 21 ruedas)",
   resultados_cerca: "resultados en ≤ 10 días",
   residente_cronico: "residente crónico",

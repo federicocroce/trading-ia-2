@@ -210,6 +210,7 @@ export function buildContainer(cfg: Config): Container {
     policy: cfg.radar.policy,
     fomc: cfg.radar.fomc,
     filings: (symbol) => store.recentFilingTitles(symbol, 8),
+    filingsDeOferta: (symbol) => store.offerFilingTitles(symbol),
     log: (msg, extra) => console.log(msg, extra ?? ""),
     onProgress: (p) => { state.scan.progress = p; },
     shouldStop: () => state.scan.stopRequested,

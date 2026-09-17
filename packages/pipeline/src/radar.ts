@@ -92,6 +92,12 @@ export interface RadarDeps {
   fomc?: string[];
   /** Títulos de filings recientes del símbolo (contexto de la ficha). */
   filings: (symbol: string) => Promise<string[]>;
+  /**
+   * Filings que prueban una oferta de compra en curso (DEFM14A, PREM14A, SC 14D9, 425), con ventana de meses.
+   * Va aparte de `filings` porque hay que buscarlos POR FORMULARIO: el DEFM14A de AES es del 15/5/2026 y quedaría
+   * enterrado bajo las decenas de 8-K y Form 4 que presentó después.
+   */
+  filingsDeOferta: (symbol: string) => Promise<string[]>;
   /** Estados de la SEC (spec verificación §4). Sin él, el ranking usa solo Finnhub. */
   statements?: { quarters(symbol: string, today: string): Promise<Statements | null> } | null;
   /** Noticias por símbolo (Finnhub) para eventos materiales y analistas (spec verificación §5, §6). Sin él no se buscan. */
@@ -443,7 +449,10 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       const nth = await nthAppearanceFor(deps, sym, opts.today);
       const symCore = coreOf(sym);
       const ev = await scanCandidateEvents(deps, sym, opts.today, true);
-      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+      // Los filings ya se bajaban para la ficha del razonador; ahora también deciden: un DEFM14A o un SC 14D9
+      // prueban que la empresa está bajo oferta de compra y que su precio lo fija el acuerdo (AES, 16/9).
+      const filings = await deps.filingsDeOferta(sym).catch(() => [] as string[]);
+      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), filings, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate(input, policy);
       if ("excluded" in d) {
         skipped.push({ symbol: sym, reason: d.reasons.join(",") });
@@ -571,7 +580,9 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     // "con reservas" en la ficha y no lo mostraba, y esa salvedad dejaba de contar (SOLV, TER y VIST el 11/9).
     // Y es la de la tabla, no la copia de la fila anterior (15/9, BLBD): sin verificador, la de la fila.
     const guardada = deps.verifier ? await verificacionGuardada(deps, prev.symbol) : prev.verification;
-    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(guardada ? { verification: guardada } : {}) };
+    // Igual que en la corrida completa: un DEFM14A o un SC 14D9 sacan la fila del plan (AES, 16/9).
+    const filingsPrev = await deps.filingsDeOferta(prev.symbol).catch(() => [] as string[]);
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), filings: filingsPrev, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(guardada ? { verification: guardada } : {}) };
     let d = decideCandidate(input, policy);
     let verification: VerificationSummary | null | undefined = guardada;
     if (!("excluded" in d)) {

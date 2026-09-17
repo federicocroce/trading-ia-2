@@ -267,6 +267,25 @@ export class Repo {
     const rows = await this.db.select({ title: s.rawEvents.title }).from(s.rawEvents).where(and(eq(s.rawEvents.ticker, ticker.toUpperCase()), eq(s.rawEvents.source, "edgar"))).orderBy(desc(s.rawEvents.observedAt)).limit(limit);
     return rows.map((r) => r.title);
   }
+  /**
+   * Filings que prueban una oferta de compra en curso, dentro de la ventana en meses.
+   *
+   * No sirve mirar "los últimos 8 filings" para esto: AES presentó su DEFM14A el 15/5/2026 y desde entonces
+   * presentó decenas de 8-K y Form 4, así que el que importa queda enterrado. Hay que buscarlo por formulario.
+   *
+   * Los títulos del ingestor de EDGAR empiezan con el formulario, así que el prefijo alcanza. `DEFM14A` no colisiona
+   * con `DEF 14A` (el poder de la asamblea anual, que presenta toda empresa) porque lleva el espacio distinto.
+   */
+  async offerFilingTitles(ticker: string, months = 12): Promise<string[]> {
+    const desde = new Date(Date.now() - months * 30 * 86_400_000);
+    const rows = await this.db
+      .select({ title: s.rawEvents.title })
+      .from(s.rawEvents)
+      .where(and(eq(s.rawEvents.ticker, ticker.toUpperCase()), eq(s.rawEvents.source, "edgar"), gte(s.rawEvents.observedAt, desde), sql`(${s.rawEvents.title} like 'DEFM14A%' or ${s.rawEvents.title} like 'PREM14A%' or ${s.rawEvents.title} like 'SC 14D9%' or ${s.rawEvents.title} like '425 %' or ${s.rawEvents.title} like '425 —%')`))
+      .orderBy(desc(s.rawEvents.observedAt))
+      .limit(5);
+    return rows.map((r) => r.title);
+  }
   /** Noticias argentinas que mencionan a la empresa (contexto para ADRs). */
   async recentNewsTitles(query: string, limit = 5): Promise<string[]> {
     const rows = await this.db.select({ title: s.rawEvents.title }).from(s.rawEvents).where(and(eq(s.rawEvents.source, "ar_official"), sql`${s.rawEvents.title} ilike ${"%" + query + "%"}`)).orderBy(desc(s.rawEvents.observedAt)).limit(limit);

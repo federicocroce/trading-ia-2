@@ -86,6 +86,12 @@ describe("buildFlags", () => {
   it("sin el dividendo pagado no se afirma que paga, aunque el campo 'indicado' diga que sí", () => {
     expect(buildFlags(f({ metrics: { dividendYieldIndicatedAnnual: 6 } }), gate, 1, 4).some((x) => x.startsWith("dividendo"))).toBe(false);
   });
+  it("AES del 16/9: una empresa con la fusión ya votada no se valúa con las reglas del Radar", () => {
+    // El Radar la ponía 77ª, COMPRAR, con objetivo 15,93 contra un acuerdo en efectivo a 15,00.
+    expect(buildFlags(f({ symbol: "AES" }), gate, 1, 4, { filings: ["DEFM14A — THE AES CORPORATION", "10-Q — THE AES CORPORATION"] })).toContain("bajo_oferta_de_compra");
+    expect(buildFlags(f(), gate, 1, 4, { filings: ["10-Q — Empresa Inc."] })).not.toContain("bajo_oferta_de_compra");
+    expect(buildFlags(f(), gate, 1, 4)).not.toContain("bajo_oferta_de_compra");
+  });
   it("NBN del 14/9: un banco sin estados de la SEC legibles lleva banco_sin_estados (no entra al plan)", () => {
     // La verificación web del 14/9 la dio "apta" diciendo que no hubo extraordinarios (hubo créditos fiscales comprados
     // y reservas liberadas) y que no encontró el inmobiliario comercial sobre capital (485% en el mismo comunicado).

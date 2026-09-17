@@ -107,7 +107,7 @@ describe("refreshArgentina", () => {
     const { store, deps } = setup();
     await refreshArgentina(deps, { today });
     const before = (await store.latestCandidates()).filter((r) => r.kind === "ar" || r.kind === "cedear");
-    const radarDeps = { store, history: deps.history, taxonomy: { sectors: [], themes: [], industryToSector: {}, industryToThemes: {}, symbolToThemes: {}, symbolToAssetClass: {} }, etfs: [], policy, fundamentals: { nextEarnings: async () => null, insiders: async () => null, recommendation: async () => null, earningsSurprises: async () => null } as never, assets: {} as never, cardWriter: null, filings: async () => [] } as unknown as Parameters<typeof refreshRadar>[0];
+    const radarDeps = { store, history: deps.history, taxonomy: { sectors: [], themes: [], industryToSector: {}, industryToThemes: {}, symbolToThemes: {}, symbolToAssetClass: {} }, etfs: [], policy, fundamentals: { nextEarnings: async () => null, insiders: async () => null, recommendation: async () => null, earningsSurprises: async () => null } as never, assets: {} as never, cardWriter: null, filings: async () => [], filingsDeOferta: async () => [] } as unknown as Parameters<typeof refreshRadar>[0];
     const r = await refreshRadar(radarDeps, { today, portfolioUsd: null });
     expect(r.errors).toEqual([]);
     expect(r.refreshed).toBe(0);

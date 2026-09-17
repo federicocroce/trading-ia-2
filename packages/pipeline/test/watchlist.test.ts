@@ -23,6 +23,7 @@ function setup() {
     assets: {} as never,
     cardWriter: null,
     filings: async () => [],
+    filingsDeOferta: async () => [],
   } as unknown as RadarDeps;
   return { store, deps };
 }

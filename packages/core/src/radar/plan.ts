@@ -133,6 +133,10 @@ export const PLAN_BLOCKERS: Record<string, string> = {
   consenso_en_precio: "el objetivo de consenso está a menos de 10% del precio",
   subio_mucho_12m: "subió más de 100% en 12 meses",
   banco_sin_estados: "banco sin estados de la SEC legibles: la app no puede verificar su ganancia (Finnhub infla los ingresos de los bancos y la verificación web no encontró sus extraordinarios ni su concentración inmobiliaria)",
+  // AES (16/9): el Radar le calculaba objetivo 15,93 "al doble del riesgo" contra una fusión en efectivo a 15,00 ya
+  // votada por los accionistas. El retorno está topado por contrato y, si el acuerdo se cae, la referencia sin oferta
+  // estaba ~25% abajo. Además le parece una compra perfecta: se mueve poco y los múltiplos quedan baratos.
+  bajo_oferta_de_compra: "está bajo una oferta de compra (lo dice un formulario de la SEC): el precio está fijado por el acuerdo, así que el objetivo al doble del riesgo no puede pasar",
 };
 /**
  * A cuántos ATR del stop tiene que estar el precio para comprar o sumar (14/9). APH cerró en 78,55 con el stop de su
