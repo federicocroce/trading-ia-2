@@ -248,6 +248,28 @@ describe("decideCandidate", () => {
   });
 });
 
+/**
+ * 17/9: ROKU con el DEFM14A del 1/9 (Fox paga 96 en efectivo más 0,9693 FOXA) seguía COMPRAR con objetivo 170,99.
+ * Una fila que dice COMPRAR se compra (regla del 14/9), y un precio fijado por contrato no es una compra: la oferta
+ * pasa a ser motivo de OBSERVAR, no sólo bloqueo del plan.
+ */
+describe("decideCandidate bajo oferta de compra", () => {
+  const p = { technical: tech, sizing, candidates: { top: 40, preselect: 150, chronicWeeks: 4 } };
+  it("con un DEFM14A la fila queda OBSERVAR y dice por qué", () => {
+    const d = decideCandidate({ f: f({ symbol: "ROKU" }), candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, filings: ["DEFM14A — ROKU, INC."] }, p);
+    expect("excluded" in d).toBe(false);
+    if ("excluded" in d) return;
+    expect(d.verdict).toBe("OBSERVAR");
+    expect(d.flags).toContain("bajo_oferta_de_compra");
+    expect(d.reasons).toContain("bajo_oferta_de_compra");
+  });
+  it("sin formularios de oferta sigue COMPRAR", () => {
+    const d = decideCandidate({ f: f(), candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, filings: ["10-Q — Empresa Inc."] }, p);
+    if ("excluded" in d) throw new Error("no debería excluir");
+    expect(d.verdict).toBe("COMPRAR");
+  });
+});
+
 describe("decideCandidate con estados", () => {
   const zvra = JSON.parse(readFileSync("test/fixtures/zvra-companyfacts.json", "utf8")) as CompanyFactsJson;
   const core = coreEarnings(buildQuarters(zvra));

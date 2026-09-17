@@ -277,8 +277,9 @@ export function decideCandidate(
   const r12 = returnPct(i.candles, 252);
   if (upside !== null && upside < PRICE_THRESHOLDS.consensusMinUpsidePct && r12 !== null && r12 > PRICE_THRESHOLDS.consensusRunupPct) flags.push("consenso_en_precio");
   if (r12 !== null && r12 > PRICE_THRESHOLDS.runup12mPct) flags.push("subio_mucho_12m");
-  // La verificación web que dice "evitar" observa por sí sola, como un evento grave.
-  const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : [])];
+  // La verificación web que dice "evitar" observa por sí sola, como un evento grave. Y una empresa bajo oferta de
+  // compra también (17/9): una fila que dice COMPRAR se compra, y un precio fijado por contrato no es una compra.
+  const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : []), ...(flags.includes("bajo_oferta_de_compra") ? ["bajo_oferta_de_compra"] : [])];
   // Dos o más salvedades de calidad o litigio: cada una sola es una advertencia, juntas son un motivo para observar
   // (enmienda 2026-09-10: NUTX tenía demanda, ingresos cayendo con ganancia subiendo y socios minoritarios, y seguía COMPRAR).
   if (flags.filter((x) => QUALITY_FLAGS.has(x)).length >= QUALITY_OBSERVE_AT) {
