@@ -823,6 +823,21 @@ describe("rankRadar con ofertas y hechos externos (17/9)", () => {
     expect(guardados.length).toBe(3); // el tope de 2 más la puerta
     expect(r.candidates.find((c) => c.symbol === "SF")!.flags).toContain("guia_subida");
   });
+  it("la consulta a EDGAR que falla no pierde la fila, pero queda contada y anotada (17/9): antes fallaba abierta y en silencio", async () => {
+    const { store, d } = deps({ filingsDeOferta: async (s) => { if (s === "SA") throw new Error("EDGAR caído"); return []; } });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    // La fila de SA no se pierde: la falla se traga por símbolo, como siempre.
+    expect(r.candidates.some((c) => c.symbol === "SA")).toBe(true);
+    const aviso = r.errors.find((e) => e.symbol === "*");
+    expect(aviso?.error).toMatch(/^formularios de oferta: 1 de \d+ consultas fallaron$/);
+    expect(await store.latestCandidates()).not.toHaveLength(0);
+    // Y en `refreshRadar`, lo mismo.
+    priceLevel = 104;
+    const rf = await refreshRadar({ ...d, filingsDeOferta: async (s) => { if (s === "SA") throw new Error("EDGAR caído"); return []; } }, { today: "2026-05-20", portfolioUsd: 150_000 });
+    priceLevel = 100;
+    expect(rf.errors.find((e) => e.symbol === "*")?.error).toMatch(/^formularios de oferta: 1 de \d+ consultas fallaron$/);
+  });
   it("explorarMercado pide los formularios de oferta y los hechos, y los devuelve en la fila", async () => {
     const { store, d } = deps({ filingsDeOferta: async (s) => (s === "SB" ? ["PREM14A — SB CORP"] : []) });
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
@@ -834,6 +849,15 @@ describe("rankRadar con ofertas y hechos externos (17/9)", () => {
     const sa = m.filas.find((f) => f.symbol === "SA")!;
     expect(sa.flags).toContain("guia_subida");
     expect(sa.hechos.map((h) => h.tipo)).toEqual(["guia"]);
+    expect(m.avisos).toEqual([]);
+  });
+  it("explorarMercado también avisa cuando la consulta a EDGAR falla, sin perder la fila", async () => {
+    const { d } = deps({ filingsDeOferta: async (s) => { if (s === "SA") throw new Error("EDGAR caído"); return []; } });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const m = await explorarMercado(d, { today: TODAY, portfolioUsd: 150_000, preselect: 12, conEstados: false });
+    expect(m.filas.some((f) => f.symbol === "SA")).toBe(true);
+    expect(m.avisos).toHaveLength(1);
+    expect(m.avisos[0]).toMatch(/^formularios de oferta: 1 de \d+ consultas fallaron/);
   });
 });
 

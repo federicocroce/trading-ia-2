@@ -93,7 +93,7 @@ export function banderasDeHechos(hechos: readonly HechoExterno[], today: string)
     else if (h.tipo === "ganancia_por_reservas") {
       const sobrevive = h.valor.epsConsenso !== null && h.valor.epsSinReservas >= h.valor.epsConsenso;
       if (!sobrevive) add("ganancia_por_reservas");
-    } else add("bajo_oferta_de_compra");
+    } else if (h.tipo === "oferta_de_compra") add("bajo_oferta_de_compra");
   }
   return out;
 }

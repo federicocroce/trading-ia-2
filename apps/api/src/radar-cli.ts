@@ -57,7 +57,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
     const salida = i >= 0 ? args[i + 1] : undefined;
     if (salida) await writeFile(salida, JSON.stringify(m, null, 2), "utf8");
     else console.log(JSON.stringify(m, null, 2));
-    console.error(`[mercado] universo ${m.universo.conFundamentales} de ${m.universo.barrido} del barrido · rankeadas ${m.rankeadas} · preseleccionadas ${m.preseleccionadas} · con velas ${m.conVelas} · pasan ${m.filas.length} · descartadas ${m.descartadas.length}`);
+    console.error(`[mercado] universo ${m.universo.conFundamentales} de ${m.universo.barrido} del barrido · rankeadas ${m.rankeadas} · preseleccionadas ${m.preseleccionadas} · con velas ${m.conVelas} · pasan ${m.filas.length} · descartadas ${m.descartadas.length}${m.avisos.length ? ` · avisos ${m.avisos.length}` : ""}`);
   }
   else if (cmd === "argentina") { const r = await refreshArgentina(c.argentinaDeps, { today }); console.log(JSON.stringify({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors }, null, 2)); }
   // hechos --importar archivo.json [--origen agente|manual]: el único camino de escritura a hechos_externos (17/9).

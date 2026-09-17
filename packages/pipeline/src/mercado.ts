@@ -53,6 +53,8 @@ export interface EmbudoMercado {
   filas: FilaMercado[];
   /** Cada exclusión con su etapa y su motivo: la regla de la casa es que nada cae sin explicación. */
   descartadas: Array<{ symbol: string; etapa: "ranking" | "velas" | "tecnica"; motivo: string }>;
+  /** Fallas silenciosas que igual dejaron una fila (17/9): hoy sólo la consulta en vivo a EDGAR. */
+  avisos: string[];
 }
 
 /**
@@ -113,6 +115,9 @@ export async function explorarMercado(
 
   const filas: FilaMercado[] = [];
   let conVelas = 0;
+  // Igual que en `rankRadar`: la consulta en vivo a EDGAR falla abierta por fila, pero se cuenta para avisar.
+  let filingsTotal = 0;
+  let filingsFallidos = 0;
   for (const sym of lista) {
     const c: Candle[] | undefined = candles[sym];
     if (!c || !c.length) {
@@ -124,7 +129,8 @@ export async function explorarMercado(
     const f = all.get(sym) ?? (await store.fundamentals(sym).catch(() => null)) ?? sinFundamentales(sym, c[c.length - 1]!.close);
     const core = coreOf(sym);
     // Igual que el ranking (17/9): formularios de oferta y hechos externos para cada símbolo con velas. Nada se escribe.
-    const filings = await deps.filingsDeOferta(sym).catch(() => [] as string[]);
+    filingsTotal++;
+    const filings = await deps.filingsDeOferta(sym).catch(() => { filingsFallidos++; return [] as string[]; });
     const hechos = await hechosDe(deps, sym, opts.today);
     const d = decideCandidate({ f, candles: c, nthAppearance: 1, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), filings, hechos, ...(core !== undefined ? { core } : {}) }, policy);
     if ("excluded" in d) {
@@ -157,6 +163,8 @@ export async function explorarMercado(
   }
   filas.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
   const top = opts.top ?? filas.length;
+  const avisos: string[] = [];
+  if (filingsFallidos > 0) avisos.push(`formularios de oferta: ${filingsFallidos} de ${filingsTotal} consultas fallaron: esas filas se evaluaron sin la regla de oferta`);
   return {
     today: opts.today,
     universo: { barrido: scanOk, conFundamentales: all.size },
@@ -165,5 +173,6 @@ export async function explorarMercado(
     conVelas,
     filas: filas.slice(0, top),
     descartadas,
+    avisos,
   };
 }

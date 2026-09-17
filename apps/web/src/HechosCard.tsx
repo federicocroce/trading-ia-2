@@ -14,7 +14,7 @@ export function HechosCard({ hechos }: { hechos: HechoExterno[] }) {
         const l = hechoLinea(h);
         return (
           <div key={`${h.tipo}|${h.fecha}|${h.fuente.url}`} className="mono" style={{ marginTop: 4 }}>
-            <span className={l.chip === "verificado" ? "ok" : "warn"}>{l.chip}</span> <span className="muted">{l.fecha} · {h.tipo.replace(/_/g, " ")}</span> · {l.texto} · <a href={l.fuente.url} target="_blank" rel="noreferrer">{l.fuente.titulo}</a>
+            <span className={l.chip === "verificado" ? "ok" : "warn"}>{l.chip}</span> <span className="muted">{l.fecha} · {h.tipo.replace(/_/g, " ")} · {h.origen === "manual" ? "cargado a mano" : "cargado por el agente"}</span> · {l.texto} · <a href={l.fuente.url} target="_blank" rel="noreferrer">{l.fuente.titulo}</a>
           </div>
         );
       })}

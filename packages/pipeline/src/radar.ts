@@ -441,12 +441,17 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   const filingsPor = new Map<string, string[]>();
   const hechosPor = new Map<string, HechoExterno[]>();
   const evaluadas: Array<{ item: RankedStock; verdict: "COMPRAR" | "OBSERVAR" }> = [];
+  // La consulta en vivo a EDGAR falla abierta (una fila no puede perderse por eso), pero en silencio nadie se
+  // entera de que esa fila corrió sin la regla de oferta (17/9): se cuenta y se avisa después del loop.
+  let filingsTotal = 0;
+  let filingsFallidos = 0;
   for (const r of preConPuerta) {
     const c = candles[r.symbol];
     if (!c) continue;
     const f = all.get(r.symbol)!;
     const rCore = coreOf(r.symbol);
-    const filings = await deps.filingsDeOferta(r.symbol).catch(() => [] as string[]);
+    filingsTotal++;
+    const filings = await deps.filingsDeOferta(r.symbol).catch(() => { filingsFallidos++; return [] as string[]; });
     const hechos = await hechosDe(deps, r.symbol, opts.today);
     filingsPor.set(r.symbol, filings);
     hechosPor.set(r.symbol, hechos);
@@ -456,6 +461,10 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       continue;
     }
     evaluadas.push({ item: r, verdict: d.verdict });
+  }
+  if (filingsFallidos > 0) {
+    log(`[radar] formularios de oferta: ${filingsFallidos} de ${filingsTotal} consultas fallaron: esas filas se evaluaron sin la regla de oferta`);
+    errors.push({ symbol: "*", error: `formularios de oferta: ${filingsFallidos} de ${filingsTotal} consultas fallaron` });
   }
   const kept: RankedStock[] = seleccionarCandidatas(evaluadas, { top: policy.candidates.top, maxRows: policy.candidates.maxRows });
   for (const e of evaluadas) if (porPuerta.has(e.item.symbol) && e.verdict === "COMPRAR" && !kept.includes(e.item)) kept.push(e.item);
@@ -569,6 +578,9 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   const ranked = needCards ? new Map(rankStocks(await rankableFundamentals(deps, opts.today), policy.weights).ranked.map((r) => [r.symbol, r])) : null;
   const rows: CandidateRow[] = [];
   const verifyBudget: VerifyBudget = { left: policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT };
+  // Igual que en `rankRadar`: la consulta en vivo a EDGAR falla abierta por fila, pero se cuenta para avisar.
+  let filingsTotal = 0;
+  let filingsFallidos = 0;
   // Por convicción: el presupuesto de verificación va primero a lo que el plan va a comprar (ver `verificationOrder`).
   for (const prev of verificationOrder(latest, await store.allTags())) {
     // Solo la familia US: Argentina y seguimiento tienen su propio refresco.
@@ -610,7 +622,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     // Y es la de la tabla, no la copia de la fila anterior (15/9, BLBD): sin verificador, la de la fila.
     const guardada = deps.verifier ? await verificacionGuardada(deps, prev.symbol) : prev.verification;
     // Igual que en la corrida completa: un DEFM14A o un SC 14D9 sacan la fila del plan (AES, 16/9).
-    const filingsPrev = await deps.filingsDeOferta(prev.symbol).catch(() => [] as string[]);
+    filingsTotal++;
+    const filingsPrev = await deps.filingsDeOferta(prev.symbol).catch(() => { filingsFallidos++; return [] as string[]; });
     const hechosPrev = await hechosDe(deps, prev.symbol, opts.today);
     const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), filings: filingsPrev, hechos: hechosPrev, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(guardada ? { verification: guardada } : {}) };
     let d = decideCandidate(input, policy);
@@ -652,6 +665,10 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       }
     }
     rows.push({ ...prev, candidateDate: opts.today, verdict: degraded && d.verdict === "COMPRAR" ? "OBSERVAR" : d.verdict, degradedBy: degraded ? "narrator" : null, ...card, promptVersion: prev.promptVersion ?? deps.cardWriter?.promptVersion ?? null, close: d.close, entryLow: d.entryLow, entryHigh: d.entryHigh, stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore, flags: [...d.flags, ...prev.flags.filter((x) => x.startsWith("degradado")), ...(degradeFlag ? [degradeFlag] : [])], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, verification: verification ?? null, entry: d.entry });
+  }
+  if (filingsFallidos > 0) {
+    deps.log?.(`[radar] formularios de oferta: ${filingsFallidos} de ${filingsTotal} consultas fallaron: esas filas se evaluaron sin la regla de oferta`);
+    errors.push({ symbol: "*", error: `formularios de oferta: ${filingsFallidos} de ${filingsTotal} consultas fallaron` });
   }
   await store.upsertCandidates(rows);
   return { refreshed: rows.length, errors };

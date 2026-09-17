@@ -1,6 +1,6 @@
 import type { Candle, CandidateRow, Fundamentals, VerificationSummary, WatchItem } from "@thesis/core";
 import { PLAN_BLOCKERS, computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
-import { pruneFamilias, tagSymbol, universoDelRanking, type RadarDeps } from "./radar.js";
+import { hechosDe, pruneFamilias, tagSymbol, universoDelRanking, type RadarDeps } from "./radar.js";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verificacionGuardada, verifyFor, type VerifyBudget } from "./radar-verify.js";
 
@@ -99,7 +99,11 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       // OBSERVAR conservaría la verificación en su columna y la perdería en las banderas.
       // La de la tabla, no la copia de la fila anterior (15/9): la misma que muestra la ficha.
       let verification: VerificationSummary | null | undefined = deps.verifier ? await verificacionGuardada(deps, sym) : prev?.verification;
-      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym.toUpperCase()), ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+      // Formularios de oferta y hechos externos, igual que el ranking (17/9): sin esto una fila a mano podía
+      // decir COMPRAR bajo una oferta de compra, porque `decideCandidate` sólo mira `filings`/`hechos` si se los pasan.
+      const filings = await deps.filingsDeOferta(sym).catch(() => [] as string[]);
+      const hechos = await hechosDe(deps, sym, opts.today);
+      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym.toUpperCase()), filings, hechos, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate({ ...base, ...(verification ? { verification } : {}) }, policy);
       // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
       // Lo que una regla fija deja afuera del plan no gasta una búsqueda (15/9), como en el ranking.

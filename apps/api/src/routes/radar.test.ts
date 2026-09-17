@@ -23,6 +23,7 @@ function app() {
     etfs: [{ symbol: "VTI", name: "VTI", role: "nucleo" as const, exposure: "rv_us" as const, ter: 0.03, themes: [], coreWeight: 1 }],
     policy: { weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 }, quality: { minMcapUsd: 500e6, minDollarVolumeUsd: 5e6, minPrice: 5 }, prefilter: { minPrice: 5, minIexDollarVolume: 500_000 }, technical: { maxReturn21dPct: 15, earningsWithinDays: 10 }, sizing: { riskPerTradePct: 1, maxPositionPct: 10, fallbackPortfolioUsd: 150_000 }, candidates: { top: 40, preselect: 150, chronicWeeks: 4 }, contribution: { monthlyUsd: 6500, coreTargetPct: 40, maxPositionPct: 15, maxNewPositionsPerMonth: 2, maxLinePctOfContribution: 50 } },
     filings: async () => [],
+    filingsDeOferta: async () => [],
   };
   const argentinaDeps = {
     store,

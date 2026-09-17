@@ -84,6 +84,27 @@ describe("refreshWatchlist", () => {
     // Lo que el ranking no eligió sí tiene su fila de seguimiento.
     expect(filas.find((x) => x.symbol === "USAR")?.kind).toBe("watch");
   });
+  it("una oferta de compra manda a OBSERVAR con la bandera (17/9): antes `refreshWatchlist` armaba su decisión sin filings ni hechos", async () => {
+    const { store, deps } = setup();
+    const peers = ["VST", "CEG", "NRG", "AES", "SO"];
+    for (const p of peers) await store.saveFundamentals(fund(p, p === "VST" ? 12 : 25, peers.filter((x) => x !== p)));
+    await store.addWatch("VST");
+    const r1 = await refreshWatchlist(deps, { today, portfolioUsd: 150_000 });
+    expect(r1.errors).toEqual([]);
+    expect((await store.latestCandidates()).find((x) => x.symbol === "VST")!.verdict).toBe("COMPRAR");
+    const conOferta = { ...deps, filingsDeOferta: async (s: string) => (s === "VST" ? ["DEFM14A — X CORP"] : []) };
+    const r2 = await refreshWatchlist(conOferta, { today: "2026-09-09", portfolioUsd: 150_000 });
+    expect(r2.errors).toEqual([]);
+    const bajoOferta = (await store.latestCandidates()).find((x) => x.symbol === "VST")!;
+    expect(bajoOferta.verdict).toBe("OBSERVAR");
+    expect(bajoOferta.flags).toContain("bajo_oferta_de_compra");
+    // Sin filings al día siguiente, vuelve a su veredicto técnico de siempre: la oferta no queda pegada.
+    const r3 = await refreshWatchlist(deps, { today: "2026-09-10", portfolioUsd: 150_000 });
+    expect(r3.errors).toEqual([]);
+    const sinOferta = (await store.latestCandidates()).find((x) => x.symbol === "VST")!;
+    expect(sinOferta.verdict).toBe("COMPRAR");
+    expect(sinOferta.flags).not.toContain("bajo_oferta_de_compra");
+  });
   it("lista vacía: no hace nada; sin velas: error por símbolo y sigue", async () => {
     const { store, deps } = setup();
     expect(await refreshWatchlist(deps, { today, portfolioUsd: null })).toEqual({ symbols: 0, rows: 0, errors: [] });
