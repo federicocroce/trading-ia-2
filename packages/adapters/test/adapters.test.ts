@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fixtureHttpClient } from "../src/http/index.js";
 import { EdgarIngestor, fetchFilingText, filingUrl, htmlToText } from "../src/edgar/index.js";
-import { EdgarOfferForms } from "../src/edgar/ofertas.js";
+import { EdgarOfferForms, tituloDeFiling } from "../src/edgar/ofertas.js";
 import { NasdaqEarningsIngestor } from "../src/earnings/index.js";
 import { AlpacaMarketData, impliedMoveFromChain, parseOcc } from "../src/alpaca/market.js";
 import { AlpacaBroker } from "../src/alpaca/broker.js";
@@ -241,5 +241,9 @@ describe("EdgarOfferForms", () => {
     await o.offerFilingTitles("AES", { today: "2026-09-17" });
     await o.offerFilingTitles("AES", { today: "2026-09-17" });
     expect(pedidos).toBe(1);
+  });
+  it("tituloDeFiling: sin items ni con items", () => {
+    expect(tituloDeFiling("DEFM14A", "", "AES CORP")).toBe("DEFM14A — AES CORP");
+    expect(tituloDeFiling("8-K", "2.02,9.01", "X")).toBe("8-K (items 2.02,9.01) — X");
   });
 });

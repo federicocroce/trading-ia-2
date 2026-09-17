@@ -1,14 +1,13 @@
 import type { HttpClient } from "../http/index.js";
+import { FORMULARIOS_DE_OFERTA } from "@thesis/core";
 import { CikResolver } from "./statements.js";
 
-/**
- * Formularios que existen SÓLO cuando hay una fusión o una oferta de compra en curso. Son la prueba dura de que el
- * precio lo fija un acuerdo (AES a 15,00 en efectivo, 16/9; WTRG a 0,305 acciones de AWK, 17/9). El `DEF 14A` es el
- * poder de la asamblea anual y lo presenta toda empresa: no cuenta. Misma lista que `bajoOfertaDeCompra` en core.
- */
-export const FORMULARIOS_DE_OFERTA = ["DEFM14A", "PREM14A", "SC 14D9", "425"] as const;
 /** Una oferta firmada hace meses sigue fijando el precio hoy (AES: DEFM14A del 15/5 seguía vigente en septiembre). */
 export const VENTANA_OFERTA_DIAS = 400;
+
+/** Construye el título de un filing en el formato estándar: `"<form>[ (items ...)] — <company>"`. */
+export const tituloDeFiling = (form: string, items: string, name: string): string =>
+  `${form}${items ? ` (items ${items})` : ""} — ${name}`;
 
 interface Submissions {
   name: string;
@@ -55,7 +54,7 @@ export class EdgarOfferForms {
       const fecha = r.filingDate[i]!;
       if (fecha < desde || fecha > new Date(hoy).toISOString().slice(0, 10)) continue;
       const items = r.items?.[i] ?? "";
-      out.push(`${form}${items ? ` (items ${items})` : ""} — ${sub.name}`);
+      out.push(tituloDeFiling(form, items, sub.name));
     }
     return out;
   }

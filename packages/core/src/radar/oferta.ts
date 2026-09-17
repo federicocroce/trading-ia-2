@@ -15,7 +15,7 @@
  * oferta pública de adquisición (SC 14D9) y las comunicaciones de fusión (425). Un 8-K item 1.01 NO alcanza: es
  * "acuerdo material definitivo" y lo usa cualquier crédito bancario.
  */
-const FORMULARIOS_DE_OFERTA = ["DEFM14A", "PREM14A", "SC 14D9", "425"] as const;
+export const FORMULARIOS_DE_OFERTA = ["DEFM14A", "PREM14A", "SC 14D9", "425"] as const;
 
 /**
  * El formulario que prueba que la empresa está bajo oferta de compra, o null si ninguno lo hace.

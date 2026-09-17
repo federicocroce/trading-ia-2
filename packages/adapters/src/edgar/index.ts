@@ -1,7 +1,9 @@
 import type { Ingestor, RawEvent } from "@thesis/core";
+import { FORMULARIOS_DE_OFERTA } from "@thesis/core";
 import type { HttpClient } from "../http/index.js";
 import { newEvent } from "../util.js";
 import { CikResolver } from "./statements.js";
+import { VENTANA_OFERTA_DIAS, tituloDeFiling } from "./ofertas.js";
 
 /**
  * SEC EDGAR. Dos usos:
@@ -29,19 +31,13 @@ interface Submissions {
 
 /**
  * Formularios que existen SÓLO cuando hay una fusión o una oferta de compra en curso: son la única prueba dura de
- * que el precio de la acción está fijado por un acuerdo (AES, 16/9: ver `bajoOfertaDeCompra` en core).
+ * que el precio de la acción está fijado por un acuerdo (AES, 16/9: ver `bajoOfertaDeCompra` en core, ver también
+ * `VENTANA_OFERTA_DIAS` en `./ofertas.js`).
  *
  * `DEF 14A` NO está y no puede estar: es el poder de la asamblea anual, que presenta toda empresa que cotiza.
  */
-const OFFER_FORMS = new Set(["DEFM14A", "PREM14A", "SC 14D9", "425"]);
-/**
- * Una oferta firmada hace meses sigue fijando el precio hoy, así que estos formularios se miran con una ventana
- * mucho más larga que la de la ingesta normal. AES firmó el 1/3/2026 y presentó su DEFM14A el 15/5: con los 30
- * días de siempre no entraba nunca, y el Radar le seguía calculando un objetivo al doble del riesgo contra un
- * acuerdo en efectivo a 15,00. No cuesta un pedido más: el JSON de submissions ya viene entero.
- */
-const OFFER_WINDOW_DAYS = 400;
-const INTERESTING_FORMS = new Set(["8-K", "10-Q", "10-K", "4", "SC 13D", "SC 13G", "S-1", "424B4", "6-K", "20-F", ...OFFER_FORMS]);
+const OFFER_FORMS = new Set<string>(FORMULARIOS_DE_OFERTA);
+const INTERESTING_FORMS = new Set(["8-K", "10-Q", "10-K", "4", "SC 13D", "SC 13G", "S-1", "424B4", "6-K", "20-F", ...FORMULARIOS_DE_OFERTA]);
 /** Items de 8-K que suelen mover precio. */
 const FDA_KEYWORDS = /pdufa|fda (approval|approves|accept|complete response|advisory committee)|adcom/i;
 
@@ -112,8 +108,8 @@ export class EdgarIngestor implements Ingestor {
   async fetch(since: string): Promise<RawEvent[]> {
     const out: RawEvent[] = [];
     const sinceDate = since.slice(0, 10);
-    // Los formularios de oferta de compra se miran mucho más atrás que el resto: ver OFFER_WINDOW_DAYS.
-    const ofertaDesde = new Date(Date.parse(since) - OFFER_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10);
+    // Los formularios de oferta de compra se miran mucho más atrás que el resto: ver VENTANA_OFERTA_DIAS.
+    const ofertaDesde = new Date(Date.parse(since) - VENTANA_OFERTA_DIAS * 86_400_000).toISOString().slice(0, 10);
     const desdeCuando = (form: string) => (OFFER_FORMS.has(form) ? ofertaDesde : sinceDate);
     for (const ticker of await resolveUniverse(this.opts.universe)) {
       const cik = await this.resolveCik(ticker);
@@ -132,7 +128,7 @@ export class EdgarIngestor implements Ingestor {
         if (conocidas.has(acc)) continue;
         const primaryDoc = r.primaryDocument[i]!;
         const items = r.items?.[i] ?? "";
-        let title = `${form}${items ? ` (items ${items})` : ""} — ${sub.name}`;
+        let title = tituloDeFiling(form, items, sub.name);
         let extra: Record<string, unknown> = {};
         if (form === "4") {
           // Sin el XML no se sabe si es compra o rutina: se deja pasar como antes, marcado como desconocido.
