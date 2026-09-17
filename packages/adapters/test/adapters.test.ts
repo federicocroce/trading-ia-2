@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fixtureHttpClient } from "../src/http/index.js";
 import { EdgarIngestor, fetchFilingText, filingUrl, htmlToText } from "../src/edgar/index.js";
+import { EdgarOfferForms } from "../src/edgar/ofertas.js";
 import { NasdaqEarningsIngestor } from "../src/earnings/index.js";
 import { AlpacaMarketData, impliedMoveFromChain, parseOcc } from "../src/alpaca/market.js";
 import { AlpacaBroker } from "../src/alpaca/broker.js";
@@ -205,5 +206,40 @@ OLD,fda,2026-01-01,ya pasó,`;
   });
   it("parseCsv maneja comillas", () => {
     expect(parseCsv('a,b\n"x, y",z')[0]).toEqual({ a: "x, y", b: "z" });
+  });
+});
+
+/**
+ * 17/9: la regla `bajoOfertaDeCompra` existía pero sólo recibía formularios del universo de ingesta (posiciones,
+ * seguimiento, plan y COMPRAR del Radar). Seis empresas vendidas por contrato (AES, WTRG, ROKU, DV, BZH, BWMN) recibían
+ * franja, stop y objetivo. Esta consulta mira EDGAR en vivo para cualquier símbolo, sin escribir nada.
+ */
+describe("EdgarOfferForms", () => {
+  const fixtures = {
+    "https://www.sec.gov/files/company_tickers.json": E.companyTickersAES,
+    "https://data.sec.gov/submissions/CIK0000874761.json": E.submissionsAES,
+  };
+  it("devuelve los formularios de oferta de los últimos 400 días con el formato del ingestor; el DEF 14A anual no", async () => {
+    const titulos = await new EdgarOfferForms(fixtureHttpClient(fixtures)).offerFilingTitles("aes", { today: "2026-09-17" });
+    expect(titulos.some((t) => t.startsWith("DEFM14A — "))).toBe(true);
+    expect(titulos.some((t) => t.startsWith("PREM14A — "))).toBe(true);
+    expect(titulos.every((t) => !t.startsWith("DEF 14A"))).toBe(true);
+    expect(titulos.every((t) => !t.startsWith("8-K") && !t.startsWith("10-Q"))).toBe(true);
+    expect(titulos[0]).toMatch(/ — AES CORP$/);
+  });
+  it("fuera de la ventana no devuelve nada", async () => {
+    expect(await new EdgarOfferForms(fixtureHttpClient(fixtures)).offerFilingTitles("AES", { today: "2028-01-01" })).toEqual([]);
+  });
+  it("símbolo sin CIK → vacío, sin error", async () => {
+    expect(await new EdgarOfferForms(fixtureHttpClient(fixtures)).offerFilingTitles("NOPE", { today: "2026-09-17" })).toEqual([]);
+  });
+  it("cachea por símbolo dentro del proceso: dos consultas, un pedido de submissions", async () => {
+    let pedidos = 0;
+    const base = fixtureHttpClient(fixtures);
+    const http = { ...base, getJson: async <T,>(url: string) => { if (url.includes("/submissions/")) pedidos++; return base.getJson<T>(url); } };
+    const o = new EdgarOfferForms(http);
+    await o.offerFilingTitles("AES", { today: "2026-09-17" });
+    await o.offerFilingTitles("AES", { today: "2026-09-17" });
+    expect(pedidos).toBe(1);
   });
 });

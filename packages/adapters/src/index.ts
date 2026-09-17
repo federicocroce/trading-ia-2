@@ -2,6 +2,7 @@ export * from "./http/index.js";
 export * from "./util.js";
 export * from "./edgar/index.js";
 export * from "./edgar/statements.js";
+export * from "./edgar/ofertas.js";
 export * from "./earnings/index.js";
 export * from "./alpaca/index.js";
 export * from "./ar/index.js";
