@@ -84,6 +84,7 @@ pnpm radar:scan      # barrido (reanudable; Ctrl+C corta al terminar el símbolo
 pnpm radar:rank      # ranking + candidatos + ETFs + fichas
 pnpm radar:refresh   # refresco diario + medición
 pnpm radar:plan      # plan del aporte del mes
+pnpm --filter @thesis/api exec tsx src/radar-cli.ts hechos --importar <archivo.json> [--origen agente|manual]  # importador de hechos externos (guía, ganancia por reservas, oferta de compra); ver docs/hechos/README.md
 ```
 
 ## Ficha por ticker
@@ -151,6 +152,8 @@ scripts/launchd/uninstall.sh
 ```
 
 Docker Desktop queda configurado para arrancar al iniciar sesión y la base tiene `restart: unless-stopped`, así que después de un reinicio todo vuelve solo. Bajo launchd la API corre sin watch (un cambio de código no la reinicia a mitad de una corrida): después de cambiar código, `launchctl kickstart -k gui/$(id -u)/com.thesis-engine.api`. Para desarrollar con recarga automática, desinstalá los agentes y usá `pnpm dev:api`. Si querés que la Mac se despierte sola a la hora de los crons (opcional, pide sudo): `sudo pmset repeat wakeorpoweron MTWRF 07:25:00`. Sin eso, cuando la abras se pone al día en el primer chequeo.
+
+`install.sh` instala además `com.thesis-engine.hechos`: sábados 09:00, sin `KeepAlive` (si la máquina duerme, corre al despertar), corre la skill `/hechos` sin nadie en la terminal (`scripts/launchd/run-hechos.sh`) y deja su log en `~/Library/Logs/thesis-engine/hechos.log`.
 
 **Tu rutina.** Cada mañana: pestaña **Hoy** (qué cambió: alertas, veredictos, seguimiento resuelto, COMPRAR que entran y salen, tesis propuestas, noticias de lo tuyo), Cartera (¿VENDER o REVISAR?), Radar (¿cambió lo que más recomienda?), Argentina (¿CCL, riesgo país?). El día 1: seguir el plan del aporte, comprar a mano en el broker y cargar las operaciones. Los lunes: mirar los candidatos nuevos del ranking del domingo. Los botones del Radar (Barrer universo, Rankear, Refrescar, Refrescar Argentina, Regenerar plan) fuerzan un paso a mano; con "Ponerme al día" casi nunca hacen falta.
 

@@ -18,10 +18,11 @@ disable-model-invocation: true
 
 ## Pasos
 
+Si `node` no está en el PATH (una sesión a mano), cargá nvm antes de empezar con `. ~/.nvm/nvm.sh`; el cron ya lo tiene en el PATH.
+
 ### 1. Candidatas (sin búsqueda)
 
 ```bash
-export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"
 pnpm --filter @thesis/api exec tsx src/radar-cli.ts mercado --preselect 300 --sin-estados --top 300 --salida /tmp/hechos-candidatas.json
 ```
 
