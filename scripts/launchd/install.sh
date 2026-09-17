@@ -24,3 +24,22 @@ PL
   launchctl bootstrap "gui/$(id -u)" "$PLIST"
   echo "instalado com.thesis-engine.$svc (logs en $LOGS)"
 done
+
+# El agente semanal de hechos externos (17/9): sábados 09:00, sin KeepAlive. Si la máquina duerme, corre al despertar.
+chmod +x "$ROOT/scripts/launchd/run-hechos.sh"
+PLIST="$HOME/Library/LaunchAgents/com.thesis-engine.hechos.plist"
+cat > "$PLIST" <<PL
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.thesis-engine.hechos</string>
+  <key>ProgramArguments</key><array><string>/bin/zsh</string><string>$ROOT/scripts/launchd/run-hechos.sh</string></array>
+  <key>StartCalendarInterval</key><dict><key>Weekday</key><integer>6</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>$LOGS/hechos.log</string>
+  <key>StandardErrorPath</key><string>$LOGS/hechos.err.log</string>
+</dict></plist>
+PL
+launchctl bootout "gui/$(id -u)/com.thesis-engine.hechos" >/dev/null 2>&1 || true
+launchctl bootstrap "gui/$(id -u)" "$PLIST"
+echo "instalado com.thesis-engine.hechos (sábados 09:00, log en $LOGS/hechos.log)"
