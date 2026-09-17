@@ -1,0 +1,14 @@
+{
+  "hostsPrimarios": [
+    "sec.gov",
+    "fda.gov",
+    "cms.gov",
+    "ferc.gov",
+    "nrc.gov",
+    "federalregister.gov",
+    "whitehouse.gov",
+    "prnewswire.com",
+    "globenewswire.com",
+    "businesswire.com"
+  ]
+}

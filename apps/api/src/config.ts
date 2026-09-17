@@ -84,11 +84,14 @@ export interface RadarConfig {
   argentina: ArgentinaConfig;
   /** Días de decisión de la Fed (config/fomc.json): con una a 3 días hábiles o menos, el primer tramo va después. */
   fomc: string[];
+  /** Hosts cuya URL vale como fuente primaria de un hecho externo (config/hechos-fuentes.json): reguladores y cables de comunicados. */
+  hechosFuentes: string[];
 }
 
 const FomcSchema = z.object({ decisiones: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)) });
+const HechosFuentesSchema = z.object({ hostsPrimarios: z.array(z.string().min(1)) });
 
-/** Lee y valida config/taxonomia.json, config/etfs.json, config/radar-policy.json, config/argentina.json y config/fomc.json. */
+/** Lee y valida config/taxonomia.json, config/etfs.json, config/radar-policy.json, config/argentina.json, config/fomc.json y config/hechos-fuentes.json. */
 export async function loadRadarConfig(root: string): Promise<RadarConfig> {
   const read = async (name: string) => JSON.parse(await readFile(path.join(root, "config", name), "utf8")) as unknown;
   return {
@@ -97,6 +100,7 @@ export async function loadRadarConfig(root: string): Promise<RadarConfig> {
     policy: RadarPolicySchema.parse(await read("radar-policy.json")),
     argentina: ArgentinaConfigSchema.parse(await read("argentina.json")),
     fomc: FomcSchema.parse(await read("fomc.json")).decisiones,
+    hechosFuentes: HechosFuentesSchema.parse(await read("hechos-fuentes.json")).hostsPrimarios,
   };
 }
 

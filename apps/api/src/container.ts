@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, SecStatements, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
+import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, EdgarOfferForms, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, SecStatements, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
 import { DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, todayLocal, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, eventUniverse, scanEventsFor, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
@@ -199,6 +199,7 @@ export function buildContainer(cfg: Config): Container {
 
   // Radar: universo de Alpaca, fundamentals de Finnhub (55/min), ficha del modelo, config editable.
   const finnhub = cfg.finnhubToken ? new FinnhubFundamentals(http, cfg.finnhubToken, new RateLimiter(55)) : null;
+  const ofertas = new EdgarOfferForms(http);
   const radarDeps: RadarDeps = {
     store,
     assets: new AlpacaAssets(http, cfg.alpaca),
@@ -210,7 +211,12 @@ export function buildContainer(cfg: Config): Container {
     policy: cfg.radar.policy,
     fomc: cfg.radar.fomc,
     filings: (symbol) => store.recentFilingTitles(symbol, 8),
-    filingsDeOferta: (symbol) => store.offerFilingTitles(symbol),
+    // Lo guardado en raw_events si hay; si no, EDGAR en vivo (17/9): la regla tiene que llegar a toda la preselección y
+    // al comando mercado, no sólo al universo de ingesta. Un pedido por símbolo, cacheado en el proceso, sin escribir.
+    filingsDeOferta: async (symbol) => {
+      const guardados = await store.offerFilingTitles(symbol);
+      return guardados.length ? guardados : ofertas.offerFilingTitles(symbol, { today: todayLocal() });
+    },
     log: (msg, extra) => console.log(msg, extra ?? ""),
     onProgress: (p) => { state.scan.progress = p; },
     shouldStop: () => state.scan.stopRequested,
