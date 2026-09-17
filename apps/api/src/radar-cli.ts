@@ -1,3 +1,4 @@
+import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { todayLocal } from "@thesis/core";
 import { buildContributionPlan, checkRun, explorarMercado, importarHechos, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
@@ -68,7 +69,9 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
     if (!archivo) { console.error("uso: tsx src/radar-cli.ts hechos --importar archivo.json [--origen agente|manual]"); code = 1; }
     else {
       const origen = args[args.indexOf("--origen") + 1] === "manual" ? "manual" : "agente";
-      const r = await importarHechos(c.store, JSON.parse(await readFile(archivo, "utf8")), { hostsPrimarios: cfg.radar.hechosFuentes, origen, detectadoAt: new Date().toISOString() });
+      // pnpm exec corre desde apps/api: una ruta relativa se resuelve desde donde se invocó pnpm (INIT_CWD).
+      const archivoResuelto = path.isAbsolute(archivo) ? archivo : path.resolve(process.env["INIT_CWD"] ?? process.cwd(), archivo);
+      const r = await importarHechos(c.store, JSON.parse(await readFile(archivoResuelto, "utf8")), { hostsPrimarios: cfg.radar.hechosFuentes, origen, detectadoAt: new Date().toISOString() });
       console.log(JSON.stringify(r, null, 2));
       if (r.guardados === 0) code = 1;
     }

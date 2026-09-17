@@ -44,4 +44,6 @@ Uní los arreglos en `docs/hechos/<fecha>.json` como `{ "hechos": [...] }` y cor
 pnpm --filter @thesis/api exec tsx src/radar-cli.ts hechos --importar docs/hechos/<fecha>.json --origen agente
 ```
 
+La ruta del archivo se toma desde la raíz del repo (el CLI la resuelve contra el directorio desde el que se invocó pnpm).
+
 Escribí `docs/hechos/<fecha>.md` con: cuántos símbolos se miraron, cuántos hechos entraron (verificados / no verificados), cuántos se rechazaron y por qué (el importador lo imprime), y el costo: agentes lanzados, búsquedas declaradas por cada uno, tokens si el entorno los muestra. Nada más: el informe no propone compras.
