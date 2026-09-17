@@ -127,6 +127,12 @@ no se tocan.
 Los pesos copian los que ya existen (`sorpresa_positiva` +0,2; `sorpresa_negativa` −0,3): un hecho vale lo mismo que
 el dato equivalente del proveedor, ni más ni menos.
 
+*Nota de implementación (17/9, revisión final):* la salvedad de la fila y de la convicción dice el hecho en genérico
+("subió la guía (hecho verificado, con fuente en la ficha)"); el texto con las cifras, la fecha y el enlace vive en la
+ficha del ticker (`HechosCard`), y `textoDeHecho` en el núcleo es la referencia de esas cadenas, pegada a la copia de la
+web por test. Meter cifras en el nombre de la bandera cambiaría el contrato de banderas que consumen el plan y la
+convicción; se prefirió no hacerlo.
+
 **La puerta de entrada (P6 chica).** En `rankRadar`, la preselección es las `preselect` mejores por puntaje **más** los
 símbolos del universo con un hecho `guia` sube verificado en los últimos 90 días (tope 20, los más recientes). Esos
 símbolos pasan por el mismo filtro técnico, con su mismo puntaje y su misma convicción; si quedan en COMPRAR, entran a
