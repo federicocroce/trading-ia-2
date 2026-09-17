@@ -63,6 +63,7 @@ export interface EmbudoMercado {
 const sinEscribir = <T extends object>(store: T): T =>
   new Proxy(store, {
     get(t, p, r) {
+      if (p === "saveHechos") return async () => 0;
       if (p === "upsertCandles" || p === "saveStatements" || p === "saveFundamentals") return async () => {};
       const v = Reflect.get(t, p, r);
       return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(t) : v;

@@ -1,4 +1,4 @@
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, PreTradeReview, Fundamentals, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge, familyOf } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -89,6 +89,10 @@ export interface RadarStore {
   /** Verificación web por candidata (spec 2026-09-10): la última por símbolo. */
   saveVerification(v: CandidateVerification): Promise<void>;
   verification(symbol: string): Promise<CandidateVerification | null>;
+  /** Hechos externos (17/9): la única tabla que escribe el importador. `hechos` = por símbolo desde una fecha, más recientes primero. */
+  saveHechos(rows: HechoExterno[]): Promise<number>;
+  hechos(symbol: string, desde: string): Promise<HechoExterno[]>;
+  hechosPorTipo(tipo: HechoTipo, desde: string): Promise<HechoExterno[]>;
   upsertAnalystActions(actions: AnalystAction[]): Promise<number>;
   analystActions(symbol: string, since: string): Promise<AnalystAction[]>;
   newsScannedTo(symbol: string): Promise<string | null>;
@@ -176,6 +180,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   macroAr = new Map<string, MacroAr>();
   jobs = new Map<string, JobRun>();
   watch = new Map<string, WatchItem>();
+  hechosMap = new Map<string, HechoExterno>();
   events = new Map<string, RawEvent & { filterPassed: boolean | null; filterReason: string | null }>();
   theses = new Map<string, Thesis>();
   orders = new Map<string, Order>();
@@ -404,6 +409,16 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async verification(symbol: string) {
     return this.verifications.get(symbol.toUpperCase()) ?? null;
+  }
+  async saveHechos(rows: HechoExterno[]) {
+    for (const h of rows) this.hechosMap.set(`${h.symbol.toUpperCase()}|${h.tipo}|${h.fecha}|${h.fuente.url}`, { ...h, symbol: h.symbol.toUpperCase() });
+    return rows.length;
+  }
+  async hechos(symbol: string, desde: string) {
+    return [...this.hechosMap.values()].filter((h) => h.symbol === symbol.toUpperCase() && h.fecha >= desde).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  }
+  async hechosPorTipo(tipo: HechoTipo, desde: string) {
+    return [...this.hechosMap.values()].filter((h) => h.tipo === tipo && h.fecha >= desde).sort((a, b) => b.fecha.localeCompare(a.fecha));
   }
   async upsertEvents(events: RadarEvent[]) {
     let n = 0;

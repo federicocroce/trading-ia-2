@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
+import { clasificarHecho } from "@thesis/core";
 import { Repo, createDb, schema } from "./index.js";
 import { testDatabaseUrl } from "./integracion.js";
 
@@ -43,6 +44,7 @@ d("Repo (Postgres real)", () => {
     await db.delete(schema.theses).where(eq(schema.theses.ticker, ticker));
     await db.delete(schema.rawEvents).where(eq(schema.rawEvents.ticker, ticker));
     await db.delete(schema.promptVersions).where(eq(schema.promptVersions.version, "v-test"));
+    await db.delete(schema.hechosExternos).where(eq(schema.hechosExternos.symbol, `H${ticker}`));
   });
 
   it("raw_events: inserta, dedupea y marca filtro", async () => {
@@ -234,5 +236,22 @@ d("Repo (Postgres real)", () => {
     const n = { symbol: sym, date: "2099-01-01", headline: "h", source: "s", url: `https://x/${sym}`, summary: null };
     expect(await repo.upsertNews([n, { ...n, headline: "h2" }])).toBe(1);
     expect((await repo.news(sym, 10))[0]?.headline).toBe("h");
+  });
+
+  it("hechos_externos: upsert por símbolo+tipo+fecha+url, lectura por símbolo y por tipo", async () => {
+    const sym = `H${ticker}`;
+    const base = { hostsPrimarios: ["sec.gov"], origen: "manual" as const, detectadoAt: "2026-09-17T00:00:00.000Z" };
+    const h1 = clasificarHecho({ tipo: "guia", symbol: sym, fecha: "2026-09-02", valor: { direccion: "sube", metrica: "EPS", periodo: "FY2026", antes: "8", despues: "10" }, fuente: { url: `https://www.sec.gov/${sym}/1`, titulo: "8-K" } }, base);
+    const h2 = clasificarHecho({ tipo: "oferta_de_compra", symbol: sym, fecha: "2026-08-01", valor: { comprador: "X", efectivoUsd: 15, ratio: null, etapa: "votada", cierreEsperado: null, formulario: "DEFM14A" }, fuente: { url: `https://www.sec.gov/${sym}/2`, titulo: "DEFM14A" } }, base);
+    expect(await repo.saveHechos([h1, h2])).toBe(2);
+    // `clasificarHecho` devuelve la unión `HechoExterno`, no el miembro "guia" puntual: sin este cast el spread de
+    // `h1.valor` no tipa (TS no sabe que es la forma de "guia" aunque el literal de arriba lo diga).
+    expect(await repo.saveHechos([{ ...h1, valor: { ...h1.valor, despues: "11" } } as typeof h1])).toBe(1);
+    const porSimbolo = await repo.hechos(sym, "2026-01-01");
+    expect(porSimbolo.map((h) => h.tipo)).toEqual(["guia", "oferta_de_compra"]);
+    expect(porSimbolo[0]?.tipo === "guia" && porSimbolo[0].valor.despues).toBe("11");
+    expect(porSimbolo[0]).toMatchObject({ estado: "verificado", primaria: true, origen: "manual", vigenteHasta: null });
+    expect((await repo.hechosPorTipo("oferta_de_compra", "2026-01-01")).some((h) => h.symbol === sym)).toBe(true);
+    expect(await repo.hechos(sym, "2026-09-10")).toEqual([]);
   });
 });

@@ -509,3 +509,28 @@ export const watchlist = pgTable("watchlist", {
   resolutionPrice: numeric("resolution_price", { precision: 14, scale: 4 }),
   resolutionReturn: numeric("resolution_return", { precision: 10, scale: 4 }),
 });
+
+/**
+ * Hechos externos (17/9): guía, ganancia por reservas y ofertas de compra con fecha y fuente, cargados por el importador
+ * (`radar-cli.ts hechos --importar`). Es la ÚNICA tabla que ese mecanismo escribe. `estado` = verificado si la fuente es
+ * primaria; sólo lo verificado produce banderas. Único por (símbolo, tipo, fecha, url): el mismo hecho cargado dos
+ * veces se actualiza, no se duplica.
+ */
+export const hechosExternos = pgTable(
+  "hechos_externos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    symbol: text("symbol").notNull(),
+    tipo: text("tipo").notNull(),
+    fecha: date("fecha").notNull(),
+    valor: jsonb("valor").notNull(),
+    fuenteUrl: text("fuente_url").notNull(),
+    fuenteTitulo: text("fuente_titulo").notNull(),
+    primaria: boolean("primaria").notNull(),
+    estado: text("estado").notNull(),
+    origen: text("origen").notNull(),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+    vigenteHasta: date("vigente_hasta"),
+  },
+  (t) => [uniqueIndex("hechos_externos_unico").on(t.symbol, t.tipo, t.fecha, t.fuenteUrl), index("hechos_externos_symbol").on(t.symbol)],
+);

@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, lt, notInArray, sql } from "drizzle-orm";
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, PreTradeReview, Fundamentals, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { CANDIDATE_FAMILIES, computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -351,6 +351,24 @@ export class Repo {
     if (!r) return null;
     return { symbol: r.symbol, date: r.date, verdict: r.verdict as CandidateVerification["verdict"], reason: r.reason, lastQuarter: (r.lastQuarter as CandidateVerification["lastQuarter"]) ?? null, analysts: (r.analysts as CandidateVerification["analysts"]) ?? [], consensusTarget: r.consensusTarget === null ? null : num(r.consensusTarget), events: (r.events as CandidateVerification["events"]) ?? [], valuation: r.valuation, nextEarnings: r.nextEarnings, sources: (r.sources as CandidateVerification["sources"]) ?? [], researchText: r.researchText, promptVersion: r.promptVersion, model: r.model, detectedAt: r.detectedAt.toISOString() };
   }
+  // ---------- hechos_externos (17/9) ----------
+  async saveHechos(rows: HechoExterno[]): Promise<number> {
+    let n = 0;
+    for (const h of rows) {
+      const v = { symbol: h.symbol.toUpperCase(), tipo: h.tipo, fecha: h.fecha, valor: h.valor, fuenteUrl: h.fuente.url, fuenteTitulo: h.fuente.titulo, primaria: h.primaria, estado: h.estado, origen: h.origen, detectedAt: new Date(h.detectadoAt), vigenteHasta: h.vigenteHasta };
+      await this.db.insert(s.hechosExternos).values(v).onConflictDoUpdate({ target: [s.hechosExternos.symbol, s.hechosExternos.tipo, s.hechosExternos.fecha, s.hechosExternos.fuenteUrl], set: v });
+      n++;
+    }
+    return n;
+  }
+  async hechos(symbol: string, desde: string): Promise<HechoExterno[]> {
+    const rows = await this.db.select().from(s.hechosExternos).where(and(eq(s.hechosExternos.symbol, symbol.toUpperCase()), gte(s.hechosExternos.fecha, desde))).orderBy(desc(s.hechosExternos.fecha));
+    return rows.map(toHecho);
+  }
+  async hechosPorTipo(tipo: HechoTipo, desde: string): Promise<HechoExterno[]> {
+    const rows = await this.db.select().from(s.hechosExternos).where(and(eq(s.hechosExternos.tipo, tipo), gte(s.hechosExternos.fecha, desde))).orderBy(desc(s.hechosExternos.fecha));
+    return rows.map(toHecho);
+  }
   async upsertEvents(events: RadarEvent[]): Promise<number> {
     let n = 0;
     for (const e of events) {
@@ -649,6 +667,9 @@ export class Repo {
 
 function toRawEvent(r: typeof s.rawEvents.$inferSelect): RawEvent {
   return { id: r.id, ticker: r.ticker, eventType: r.eventType, source: r.source, eventDate: r.eventDate, sourceRef: r.sourceRef, title: r.title, payload: (r.payload as Record<string, unknown>) ?? {}, observedAt: r.observedAt.toISOString() };
+}
+function toHecho(r: typeof s.hechosExternos.$inferSelect): HechoExterno {
+  return { symbol: r.symbol, tipo: r.tipo as HechoTipo, fecha: String(r.fecha), valor: r.valor, fuente: { url: r.fuenteUrl, titulo: r.fuenteTitulo }, primaria: r.primaria, estado: r.estado as HechoExterno["estado"], origen: r.origen as HechoExterno["origen"], detectadoAt: r.detectedAt.toISOString(), vigenteHasta: r.vigenteHasta ? String(r.vigenteHasta) : null } as HechoExterno;
 }
 function toThesis(r: typeof s.theses.$inferSelect): Thesis {
   return {
