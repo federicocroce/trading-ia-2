@@ -791,6 +791,24 @@ describe("rankRadar con ofertas y hechos externos (17/9)", () => {
     expect(plan.lines.map((l) => l.symbol)).not.toContain("SA");
     expect(await store.latestCandidates()).not.toHaveLength(0);
   });
+  it("la oferta se mira antes de elegir las filas: no le roba el lugar de desborde a la COMPRAR siguiente", async () => {
+    // Primero, el orden real del ranking sin ofertas, con todo el universo guardado.
+    const ancho = { ...policy, candidates: { top: 12, preselect: 12, chronicWeeks: 4, maxRows: 12 } };
+    const base = deps({ policy: ancho });
+    await scanUniverse(base.d, { scanDate: "2026-05-17", today: TODAY });
+    const orden = (await rankRadar(base.d, { today: TODAY, portfolioUsd: 150_000 })).candidates.filter((c) => c.kind === "stock").sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity)).map((c) => c.symbol);
+    expect(orden.length).toBeGreaterThanOrEqual(4);
+    const bajoOferta = orden[2]!; // puesto top+1: fuera de los 2 que entran por puntaje, primero en la cola de COMPRAR
+    const siguiente = orden[3]!; // la COMPRAR que tiene que quedarse con el único lugar de desborde
+    // Después, la corrida angosta: 2 por puntaje + 1 lugar de desborde para COMPRAR.
+    const angosto = { ...policy, candidates: { top: 2, preselect: 5, chronicWeeks: 4, maxRows: 3 } };
+    const { d } = deps({ policy: angosto, filingsDeOferta: async (s) => (s === bajoOferta ? [`DEFM14A — ${bajoOferta} CORP`] : []) });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const guardados = (await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 })).candidates.filter((c) => c.kind === "stock").map((c) => c.symbol);
+    expect(guardados).toHaveLength(3);
+    expect(guardados).toContain(siguiente); // con el orden viejo, bajoOferta contaba como COMPRAR y se llevaba este lugar
+    expect(guardados).not.toContain(bajoOferta);
+  });
   it("la puerta: un hecho verificado de guía subida hace evaluar y guardar a un símbolo fuera de la preselección; uno no verificado, no", async () => {
     const chico = { ...policy, candidates: { top: 2, preselect: 3, chronicWeeks: 4, maxRows: 2 } };
     const { store, d } = deps({ policy: chico });
