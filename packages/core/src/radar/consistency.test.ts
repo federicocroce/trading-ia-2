@@ -121,6 +121,36 @@ describe("checkConsistency", () => {
     expect(f).toEqual([]);
   });
 
+  /**
+   * 16/9, después del cierre. El cron arma el Radar a las 08:04, cuando la rueda del día todavía no existe, así
+   * que la fila fechada hoy lleva —correctamente— el cierre de ayer. A la tarde, cuando aparece la vela de hoy,
+   * el chequeo comparaba la fila contra ESA vela y sacaba 10 graves seguidos: TSM decía 413,75 (el cierre exacto
+   * del 15/9) contra 417,72 de hoy, TGTX 53,04 contra 55,85, ORRF 42,58 contra 42,00.
+   *
+   * Los datos estaban bien; el que mentía era el control. Y un control que grita todas las tardes es peor que no
+   * tenerlo, porque enseña a ignorar los graves.
+   *
+   * Sigue teniendo dientes: un cierre que no es ni el de hoy ni el de la rueda anterior sí es un error.
+   */
+  it("una fila armada antes del cierre lleva el cierre de la rueda anterior y eso no es un error (16/9)", () => {
+    const f = solo("precio_guardado", checkConsistency({
+      rows: [fila({ symbol: "TSM", candidateDate: "2026-09-16", close: 413.75 })],
+      candles: { TSM: [vela("2026-09-14", 418.01), vela("2026-09-15", 413.75), vela("2026-09-16", 417.72)] },
+      plan: null,
+    }));
+    expect(f).toEqual([]);
+  });
+
+  it("un cierre más viejo que la rueda anterior sigue siendo grave", () => {
+    const f = solo("precio_guardado", checkConsistency({
+      rows: [fila({ symbol: "TSM", candidateDate: "2026-09-16", close: 418.01 })],
+      candles: { TSM: [vela("2026-09-14", 418.01), vela("2026-09-15", 413.75), vela("2026-09-16", 417.72)] },
+      plan: null,
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+  });
+
   it("JANX: una empresa con pérdida no dispara ganancia no operativa", () => {
     // Margen neto -294% contra operativo -421%: menos negativo por intereses de la caja, no ganancia de afuera.
     const f = solo("ganancia_no_operativa", checkConsistency({

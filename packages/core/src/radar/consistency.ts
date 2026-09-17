@@ -99,10 +99,18 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     // 1. El precio guardado tiene que ser el cierre DE SU PROPIA FECHA. Comparar contra la última vela
     //    marcaba como error toda fila de un día anterior que sigue vigente, que es lo normal en la lista
     //    de seguimiento cuando el ranking no la reescribe.
+    //    Y vale también el cierre de la rueda ANTERIOR, porque el cron arma el Radar a las 08:04, cuando la
+    //    rueda del día todavía no existe: la fila fechada hoy lleva —correctamente— el cierre de ayer. Sin esta
+    //    tolerancia, cada tarde al aparecer la vela del día salían diez graves seguidos con datos correctos
+    //    (16/9: TSM 413,75 contra 417,72, TGTX 53,04 contra 55,85, ORRF 42,58 contra 42,00), y un control que
+    //    grita todas las tardes enseña a ignorar los graves. Un cierre más viejo que eso sí es un error.
     const velas = i.candles[row.symbol];
-    const suya = velas?.filter((c) => c.date <= row.candidateDate).at(-1) ?? null;
-    if (suya && Math.abs(row.close - suya.close) > CONSISTENCY_THRESHOLDS.priceEpsilon) {
-      add("precio_guardado", row.symbol, "grave", `la fila del ${row.candidateDate} dice ${r2(row.close)} y la vela de ${suya.date} cerró en ${r2(suya.close)}`);
+    const hasta = velas?.filter((c) => c.date <= row.candidateDate) ?? [];
+    const suya = hasta.at(-1) ?? null;
+    const anterior = hasta.at(-2) ?? null;
+    const coincide = (c: Candle | null) => c !== null && Math.abs(row.close - c.close) <= CONSISTENCY_THRESHOLDS.priceEpsilon;
+    if (suya && !coincide(suya) && !coincide(anterior)) {
+      add("precio_guardado", row.symbol, "grave", `la fila del ${row.candidateDate} dice ${r2(row.close)} y la vela de ${suya.date} cerró en ${r2(suya.close)}${anterior ? ` (y la de ${anterior.date}, en ${r2(anterior.close)})` : ""}`);
     }
 
     // 1b. El stop guardado tiene que ser el que sale de esas mismas velas. El refresco arrastraba el del día
