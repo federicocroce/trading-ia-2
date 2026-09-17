@@ -17,6 +17,7 @@ import type { CandidateRow, Tags } from "./types.js";
  *             −0.3 verificación web con reservas (se cita el motivo); apta suma a las razones sin bonificar;
  *             −0.3 consenso a menos de 10% del precio; −0.3 subió más de 100% en 12 meses;
  *             −0.3 sensible a tasas (REIT, servicios públicos, minera de oro) con régimen restrictivo.
+ *             −0.3 guía recortada / ganancia sostenida por reservas (hechos externos verificados); +0.2 guía subida.
  * - riesgo: −0.1 por cada punto por encima de 5.
  * - objetivo: −0.3 si queda a menos de 5% (el objetivo es 2× la distancia al stop, no un pronóstico).
  * - tema cargado: −0.3 si comparte un tema donde la cartera ya supera el umbral de concentración.
@@ -47,6 +48,7 @@ const POSITIVE: Record<string, string> = {
   consenso_compra: "analistas: consenso de compra",
   insiders_compran: "insiders compraron en los últimos 90 días",
   sorpresa_positiva: "último resultado sorprendió para arriba",
+  guia_subida: "subió la guía (hecho verificado, con fuente en la ficha)",
 };
 const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   insiders_venden: { text: "insiders vendieron en los últimos 90 días", penalty: 0.15 },
@@ -60,6 +62,8 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   verificacion_reservas: { text: "verificación web con reservas", penalty: 0.3 },
   consenso_en_precio: { text: "el objetivo de consenso está a menos de 10% del precio: poco margen", penalty: 0.3 },
   subio_mucho_12m: { text: "subió más de 100% en 12 meses: el precio ya descuenta mucho", penalty: 0.3 },
+  guia_recortada: { text: "recortó la guía (hecho verificado, con fuente en la ficha)", penalty: 0.3 },
+  ganancia_por_reservas: { text: "la ganancia publicada lleva reservas liberadas: sin ellas no llega al consenso (hecho verificado, con fuente en la ficha)", penalty: 0.3 },
 };
 const INFO: Record<string, string> = {
   resultado_extraordinario: "la ganancia reportada incluye extraordinarios: el ranking usa la ganancia núcleo",
@@ -68,6 +72,7 @@ const INFO: Record<string, string> = {
   banco_sin_estados: "banco sin estados de la SEC: la app no puede verificar su ganancia, así que no entra al plan",
   verificacion_pendiente: "verificación web pendiente (todavía no respondió el modelo)",
   verificacion_anterior: "verificación hecha con el cuestionario anterior: se repite antes de comprarla",
+  guia_reafirmada: "reafirmó la guía (hecho verificado)",
 };
 const SMALL_GROUP = 10;
 const MIN_GAIN_PCT = 5;

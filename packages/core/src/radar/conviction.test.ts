@@ -135,3 +135,16 @@ describe("topPicks", () => {
     expect(picks.map((p) => p.symbol)).toEqual(["TOP", "MID"]);
   });
 });
+
+const fila = (flags: string[]): CandidateRow => ({ candidateDate: "2026-09-17", symbol: "FIVE", kind: "stock", verdict: "COMPRAR", score: 1, axes: {}, peerGroup: Array(11).fill("P"), rankInGroup: 1, groupSize: 11, close: 100, entryLow: 100, entryHigh: 102, stop: 90, target: 126, sizeUsd: 10_000, sizeQty: 100, riskScore: 3, flags, nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
+
+describe("convicción con hechos externos (17/9)", () => {
+  it("guia_subida suma 0,2 como sorpresa_positiva; guia_recortada y ganancia_por_reservas restan 0,3", () => {
+    const base = convictionFor(fila([]), null, {})!.conviction;
+    expect(convictionFor(fila(["guia_subida"]), null, {})!.conviction).toBeCloseTo(base + 0.2, 4);
+    expect(convictionFor(fila(["guia_recortada"]), null, {})!.conviction).toBeCloseTo(base - 0.3, 4);
+    expect(convictionFor(fila(["ganancia_por_reservas"]), null, {})!.conviction).toBeCloseTo(base - 0.3, 4);
+    expect(convictionFor(fila(["guia_reafirmada"]), null, {})!.conviction).toBeCloseTo(base, 4);
+    expect(convictionFor(fila(["ganancia_por_reservas"]), null, {})!.cautions.join(" ")).toMatch(/reservas liberadas/);
+  });
+});

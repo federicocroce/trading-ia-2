@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { atr, buildFlags, buildQuarters, computeTrailingStop, consensusTargetOf, consensusUpsidePct, coreEarnings, decideCandidate, ENTRY_STOP_ATR, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
+import { atr, buildFlags, buildQuarters, clasificarHecho, computeTrailingStop, consensusTargetOf, consensusUpsidePct, coreEarnings, decideCandidate, ENTRY_STOP_ATR, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01", volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume }));
@@ -267,6 +267,19 @@ describe("decideCandidate bajo oferta de compra", () => {
     const d = decideCandidate({ f: f(), candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, filings: ["10-Q — Empresa Inc."] }, p);
     if ("excluded" in d) throw new Error("no debería excluir");
     expect(d.verdict).toBe("COMPRAR");
+  });
+  it("un hecho de oferta verificado hace lo mismo que el formulario; uno de guía subida suma la bandera sin cambiar el veredicto", () => {
+    const base = { hostsPrimarios: ["sec.gov"], origen: "manual" as const, detectadoAt: `${today}T00:00:00.000Z` };
+    const oferta = clasificarHecho({ tipo: "oferta_de_compra", symbol: "WTRG", fecha: "2026-03-01", valor: { comprador: "AWK", efectivoUsd: null, ratio: { acciones: 0.305, de: "AWK" }, etapa: "PUC", cierreEsperado: null, formulario: "425" }, fuente: { url: "https://www.sec.gov/a", titulo: "425" } }, base);
+    const d1 = decideCandidate({ f: f({ symbol: "WTRG" }), candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, hechos: [oferta] }, p);
+    if ("excluded" in d1) throw new Error("no debería excluir");
+    expect(d1.verdict).toBe("OBSERVAR");
+    expect(d1.flags).toContain("bajo_oferta_de_compra");
+    const guiaSube = clasificarHecho({ tipo: "guia", symbol: "FIVE", fecha: "2026-05-10", valor: { direccion: "sube", metrica: "EPS", periodo: "FY", antes: "8", despues: "9" }, fuente: { url: "https://www.sec.gov/b", titulo: "8-K" } }, base);
+    const d2 = decideCandidate({ f: f({ symbol: "FIVE" }), candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, hechos: [guiaSube] }, p);
+    if ("excluded" in d2) throw new Error("no debería excluir");
+    expect(d2.verdict).toBe("COMPRAR");
+    expect(d2.flags).toContain("guia_subida");
   });
 });
 
