@@ -64,15 +64,40 @@ export async function correrControles(c: Container, pedir: Pedir, plan: Contribu
 let corriendo: Promise<PlanControles | null> | null = null;
 
 /**
- * Asegura que el plan vigente tenga sus controles: si ya corrieron sobre esta versión, no hace nada. Lo llaman la
- * API cada minuto (así cubre también lo que rearma la CLI u otra sesión) y cada ruta o paso que rearma el plan.
+ * Cada cuánto se vuelven a correr los controles mientras estén FRENANDO el plan. Acotado para no consultar todas
+ * las filas y sus velas una vez por minuto durante horas cuando el grave es real.
  */
-export async function asegurarControles(c: Container, pedir: Pedir): Promise<PlanControles | null> {
+export const REINTENTO_CONTROLES_MS = 5 * 60_000;
+
+/**
+ * Un resultado que frena el plan no se cachea: se vuelve a mirar.
+ *
+ * El 17/9, día de ejecución, el cron corrió `radar` —que rearma el plan y dispara los controles— y recién 20
+ * segundos después corrió `argentina`, que reescribe las filas de los ADR argentinos. Los controles juzgaron el
+ * Radar a medio actualizar: 14 graves sobre datos que a los veinte segundos ya estaban bien. Y como no se repetían
+ * mientras el plan no se rearmara, esa ventana de veinte segundos frenó el plan TODO EL DÍA.
+ *
+ * Falla del lado seguro: un grave real se vuelve a encontrar en cada reintento y el plan sigue frenado. Lo único
+ * que cambia es que un grave transitorio se destraba solo. Un verde sí se cachea, porque no hay nada que destrabar.
+ */
+function hayQueCorrer(controles: PlanControles | null | undefined, builtAt: string, ahora: number): boolean {
+  if (!controles || controles.planBuiltAt !== builtAt) return true;
+  if (!controles.error && controles.graves === 0) return false;
+  return ahora - Date.parse(controles.at) >= REINTENTO_CONTROLES_MS;
+}
+
+/**
+ * Asegura que el plan vigente tenga sus controles. Un verde sobre esta versión no se repite; uno que frena, sí
+ * (ver `hayQueCorrer`). Lo llaman la API cada minuto (así cubre también lo que rearma la CLI u otra sesión) y
+ * cada ruta o paso que rearma el plan.
+ */
+export async function asegurarControles(c: Container, pedir: Pedir, opts: { ahora?: number } = {}): Promise<PlanControles | null> {
   if (corriendo) return corriendo;
+  const ahora = opts.ahora ?? Date.now();
   corriendo = (async () => {
     const plan = await c.store.latestPlan();
     if (!plan?.builtAt) return null;
-    if (plan.controles && plan.controles.planBuiltAt === plan.builtAt && !plan.controles.error) return plan.controles;
+    if (!hayQueCorrer(plan.controles, plan.builtAt, ahora)) return plan.controles!;
     return correrControles(c, pedir, { ...plan, builtAt: plan.builtAt });
   })();
   try {

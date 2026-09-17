@@ -18,8 +18,12 @@ export interface StepSpec {
 export const STEPS: StepSpec[] = [
   { id: "scan", label: "Barrido y ranking del universo", cadence: "weekly", weekday: 0, hour: 20, minute: 0 },
   { id: "cartera", label: "Veredictos de Cartera", cadence: "daily", hour: 7, minute: 45 },
-  { id: "radar", label: "Refresco y medición del Radar", cadence: "daily", hour: 7, minute: 50 },
+  // Argentina va ANTES que el Radar, y el orden importa (17/9, día de ejecución): `radar` termina rearmando el
+  // plan, y armar el plan dispara los controles. Corriendo después, los controles juzgaban el Radar con las filas
+  // de los ADR argentinos todavía del día anterior y encontraban 14 graves sobre datos que veinte segundos más
+  // tarde ya estaban bien. `argentina` no depende de `radar`: sólo busca la fila previa de cada símbolo argentino.
   { id: "argentina", label: "Argentina (macro, BYMA, CEDEARs)", cadence: "daily", hour: 7, minute: 50 },
+  { id: "radar", label: "Refresco y medición del Radar", cadence: "daily", hour: 7, minute: 50 },
   { id: "plan", label: "Plan del aporte", cadence: "monthly", hour: 8, minute: 0 },
   { id: "tesis", label: "Tesis por eventos", cadence: "daily", hour: 7, minute: 30 },
 ];
