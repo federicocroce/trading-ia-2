@@ -1,5 +1,5 @@
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
-import { AXES, AXIS_METRICS, atr, dividendYieldPct, groupMedians, holdTargetOf, unreliableGrowthKeys } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, Fundamentals, HechoExterno, LiveQuote, NewsItem, Position, PriceHistory, RadarEvent, Statements, SymbolDescription, Tags, Thesis, Transaction, VerdictRow } from"@thesis/core";
+import { AXES, AXIS_METRICS, atr, dividendYieldPct, groupMedians, hechosVigentes, holdTargetOf, unreliableGrowthKeys, VENTANA_MAXIMA_DIAS } from "@thesis/core";
 import type { CarteraStore, RadarStore, Store, TickerStore } from "./store.js";
 
 /**
@@ -42,6 +42,8 @@ export interface TickerPage {
   statements: Statements | null;
   events: RadarEvent[];
   analystActions: AnalystAction[];
+  /** Hechos externos vigentes (17/9), verificados o no: la ficha los muestra con su estado y su fuente. */
+  hechos: HechoExterno[];
   /**
    * Hasta qué fecha se leyeron las noticias de este símbolo. `null` = nunca se leyeron, y entonces una lista
    * de eventos vacía no significa que no haya pasado nada: significa que nadie miró. La pantalla tiene que
@@ -296,12 +298,13 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     : null;
   const candidate = candidates.find((c) => c.symbol === symbol) ?? null;
   const since90 = addDays(opts.today, -90);
-  const [statements, allEvents, analystActions, verification, newsScannedTo] = await Promise.all([
+  const [statements, allEvents, analystActions, verification, newsScannedTo, hechosTodos] = await Promise.all([
     store.statements(symbol).catch(() => null),
     store.eventsFor(symbol, since90).catch(() => []),
     store.analystActions(symbol, since90).catch(() => []),
     store.verification(symbol).catch(() => null),
     store.newsScannedTo(symbol).catch(() => null),
+    store.hechos(symbol, addDays(opts.today, -VENTANA_MAXIMA_DIAS)).catch(() => [] as HechoExterno[]),
   ]);
   const events = allEvents.filter((e) => e.severity !== "ruido");
   const { peers, medians, ownExcluded } = await comparables(store, fundamentals, candidate?.peerGroup ?? []);
@@ -339,6 +342,7 @@ export async function buildTicker(deps: TickerDeps, symbolRaw: string, opts: { t
     statements,
     events,
     analystActions,
+    hechos: hechosVigentes(hechosTodos, opts.today),
     newsScannedTo,
     verification,
     verificationCurrent: verification && opts.verifierPromptVersion ? verification.promptVersion === opts.verifierPromptVersion : null,

@@ -10,6 +10,7 @@ import { WatchlistButton } from "./WatchlistButton";
 import { usePrices } from "./prices";
 import { Flags } from "./flags";
 import { VerificationSections } from "./Verification";
+import { HechosCard } from "./HechosCard";
 import { PeersTable } from "./Peers";
 import { CarteraVerdict, RadarVerdict, usePlan } from "./plan";
 import { instruccionCartera, planLoCompra, planStatusFor } from "./instruccion";
@@ -204,6 +205,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
           noticias leídas no dibujaba la tarjeta y la pantalla quedaba idéntica a la de uno verificado y
           limpio. Los ETFs no entran: no tienen estados de la SEC ni hechos de una empresa que leer, así que
           ahí el vacío no esconde nada. */}
+      <HechosCard hechos={t.hechos ?? []} />
       {(t.verification || t.statements || t.events.length > 0 || t.analystActions.length > 0 || t.position || (t.candidate && t.candidate.kind !== "etf")) && (
         <div className="card">
           <b>Verificación y estados</b>

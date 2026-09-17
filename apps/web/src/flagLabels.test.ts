@@ -95,4 +95,15 @@ describe("el título de cada bandera dice lo que hace (auditoría del 15/9)", ()
     expect(flagLabel("verificacion_anterior")).toMatch(/cuestionario anterior/);
     expect(countSalvedades(["verificacion_anterior"])).toBe(0);
   });
+
+  it("hechos externos (17/9): guía subida a favor, reservas y guía recortada como salvedad, reafirmada neutra", () => {
+    expect(flagLabel("guia_subida")).toBe("subió la guía (hecho verificado)");
+    expect(flagLabel("guia_recortada")).toBe("recortó la guía (hecho verificado)");
+    expect(flagLabel("guia_reafirmada")).toBe("reafirmó la guía (hecho verificado)");
+    expect(flagLabel("ganancia_por_reservas")).toBe("la ganancia lleva reservas liberadas: sin ellas no llega al consenso (hecho verificado)");
+    expect(flagTone("guia_subida")).toBe("bueno");
+    expect(flagTone("guia_recortada")).toBe("salvedad");
+    expect(flagTone("ganancia_por_reservas")).toBe("salvedad");
+    expect(flagTone("guia_reafirmada")).toBe("limitacion");
+  });
 });

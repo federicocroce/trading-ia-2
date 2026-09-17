@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, Fundamentals, SymbolDescription } from "@thesis/core";
-import { atr, groupMedians, rankStocks } from "@thesis/core";
+import { atr, clasificarHecho, groupMedians, rankStocks } from "@thesis/core";
 import { MemoryStore, buildTicker, closeAnterior, comparables, liveQuotes, type TickerDeps } from "../src/index.js";
 
 const series = (closes: number[], start = "2026-06-01"): Candle[] => closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c + 1, low: c - 1, close: c, volume: 1_000_000 }));
@@ -151,6 +151,15 @@ describe("buildTicker", () => {
     expect(t.news).toEqual([]);
     expect(t.quote).toBeNull();
     expect(t.errors.length).toBe(2);
+  });
+  it("hechos externos (17/9): la ficha trae los vigentes del símbolo, verificados o no, y ninguno para otro símbolo", async () => {
+    const { store, deps } = setup();
+    const o = { hostsPrimarios: ["sec.gov"], origen: "manual" as const, detectadoAt: `${today}T00:00:00.000Z` };
+    await store.saveHechos([clasificarHecho({ tipo: "guia", symbol: "GGAL", fecha: "2026-09-02", valor: { direccion: "sube", metrica: "EPS ajustado 2026", periodo: "FY2026", antes: "8,65-9,05", despues: "9,83-10,31" }, fuente: { url: "https://www.sec.gov/a", titulo: "8-K del 2/9/2026" } }, o)]);
+    const t = await buildTicker(deps, "GGAL", { today });
+    expect(t.hechos.map((h) => h.tipo)).toEqual(["guia"]);
+    const nvda = await buildTicker(deps, "NVDA", { today });
+    expect(nvda.hechos).toEqual([]);
   });
 });
 

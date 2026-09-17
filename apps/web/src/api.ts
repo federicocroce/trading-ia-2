@@ -121,6 +121,20 @@ export interface NewsItem { symbol: string; date: string; headline: string; sour
 export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" | "DIVIDEND" | "TRANSFER"; quantity: number; price: number; fees: number; date: string; currency: string; platform: string | null; externalId: string | null; notes: string | null }
 /** Precio vivo con la variación del día contra el cierre previo. */
 export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null; /** Marca del servidor (más de 30 horas): la misma para toda la app (15/9). */ stale?: boolean; /** De qué rueda es `prevClose` (15/9). */ prevCloseDate?: string | null }
+/** Hechos externos (17/9): datos con fecha y fuente que la app no puede sacar de sus proveedores, cargados por el importador. */
+export type HechoTipo = "guia" | "ganancia_por_reservas" | "oferta_de_compra";
+export interface HechoExterno {
+  tipo: HechoTipo;
+  symbol: string;
+  fecha: string;
+  valor: Record<string, unknown>;
+  fuente: { url: string; titulo: string };
+  primaria: boolean;
+  estado: "verificado" | "no_verificado";
+  origen: "agente" | "manual";
+  detectadoAt: string;
+  vigenteHasta: string | null;
+}
 export interface TickerPage {
   symbol: string;
   description: SymbolDescription | null;
@@ -145,6 +159,8 @@ export interface TickerPage {
   statements: Statements | null;
   events: RadarEvent[];
   analystActions: AnalystAction[];
+  /** Hechos externos vigentes (17/9): guía, reservas, oferta; los no verificados se muestran y no mueven nada. */
+  hechos?: HechoExterno[];
   /** Hasta qué fecha se leyeron las noticias. null = nunca: una lista de eventos vacía no prueba nada. */
   newsScannedTo: string | null;
   verification?: CandidateVerification | null;

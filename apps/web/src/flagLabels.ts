@@ -48,6 +48,11 @@ const FLAG_LABEL: Record<string, string> = {
   caro_vs_ccl: "el CEDEAR está caro contra el CCL",
   barato_vs_ccl: "el CEDEAR está barato contra el CCL",
   ratio_dudoso: "el ratio cargado no coincide con el precio: revisar si hubo split",
+  // Hechos externos (17/9): datos con fecha y fuente que carga el importador; la ficha muestra el detalle y el enlace.
+  guia_subida: "subió la guía (hecho verificado)",
+  guia_recortada: "recortó la guía (hecho verificado)",
+  guia_reafirmada: "reafirmó la guía (hecho verificado)",
+  ganancia_por_reservas: "la ganancia lleva reservas liberadas: sin ellas no llega al consenso (hecho verificado)",
 };
 /**
  * Banderas con un dato adentro, en la forma `nombre:dato`. Se traducen aparte porque el dato cambia por
@@ -95,7 +100,7 @@ export const flagLabel = (flag: string): string => {
 export type FlagTone = "bueno" | "salvedad" | "limitacion";
 
 /** Señales a favor. Ninguna de estas resta en la convicción ni acerca a OBSERVAR. */
-const BUENAS = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiva", "dividendo", "verificacion_apta", "barato_vs_ccl"]);
+const BUENAS = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiva", "dividendo", "verificacion_apta", "barato_vs_ccl", "guia_subida"]);
 /**
  * Ni buenas ni malas: describen qué ES el instrumento o cómo está cotizando, y no restan nada. Que un ETF
  * sea del núcleo se pintaba en ámbar con el mismo ⚑ que una salvedad, y "en línea con el CCL", que es la
@@ -106,7 +111,7 @@ const NEUTRAS = new Set(["nucleo_por_calendario", "en_linea"]);
 // `crecimiento_no_confiable`: el número de la fuente no sirve en bancos y el ranking ya no lo usa (NBN, 13/9).
 // `banco_sin_estados`: tampoco es un defecto del banco; es que la app no lo puede verificar, y por eso no lo compra (14/9).
 // `verificacion_anterior`: apta con un cuestionario viejo; no es verde porque el plan no la compra hasta repetirla (15/9).
-const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente", "verificacion_anterior", "fr_sin_dividendos", "crecimiento_no_confiable", "banco_sin_estados"]);
+const LIMITACIONES = new Set(["sin_estados", "sin_historial", "eventos_sin_clasificar", "verificacion_pendiente", "verificacion_anterior", "fr_sin_dividendos", "crecimiento_no_confiable", "banco_sin_estados", "guia_reafirmada"]);
 /** Las que llevan un dato adentro y también son límites de la fuente, no defectos de la empresa. */
 const LIMITACIONES_CON_DATO = new Set(["serie_con_salto"]);
 /** Las que llevan un dato adentro y son a favor. `dividendo:` desde el 16/9. */
