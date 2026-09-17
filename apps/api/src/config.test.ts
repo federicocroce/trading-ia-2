@@ -67,5 +67,8 @@ describe("loadRadarConfig", () => {
     expect(c.taxonomy.themes).toContain("IA");
     expect(c.etfs.some((e) => e.role === "nucleo")).toBe(true);
     expect(c.policy.contribution.monthlyUsd).toBe(6500);
+    // El esquema descarta en silencio lo que no declara: sin esta línea, `maxRows` viajaba en el JSON y nunca
+    // llegaba al motor, así que el corte habría seguido igual y el arreglo no se notaba (16/9).
+    expect(c.policy.candidates.maxRows).toBe(80);
   });
 });

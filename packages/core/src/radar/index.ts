@@ -4,6 +4,7 @@ export * from "./universe.js";
 export * from "./ranking.js";
 export * from "./candidate.js";
 export * from "./oferta.js";
+export * from "./seleccion.js";
 export * from "./etf.js";
 export * from "./plan.js";
 export * from "./measure.js";

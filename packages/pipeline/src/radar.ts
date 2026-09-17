@@ -14,6 +14,7 @@ import {
   assetClassFor,
   computeTrailingStop,
   decideCandidate,
+  seleccionarCandidatas,
   decideEtf,
   holdingsOverlap,
   isEligibleAsset,
@@ -416,8 +417,10 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   const { candles, errors } = await candlesFor(deps, pre.map((r) => r.symbol));
   const verifyBudget: VerifyBudget = { left: policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT };
 
-  // Filtro técnico sobre la pre-selección; quedan los `top` mejores por score.
-  const kept: RankedStock[] = [];
+  // Filtro técnico sobre TODA la pre-selección: entran las `top` mejores por puntaje y, además, cualquier COMPRAR
+  // que quede abajo del corte, hasta `maxRows` (16/9: 13 COMPRAR con puestos 77 a 149 no se veían). El filtro es
+  // puro y las velas de la preselección ya están bajadas, así que evaluarlas todas no cuesta un pedido más.
+  const evaluadas: Array<{ item: RankedStock; verdict: "COMPRAR" | "OBSERVAR" }> = [];
   for (const r of pre) {
     const c = candles[r.symbol];
     if (!c) continue;
@@ -428,9 +431,9 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       skipped.push({ symbol: r.symbol, reason: d.reasons.join(",") });
       continue;
     }
-    kept.push(r);
-    if (kept.length >= policy.candidates.top) break;
+    evaluadas.push({ item: r, verdict: d.verdict });
   }
+  const kept: RankedStock[] = seleccionarCandidatas(evaluadas, { top: policy.candidates.top, maxRows: policy.candidates.maxRows });
 
   const rows: CandidateRow[] = [];
   for (const r of kept) {

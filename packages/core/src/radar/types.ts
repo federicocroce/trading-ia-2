@@ -50,7 +50,12 @@ export interface RadarPolicy {
   technical: { maxReturn21dPct: number; earningsWithinDays: number };
   sizing: { riskPerTradePct: number; maxPositionPct: number; fallbackPortfolioUsd: number };
   /** `verifyPerRun`: tope de verificaciones web (llamadas al modelo con búsqueda) por corrida; la cuota gratis de búsqueda es chica (default 8). */
-  candidates: { top: number; preselect: number; chronicWeeks: number; verifyPerRun?: number | undefined };
+  /**
+   * `top`: cuántas filas entran por puntaje (como siempre). `maxRows`: tope total, porque además entran TODAS las
+   * COMPRAR de la preselección aunque queden abajo del corte (16/9: 13 quedaban afuera, con puestos 77 a 149).
+   * Sin `maxRows`, el doble de `top`. Ver `seleccionarCandidatas`.
+   */
+  candidates: { top: number; preselect: number; chronicWeeks: number; verifyPerRun?: number | undefined; maxRows?: number | undefined };
   contribution: {
     monthlyUsd: number; coreTargetPct: number; maxPositionPct: number; maxNewPositionsPerMonth: number; maxLinePctOfContribution: number;
     /** Mientras el núcleo esté bajo su objetivo, qué % del monto va al núcleo (default 60). */

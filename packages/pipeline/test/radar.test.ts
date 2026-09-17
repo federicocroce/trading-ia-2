@@ -113,7 +113,10 @@ describe("rankRadar", () => {
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     const r = await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
     const stocks = r.candidates.filter((c) => c.kind === "stock");
-    expect(stocks).toHaveLength(5);
+    // 16/9: además de las `top` (5) por puntaje entran TODAS las COMPRAR de la preselección, que antes se caían del
+    // corte. En este fixture eso son 10 filas, y las 5 que se agregan son todas COMPRAR.
+    expect(stocks).toHaveLength(10);
+    expect(stocks.slice(5).every((c) => c.verdict === "COMPRAR")).toBe(true);
     expect(stocks[0]!.symbol).toBe("SA");
     expect(stocks[0]!.verdict).toBe("COMPRAR");
     expect(stocks[0]!.summary).toContain("SA");
@@ -125,7 +128,7 @@ describe("rankRadar", () => {
     expect((await store.tags("SA"))?.themes).toEqual(["semiconductores", "IA"]);
     const etf = r.candidates.filter((c) => c.kind === "etf");
     expect(etf.map((c) => [c.symbol, c.verdict])).toEqual([["VTI", "NUCLEO"], ["XLE", "COMPRAR"]]);
-    expect((await store.latestCandidates()).length).toBe(7);
+    expect((await store.latestCandidates()).length).toBe(12);
   });
   it("cuarta semana seguida → residente crónico → OBSERVAR", async () => {
     const { d } = deps();
@@ -191,7 +194,8 @@ describe("refreshRadar", () => {
     priceLevel = 104;
     const r = await refreshRadar(d, { today: "2026-05-20", portfolioUsd: null });
     priceLevel = 100;
-    expect(r.refreshed).toBe(7);
+    // 12 y no 7 desde el 16/9: el Radar guarda las `top` por puntaje MÁS las COMPRAR que quedaban fuera del corte.
+    expect(r.refreshed).toBe(12);
     const after = (await store.latestCandidates()).find((c) => c.symbol === "SA")!;
     expect(after.candidateDate).toBe("2026-05-20");
     expect(after.close).toBeGreaterThan(before.close);
@@ -251,7 +255,15 @@ describe("plan: el ATR y la correlación de cada compra llegan al plan (14/9)", 
     const plan = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000 });
     const compras = (await store.latestCandidates()).filter((c) => c.kind === "stock" && c.verdict === "COMPRAR").map((c) => c.symbol);
     if (!compras.length) expect.fail("el fixture necesita COMPRAR");
-    for (const s of compras) expect(plan.leftOut!.find((x) => x.symbol === s)?.reason).toMatch(/se mueve como SL que ya tenés .*no diversifica/);
+    // Ninguna entra, que es lo que se está probando. El motivo no es el mismo para todas: el bucle de compra tiene
+    // un orden fijo y una convicción negativa frena antes de llegar a medir la correlación (16/9, con el corte
+    // nuevo entran más COMPRAR al plan y aparece ese caso). Lo que tiene que seguir pasando es que la regla de
+    // correlación sea la que saca a las que sí llegan hasta ahí.
+    for (const s of compras) {
+      expect(plan.lines.some((l) => l.symbol === s && l.kind !== "sumar")).toBe(false);
+      expect(plan.leftOut!.find((x) => x.symbol === s)).toBeDefined();
+    }
+    expect(compras.some((s) => /se mueve como SL que ya tenés .*no diversifica/.test(plan.leftOut!.find((x) => x.symbol === s)?.reason ?? ""))).toBe(true);
     const sumar = plan.lines.find((l) => l.symbol === "SL" && l.kind === "sumar");
     if (!sumar) expect.fail(`SL no quedó como SUMAR: ${plan.lines.map((l) => `${l.symbol}:${l.kind}`).join(" ")}`);
     expect(sumar.minPrice).not.toBeNull();
@@ -359,7 +371,10 @@ describe("plan: revisión antes de comprar (15/9)", () => {
     const antes = await buildContributionPlan(conRevisor, { month: "2026-05", portfolioUsd: 100_000, today: TODAY });
     expect(antes.reviewsPending?.length).toBeGreaterThan(0);
     expect(antes.lines.some((l) => l.kind === "comprar")).toBe(false);
-    const r = await reviewPending(conRevisor, { today: TODAY });
+    // `reviewPending` revisa de a 6 por corrida (tope por defecto, para no quemar cuota de Gemini). Con el corte
+    // nuevo entran más COMPRAR al plan, así que la lista de pendientes puede pasar de 6 y hay que pedirlas por
+    // tanda: el test pide el total explícito para revisarlas todas de una.
+    const r = await reviewPending(conRevisor, { today: TODAY, budget: antes.reviewsPending!.length });
     expect(r.reviewed.sort()).toEqual([...antes.reviewsPending!].sort());
     expect(revisados.sort()).toEqual([...antes.reviewsPending!].sort());
     const despues = await buildContributionPlan(conRevisor, { month: "2026-05", portfolioUsd: 100_000, today: TODAY });
@@ -373,7 +388,7 @@ describe("plan: revisión antes de comprar (15/9)", () => {
     // Si la búsqueda falla, no revienta ni inventa una revisión: queda el error y sigue pendiente.
     const caido = { ...d, reviewer: { promptVersion: "r-test-2", review: async () => { throw new Error("gemini: 429"); } } };
     const pendientesCaido = (await buildContributionPlan(caido, { month: "2026-05", portfolioUsd: 100_000, today: TODAY })).reviewsPending!;
-    const fallo = await reviewPending(caido, { today: TODAY });
+    const fallo = await reviewPending(caido, { today: TODAY, budget: pendientesCaido.length });
     expect(fallo.reviewed).toEqual([]);
     expect(fallo.errors.map((e) => e.symbol).sort()).toEqual([...pendientesCaido].sort());
     expect(fallo.errors[0]!.error).toMatch(/429/);
