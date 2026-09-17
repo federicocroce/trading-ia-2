@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { computeTrailingStop, coreEarnings, entryStop, verificationOrder, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
+import { clasificarHecho, computeTrailingStop, coreEarnings, entryStop, verificationOrder, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
 import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
@@ -776,6 +776,46 @@ describe("explorarMercado", () => {
     // ZZZ no existe para las fuentes: queda descartada con el motivo, no se inventa una fila.
     expect(m.descartadas.some((x) => x.symbol === "ZZZ" && /sin velas|sin datos/.test(x.motivo))).toBe(true);
     expect(await store.latestCandidates()).toEqual([]);
+  });
+});
+
+describe("rankRadar con ofertas y hechos externos (17/9)", () => {
+  it("una empresa bajo oferta en la preselección queda OBSERVAR y el plan no la compra", async () => {
+    const { store, d } = deps({ filingsDeOferta: async (s) => (s === "SA" ? ["DEFM14A — SA CORP"] : []) });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    const sa = r.candidates.find((c) => c.symbol === "SA")!;
+    expect(sa.verdict).toBe("OBSERVAR");
+    expect(sa.flags).toContain("bajo_oferta_de_compra");
+    const plan = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 150_000 });
+    expect(plan.lines.map((l) => l.symbol)).not.toContain("SA");
+    expect(await store.latestCandidates()).not.toHaveLength(0);
+  });
+  it("la puerta: un hecho verificado de guía subida hace evaluar y guardar a un símbolo fuera de la preselección; uno no verificado, no", async () => {
+    const chico = { ...policy, candidates: { top: 2, preselect: 3, chronicWeeks: 4, maxRows: 2 } };
+    const { store, d } = deps({ policy: chico });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const o = { hostsPrimarios: ["sec.gov"], origen: "manual" as const, detectadoAt: `${TODAY}T00:00:00.000Z` };
+    const hecho = (symbol: string, url: string) => clasificarHecho({ tipo: "guia", symbol, fecha: "2026-05-10", valor: { direccion: "sube", metrica: "EPS", periodo: "FY", antes: "8", despues: "10" }, fuente: { url, titulo: "8-K" } }, o);
+    await store.saveHechos([hecho("SF", "https://www.sec.gov/sf"), hecho("SE", "https://finance.yahoo.com/se")]);
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    const guardados = r.candidates.filter((c) => c.kind === "stock").map((c) => c.symbol);
+    expect(guardados).toContain("SF"); // puesto 6 de 12, fuera de la preselección de 3 y del tope de 2
+    expect(guardados).not.toContain("SE"); // el hecho no es verificado
+    expect(guardados.length).toBe(3); // el tope de 2 más la puerta
+    expect(r.candidates.find((c) => c.symbol === "SF")!.flags).toContain("guia_subida");
+  });
+  it("explorarMercado pide los formularios de oferta y los hechos, y los devuelve en la fila", async () => {
+    const { store, d } = deps({ filingsDeOferta: async (s) => (s === "SB" ? ["PREM14A — SB CORP"] : []) });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const o = { hostsPrimarios: ["sec.gov"], origen: "manual" as const, detectadoAt: `${TODAY}T00:00:00.000Z` };
+    await store.saveHechos([clasificarHecho({ tipo: "guia", symbol: "SA", fecha: "2026-05-10", valor: { direccion: "sube", metrica: "EPS", periodo: "FY", antes: null, despues: "10" }, fuente: { url: "https://www.sec.gov/sa", titulo: "8-K" } }, o)]);
+    const m = await explorarMercado(d, { today: TODAY, portfolioUsd: 150_000, preselect: 12, conEstados: false });
+    expect(m.filas.find((f) => f.symbol === "SB")).toMatchObject({ verdict: "OBSERVAR" });
+    expect(m.filas.find((f) => f.symbol === "SB")!.flags).toContain("bajo_oferta_de_compra");
+    const sa = m.filas.find((f) => f.symbol === "SA")!;
+    expect(sa.flags).toContain("guia_subida");
+    expect(sa.hechos.map((h) => h.tipo)).toEqual(["guia"]);
   });
 });
 

@@ -1,5 +1,5 @@
-import { decideCandidate, rankStocks, type Candle, type CandidateDecision, type CoreEarnings, type EntryTiming, type Fundamentals } from "@thesis/core";
-import { candlesFor, heldSymbols, universoDelRanking, withStatements, type RadarDeps } from "./radar.js";
+import { decideCandidate, rankStocks, type Candle, type CandidateDecision, type CoreEarnings, type EntryTiming, type Fundamentals, type HechoExterno } from "@thesis/core";
+import { candlesFor, hechosDe, heldSymbols, universoDelRanking, withStatements, type RadarDeps } from "./radar.js";
 
 /**
  * El embudo del mercado (`/mercado`, 16/9): las MISMAS reglas de la app sobre todo el universo, no sobre las 40 filas
@@ -39,6 +39,8 @@ export interface FilaMercado {
   /** Ya está en cartera (su stop es el de la posición) o ya está en el Radar de hoy. */
   enCartera: boolean;
   enElRadar: boolean;
+  /** Hechos externos vigentes del símbolo (17/9), con su estado: para que el informe diga lo mismo que la app. */
+  hechos: HechoExterno[];
 }
 
 export interface EmbudoMercado {
@@ -121,7 +123,10 @@ export async function explorarMercado(
     const r = porSimbolo.get(sym);
     const f = all.get(sym) ?? (await store.fundamentals(sym).catch(() => null)) ?? sinFundamentales(sym, c[c.length - 1]!.close);
     const core = coreOf(sym);
-    const d = decideCandidate({ f, candles: c, nthAppearance: 1, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), ...(core !== undefined ? { core } : {}) }, policy);
+    // Igual que el ranking (17/9): formularios de oferta y hechos externos para cada símbolo con velas. Nada se escribe.
+    const filings = await deps.filingsDeOferta(sym).catch(() => [] as string[]);
+    const hechos = await hechosDe(deps, sym, opts.today);
+    const d = decideCandidate({ f, candles: c, nthAppearance: 1, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), filings, hechos, ...(core !== undefined ? { core } : {}) }, policy);
     if ("excluded" in d) {
       descartadas.push({ symbol: sym, etapa: "tecnica", motivo: d.reasons.join(", ") });
       continue;
@@ -147,6 +152,7 @@ export async function explorarMercado(
       entry: d.entry ?? null,
       enCartera: held.has(sym),
       enElRadar: enRadar.has(sym),
+      hechos,
     });
   }
   filas.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));

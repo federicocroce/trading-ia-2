@@ -27,6 +27,10 @@ import {
   rankStocks,
   sectorFor,
   themesFor,
+  hechosVigentes,
+  simbolosConPuerta,
+  VENTANAS_DIAS,
+  VENTANA_MAXIMA_DIAS,
   type AssetInfo,
   type Candle,
   type CandidateEvent,
@@ -46,6 +50,7 @@ import {
   type EventClassifier,
   type FinnhubMetrics,
   type Fundamentals,
+  type HechoExterno,
   type NewsItem,
   type Overlap,
   type PriceHistory,
@@ -354,6 +359,11 @@ export async function statementsFor(deps: RadarDeps, sym: string, today: string)
   return st ?? null;
 }
 
+/** Hechos externos vigentes del símbolo (17/9), para el ranking, el refresco y el comando mercado. Un fallo de lectura = sin hechos. */
+export async function hechosDe(deps: Pick<RadarDeps, "store">, symbol: string, today: string): Promise<HechoExterno[]> {
+  return hechosVigentes(await deps.store.hechos(symbol, addDays(today, -VENTANA_MAXIMA_DIAS)).catch(() => [] as HechoExterno[]), today);
+}
+
 export async function withStatements(deps: RadarDeps, all: Map<string, Fundamentals>, symbols: string[], today: string): Promise<Map<string, CoreEarnings | null>> {
   const cores = new Map<string, CoreEarnings | null>();
   if (!deps.statements) return cores;
@@ -405,28 +415,42 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
     log(`[radar] ${error}`);
     return { candidates: [], skipped: [], errors: [{ symbol: "*", error }] };
   }
+  // La puerta de entrada (17/9): símbolos con un hecho verificado de guía subida en 90 días. Se piden sus estados junto
+  // con la preselección y se evalúan con las mismas reglas; si quedan COMPRAR, entran a las filas aunque el tope esté
+  // lleno (son como mucho PUERTA_TOPE). FIVE en el puesto 412 con la guía subida dos veces es el caso.
+  const puerta = simbolosConPuerta(await store.hechosPorTipo("guia", addDays(opts.today, -VENTANAS_DIAS.guia)).catch(() => [] as HechoExterno[]), opts.today).filter((s) => all.has(s));
   // Dos pasadas (spec verificación §4): la primera con Finnhub elige a quién pedirle estados; la segunda rankea con la ganancia núcleo.
   const first = rankStocks(all, policy.weights).ranked.slice(0, policy.candidates.preselect);
-  const cores = await withStatements(deps, all, first.flatMap((r) => [r.symbol, ...r.group]), opts.today);
+  const cores = await withStatements(deps, all, [...first.flatMap((r) => [r.symbol, ...r.group]), ...puerta], opts.today);
   const { ranked, skipped } = rankStocks(all, policy.weights);
   const pre = ranked.slice(0, policy.candidates.preselect);
+  const porPuerta = new Set(puerta.filter((s) => !pre.some((r) => r.symbol === s)));
+  const preConPuerta: RankedStock[] = [...pre, ...[...porPuerta].map((s) => ranked.find((r) => r.symbol === s)).filter((r): r is RankedStock => !!r)];
   const coreOf = (sym: string): CoreEarnings | null | undefined => (deps.statements ? (cores.get(sym) ?? null) : undefined);
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
   if (spy.length) await store.upsertCandles("SPY", spy).catch(() => {});
   const spyClose = spy[spy.length - 1]?.close ?? null;
-  const { candles, errors } = await candlesFor(deps, pre.map((r) => r.symbol));
+  const { candles, errors } = await candlesFor(deps, preConPuerta.map((r) => r.symbol));
   const verifyBudget: VerifyBudget = { left: policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT };
 
   // Filtro técnico sobre TODA la pre-selección: entran las `top` mejores por puntaje y, además, cualquier COMPRAR
   // que quede abajo del corte, hasta `maxRows` (16/9: 13 COMPRAR con puestos 77 a 149 no se veían). El filtro es
   // puro y las velas de la preselección ya están bajadas, así que evaluarlas todas no cuesta un pedido más.
+  // Los formularios de oferta y los hechos se piden acá, para TODAS las filas (17/9): una empresa vendida por contrato
+  // no puede contar como COMPRAR al elegir qué se guarda. Se cachean para no volver a pedirlos abajo.
+  const filingsPor = new Map<string, string[]>();
+  const hechosPor = new Map<string, HechoExterno[]>();
   const evaluadas: Array<{ item: RankedStock; verdict: "COMPRAR" | "OBSERVAR" }> = [];
-  for (const r of pre) {
+  for (const r of preConPuerta) {
     const c = candles[r.symbol];
     if (!c) continue;
     const f = all.get(r.symbol)!;
     const rCore = coreOf(r.symbol);
-    const d = decideCandidate({ f, candles: c, nthAppearance: 1, portfolioUsd: opts.portfolioUsd, today: opts.today, ...(rCore !== undefined ? { core: rCore } : {}) }, policy);
+    const filings = await deps.filingsDeOferta(r.symbol).catch(() => [] as string[]);
+    const hechos = await hechosDe(deps, r.symbol, opts.today);
+    filingsPor.set(r.symbol, filings);
+    hechosPor.set(r.symbol, hechos);
+    const d = decideCandidate({ f, candles: c, nthAppearance: 1, portfolioUsd: opts.portfolioUsd, today: opts.today, filings, hechos, ...(rCore !== undefined ? { core: rCore } : {}) }, policy);
     if ("excluded" in d) {
       skipped.push({ symbol: r.symbol, reason: d.reasons.join(",") });
       continue;
@@ -434,6 +458,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
     evaluadas.push({ item: r, verdict: d.verdict });
   }
   const kept: RankedStock[] = seleccionarCandidatas(evaluadas, { top: policy.candidates.top, maxRows: policy.candidates.maxRows });
+  for (const e of evaluadas) if (porPuerta.has(e.item.symbol) && e.verdict === "COMPRAR" && !kept.includes(e.item)) kept.push(e.item);
 
   const rows: CandidateRow[] = [];
   for (const r of kept) {
@@ -454,8 +479,9 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
       const ev = await scanCandidateEvents(deps, sym, opts.today, true);
       // Los filings ya se bajaban para la ficha del razonador; ahora también deciden: un DEFM14A o un SC 14D9
       // prueban que la empresa está bajo oferta de compra y que su precio lo fija el acuerdo (AES, 16/9).
-      const filings = await deps.filingsDeOferta(sym).catch(() => [] as string[]);
-      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), filings, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+      // Ya se pidieron para toda la preselección (17/9): se reusan de la caché, sin pedirlos de nuevo.
+      const filings = filingsPor.get(sym) ?? [];
+      const input = { f, candles: candles[sym]!, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym), filings, hechos: hechosPor.get(sym) ?? [], ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate(input, policy);
       if ("excluded" in d) {
         skipped.push({ symbol: sym, reason: d.reasons.join(",") });
@@ -585,7 +611,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     const guardada = deps.verifier ? await verificacionGuardada(deps, prev.symbol) : prev.verification;
     // Igual que en la corrida completa: un DEFM14A o un SC 14D9 sacan la fila del plan (AES, 16/9).
     const filingsPrev = await deps.filingsDeOferta(prev.symbol).catch(() => [] as string[]);
-    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), filings: filingsPrev, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(guardada ? { verification: guardada } : {}) };
+    const hechosPrev = await hechosDe(deps, prev.symbol, opts.today);
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), filings: filingsPrev, hechos: hechosPrev, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(guardada ? { verification: guardada } : {}) };
     let d = decideCandidate(input, policy);
     let verification: VerificationSummary | null | undefined = guardada;
     if (!("excluded" in d)) {
