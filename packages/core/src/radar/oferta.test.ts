@@ -19,9 +19,33 @@ describe("bajoOfertaDeCompra", () => {
     expect(bajoOfertaDeCompra(["DEFM14A — THE AES CORPORATION"])).toBe("DEFM14A");
     expect(bajoOfertaDeCompra(["PREM14A — THE AES CORPORATION"])).toBe("PREM14A");
   });
-  it("la respuesta del directorio a una oferta pública y las comunicaciones de fusión también", () => {
+  it("la respuesta del directorio a una oferta pública también prueba que hay oferta", () => {
     expect(bajoOfertaDeCompra(["SC 14D9 — Empresa Inc."])).toBe("SC 14D9");
-    expect(bajoOfertaDeCompra(["425 — Empresa Inc."])).toBe("425");
+  });
+  /**
+   * El 17/9/2026 se verificó en EDGAR contra el top-300 de la preselección: la regla marcaba "bajo oferta" a FOXA,
+   * LLYVK, VCTR y VLY, que sólo tienen 425 en sus filings recientes. El 425 es el formulario de comunicaciones de
+   * fusión y lo presentan LAS DOS partes, incluida la compradora: FOX CORP está comprando Roku y tiene once 425
+   * propios sin ningún DEFM14A ni PREM14A ni SC 14D9. Un 425 solo no prueba que la empresa esté vendida; prueba que
+   * hay una fusión en danza y hay que mirar si el emisor también presentó el poder para votarla o la respuesta a
+   * la oferta. Casos reales: ROKU (vendida) tiene 425 y DEFM14A; WTRG (vendida) tiene 425 y DEFM14A; FOXA
+   * (compradora) sólo tiene 425.
+   */
+  it("un 425 solo no prueba nada: lo presenta también la compradora (FOXA/ROKU, 17/9)", () => {
+    expect(bajoOfertaDeCompra(["425 — FOX CORP", "425 — FOX CORP"])).toBeNull();
+  });
+  it("un 425 cuenta cuando el mismo emisor también presentó el poder de la fusión (ROKU, WTRG, 17/9)", () => {
+    expect(bajoOfertaDeCompra(["425 — ROKU, INC.", "DEFM14A — ROKU, INC.", "425 — ROKU, INC."])).toBe("DEFM14A");
+    expect(bajoOfertaDeCompra(["425 — ESSENTIAL UTILITIES", "DEFM14A — ESSENTIAL UTILITIES"])).toBe("DEFM14A");
+  });
+  it("si hay SC 14D9 y 425 juntos, la prueba es el SC 14D9", () => {
+    expect(bajoOfertaDeCompra(["SC 14D9 — X", "425 — X"])).toBe("SC 14D9");
+  });
+  it("un PREM14A solo sigue alcanzando (DV, 17/9)", () => {
+    expect(bajoOfertaDeCompra(["PREM14A — DV"])).toBe("PREM14A");
+  });
+  it("un formulario de todos los días solo no marca nada (17/9)", () => {
+    expect(bajoOfertaDeCompra(["10-Q — Empresa"])).toBeNull();
   });
   /**
    * El falso positivo peligroso. Verificado en EDGAR el 16/9: AES presentó PREM14A el 4/5/2026 y DEFM14A el
