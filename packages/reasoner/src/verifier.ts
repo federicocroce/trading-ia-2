@@ -140,12 +140,23 @@ export function faltantesDe(text: string): string[] | null {
   return v.split(";").map((x) => x.trim()).filter(Boolean).slice(0, 8);
 }
 
+/** Desde cuántos datos críticos sin encontrar un "evitar" deja de ser un hallazgo (y tiene que faltar el último trimestre). */
+export const EVITAR_SIN_DATOS_DESDE = 3;
+const SIN_EL_TRIMESTRE = /trimestre|ganancia por acci[oó]n|\bEPS\b/i;
+
 /**
  * Falla cerrado (15/9): un "apto" con datos críticos sin encontrar, o de un informe que no dice cuáles le faltan, se
  * guarda como "con reservas". Lo decide el código, no el modelo: el 14/9 NBN y GFI salieron "apto" justamente por lo
  * que la verificación no encontró. Con reservas o evitar no cambian: ya frenan.
  */
 export function aplicarFaltantes<T extends { verdict: (typeof VERDICTS)[number]; reason: string }>(v: T, faltantes: string[] | null): T {
+  // Un "evitar" sale de algo que el informe ENCONTRÓ (18/9). AII el 15/9: "no se ha encontrado evidencia de que sea una
+  // empresa cotizada" (salió a bolsa en 2025) y los seis puntos sin encontrar. "Evitar" es lo único de la IA que todavía
+  // frena; si el informe no encontró ni el último trimestre, es una verificación que no pudo hacerse: queda a la vista
+  // como reserva y se repite cuando venza.
+  if (v.verdict === "evitar" && faltantes && faltantes.length >= EVITAR_SIN_DATOS_DESDE && faltantes.some((x) => SIN_EL_TRIMESTRE.test(x))) {
+    return { ...v, verdict: "con_reservas", reason: `la verificación no encontró datos de la empresa (${faltantes.length} datos críticos sin encontrar, empezando por el último trimestre): no es un "evitar", se repite cuando venza`.slice(0, 300) };
+  }
   if (v.verdict !== "apto") return v;
   if (faltantes === null) return { ...v, verdict: "con_reservas", reason: "el informe no dijo qué datos críticos no encontró: no se puede dar por apta" };
   if (!faltantes.length) return v;

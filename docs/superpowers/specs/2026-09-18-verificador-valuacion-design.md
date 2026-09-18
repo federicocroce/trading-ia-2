@@ -163,3 +163,33 @@ Ahora un cambio en los avisos de una línea con el mismo monto se lista como `av
 
 **Riesgo aceptado.** Una objeción genuina (una licencia que vence, una guía recortada ayer) ya no saca la línea sola: está
 escrita al lado de COMPRAR y la decisión es del dueño.
+
+---
+
+# Cuarta parte: lo que todavía frenaba un paso antes
+
+Aprobada por el dueño el 18/9 ("aplicá todos los puntos"), después de preguntar por qué de 40 acciones solo 2 llegaban al plan.
+
+**Los números del Radar del 18/9 (40 acciones):** 13 en OBSERVAR por precio (legítimo: mercado flojo), 13 en OBSERVAR por
+"dos salvedades de calidad" —**en 10 de las 13 una de las dos era la reserva del verificador**—, 1 por "evitar", 1 por otro
+motivo, y 12 en COMPRAR, de las cuales 10 quedaban afuera del plan por regla fija (3 subieron más de 100%, 3 bancos sin
+estados, 1 consenso cerca, 2 convicción negativa, 1 Cartera dice REVISAR).
+
+1. **"Con reservas" deja de contar como salvedad de calidad** (`QUALITY_FLAGS`). Es la misma señal que ya se aprobó que avise
+   en el plan, frenando un paso antes. Sigue restando 0,3 de convicción y sigue a la vista. Caso: NVDA (evento moderado +
+   la frase de la valuación). Dos salvedades que no son de la IA siguen pasando a OBSERVAR (NUTX, el caso del 10/9).
+2. **Un "evitar" que no encontró nada no es un evitar.** AII el 15/9: "no se ha encontrado evidencia de que sea una empresa
+   cotizada" (salió a bolsa en 2025), con los seis puntos del cuestionario sin encontrar. `aplicarFaltantes`: "evitar" con 3
+   o más datos críticos sin encontrar, entre ellos el último trimestre, pasa a "con reservas" con ese motivo, y se repite
+   al vencer. Un evitar por un hallazgo (ATEX, AES) no cambia. Y `reverificar SÍMBOLO [--buscar]` permite pedirlo a mano:
+   una fila en OBSERVAR por "evitar" no se vuelve a verificar sola hasta el ranking posterior a su vencimiento.
+3. **Un banco cuyos estados la app no puede leer queda en OBSERVAR** (`banco_sin_estados` pasa a ser motivo, como
+   `bajo_oferta_de_compra`). NBN, ORRF y HSBC eran 3 de las 12 COMPRAR (7 de 46 en la pasada ancha): el plan no los compra
+   nunca, rankean alto por un crecimiento que el proveedor infla, y ocupaban filas y verificaciones.
+4. **Medir los frenos** (`pnpm frenos [7|30|90]`, solo lectura): alfa contra el S&P de lo que cada freno dejó afuera, contra lo
+   que ningún freno tocó, solo entre lo que la técnica dejaba comprar; dice cuántos símbolos distintos hay y avisa cuando
+   son pocos. Al 18/9 todavía no hay filas medidas con esos frenos (las medidas a 7 días llegan a las candidatas del 10/9):
+   hay dato hacia el 22/9. Es una medición, no cambia ningún veredicto.
+
+**No se tocó:** las dos reglas de precio ("subió más de 100%", "consenso a menos de 10%"). Chocan con cómo elige la app (elige
+lo que sube y lo saca por haber subido), pero se deciden con la medición, no a ojo.

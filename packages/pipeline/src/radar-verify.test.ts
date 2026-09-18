@@ -74,6 +74,21 @@ describe("verifyFor", () => {
   });
 });
 
+describe("verifyFor: volver a verificar a pedido (18/9)", () => {
+  it("AII: con `forzar` busca de nuevo aunque la guardada sea fresca y del cuestionario vigente, y no descuenta del presupuesto de la corrida", async () => {
+    // AII tenía un "evitar" falso del 15/9 (el modelo no encontró a la empresa). Una fila en OBSERVAR por "evitar" no se
+    // vuelve a verificar sola hasta el ranking de después de su vencimiento: tiene que poder pedirse a mano.
+    const store = new MemoryStore();
+    const v = verifier([result("evitar", "no es cotizada"), result("apto", "superó y subió la guía")]);
+    await verifyFor({ store, verifier: v }, "AII", { today: "2026-09-15", name: null });
+    expect((await verifyFor({ store, verifier: v }, "AII", { today: "2026-09-18", name: null }))?.verdict).toBe("evitar");
+    const r = await verifyFor({ store, verifier: v }, "AII", { today: "2026-09-18", name: "American Integrity Insurance Group", forzar: true });
+    expect(r).toMatchObject({ verdict: "apto", date: "2026-09-18" });
+    expect(v.calls).toEqual(["AII", "AII"]);
+    expect(await store.verification("AII")).toMatchObject({ verdict: "apto", date: "2026-09-18" });
+  });
+});
+
 describe("verifyFor: volver a estructurar sin volver a buscar (18/9)", () => {
   /*
    * El 18/9 cambió el estructurador (la reserva por valuación pasó a decidirla el código) y con él la versión. Las 17

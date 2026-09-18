@@ -13,8 +13,15 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const DAY = 86_400_000;
 /** Un evento grave solo pesa en el veredicto dentro de esta ventana; antes, ya pasó. */
 const EVENT_WINDOW_DAYS = 90;
-/** Salvedades de calidad de la ganancia, de litigio, de la verificación web y de precio que, juntas, pasan un COMPRAR a OBSERVAR. */
-export const QUALITY_FLAGS = new Set(["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas", "evento_moderado", "verificacion_reservas", "consenso_en_precio", "subio_mucho_12m"]);
+/**
+ * Salvedades de calidad de la ganancia, de litigio y de precio que, juntas, pasan un COMPRAR a OBSERVAR.
+ *
+ * `verificacion_reservas` dejó de contar acá el 18/9. Ese día 10 de las 13 acciones que el Radar tenía en OBSERVAR por
+ * salvedades la llevaban como una de las dos (NVDA: un evento moderado más la frase de la valuación), con un verificador
+ * que había dado "con reservas" a 16 de 17. El dueño ya había aprobado que la IA avise y no frene en el plan; en el Radar
+ * era la misma señal frenando un paso antes. Sigue restando 0,3 de convicción y sigue a la vista como bandera y aviso.
+ */
+export const QUALITY_FLAGS = new Set(["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas", "evento_moderado", "consenso_en_precio", "subio_mucho_12m"]);
 export const QUALITY_OBSERVE_AT = 2;
 /**
  * Salvedades de precio (pieza 3). `consenso_en_precio` exige las dos cosas: objetivo de consenso a menos de 10% del precio
@@ -285,7 +292,9 @@ export function decideCandidate(
   if (r12 !== null && r12 > PRICE_THRESHOLDS.runup12mPct) flags.push("subio_mucho_12m");
   // La verificación web que dice "evitar" observa por sí sola, como un evento grave. Y una empresa bajo oferta de
   // compra también (17/9): una fila que dice COMPRAR se compra, y un precio fijado por contrato no es una compra.
-  const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : []), ...(flags.includes("bajo_oferta_de_compra") ? ["bajo_oferta_de_compra"] : [])];
+  // Lo mismo un banco cuyos estados la app no puede leer (18/9): 3 de las 12 COMPRAR del Radar eran NBN, ORRF y HSBC, que
+  // el plan no compra nunca (14/9), rankean alto por un crecimiento que el proveedor infla y ocupaban filas y verificaciones.
+  const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : []), ...(flags.includes("bajo_oferta_de_compra") ? ["bajo_oferta_de_compra"] : []), ...(flags.includes("banco_sin_estados") ? ["banco_sin_estados"] : [])];
   // Dos o más salvedades de calidad o litigio: cada una sola es una advertencia, juntas son un motivo para observar
   // (enmienda 2026-09-10: NUTX tenía demanda, ingresos cayendo con ganancia subiendo y socios minoritarios, y seguía COMPRAR).
   if (flags.filter((x) => QUALITY_FLAGS.has(x)).length >= QUALITY_OBSERVE_AT) {

@@ -36,12 +36,16 @@ export async function verificacionGuardada(deps: VerifyDeps, symbol: string): Pr
   return v ? summary(v) : null;
 }
 
-export async function verifyFor(deps: VerifyDeps, symbol: string, opts: { today: string; name: string | null; context?: string | null; budget?: VerifyBudget }): Promise<VerificationSummary | null> {
+/**
+ * `forzar` (18/9): busca de nuevo aunque la guardada sirva. Una fila en OBSERVAR por un "evitar" no se vuelve a verificar
+ * sola hasta el ranking posterior a su vencimiento (AII: un evitar falso del 15/9); a mano tiene que poder pedirse.
+ */
+export async function verifyFor(deps: VerifyDeps, symbol: string, opts: { today: string; name: string | null; context?: string | null; budget?: VerifyBudget; forzar?: boolean }): Promise<VerificationSummary | null> {
   const verifier = deps.verifier;
   if (!verifier) return null;
   const sym = symbol.toUpperCase();
   const prev = await deps.store.verification(sym);
-  const fresca = prev !== null && ageDays(prev.date, opts.today) < VERIFY_FRESH_DAYS;
+  const fresca = !opts.forzar && prev !== null && ageDays(prev.date, opts.today) < VERIFY_FRESH_DAYS;
   if (prev && fresca && prev.promptVersion === verifier.promptVersion) return summary(prev);
   // Cambió el estructurador pero no lo que se le pregunta a la web (18/9): el informe guardado se vuelve a estructurar.
   // No es una búsqueda: no descuenta presupuesto, y la fila conserva su fecha (los 7 días se cuentan desde la búsqueda).

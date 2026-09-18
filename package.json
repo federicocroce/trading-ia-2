@@ -28,6 +28,7 @@
     "radar:argentina": "pnpm --filter @thesis/api radar:argentina",
     "auditar": "pnpm --filter @thesis/api exec tsx src/auditar.ts",
     "consistencia": "pnpm --filter @thesis/api exec tsx src/radar-cli.ts consistencia",
+    "frenos": "pnpm --filter @thesis/api exec tsx src/radar-cli.ts frenos",
     "verificar": "sh scripts/verificar.sh",
     "test:db": "TEST_DATABASE_URL=postgres://thesis:thesis@localhost:5433/thesis_test vitest run packages/db"
   },

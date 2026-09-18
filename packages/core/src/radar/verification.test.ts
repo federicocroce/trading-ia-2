@@ -24,17 +24,36 @@ describe("decideCandidate con verificación web", () => {
       expect(d.flags).toContain("verificacion_apta");
     }
   });
-  it("con reservas: bandera, sigue COMPRAR sola; con otra salvedad de calidad pasa a OBSERVAR", () => {
+  it("con reservas: bandera y sigue COMPRAR, también con otra salvedad de calidad al lado (18/9, NVDA)", () => {
     const one = decideCandidate({ ...base, verification: { date: today, verdict: "con_reservas", reason: "reservas liberadas" } }, policy);
     if (!("excluded" in one)) {
       expect(one.verdict).toBe("COMPRAR");
       expect(one.flags).toContain("verificacion_reservas");
     }
     const two = decideCandidate({ ...base, verification: { date: today, verdict: "con_reservas", reason: "r" }, events: [{ date: "2026-05-01", kind: "litigio", severity: "moderado", headline: "demanda" }] }, policy);
+    // Hasta el 18/9 esto era OBSERVAR por "dos salvedades de calidad". Ese día 10 de las 13 acciones que el Radar tenía en
+    // OBSERVAR por salvedades llevaban "con reservas" como una de las dos —NVDA: un evento moderado más la frase de la
+    // valuación—, y el verificador había dado "con reservas" a 16 de 17. El dueño ya había aprobado que la IA avise en
+    // el plan; en el Radar era la misma señal frenando un paso antes. Sigue restando convicción y sigue a la vista.
     if (!("excluded" in two)) {
-      expect(two.verdict).toBe("OBSERVAR");
-      expect(two.reasons).toEqual(["salvedades_de_calidad"]);
+      expect(two.verdict).toBe("COMPRAR");
+      expect(two.flags).toEqual(expect.arrayContaining(["verificacion_reservas", "evento_moderado"]));
+      expect(two.flags).not.toContain("salvedades_de_calidad");
     }
+    // Dos salvedades que no son de la IA siguen pasando a OBSERVAR: lo fijan NUTX (quality.test) y el caso del 10/9 (estandar.test).
+  });
+  it("NBN, ORRF y HSBC el 18/9: un banco cuyos estados la app no puede leer queda en OBSERVAR, no en COMPRAR", () => {
+    // Tres de las 12 COMPRAR del Radar eran bancos sin estados de la SEC legibles (7 de 46 en la pasada ancha): rankean
+    // alto porque el proveedor les infla el crecimiento, el plan no los puede comprar nunca (regla del 14/9) y ocupaban
+    // filas y verificaciones. Igual que una empresa bajo oferta: lo que nunca se compra no dice COMPRAR.
+    const banco = decideCandidate({ ...base, f: { ...f, industry: "Banking" }, core: null }, policy);
+    if ("excluded" in banco) throw new Error("el fixture tiene que pasar el filtro técnico");
+    expect(banco.flags).toContain("banco_sin_estados");
+    expect(banco.verdict).toBe("OBSERVAR");
+    expect(banco.reasons).toEqual(["banco_sin_estados"]);
+    // Un banco con estados legibles, o una empresa de otro rubro sin estados, no cambian.
+    const otra = decideCandidate({ ...base, f: { ...f, industry: "Technology" }, core: null }, policy);
+    if (!("excluded" in otra)) expect(otra.verdict).toBe("COMPRAR");
   });
   it("evitar: OBSERVAR por sí sola con motivo verificacion_evitar", () => {
     const d = decideCandidate({ ...base, verification: { date: today, verdict: "evitar", reason: "ganancia única de fusión" } }, policy);

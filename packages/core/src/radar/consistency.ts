@@ -160,7 +160,7 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     const valeComo = (f: string) => row.flags.includes(f) || (f === "verificacion_apta" && row.flags.includes("verificacion_anterior"));
     if (esperada && !valeComo(esperada)) {
       const v = row.verification!.verdict;
-      const efecto = v === "apto" ? "la fila no muestra que está verificada" : "esa salvedad no está restando convicción ni contando para pasar a OBSERVAR";
+      const efecto = v === "apto" ? "la fila no muestra que está verificada" : (v === "evitar" ? "ese dictamen no está pasando la fila a OBSERVAR" : "esa salvedad no está restando convicción ni avisando en el plan");
       add("verificacion_sin_bandera", row.symbol, "grave", `la verificación dice "${v}" pero las banderas no la muestran: ${efecto}`);
     }
     // 2b. La fila usa la última verificación guardada, la misma de la ficha (15/9: BLBD "con reservas" en la tabla y

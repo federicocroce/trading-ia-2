@@ -110,6 +110,23 @@ describe("verificador que falla cerrado (15/9)", () => {
     expect(aplicarFaltantes(apto, [])).toEqual(apto);
     expect(aplicarFaltantes({ verdict: "evitar" as const, reason: "x" }, ["y"]).verdict).toBe("evitar");
   });
+  it("AII el 15/9: un 'evitar' de un informe que no encontró nada de la empresa no es un evitar: queda con reservas, a la vista", () => {
+    // El modelo dijo EVITAR porque "no se ha encontrado evidencia de que American Integrity Insurance Group sea una empresa
+    // cotizada" (salió a bolsa en 2025) y declaró sin encontrar los seis puntos del cuestionario. "Evitar" es lo único de
+    // la IA que todavía frena (18/9): tiene que salir de algo que encontró, no de no haber encontrado nada.
+    const aii = faltantesDe("DICTAMEN: EVITAR — no es cotizada\nFALTANTES: Último trimestre reportado (fecha, ingresos vs consenso, EPS vs consenso, ítems no recurrentes, EPS limpia, guía); Analistas (fecha, firma, acción, objetivo, consenso, precio actual); Eventos materiales (regulatorios, licencias, litigios, ofertas de acciones, cambios de CEO/CFO); Valuación (múltiplo actual, min/max 5 años); Ganancia operativa vs GAAP y diferencias; Próxima fecha de resultados.")!;
+    expect(aii).toHaveLength(6);
+    const v = aplicarFaltantes({ verdict: "evitar" as const, reason: "No se ha encontrado evidencia de que sea una empresa cotizada en bolsa" }, aii);
+    expect(v.verdict).toBe("con_reservas");
+    expect(v.reason).toBe("la verificación no encontró datos de la empresa (6 datos críticos sin encontrar, empezando por el último trimestre): no es un \"evitar\", se repite cuando venza");
+    // ATEX el 12/9: evitar por un hallazgo (la ganancia es un ítem único), con algún dato menor sin encontrar: sigue evitar.
+    const atex = { verdict: "evitar" as const, reason: "la ganancia se explica por un ítem no recurrente" };
+    expect(aplicarFaltantes(atex, ["próxima fecha de resultados"])).toEqual(atex);
+    expect(aplicarFaltantes(atex, [])).toEqual(atex);
+    expect(aplicarFaltantes(atex, null)).toEqual(atex);
+    // Tres faltantes pero encontró el trimestre: el evitar puede salir de ahí, no se toca.
+    expect(aplicarFaltantes(atex, ["analistas", "valuación", "próxima fecha de resultados"])).toEqual(atex);
+  });
   it("GFI el 14/9: el modelo dice APTO pero declara que no encontró el estado de la licencia; lo que se guarda es con reservas", async () => {
     const ff = fakeFetch([grounded("DICTAMEN: APTO — primer semestre fuerte.\n## Informe GFI\n…\nFALTANTES: estado de la licencia de Tarkwa en Ghana"), call({ ...args, verdict: "apto", reason: "primer semestre fuerte" })]);
     const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: ff.fetch });

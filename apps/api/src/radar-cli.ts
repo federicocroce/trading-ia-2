@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
-import { todayLocal } from "@thesis/core";
+import { medirFrenos, todayLocal } from "@thesis/core";
 import { buildContributionPlan, checkRun, explorarMercado, importarHechos, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
 import { loadConfig, findRoot } from "./config.js";
 import { buildContainer } from "./container.js";
@@ -16,7 +16,7 @@ process.on("SIGINT", () => { stop = true; console.log("\n[radar] deteniendo al t
 const deps = { ...c.radarDeps, shouldStop: () => stop, onProgress: (p: { done: number; total: number; stage: string }) => console.log(`[radar] ${p.stage}: ${p.done}/${p.total}`) };
 
 // El registro de uso atribuye cada pedido al mismo paso que en "ponerme al día" (scan/rank → scan; refresh/measure → radar).
-const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar" };
+const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", frenos: "radar", reverificar: "radar" };
 let code = 0;
 await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   if (cmd === "scan") console.log(await scanUniverse(deps, { scanDate: today, today }));
@@ -27,6 +27,31 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   // plan [monto]: sin monto usa el aporte mensual de la política; con monto arma el plan para esa plata.
   else if (cmd === "plan") { const amountUsd = Number(process.argv[3]); console.log(JSON.stringify(await buildContributionPlan(deps, { month: today.slice(0, 7), portfolioUsd, ...(Number.isFinite(amountUsd) && amountUsd > 0 ? { amountUsd } : {}) }), null, 2)); }
   else if (cmd === "measure") console.log(await measureRadar(deps, { today }));
+  else if (cmd === "frenos") {
+    // Solo lectura (18/9): qué pasó con lo que cada freno dejó afuera, contra lo que ningún freno tocó.
+    const h = Number(process.argv[3] ?? 7);
+    const horizonte = h === 30 ? 30 : h === 90 ? 90 : 7;
+    const m = medirFrenos(await c.store.allCandidates(), horizonte);
+    console.log(`[frenos] alfa contra el S&P a ${m.horizonte} días · filas medidas del ${m.desde ?? "—"} al ${m.hasta ?? "—"} · ${m.sinMedir} filas todavía sin medir`);
+    for (const g of m.grupos) {
+      const alfa = g.alfa === null ? "sin datos" : `${g.alfa > 0 ? "+" : ""}${g.alfa}% · le gana al S&P ${g.acierto}%`;
+      const contra = g.contraSinFreno === null ? "" : ` · ${g.contraSinFreno > 0 ? "+" : ""}${g.contraSinFreno} puntos contra lo que ningún freno tocó`;
+      console.log(`[frenos] ${g.titulo}: ${g.n} filas de ${g.simbolos} símbolos · ${alfa}${contra}${g.n > 0 && g.pocasFilas ? " · POCOS SÍMBOLOS: es ruido" : ""}${g.lista.length ? ` · ${g.lista.slice(0, 12).join(" ")}${g.lista.length > 12 ? " …" : ""}` : ""}`);
+    }
+  }
+  else if (cmd === "reverificar") {
+    // A pedido (18/9): una fila en OBSERVAR por un "evitar" no se vuelve a verificar sola. Sin --buscar re-estructura el
+    // informe guardado si se puede (no gasta búsqueda); con --buscar hace una búsqueda nueva (gasta una de la cuota).
+    const sym = process.argv[3]?.toUpperCase();
+    if (!sym || sym.startsWith("--") || !deps.verifier) { console.error("uso: tsx src/radar-cli.ts reverificar SÍMBOLO [--buscar]  (necesita el verificador configurado)"); code = 1; }
+    else {
+      const antes = await c.store.verification(sym);
+      const perfil = await c.store.profile(sym).catch(() => null);
+      const v = await verifyFor(deps, sym, { today, name: perfil?.profile.name ?? null, ...(process.argv.includes("--buscar") ? { forzar: true } : {}) });
+      console.log(`[reverificar] ${sym}: ${antes ? `${antes.verdict} del ${antes.date}` : "sin verificación"} → ${v ? `${v.verdict} del ${v.date}: ${v.reason}` : "sigue sin verificación (la búsqueda falló)"}`);
+      console.log("[reverificar] la fila del Radar y el plan lo toman en la próxima corrida (o con \"Rearmar plan\").");
+    }
+  }
   // Revisa lo guardado contra sus propias fuentes. Sale con 1 si hay algo grave, para que un cron se entere.
   else if (cmd === "consistencia") { const chk = await checkRun(deps, { today }); if (chk.graves > 0) code = 1; }
   // Verifica en la web lo que YA TENÉS, no lo que se quiere comprar. Sin esto el veredicto de mantener
@@ -76,7 +101,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       if (r.guardados === 0) code = 1;
     }
   }
-  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...] | hechos --importar archivo.json [--origen agente|manual]"); code = 1; }
+  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | frenos [7|30|90] | reverificar SÍMBOLO [--buscar] | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...] | hechos --importar archivo.json [--origen agente|manual]"); code = 1; }
 });
 // Lo encolado por el registro de uso se escribe antes de salir: process.exit no espera al volcado.
 await c.usage?.flush();
