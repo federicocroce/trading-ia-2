@@ -37,7 +37,13 @@ Criterio del dictamen, para tenerla 6 a 12 meses:
 No inventes: una reserva vale solo con el dato que la sostiene, y un dato que no encontraste se escribe "no encontrado". Pero no encontrar un dato crítico no es una buena noticia. Datos críticos: (a) la ganancia por acción limpia contra el consenso y los ítems no recurrentes del último trimestre, del comunicado de resultados; (b) la guía; (c) riesgos regulatorios, de licencias, permisos o concesiones, y litigios materiales; (d) ofertas de acciones o convertibles de los últimos 90 días; (e) en bancos, inmobiliario comercial sobre capital y fondeo mayorista. Con un dato crítico sin encontrar, el dictamen no puede ser APTO.
 ÚLTIMA LÍNEA, obligatoria: "FALTANTES: ninguno", o "FALTANTES: " seguido de los datos críticos que no encontraste, separados por punto y coma.`;
 
-export const STRUCTURE_SYSTEM = `Recibís el informe de verificación de una empresa escrito por un analista. Volcalo a la tool candidate_verification sin agregar nada que no esté en el informe: fechas en YYYY-MM-DD cuando estén (si un ítem no tiene fecha, date null); números como números; lo que el informe no dice queda null o vacío. El dictamen y el motivo se copian de la primera línea del informe ("DICTAMEN: …"): apto, con_reservas o evitar; motivo: una oración, máximo 300 caracteres, en español. Si el informe está cortado, igual usá el dictamen de la primera línea.`;
+/** Tipos de salvedad que el cuestionario nombra en su criterio de CON RESERVAS (18/9): el estructurador las lista una por una. */
+export const RESERVA_TIPOS = ["valuacion", "extraordinarios", "insiders", "guia", "pico_de_ciclo", "banco", "un_analista", "adquisicion", "demanda", "dato_faltante", "otra"] as const;
+export interface Reserva { tipo: (typeof RESERVA_TIPOS)[number]; detalle: string }
+/** Los números del punto 4 del cuestionario: el múltiplo contra su propia historia de 5 años. */
+export interface ValuationNumbers { metric: string | null; current: number | null; min5y: number | null; max5y: number | null; growthAccelerating: boolean | null }
+
+export const STRUCTURE_SYSTEM = `Recibís el informe de verificación de una empresa escrito por un analista. Volcalo a la tool candidate_verification sin agregar nada que no esté en el informe: fechas en YYYY-MM-DD cuando estén (si un ítem no tiene fecha, date null); números como números; lo que el informe no dice queda null o vacío. El dictamen y el motivo se copian de la primera línea del informe ("DICTAMEN: …"): apto, con_reservas o evitar; motivo: una oración, máximo 300 caracteres, en español. Si el informe está cortado, igual usá el dictamen de la primera línea. reservas: TODAS las salvedades que el informe da como motivo de un dictamen CON RESERVAS o EVITAR, una por entrada (si el motivo une dos con "y", son dos entradas), cada una con su tipo: valuacion (múltiplo alto contra su propia historia), extraordinarios (ítems no recurrentes; la ganancia limpia queda debajo de la reportada), insiders, guia, pico_de_ciclo, banco (inmobiliario comercial o fondeo mayorista), un_analista, adquisicion, demanda (de accionistas), dato_faltante, otra; detalle: la salvedad en una oración con su dato. Con dictamen APTO, lista vacía. valuationNumbers: del punto 4, el múltiplo que el informe compara contra su historia de 5 años: metric (cuál es), current (su valor actual), min5y y max5y (el mínimo y el máximo de 5 años), como números; lo que el informe no da queda null, y un promedio o una mediana NO son ni el mínimo ni el máximo. growthAccelerating: true si el informe dice que el crecimiento de ventas o de ganancias se acelera, false si dice que se frena o está plano, null si no lo dice.`;
 
 export const VERIFY_TOOL: ToolSpec = {
   name: "candidate_verification",
@@ -45,7 +51,7 @@ export const VERIFY_TOOL: ToolSpec = {
   inputSchema: {
     type: "object",
     additionalProperties: false,
-    required: ["verdict", "reason", "lastQuarter", "analysts", "consensusTarget", "events", "valuation", "nextEarnings"],
+    required: ["verdict", "reason", "lastQuarter", "analysts", "consensusTarget", "events", "valuation", "nextEarnings", "reservas", "valuationNumbers"],
     properties: {
       verdict: { type: "string", enum: [...VERDICTS] },
       reason: { type: "string", maxLength: 300 },
@@ -77,6 +83,16 @@ export const VERIFY_TOOL: ToolSpec = {
       },
       valuation: { type: ["string", "null"], maxLength: 300 },
       nextEarnings: { type: ["string", "null"] },
+      reservas: {
+        type: "array",
+        items: { type: "object", additionalProperties: false, required: ["tipo", "detalle"], properties: { tipo: { type: "string", enum: [...RESERVA_TIPOS] }, detalle: { type: "string", maxLength: 200 } } },
+      },
+      valuationNumbers: {
+        type: ["object", "null"],
+        additionalProperties: false,
+        required: ["metric", "current", "min5y", "max5y", "growthAccelerating"],
+        properties: { metric: { type: ["string", "null"], maxLength: 60 }, current: { type: ["number", "null"] }, min5y: { type: ["number", "null"] }, max5y: { type: ["number", "null"] }, growthAccelerating: { type: ["boolean", "null"] } },
+      },
     },
   },
 };
@@ -102,10 +118,16 @@ const VerificationSchema = z
     events: z.array(z.object({ date: dateOrNull, kind: trim(40), headline: trim(300) }).strict()).max(40).transform((xs) => xs.flatMap((x) => (x.date ? [{ ...x, date: x.date }] : []))),
     valuation: trim(300).nullable(),
     nextEarnings: dateOrNull,
+    // Si el modelo los omite, quedan vacíos: un "con reservas" sin lista no se toca (falla cerrado).
+    reservas: z.array(z.object({ tipo: z.enum(RESERVA_TIPOS), detalle: trim(200) }).strict()).max(12).default([]),
+    valuationNumbers: z.object({ metric: trim(60).nullable(), current: z.number().nullable(), min5y: z.number().nullable(), max5y: z.number().nullable(), growthAccelerating: z.boolean().nullable() }).strict().nullable().default(null),
   })
   .strict();
 
-export function parseVerification(args: unknown): Omit<VerifierResult, "sources" | "researchText" | "model"> {
+/** Lo que devuelve el estructurador: la verificación más lo que el código necesita para decidir (no se guarda). */
+export type VerificacionEstructurada = Omit<VerifierResult, "sources" | "researchText" | "model"> & { reservas: Reserva[]; valuationNumbers: ValuationNumbers | null };
+
+export function parseVerification(args: unknown): VerificacionEstructurada {
   return VerificationSchema.parse(args);
 }
 
@@ -129,6 +151,50 @@ export function aplicarFaltantes<T extends { verdict: (typeof VERDICTS)[number];
   if (!faltantes.length) return v;
   return { ...v, verdict: "con_reservas", reason: `falta verificar: ${faltantes.join("; ")}`.slice(0, 300) };
 }
+
+/** "En su máximo de 5 años": el múltiplo está en el 10% de arriba de su propio rango. Con 0,85 SEZL (87,5%) seguiría con reservas. */
+export const UMBRAL_MAXIMO = 0.9;
+const coma = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
+
+/**
+ * El criterio escrito desde el 13/9: es reserva una "valuación en su máximo de 5 años contra su propia historia sin que
+ * el crecimiento se acelere (solo con el múltiplo actual y el rango de 5 años: sin esos números no es reserva)".
+ */
+export function reservaDeValuacionVale(n: ValuationNumbers | null): boolean {
+  if (!n || n.current === null || n.min5y === null || n.max5y === null) return false;
+  if (!(n.current > 0 && n.min5y > 0 && n.max5y > n.min5y)) return false;
+  if (n.growthAccelerating === true) return false;
+  return (n.current - n.min5y) / (n.max5y - n.min5y) >= UMBRAL_MAXIMO;
+}
+
+const porQueNoVale = (n: ValuationNumbers | null): string => {
+  if (!n || n.current === null || n.min5y === null || n.max5y === null || !(n.current > 0 && n.min5y > 0 && n.max5y > n.min5y)) return "sin el múltiplo actual y su rango de 5 años no es reserva";
+  const rango = `${n.metric ?? "múltiplo"} ${coma(n.current)}x en un rango de 5 años de ${coma(n.min5y)} a ${coma(n.max5y)}`;
+  return (n.current - n.min5y) / (n.max5y - n.min5y) >= UMBRAL_MAXIMO ? `${rango}: está en su máximo pero el crecimiento se acelera, y una valuación premium que el crecimiento sostiene no es reserva` : `${rango}: no está en su máximo`;
+};
+
+/**
+ * La reserva por valuación la decide el código (18/9). Desde el cuestionario del 15/9 hubo 17 verificaciones y ninguna
+ * apta: en 15 el motivo era "valuación en el tercio superior de su historial de 5 años", que no es lo que dice el
+ * criterio (APH 29,5x en 22–32,5; NVDA 45x en 25–70, el tercio del medio; CROX debajo de su mediana), y el plan compró
+ * cero acciones cuatro días. Es la tercera vez que ese criterio falla por redacción. Solo actúa sobre "con reservas";
+ * sin lista de reservas no toca nada (falla cerrado). Corre antes que `aplicarFaltantes`.
+ */
+export function aplicarValuacion<T extends { verdict: (typeof VERDICTS)[number]; reason: string; reservas: Reserva[]; valuationNumbers: ValuationNumbers | null }>(v: T): T {
+  if (v.verdict !== "con_reservas" || !v.reservas.some((r) => r.tipo === "valuacion")) return v;
+  if (reservaDeValuacionVale(v.valuationNumbers)) return v;
+  const quedan = v.reservas.filter((r) => r.tipo !== "valuacion");
+  const porQue = porQueNoVale(v.valuationNumbers);
+  if (!quedan.length) return { ...v, verdict: "apto", reservas: [], reason: `la única reserva era la valuación: ${porQue}`.slice(0, 300) };
+  return { ...v, reservas: quedan, reason: `${quedan[0]!.detalle} (la valuación no es reserva: ${porQue})`.slice(0, 300) };
+}
+
+/**
+ * Versiones guardadas cuyo informe responde el MISMO cuestionario de investigación que el vigente (18/9): cambió el
+ * estructurador, no lo que se le pregunta a la web, así que su `researchText` se puede volver a estructurar sin gastar
+ * búsquedas. Un test fija el hash de RESEARCH_SYSTEM: si el cuestionario cambia, esta lista se vacía.
+ */
+export const VERSIONES_MISMO_INFORME: readonly string[] = ["v1-07c33234178c-gemini"];
 
 /**
  * Buscar es obligatorio (15/9): sin los 3.x, la falla más común de 2.5-flash era contestar de memoria (6 de 8 intentos
@@ -176,9 +242,22 @@ export class GeminiCandidateVerifier implements CandidateVerifier {
     // Presupuesto amplio y pensamiento acotado: el informe de 600 palabras nunca tiene que salir cortado (10/9: 2.5 Flash gastaba 3.800 tokens pensando y dejaba 450 caracteres de informe).
     // El informe tiene que venir entero: dictamen arriba y FALTANTES al final. Uno cortado se descarta y rota.
     const research = await this.caller.callGrounded(RESEARCH_SYSTEM, buildResearchMessage(input), { purpose: "verificacion", symbol: input.symbol }, { models: this.researchModels, maxOutputTokens: 12_000, thinkingBudget: 2048, requireText: INFORME_COMPLETO_RE });
-    const r = await this.caller.call(STRUCTURE_SYSTEM, `# Informe (${input.symbol}, ${input.today})\n${research.text}`, VERIFY_TOOL, { purpose: "verificacion_estructura", symbol: input.symbol });
+    return this.estructurar(input.symbol, input.today, research);
+  }
+  /** ¿El informe guardado con esa versión se puede volver a estructurar, sin buscar de nuevo? */
+  puedeReestructurar(promptVersion: string): boolean {
+    return promptVersion !== this.promptVersion && VERSIONES_MISMO_INFORME.includes(promptVersion);
+  }
+  /** Vuelve a estructurar un informe guardado: una llamada sin búsqueda, y las mismas reglas que una verificación nueva. */
+  async reestructurar(i: { symbol: string; today: string; researchText: string; sources: Array<{ title: string; url: string }>; model: string | null }): Promise<VerifierResult> {
+    if (!INFORME_COMPLETO_RE.test(i.researchText)) throw new Error(`informe guardado de ${i.symbol} incompleto: no se reestructura`);
+    return this.estructurar(i.symbol, i.today, { text: i.researchText, sources: i.sources, model: i.model });
+  }
+  private async estructurar(symbol: string, today: string, research: { text: string; sources: Array<{ title: string; url: string }>; model: string | null }): Promise<VerifierResult> {
+    const r = await this.caller.call(STRUCTURE_SYSTEM, `# Informe (${symbol}, ${today})\n${research.text}`, VERIFY_TOOL, { purpose: "verificacion_estructura", symbol });
     try {
-      const parsed = aplicarFaltantes(parseVerification(r.args), faltantesDe(research.text));
+      // Primero la valuación y después los faltantes: un apto que sale de acá también falla cerrado si le faltan datos.
+      const { reservas: _r, valuationNumbers: _n, ...parsed } = aplicarFaltantes(aplicarValuacion(parseVerification(r.args)), faltantesDe(research.text));
       return { ...parsed, sources: research.sources, researchText: research.text, model: research.model };
     } catch (e) {
       this.caller.markValidation(r.callId);

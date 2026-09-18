@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { UsageCallInput, UsageRecorder, UsageResult } from "@thesis/core";
-import { GeminiCandidateVerifier, GeminiToolCaller, RESEARCH_SYSTEM, VERIFY_TOOL, VERIFY_VERSION, aplicarFaltantes, buildResearchMessage, faltantesDe, parseVerification } from "../src/index.js";
+import { createHash } from "node:crypto";
+import { GeminiCandidateVerifier, GeminiToolCaller, RESEARCH_SYSTEM, UMBRAL_MAXIMO, VERIFY_TOOL, VERIFY_VERSION, VERSIONES_MISMO_INFORME, aplicarFaltantes, aplicarValuacion, buildResearchMessage, faltantesDe, parseVerification, reservaDeValuacionVale } from "../src/index.js";
 
 function memRecorder() {
   const rows: Array<UsageCallInput & { id: string }> = [];
@@ -32,6 +33,7 @@ const args = {
   lastQuarter: { reportDate: "2026-08-26", revenueVsConsensus: "96,2B vs 91,9B (+4,7%)", epsVsConsensus: "2,22 vs 2,08 no GAAP", oneOffs: ["ganancia de 7,8B por acciones (GAAP)"], guidance: "Q3 108B ±2% vs 104B esperado" },
   analysts: [{ date: "2026-08-27", firm: "UBS", action: "sube objetivo", target: 300 }, { date: "2026-09-09T00:00:00Z", firm: "Piper Sandler", action: "inicia", target: 300 }],
   consensusTarget: 328, events: [{ date: "2026-09-03", kind: "adquisicion", headline: "Compra Hugging Face por 12,9B" }], valuation: "18,6x adelantado vs 35–40x de su historia", nextEarnings: "2026-11-18",
+  reservas: [], valuationNumbers: { metric: "P/E adelantado", current: 18.6, min5y: 17, max5y: 40, growthAccelerating: true },
 };
 
 describe("verificador: prompts y parseo", () => {
@@ -122,6 +124,121 @@ describe("verificador que falla cerrado (15/9)", () => {
     const r = await v.verify({ symbol: "NVDA", name: null, today: "2026-09-15" });
     expect(r.verdict).toBe("apto");
     expect(rec.rows.map((x) => x.result)).toEqual(["validacion", "ok", "ok"]);
+  });
+});
+
+const nums = (current: number | null, min5y: number | null, max5y: number | null, growthAccelerating: boolean | null = null) => ({ metric: "P/E adelantado", current, min5y, max5y, growthAccelerating });
+const valuacion = { tipo: "valuacion" as const, detalle: "múltiplo en el tercio superior de su historia de 5 años" };
+const insiders = { tipo: "insiders" as const, detalle: "venta neta de acciones por parte de insiders en los últimos 12 meses" };
+
+describe("la reserva por valuación la decide el código (18/9)", () => {
+  /*
+   * Desde el cuestionario del 15/9 hubo 17 verificaciones y ninguna apta: en 15 el motivo era "la valuación está en el
+   * tercio superior de su historial de 5 años". El criterio escrito dice "en su MÁXIMO de 5 años sin que el crecimiento
+   * se acelere", y que una valuación premium que el crecimiento sostiene es APTO. El modelo cambió "máximo" por "tercio
+   * superior" (y en NVDA y CROX ni eso era cierto con sus propios números). El plan compró cero acciones cuatro días.
+   * Es la tercera vez que este criterio falla por redacción: ahora los números vienen en la tool y decide el código.
+   */
+
+  it("vale solo con los tres números, en el 10% de arriba del rango y sin crecimiento que se acelere", () => {
+    expect(UMBRAL_MAXIMO).toBe(0.9);
+    expect(reservaDeValuacionVale(nums(29.5, 22, 32.5))).toBe(false); // APH 15/9: 71% del rango
+    expect(reservaDeValuacionVale(nums(45, 25, 70))).toBe(false); // NVDA 18/9: 44%, el tercio del medio
+    expect(reservaDeValuacionVale(nums(29.5, 12, 32))).toBe(false); // SEZL 15/9: 87,5%
+    expect(reservaDeValuacionVale(nums(39, 12, 40))).toBe(true); // 96% y no dice que acelere
+    expect(reservaDeValuacionVale(nums(39, 12, 40, false))).toBe(true);
+    expect(reservaDeValuacionVale(nums(39, 12, 40, true))).toBe(false); // premium que el crecimiento sostiene
+    expect(reservaDeValuacionVale(nums(41, 12, 40))).toBe(true); // por encima de su máximo
+    expect(reservaDeValuacionVale(nums(5.5, null, null))).toBe(false); // LNC 15/9: "sin esos números no es reserva"
+    expect(reservaDeValuacionVale(nums(10, 12, 12))).toBe(false); // rango degenerado
+    expect(reservaDeValuacionVale(null)).toBe(false);
+  });
+  it("APH el 15/9: la única reserva era la valuación y no está en su máximo: pasa a apto, con los números en el motivo", () => {
+    const v = aplicarValuacion({ verdict: "con_reservas" as const, reason: "La valuación actual se encuentra en el tercio superior de su historial de 5 años.", reservas: [valuacion], valuationNumbers: nums(29.5, 22, 32.5) });
+    expect(v.verdict).toBe("apto");
+    expect(v.reason).toContain("29,5");
+    expect(v.reason).toContain("22");
+    expect(v.reason).toContain("32,5");
+    expect(v.reason).toContain("no está en su máximo");
+    expect(v.reservas).toEqual([]);
+  });
+  it("TSM el 15/9: valuación e insiders: sigue con reservas, y el motivo pasa a ser el que queda", () => {
+    const v = aplicarValuacion({ verdict: "con_reservas" as const, reason: "La valuación está en el tercio superior de su historial de 5 años, y la venta neta de insiders sugiere cautela.", reservas: [valuacion, insiders], valuationNumbers: nums(19.73, 11, 24) });
+    expect(v.verdict).toBe("con_reservas");
+    expect(v.reservas).toEqual([insiders]);
+    expect(v.reason).toContain("insiders");
+    expect(v.reason).not.toContain("tercio superior");
+  });
+  it("LNC el 15/9: sin mínimo ni máximo la reserva de valuación no vale", () => {
+    expect(aplicarValuacion({ verdict: "con_reservas" as const, reason: "tercio superior", reservas: [valuacion], valuationNumbers: nums(5.5, null, null) }).verdict).toBe("apto");
+    expect(aplicarValuacion({ verdict: "con_reservas" as const, reason: "tercio superior", reservas: [valuacion], valuationNumbers: null }).reason).toContain("sin el múltiplo actual y su rango de 5 años");
+  });
+  it("una valuación en su máximo sin aceleración sigue siendo reserva, y no se toca nada", () => {
+    const v = { verdict: "con_reservas" as const, reason: "39x contra un máximo de 40x", reservas: [valuacion], valuationNumbers: nums(39, 12, 40) };
+    expect(aplicarValuacion(v)).toEqual(v);
+  });
+  it("falla cerrado: con reservas sin lista de reservas no se toca; evitar y apto tampoco", () => {
+    const sinLista = { verdict: "con_reservas" as const, reason: "x", reservas: [], valuationNumbers: nums(29.5, 22, 32.5) };
+    expect(aplicarValuacion(sinLista)).toEqual(sinLista);
+    const evitar = { verdict: "evitar" as const, reason: "x", reservas: [valuacion], valuationNumbers: nums(29.5, 22, 32.5) };
+    expect(aplicarValuacion(evitar)).toEqual(evitar);
+    const apto = { verdict: "apto" as const, reason: "x", reservas: [], valuationNumbers: null };
+    expect(aplicarValuacion(apto)).toEqual(apto);
+  });
+  it("la tool pide las reservas una por una y los números de la valuación", () => {
+    const props = (VERIFY_TOOL.inputSchema as { properties: Record<string, unknown>; required: string[] });
+    expect(props.required).toEqual(expect.arrayContaining(["reservas", "valuationNumbers"]));
+    expect(JSON.stringify(props.properties.reservas)).toContain("valuacion");
+    expect(JSON.stringify(props.properties.valuationNumbers)).toContain("max5y");
+  });
+  it("de punta a punta: el modelo dice CON RESERVAS por 'tercio superior' y lo que se guarda es apto; con FALTANTES vuelve a con reservas", async () => {
+    const informe = (faltantes: string) => `DICTAMEN: CON RESERVAS — La valuación actual se encuentra en el tercio superior de su historial de 5 años.\n4. P/E adelantado 29,5x; mínimo 22,0x; máximo 32,5x.\nFALTANTES: ${faltantes}`;
+    const estructura = { ...args, verdict: "con_reservas", reason: "La valuación actual se encuentra en el tercio superior de su historial de 5 años.", reservas: [valuacion], valuationNumbers: nums(29.5, 22, 32.5) };
+    const a = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: fakeFetch([grounded(informe("ninguno")), call(estructura)]).fetch });
+    expect((await a.verify({ symbol: "APH", name: "Amphenol", today: "2026-09-15" })).verdict).toBe("apto");
+    const b = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: fakeFetch([grounded(informe("ítems no recurrentes del trimestre")), call(estructura)]).fetch });
+    const r = await b.verify({ symbol: "APH", name: "Amphenol", today: "2026-09-15" });
+    expect(r.verdict).toBe("con_reservas");
+    expect(r.reason).toContain("falta verificar");
+  });
+});
+
+/** sha256 de RESEARCH_SYSTEM (12 hex) al 18/9: el cuestionario con el que se hicieron los informes guardados. */
+const HASH_DEL_CUESTIONARIO = "9d7715df47a9";
+
+describe("volver a estructurar sin volver a buscar (18/9)", () => {
+  /*
+   * Cambiar la tool cambia la versión, y las 17 verificaciones vigentes quedarían "con cuestionario anterior": habría
+   * que buscarlas de nuevo con una cuota de menos de 10 búsquedas por clave y por día. Lo que se le pregunta a la web
+   * no cambió, y el informe está guardado: se re-estructura ese texto, sin búsqueda.
+   */
+  it("el cuestionario de investigación es el mismo que el de la versión anterior: si cambia, la lista de versiones compatibles se vacía", () => {
+    const hash = createHash("sha256").update(RESEARCH_SYSTEM).digest("hex").slice(0, 12);
+    // Si este hash cambia, RESEARCH_SYSTEM cambió: un informe guardado ya no responde lo que se pregunta hoy.
+    // Vaciá VERSIONES_MISMO_INFORME y actualizá el hash.
+    expect({ hash, versiones: VERSIONES_MISMO_INFORME }).toEqual({ hash: HASH_DEL_CUESTIONARIO, versiones: ["v1-07c33234178c-gemini"] });
+  });
+  it("reestructura un informe guardado con una sola llamada, sin búsqueda, y aplica las mismas reglas", async () => {
+    const texto = "DICTAMEN: CON RESERVAS — tercio superior.\n4. P/E adelantado 29,5x; mínimo 22,0x; máximo 32,5x.\nFALTANTES: ninguno";
+    const ff = fakeFetch([call({ ...args, verdict: "con_reservas", reason: "tercio superior", reservas: [valuacion], valuationNumbers: nums(29.5, 22, 32.5) })]);
+    const rec = memRecorder();
+    const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: ff.fetch, recorder: rec });
+    expect(v.puedeReestructurar("v1-07c33234178c-gemini")).toBe(true);
+    expect(v.puedeReestructurar("v1-c12a96012ca5-gemini")).toBe(false);
+    expect(v.puedeReestructurar(v.promptVersion)).toBe(false);
+    const fuentes = [{ title: "sec.gov", url: "https://redirect/1" }];
+    const r = await v.reestructurar({ symbol: "APH", today: "2026-09-18", researchText: texto, sources: fuentes, model: "gemini-2.5-flash" });
+    expect(r.verdict).toBe("apto");
+    expect(r.researchText).toBe(texto);
+    expect(r.sources).toEqual(fuentes);
+    expect(r.model).toBe("gemini-2.5-flash");
+    expect(ff.calls).toHaveLength(1);
+    expect(ff.calls[0]!.body.tools?.some((t) => JSON.stringify(t).includes("google_search"))).toBe(false);
+    expect(rec.rows.map((x) => x.purpose)).toEqual(["verificacion_estructura"]);
+  });
+  it("un informe guardado que está cortado no se reestructura", async () => {
+    const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: fakeFetch([]).fetch });
+    await expect(v.reestructurar({ symbol: "APH", today: "2026-09-18", researchText: "DICTAMEN: APTO — x (se cortó)", sources: [], model: null })).rejects.toThrow(/incompleto/);
   });
 });
 

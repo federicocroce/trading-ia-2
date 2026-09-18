@@ -173,6 +173,12 @@ export type VerifierResult = Omit<CandidateVerification, "symbol" | "date" | "de
 export interface CandidateVerifier {
   readonly promptVersion: string;
   verify(input: VerifierInput): Promise<VerifierResult>;
+  /**
+   * ¿El informe guardado con esa versión responde el mismo cuestionario de investigación que el vigente? (18/9) Si sí,
+   * se vuelve a estructurar su texto en vez de buscar de nuevo: la búsqueda es la cuota escasa.
+   */
+  puedeReestructurar?(promptVersion: string): boolean;
+  reestructurar?(input: { symbol: string; today: string; researchText: string; sources: Array<{ title: string; url: string }>; model: string | null }): Promise<VerifierResult>;
 }
 
 /**
