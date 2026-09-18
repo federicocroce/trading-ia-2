@@ -73,3 +73,74 @@ describe("verifyFor", () => {
     expect(await verifyFor({ store, verifier: v2 }, "B", { today: "2026-09-10", name: null })).toEqual({ date: "2026-08-01", verdict: "apto", reason: "vieja", consensusTarget: null, promptVersion: "v1-test" });
   });
 });
+
+describe("verifyFor: volver a estructurar sin volver a buscar (18/9)", () => {
+  /*
+   * El 18/9 cambió el estructurador (la reserva por valuación pasó a decidirla el código) y con él la versión. Las 17
+   * verificaciones vigentes quedaban "con cuestionario anterior" y había que buscarlas de nuevo con menos de 10
+   * búsquedas por clave y por día. El informe está guardado y lo que se le pregunta a la web no cambió: se
+   * re-estructura ese texto, sin gastar presupuesto de búsqueda, y la fila conserva la fecha de la búsqueda.
+   */
+  function reestructurador(results: Array<VerifierResult | Error>, compatibles: string[]) {
+    const v = verifier([result("evitar", "no debería buscar")], "v2-nuevo");
+    const textos: string[] = [];
+    return Object.assign(v, {
+      textos,
+      puedeReestructurar: (version: string) => compatibles.includes(version),
+      async reestructurar(i: { symbol: string; today: string; researchText: string; sources: Array<{ title: string; url: string }>; model: string | null }) {
+        textos.push(`${i.symbol}|${i.today}|${i.researchText}`);
+        const r = results.shift();
+        if (!r) throw new Error("sin más resultados");
+        if (r instanceof Error) throw r;
+        return { ...r, researchText: i.researchText, sources: i.sources, model: i.model };
+      },
+    });
+  }
+  const guardarVieja = async (store: MemoryStore, date: string) => {
+    await verifyFor({ store, verifier: verifier([result("con_reservas", "tercio superior")], "v1-viejo") }, "APH", { today: date, name: null });
+  };
+
+  it("APH: fila de la versión anterior, fresca y con informe: re-estructura, no busca, no gasta presupuesto y conserva la fecha", async () => {
+    const store = new MemoryStore();
+    await guardarVieja(store, "2026-09-15");
+    const v = reestructurador([result("apto", "la única reserva era la valuación")], ["v1-viejo"]);
+    const budget = { left: 1 };
+    const r = await verifyFor({ store, verifier: v }, "APH", { today: "2026-09-18", name: null, budget });
+    expect(r).toEqual({ date: "2026-09-15", verdict: "apto", reason: "la única reserva era la valuación", consensusTarget: null, promptVersion: "v2-nuevo" });
+    expect(v.calls).toEqual([]);
+    expect(v.textos).toEqual(["APH|2026-09-15|informe"]);
+    expect(budget.left).toBe(1);
+    expect(await store.verification("APH")).toMatchObject({ date: "2026-09-15", promptVersion: "v2-nuevo", verdict: "apto", researchText: "informe" });
+    // Ya quedó con la versión vigente: la próxima vuelta la reusa sin llamar a nadie.
+    await verifyFor({ store, verifier: v }, "APH", { today: "2026-09-19", name: null });
+    expect(v.textos).toHaveLength(1);
+  });
+  it("sin presupuesto de búsqueda igual re-estructura: no es una búsqueda", async () => {
+    const store = new MemoryStore();
+    await guardarVieja(store, "2026-09-17");
+    const v = reestructurador([result("apto")], ["v1-viejo"]);
+    expect((await verifyFor({ store, verifier: v }, "APH", { today: "2026-09-18", name: null, budget: { left: 0 } }))?.verdict).toBe("apto");
+  });
+  it("vencida, o de una versión que no comparte el cuestionario: busca como siempre", async () => {
+    const vencida = new MemoryStore();
+    await guardarVieja(vencida, "2026-09-10");
+    const a = reestructurador([result("apto")], ["v1-viejo"]);
+    expect((await verifyFor({ store: vencida, verifier: a }, "APH", { today: "2026-09-18", name: null }))?.verdict).toBe("evitar");
+    expect(a.textos).toEqual([]);
+    const otra = new MemoryStore();
+    await guardarVieja(otra, "2026-09-17");
+    const b = reestructurador([result("apto")], ["v1-otra"]);
+    expect((await verifyFor({ store: otra, verifier: b }, "APH", { today: "2026-09-18", name: null }))?.verdict).toBe("evitar");
+    expect(b.textos).toEqual([]);
+  });
+  it("si el estructurador falla, queda lo que había (con su versión) y no se gasta una búsqueda: se reintenta en la próxima vuelta", async () => {
+    const store = new MemoryStore();
+    await guardarVieja(store, "2026-09-17");
+    const v = reestructurador([new Error("503 saturado")], ["v1-viejo"]);
+    const budget = { left: 3 };
+    const r = await verifyFor({ store, verifier: v }, "APH", { today: "2026-09-18", name: null, budget });
+    expect(r).toMatchObject({ verdict: "con_reservas", promptVersion: "v1-viejo", date: "2026-09-17" });
+    expect(v.calls).toEqual([]);
+    expect(budget.left).toBe(3);
+  });
+});
