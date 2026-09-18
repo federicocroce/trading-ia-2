@@ -137,3 +137,29 @@ hardware de IA) y el plan no mide la correlación de las líneas nuevas entre s�
 
 Se pierde el freno automático del 15/9 ("el verificador falla cerrado" como bloqueo). Lo cubren las reglas fijas y el
 aviso visible; una reserva genuina (HRTG: reservas liberadas en temporada benigna) ya no deja afuera, la muestra.
+
+---
+
+# Tercera parte: la objeción de la revisión también avisa
+
+Aprobada por el dueño el 18/9, después de ver correr la revisión por primera vez.
+
+**Qué pasó.** A las 12:17 se rearmó el plan con la segunda parte: núcleo 30.900 + APH 4.918 + SMCI 4.182. A las 12:19 la
+app corrió sola la revisión antes de comprar de las dos —la primera vez en su historia— y **las dos volvieron con
+objeción**: APH, "el CEO y el CFO vendieron unos USD 172 M en acciones en 90 días"; SMCI, "nueva investigación legal por
+ventas a empresas chinas… y ventas de directivos" (22 fuentes cada una). El plan se rearmó y volvió a solo núcleo.
+
+**Por qué.** A la revisión se le pide "buscá razones para no comprarla". En una empresa grande casi siempre hay ventas de
+directivos o una rebaja de objetivo en 30 días, y sobre SMCI los estudios de abogados publican "investigaciones" todas
+las semanas. Como información sirve (el dato de APH conviene leerlo antes de comprar); como compuerta frena todo: 2 de 2.
+
+**La regla.** La revisión antes de comprar **nunca frena**: pendiente, objeción y "no pude verificar" van escritos con ⚠
+en la línea y en `PlanLine.avisos`. De la IA queda frenando solo el "evitar" de la verificación web. Siguen frenando las
+reglas fijas y Cartera sobre lo que ya se tiene.
+
+**"Por qué cambió".** Una objeción que aparece sobre una línea que ya estaba no mueve plata, así que antes no se listaba.
+Ahora un cambio en los avisos de una línea con el mismo monto se lista como `aviso`, con el texto del aviso nuevo (o
+"ya no lleva avisos: …" cuando se van).
+
+**Riesgo aceptado.** Una objeción genuina (una licencia que vence, una guía recortada ayer) ya no saca la línea sola: está
+escrita al lado de COMPRAR y la decisión es del dueño.

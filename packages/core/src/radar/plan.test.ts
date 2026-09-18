@@ -274,11 +274,20 @@ describe("revisión antes de comprar (15/9)", () => {
   const compra = (symbol: string, priority: number, review: Buy["review"]): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close: 100, entryHigh: 102, stop: 90, target: 126, verification: apta, atr: 2, review });
   const cuarenta = (buys: Buy[], sumar: PlanInput["sumarCandidates"] = []) => planContribution({ ...base, closes: { ...base.closes, APH: 100, GFI: 100, NVDA: 100 }, buyCandidates: buys, sumarCandidates: sumar }, c, { amountUsd: 40_000 });
 
-  it("con una objeción no entra, lo dice, y su lugar va al núcleo", () => {
-    const p = cuarenta([compra("GFI", 1.2, { verdict: "objecion", reason: "la licencia de Tarkwa vence en abril de 2027 y Ghana no respondió" }), compra("NVDA", 1.1, sin)]);
-    expect(p.lines.some((l) => l.symbol === "GFI")).toBe(false);
-    expect(p.leftOut!.find((x) => x.symbol === "GFI")!.reason).toMatch(/revisión antes de comprar encontró una objeción: la licencia de Tarkwa/);
-    expect(p.lines.some((l) => l.symbol === "NVDA")).toBe(true);
+  it("18/9, APH y SMCI: con una objeción entra igual, con la objeción escrita en la línea; el monto no cambia por el aviso", () => {
+    // La revisión corrió por primera vez el 18/9 a las 12:19 y objetó a las dos únicas acciones del plan, dos minutos
+    // después de que entraran: APH por ventas del CEO y el CFO (USD 172 M en 90 días) y SMCI por una "investigación" de
+    // un estudio de abogados. A un modelo al que se le pide "buscá razones para no comprarla" siempre le aparece algo:
+    // sirve como información y frena todo como compuerta. Aprobado por el dueño: la objeción avisa, con su texto.
+    const objecion = { verdict: "objecion" as const, reason: "el CEO y el CFO vendieron USD 172,3 M en acciones en 90 días" };
+    const p = cuarenta([compra("APH", 1.2, objecion), compra("NVDA", 1.1, sin)]);
+    const q = cuarenta([compra("APH", 1.2, sin), compra("NVDA", 1.1, sin)]);
+    const aph = p.lines.find((l) => l.symbol === "APH")!;
+    expect(aph.kind).toBe("comprar");
+    expect(aph.avisos).toEqual(["la revisión antes de comprar encontró una objeción: el CEO y el CFO vendieron USD 172,3 M en acciones en 90 días"]);
+    expect(aph.rationale).toMatch(/⚠ la revisión antes de comprar encontró una objeción: el CEO y el CFO vendieron/);
+    expect(aph.amountUsd).toBe(q.lines.find((l) => l.symbol === "APH")!.amountUsd);
+    // Ya está revisada: no queda anotada para revisarse de nuevo.
     expect(p.reviewsPending ?? []).toEqual([]);
   });
   it("18/9, APH: sin revisar todavía entra, la línea lo dice, y queda en la lista para que la revisión corra", () => {
@@ -287,7 +296,8 @@ describe("revisión antes de comprar (15/9)", () => {
     expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).not.toMatch(/⚠/);
     expect(p.reviewsPending).toEqual(["APH"]);
     // La nota ya no dice que el plan no se ejecuta: dice qué pasa si la revisión encuentra algo.
-    expect(p.notes.join(" ")).toMatch(/Revisión antes de comprar pendiente: APH\..*si encuentra una objeción.*sale del plan/);
+    expect(p.notes.join(" ")).toMatch(/Revisión antes de comprar pendiente: APH\..*si encuentra una objeción.*queda escrita/);
+    expect(p.notes.join(" ")).not.toMatch(/sale del plan/);
     expect(p.notes.join(" ")).not.toMatch(/el plan no se ejecuta/);
   });
   it("18/9: 'no pude verificar' entra con el aviso; sin revisor (undefined) no se exige ni se avisa", () => {
@@ -341,14 +351,14 @@ describe("revisión antes de comprar (15/9)", () => {
     const p = cuarenta([{ ...compra("APH", 1.3, null), verification: { verdict: "con_reservas", reason: "guía que no sube", current: true }, cautions: ["se mueve como TSM que ya tenés (correlación 0.81)"] }]);
     expect(p.lines.find((l) => l.symbol === "APH")!.rationale).toMatch(/⚠ se mueve como TSM.* · ⚠ verificación web con reservas: guía que no sube · ⚠ revisión antes de comprar pendiente$/);
   });
-  it("un SUMAR también pasa por la revisión: con objeción no se suma; pendiente se suma con el aviso (18/9)", () => {
+  it("un SUMAR también pasa por la revisión: con objeción o pendiente se suma con el aviso (18/9)", () => {
     const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 380, target: 498, verification: apta, atr: 11 };
     const pendiente = cuarenta([], [{ ...tsm, review: null }]);
     expect(pendiente.lines.find((l) => l.symbol === "TSM")!.rationale).toMatch(/⚠ revisión antes de comprar pendiente/);
     expect(pendiente.reviewsPending).toEqual(["TSM"]);
     const objecion = cuarenta([], [{ ...tsm, review: { verdict: "objecion", reason: "rebaja de Morgan Stanley el 12/9" } }]);
-    expect(objecion.lines.some((l) => l.symbol === "TSM")).toBe(false);
-    expect(objecion.notes.join(" ")).toMatch(/No se sumó TSM: la revisión antes de comprar encontró una objeción/);
+    expect(objecion.lines.find((l) => l.symbol === "TSM")!.avisos).toEqual(["la revisión antes de comprar encontró una objeción: rebaja de Morgan Stanley el 12/9"]);
+    expect(objecion.notes.join(" ")).not.toMatch(/No se sumó TSM/);
     const ok = cuarenta([], [{ ...tsm, review: sin }]);
     expect(ok.lines.find((l) => l.symbol === "TSM")!.kind).toBe("sumar");
   });

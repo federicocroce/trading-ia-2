@@ -183,7 +183,7 @@ export interface CandidateVerifier {
 
 /**
  * Revisión antes de comprar (15/9): una segunda búsqueda, independiente de la verificación, sobre lo que el plan
- * compraría hoy. Busca razones para NO comprarla. Solo "sin_objeciones" deja comprar (ver `reviewBlock`).
+ * compraría hoy. Busca razones para NO comprarla. Desde el 18/9 no frena: lo que diga va como aviso en la línea (ver `reviewCaution`).
  */
 export interface PreTradeReviewInput {
   symbol: string;

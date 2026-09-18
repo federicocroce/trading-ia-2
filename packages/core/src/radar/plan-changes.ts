@@ -22,7 +22,8 @@ export interface PlanSymbolInput {
 export type PlanChangeSource = "mercado" | "verificacion" | "regla" | "usuario" | "reparto" | "monto";
 export interface PlanChange {
   symbol: string;
-  change: "entra" | "sale" | "monto";
+  /** `aviso`: la línea sigue con el mismo monto, pero cambió lo que la IA dice de ella (18/9). */
+  change: "entra" | "sale" | "monto" | "aviso";
   fromUsd: number;
   toUsd: number;
   source: PlanChangeSource;
@@ -30,6 +31,7 @@ export interface PlanChange {
 }
 
 const coma = (n: number) => n.toFixed(2).replace(".", ",");
+const avisosOf = (p: ContributionPlan, s: string) => p.lines.filter((l) => l.symbol === s).flatMap((l) => l.avisos ?? []);
 const amountOf = (p: ContributionPlan, s: string) => p.lines.filter((l) => l.symbol === s).reduce((t, l) => t + l.amountUsd, 0);
 /** El motivo con el que el plan dejó afuera al símbolo, sin su lugar en la fila. */
 function reasonOf(p: ContributionPlan, s: string): string | null {
@@ -46,7 +48,17 @@ export function explainPlanChange(prev: ContributionPlan | null, next: Contribut
   for (const s of [...new Set([...prev.lines, ...next.lines].map((l) => l.symbol))]) {
     const fromUsd = amountOf(prev, s);
     const toUsd = amountOf(next, s);
-    if (Math.abs(toUsd - fromUsd) < 1) continue;
+    if (Math.abs(toUsd - fromUsd) < 1) {
+      // Mismo monto, otros avisos: una objeción que aparece sobre una línea que ya estaba no mueve plata, pero el dueño
+      // tiene que enterarse acá (18/9: miró el plan a las 12:17 y la objeción de APH llegó a las 12:19).
+      const antes = avisosOf(prev, s);
+      const ahora = avisosOf(next, s);
+      if (toUsd > 0 && antes.join("|") !== ahora.join("|")) {
+        const nuevos = ahora.filter((a) => !antes.includes(a));
+        out.push({ symbol: s, change: "aviso", fromUsd: Math.round(fromUsd), toUsd: Math.round(toUsd), source: "verificacion", cause: nuevos.length ? nuevos.join(" · ") : `ya no lleva avisos: ${antes.filter((a) => !ahora.includes(a)).join(" · ")}` });
+      }
+      continue;
+    }
     const change: PlanChange["change"] = fromUsd === 0 ? "entra" : toUsd === 0 ? "sale" : "monto";
     const a = prev.inputs?.[s];
     const b = next.inputs?.[s];

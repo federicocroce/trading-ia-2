@@ -44,6 +44,20 @@ describe("explainPlanChange", () => {
     const otroMonto = plan([linea("VTI", "nucleo", 3900)], {}, { totalUsd: 6500 });
     expect(explainPlanChange(antes, otroMonto).find((c) => c.symbol === "VTI")).toMatchObject({ source: "monto" });
   });
+  it("APH el 18/9: la línea sigue con el mismo monto pero la revisión encontró una objeción: el cambio se lista igual, como aviso", () => {
+    // Desde el 18/9 una objeción no saca la línea: queda escrita al lado de COMPRAR. Si el dueño miró el plan a las 12:17
+    // y la objeción llegó a las 12:19, "por qué cambió" es donde se entera, aunque el monto no se haya movido.
+    const objecion = "la revisión antes de comprar encontró una objeción: el CEO y el CFO vendieron USD 172,3 M en acciones en 90 días";
+    const antes = plan([{ ...linea("APH", "comprar", 4918), avisos: ["revisión antes de comprar pendiente"] }], { APH: entrada({ review: "pendiente" }) });
+    const despues = plan([{ ...linea("APH", "comprar", 4918), avisos: [objecion] }], { APH: entrada({ review: "objecion" }) });
+    const [c] = explainPlanChange(antes, despues);
+    expect(c).toMatchObject({ symbol: "APH", change: "aviso", fromUsd: 4918, toUsd: 4918, source: "verificacion" });
+    expect(c!.cause).toBe(objecion);
+    // Un aviso que se va (revisada sin objeciones) también se dice; los mismos avisos, no.
+    const limpia = plan([linea("APH", "comprar", 4918)], { APH: entrada({ review: "sin_objeciones" }) });
+    expect(explainPlanChange(antes, limpia)[0]).toMatchObject({ change: "aviso", cause: "ya no lleva avisos: revisión antes de comprar pendiente" });
+    expect(explainPlanChange(despues, despues)).toEqual([]);
+  });
   it("sin plan anterior no hay cambios que explicar, y una línea igual no se lista", () => {
     const p = plan([linea("VTI", "nucleo", 100)], {});
     expect(explainPlanChange(null, p)).toEqual([]);

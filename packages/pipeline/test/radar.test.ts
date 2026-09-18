@@ -353,7 +353,7 @@ describe("plan: por qué cambió (15/9)", () => {
 });
 
 describe("plan: revisión antes de comprar (15/9)", () => {
-  it("18/9: lo que el plan compra sin revisar entra con el aviso y queda anotado; cuando se revisa, sin objeciones pierde el aviso, con objeción sale, y el cambio dice por qué", async () => {
+  it("18/9: lo que el plan compra sin revisar entra con el aviso y queda anotado; cuando se revisa, sin objeciones pierde el aviso, con objeción la lleva escrita, y el cambio lo dice", async () => {
     const { store, d } = deps();
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
@@ -381,22 +381,18 @@ describe("plan: revisión antes de comprar (15/9)", () => {
     expect(r.reviewed.sort()).toEqual([...antes.reviewsPending!].sort());
     expect(revisados.sort()).toEqual([...antes.reviewsPending!].sort());
     const despues = await buildContributionPlan(conRevisor, { month: "2026-05", portfolioUsd: 100_000, today: TODAY });
-    if (antes.reviewsPending!.includes("SA")) {
-      expect(despues.lines.some((l) => l.symbol === "SA")).toBe(false);
-      expect(despues.leftOut!.find((x) => x.symbol === "SA")?.reason).toMatch(/objeción: vence su licencia en abril/);
-    }
+    // La objeción ya no saca la línea (18/9, 12:19: objetó a APH y SMCI dos minutos después de que entraran): queda
+    // escrita al lado de COMPRAR, con el mismo monto, y "por qué cambió" la lista como aviso.
+    if (!antes.reviewsPending!.includes("SA")) expect.fail("el fixture tiene que poner a SA entre lo que se revisa");
+    const sa = despues.lines.find((l) => l.symbol === "SA");
+    expect(sa?.avisos).toEqual(["la revisión antes de comprar encontró una objeción: vence su licencia en abril"]);
+    expect(sa?.amountUsd).toBe(antes.lines.find((l) => l.symbol === "SA")!.amountUsd);
+    expect(despues.changes?.find((c) => c.symbol === "SA")).toMatchObject({ change: "aviso", cause: "la revisión antes de comprar encontró una objeción: vence su licencia en abril" });
     const entro = despues.lines.find((l) => l.kind === "comprar");
     if (!entro) expect.fail(`nada quedó después de revisar: ${JSON.stringify(despues.leftOut)}`);
-    // Revisada y sin objeciones: la línea sigue y ya no lleva el aviso.
-    expect(entro.avisos ?? []).not.toContain("revisión antes de comprar pendiente");
-    // Lo único que puede quedar sin revisar es lo que entró recién ahora (el lugar que dejó la de la objeción): también
-    // con su aviso, y anotado para la próxima vuelta.
-    for (const sym of despues.reviewsPending ?? []) {
-      expect(antes.reviewsPending).not.toContain(sym);
-      expect(despues.lines.find((l) => l.symbol === sym)?.avisos).toContain("revisión antes de comprar pendiente");
-    }
-    // La que salió por la objeción queda explicada en "por qué cambió".
-    if (antes.reviewsPending!.includes("SA")) expect(despues.changes?.find((c) => c.symbol === "SA")?.cause).toMatch(/revisión antes de comprar/);
+    // Revisadas todas: ninguna línea lleva ya el aviso de pendiente, y no queda nada anotado para revisar.
+    for (const l of despues.lines) expect(l.avisos ?? []).not.toContain("revisión antes de comprar pendiente");
+    expect(despues.reviewsPending ?? []).toEqual([]);
     // Si la búsqueda falla, no revienta ni inventa una revisión: queda el error y sigue pendiente.
     const caido = { ...d, reviewer: { promptVersion: "r-test-2", review: async () => { throw new Error("gemini: 429"); } } };
     const pendientesCaido = (await buildContributionPlan(caido, { month: "2026-05", portfolioUsd: 100_000, today: TODAY })).reviewsPending!;
