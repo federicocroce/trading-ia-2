@@ -3,11 +3,12 @@ import { replan, reviewPending } from "@thesis/pipeline";
 import type { Container } from "./container.js";
 
 /**
- * Revisiones pendientes (15/9): lo que el plan compraría y todavía no pasó la revisión antes de comprar se revisa
- * solo, y el plan se rearma cuando termina. Mientras haya pendientes, el plan dice ESPERAR (ver `controlesBloquean`).
+ * Revisiones pendientes (15/9): lo que el plan compra y todavía no pasó la revisión antes de comprar se revisa solo, y
+ * el plan se rearma cuando termina. Desde el 18/9 una revisión pendiente no frena: la línea entra con el aviso escrito,
+ * y si la revisión encuentra una objeción la línea sale del plan en el rearmado ("por qué cambió" lo dice).
  *
  * Una búsqueda que falla no se reintenta antes de 10 minutos (la cuota de Gemini ya se agotó el 14/9), y a la tercera
- * falla del día queda "no pude verificar": esa parte va al núcleo y el plan deja de esperar. Nunca se da por buena.
+ * falla del día queda "no pude verificar", que también va como aviso en la línea. Nunca se da por buena.
  */
 const REINTENTO_MS = 10 * 60_000;
 const FALLAS_MAX = 3;

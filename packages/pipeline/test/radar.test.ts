@@ -353,7 +353,7 @@ describe("plan: por qué cambió (15/9)", () => {
 });
 
 describe("plan: revisión antes de comprar (15/9)", () => {
-  it("lo que el plan compraría queda pendiente hasta que se revisa; sin objeciones entra, con objeción no, y el cambio dice por qué", async () => {
+  it("18/9: lo que el plan compra sin revisar entra con el aviso y queda anotado; cuando se revisa, sin objeciones pierde el aviso, con objeción sale, y el cambio dice por qué", async () => {
     const { store, d } = deps();
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
@@ -370,7 +370,10 @@ describe("plan: revisión antes de comprar (15/9)", () => {
     const conRevisor = { ...d, reviewer };
     const antes = await buildContributionPlan(conRevisor, { month: "2026-05", portfolioUsd: 100_000, today: TODAY });
     expect(antes.reviewsPending?.length).toBeGreaterThan(0);
-    expect(antes.lines.some((l) => l.kind === "comprar")).toBe(false);
+    // Hasta el 17/9 acá no entraba ninguna: la revisión nunca corrió (cero filas en la base real) y el plan compró solo
+    // núcleo cuatro días. Ahora entran, cada una con su aviso, y son exactamente las que quedan anotadas para revisar.
+    const sinRevisar = antes.lines.filter((l) => l.kind === "comprar" || l.kind === "seguimiento" || l.kind === "sumar").filter((l) => l.avisos?.includes("revisión antes de comprar pendiente")).map((l) => l.symbol);
+    expect(sinRevisar.sort()).toEqual([...antes.reviewsPending!].sort());
     // `reviewPending` revisa de a 6 por corrida (tope por defecto, para no quemar cuota de Gemini). Con el corte
     // nuevo entran más COMPRAR al plan, así que la lista de pendientes puede pasar de 6 y hay que pedirlas por
     // tanda: el test pide el total explícito para revisarlas todas de una.
@@ -383,8 +386,17 @@ describe("plan: revisión antes de comprar (15/9)", () => {
       expect(despues.leftOut!.find((x) => x.symbol === "SA")?.reason).toMatch(/objeción: vence su licencia en abril/);
     }
     const entro = despues.lines.find((l) => l.kind === "comprar");
-    if (!entro) expect.fail(`nada entró después de revisar: ${JSON.stringify(despues.leftOut)}`);
-    expect(despues.changes?.find((c) => c.symbol === entro.symbol)?.cause).toMatch(/revisión antes de comprar/);
+    if (!entro) expect.fail(`nada quedó después de revisar: ${JSON.stringify(despues.leftOut)}`);
+    // Revisada y sin objeciones: la línea sigue y ya no lleva el aviso.
+    expect(entro.avisos ?? []).not.toContain("revisión antes de comprar pendiente");
+    // Lo único que puede quedar sin revisar es lo que entró recién ahora (el lugar que dejó la de la objeción): también
+    // con su aviso, y anotado para la próxima vuelta.
+    for (const sym of despues.reviewsPending ?? []) {
+      expect(antes.reviewsPending).not.toContain(sym);
+      expect(despues.lines.find((l) => l.symbol === sym)?.avisos).toContain("revisión antes de comprar pendiente");
+    }
+    // La que salió por la objeción queda explicada en "por qué cambió".
+    if (antes.reviewsPending!.includes("SA")) expect(despues.changes?.find((c) => c.symbol === "SA")?.cause).toMatch(/revisión antes de comprar/);
     // Si la búsqueda falla, no revienta ni inventa una revisión: queda el error y sigue pendiente.
     const caido = { ...d, reviewer: { promptVersion: "r-test-2", review: async () => { throw new Error("gemini: 429"); } } };
     const pendientesCaido = (await buildContributionPlan(caido, { month: "2026-05", portfolioUsd: 100_000, today: TODAY })).reviewsPending!;
@@ -516,7 +528,7 @@ describe("plan: calendario de la Fed (13/9)", () => {
 });
 
 describe("plan: verificación con el cuestionario vigente (13/9)", () => {
-  it("una acción verificada con el cuestionario anterior no entra; una con el vigente sí", async () => {
+  it("18/9: una acción verificada con el cuestionario anterior entra con el aviso y queda anotada para verificarse; una con el vigente entra limpia", async () => {
     const { store, d } = deps();
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
@@ -526,8 +538,16 @@ describe("plan: verificación con el cuestionario vigente (13/9)", () => {
     // Solo se usa su versión: el plan no verifica nada, decide con lo guardado.
     const verifier = { promptVersion: "v2-nuevo", verify: async () => { throw new Error("el plan no verifica"); } };
     const plan = await buildContributionPlan({ ...d, verifier }, { month: "2026-05", portfolioUsd: 100_000 });
-    expect(plan.leftOut?.find((x) => x.symbol === compras[0]!.symbol)?.reason).toMatch(/cuestionario anterior/);
-    expect(plan.lines.some((l) => l.symbol === compras[1]!.symbol)).toBe(true);
+    // Hasta el 17/9 la del cuestionario anterior quedaba afuera. El 18/9 cambió el estructurador y TODAS las vigentes
+    // pasaban a "anterior" de un día para el otro: con la regla vieja el plan volvía a comprar solo núcleo.
+    const vieja = plan.lines.find((l) => l.symbol === compras[0]!.symbol);
+    const nueva = plan.lines.find((l) => l.symbol === compras[1]!.symbol);
+    if (vieja) {
+      expect(vieja.avisos).toContain("verificación hecha con el cuestionario anterior");
+      expect(plan.verificationsPending).toContain(compras[0]!.symbol);
+    } else expect(plan.leftOut?.find((x) => x.symbol === compras[0]!.symbol)?.reason).not.toMatch(/cuestionario anterior/);
+    if (nueva) expect(nueva.avisos ?? []).not.toContain("verificación hecha con el cuestionario anterior");
+    expect(vieja ?? nueva).toBeDefined();
   });
 });
 

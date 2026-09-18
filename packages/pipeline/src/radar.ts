@@ -854,7 +854,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   };
   const candidatePorSimbolo = new Map(candidates.map((c) => [c.symbol, c]));
   // Revisión antes de comprar (15/9): la de hoy, con el prompt vigente. Sin revisor no se exige (undefined); sin la de
-  // hoy, pendiente (null): el plan no la compra y la anota en `reviewsPending` para que se corra.
+  // hoy, pendiente (null): el plan la compra con el aviso en la línea (18/9) y la anota en `reviewsPending` para que se corra.
   const hoy = opts.today ?? todayLocal();
   const revisiones = deps.reviewer ? new Map((await store.preTradeReviews(hoy)).filter((r) => r.promptVersion === deps.reviewer!.promptVersion).map((r) => [r.symbol.toUpperCase(), r])) : null;
   const reviewOf = (sym: string): PlanReview | null | undefined => {
@@ -863,7 +863,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     return r ? { verdict: r.verdict, reason: r.reason } : null;
   };
   // Verificación tal como la usa el plan (13/9): vigente = hecha con el cuestionario actual. Sin verificador no se
-  // exige (undefined); con verificador y sin dictamen, pendiente (null), que no compra.
+  // exige (undefined); con verificador y sin dictamen, pendiente (null): compra con el aviso en la línea (18/9).
   const planVerification = (v: VerificationSummary | null | undefined): PlanVerification | null | undefined => {
     if (!deps.verifier) return undefined;
     if (!v) return null;

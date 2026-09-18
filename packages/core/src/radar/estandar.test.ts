@@ -153,13 +153,17 @@ describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000"
     expect(by["nucleo:VTI"]).toBe(14_400);
     expect(by["nucleo:VEA"]).toBe(6_000);
     expect(by["nucleo:VWO"]).toBe(3_600);
-    // Mi cartera del 10/9: APH, NVDA, LNC y NBN. PAM ya está en el tope por posición y no ocupa el lugar.
-    expect(p.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["APH", "NVDA", "LNC", "NBN"]);
+    // Mi cartera del 10/9 era APH, NVDA, LNC y NBN, con HRTG afuera por su reserva. Desde el 18/9 (aprobado por el
+    // dueño) una reserva de la verificación web no frena: HRTG, 3° por convicción, entra con la reserva escrita en su
+    // línea y decide él; NBN, 7°, ya no tiene lugar entre las cuatro. La diferencia la explica esa regla y ninguna otra.
+    expect(p.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["APH", "NVDA", "HRTG", "LNC"]);
+    expect(p.lines.find((l) => l.symbol === "HRTG")!.avisos).toEqual(["verificación web con reservas: reservas liberadas en temporada benigna"]);
     expect(maxNewPositions(40_000, 6500, 2)).toBe(4);
     expect(maxNewPositions(6_500, 6500, 2)).toBe(2);
     const left = Object.fromEntries((p.leftOut ?? []).map((x) => [x.symbol, x.reason]));
-    expect(left["HRTG"]).toBe("3° por convicción: verificación web con reservas: reservas liberadas en temporada benigna");
-    expect(left["SOLV"]).toContain("verificación web con reservas");
+    expect(left["HRTG"]).toBeUndefined();
+    expect(left["SOLV"]).toBe("5° por convicción: tope de 4 posiciones nuevas");
+    expect(left["NBN"]).toBe("7° por convicción: tope de 4 posiciones nuevas");
     expect(left["PAM"]).toBe("6° por convicción: ya está en el tope del 15% por posición");
     expect(left["TER"]).toBe(`8° por convicción: ${PLAN_BLOCKERS["subio_mucho_12m"]}`);
     // La regla fija va primero (15/9): GLW subió más de 100% y eso la frena con o sin verificación.

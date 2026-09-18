@@ -68,17 +68,27 @@ describe("convicción con verificación web", () => {
   });
 });
 
-describe("plan: la verificación con reservas no entra como posición nueva y la nota lo dice", () => {
-  const cfg = { monthlyUsd: 6500, coreTargetPct: 40, maxPositionPct: 15, maxNewPositionsPerMonth: 2, maxLinePctOfContribution: 50, coreSharePctWhileBelowTarget: 60, sumarSharePctOfRest: 30, watchLinesMax: 1, etfLinesMax: 1 };
+describe("plan: la verificación web avisa; solo 'evitar' deja afuera (18/9)", () => {
+  /*
+   * Hasta el 17/9 "con reservas" y "pendiente" dejaban afuera (HRTG el 10/9; NBN desde el 13/9). Del 15/9 al 18/9 el
+   * verificador dio "con reservas" a 16 de 17 —en 15, la misma frase de valuación— y el plan compró solo núcleo cuatro
+   * días. Aprobado por el dueño el 18/9: la reserva va escrita en la línea y decide él; "evitar" sigue frenando.
+   */
+  const cfg = { monthlyUsd: 6500, coreTargetPct: 40, maxPositionPct: 15, maxNewPositionsPerMonth: 3, maxLinePctOfContribution: 50, coreSharePctWhileBelowTarget: 60, sumarSharePctOfRest: 30, watchLinesMax: 1, etfLinesMax: 1 };
   const b = (symbol: string, priority: number, verification: { verdict: "apto" | "con_reservas" | "evitar"; reason: string } | null) => ({ symbol, kind: "stock" as const, priority, score: 1, sizeUsd: 5000, close: 50, entryHigh: 51, stop: 45, target: 60, verification });
-  it("HRTG 1° por convicción con reservas queda afuera con motivo; los siguientes entran", () => {
+  it("HRTG con reservas y NBN pendiente entran con el aviso en su línea; LNC apta entra sin aviso", () => {
     const plan = planContribution({ month: "2026-09", portfolioValueUsd: 150_000, positions: [], sumarCandidates: [], buyCandidates: [b("HRTG", 1.5, { verdict: "con_reservas", reason: "temporada de huracanes" }), b("LNC", 1.4, { verdict: "apto", reason: "barata" }), b("NBN", 1.3, null)], coreEtfs: [], spyClose: null, closes: {} }, cfg, {});
-    // Hasta el 13/9 NBN entraba con la verificación pendiente. Ya no: "¿qué me asegura que la siguiente esté bien?",
-    // preguntó el dueño; sin verificar, nada. Queda afuera con su motivo.
+    expect(plan.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["HRTG", "LNC", "NBN"]);
+    expect(plan.lines.find((l) => l.symbol === "HRTG")!.rationale).toMatch(/⚠ verificación web con reservas: temporada de huracanes$/);
+    expect(plan.lines.find((l) => l.symbol === "NBN")!.rationale).toMatch(/⚠ verificación web pendiente$/);
+    expect(plan.lines.find((l) => l.symbol === "LNC")!.rationale).not.toMatch(/⚠/);
+    expect(plan.verificationsPending).toEqual(["NBN"]);
+  });
+  it("HRTG con 'evitar' queda afuera con su motivo, y la nota lo dice", () => {
+    const plan = planContribution({ month: "2026-09", portfolioValueUsd: 150_000, positions: [], sumarCandidates: [], buyCandidates: [b("HRTG", 1.5, { verdict: "evitar", reason: "temporada de huracanes con reservas cortas" }), b("LNC", 1.4, { verdict: "apto", reason: "barata" })], coreEtfs: [], spyClose: null, closes: {} }, cfg, {});
     expect(plan.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["LNC"]);
-    expect(plan.leftOut?.find((x) => x.symbol === "NBN")?.reason).toMatch(/pendiente/);
-    expect(plan.leftOut?.find((x) => x.symbol === "HRTG")?.reason).toBe("1° por convicción: verificación web con reservas: temporada de huracanes");
-    expect(plan.notes.join(" ")).toContain("HRTG (1° por convicción: verificación web con reservas: temporada de huracanes)");
+    expect(plan.leftOut?.find((x) => x.symbol === "HRTG")?.reason).toBe("1° por convicción: verificación web dice evitar: temporada de huracanes con reservas cortas");
+    expect(plan.notes.join(" ")).toContain("HRTG (1° por convicción: verificación web dice evitar: temporada de huracanes con reservas cortas)");
   });
 });
 

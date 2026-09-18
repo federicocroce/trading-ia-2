@@ -12,7 +12,7 @@ import type { ContributionPlan, Verb } from "./api";
  */
 export type PlanStatus =
   /** `trancheUsd`: el primer tramo, cuando el plan va en tramos (15/9). */
-  | { kind: "comprar" | "seguimiento" | "sumar" | "nucleo"; amountUsd: number; trancheUsd?: number }
+  | { kind: "comprar" | "seguimiento" | "sumar" | "nucleo"; amountUsd: number; trancheUsd?: number; /** Lo que la IA dejó sin cerrar: no frena, se lee al lado (18/9). */ avisos?: string[] }
   | { kind: "fuera"; reason: string }
   /** Está en el plan, pero los controles no dejan ejecutarlo (15/9). */
   | { kind: "frenado"; lineKind: "comprar" | "seguimiento" | "sumar" | "nucleo"; amountUsd: number; reason: string }
@@ -31,7 +31,7 @@ const usd = (n: number) => `USD ${Math.round(n).toLocaleString("es-AR")}`;
  * Con tramos, el total y el primer tramo (15/9): la tabla de ETFs decía "USD 24.000 en el plan de hoy" y el jueves se
  * compran 8.000. El monto del tramo es el del plan; un plan guardado sin él lo calcula con la misma regla.
  */
-const enPlan = (s: { amountUsd: number; trancheUsd?: number }) => (s.trancheUsd !== undefined ? `${usd(s.amountUsd)} en el plan · 1er tramo ${usd(s.trancheUsd)}` : `${usd(s.amountUsd)} en el plan de hoy`);
+const enPlan = (s: { amountUsd: number; trancheUsd?: number; avisos?: string[] }) => [s.trancheUsd !== undefined ? `${usd(s.amountUsd)} en el plan · 1er tramo ${usd(s.trancheUsd)}` : `${usd(s.amountUsd)} en el plan de hoy`, ...(s.avisos ?? []).map((a) => `⚠ ${a}`)].join(" · ");
 /** "5° por convicción: verificación web con reservas: …" → sin el lugar en la fila, que no le importa a quien lee. */
 const sinLugar = (reason: string) => reason.replace(/^(?:\d+° por convicción|seguimiento|ETF): /, "");
 
@@ -42,8 +42,8 @@ const sinLugar = (reason: string) => reason.replace(/^(?:\d+° por convicción|s
  */
 export function controlesBloquean(plan: ContributionPlan | null): string | null {
   if (!plan || !plan.lines.length) return null;
-  // Revisión antes de comprar en curso: lo que falta revisar cambiaría los montos de las demás líneas al rearmarse.
-  if (plan.reviewsPending?.length) return `revisión antes de comprar en curso (${plan.reviewsPending.join(", ")}): el plan se rearma solo cuando termina`;
+  // La revisión antes de comprar en curso ya no frena (18/9): esas líneas entran con el aviso escrito, y si la revisión
+  // encuentra una objeción la línea sale del plan y "por qué cambió" lo dice. Del 15/9 al 18/9 nunca corrió y todo esperaba.
   const k = plan.controles;
   if (!k || !plan.builtAt || k.planBuiltAt !== plan.builtAt) return "los controles automáticos todavía no revisaron este plan (tardan hasta un minuto)";
   if (k.error) return `los controles no pudieron correr: ${k.error}`;
@@ -69,7 +69,8 @@ export function planStatusFor(symbol: string, plan: ContributionPlan | null): Pl
     const freno = controlesBloquean(plan);
     if (freno) return { kind: "frenado", lineKind: line.kind, amountUsd: line.amountUsd, reason: freno };
     const tramos = plan.tranches ?? 1;
-    return tramos > 1 ? { kind: line.kind, amountUsd: line.amountUsd, trancheUsd: line.trancheUsd ?? Math.floor(line.amountUsd / tramos) } : { kind: line.kind, amountUsd: line.amountUsd };
+    const avisos = line.avisos?.length ? { avisos: line.avisos } : {};
+    return tramos > 1 ? { kind: line.kind, amountUsd: line.amountUsd, trancheUsd: line.trancheUsd ?? Math.floor(line.amountUsd / tramos), ...avisos } : { kind: line.kind, amountUsd: line.amountUsd, ...avisos };
   }
   const fuera = plan.leftOut?.find((x) => x.symbol.toUpperCase() === sym);
   if (fuera) return { kind: "fuera", reason: fuera.reason };

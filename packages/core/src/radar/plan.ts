@@ -54,23 +54,40 @@ export interface PlanReview {
   verdict: "sin_objeciones" | "objecion" | "no_pude_verificar";
   reason: string;
 }
-/** Motivo por el que la revisión no deja comprar, o null si deja. `null` = pendiente; `undefined` = no hay revisor. */
+/*
+ * Las dos compuertas de IA avisan en vez de bloquear (18/9, aprobado por el dueño). Del 15/9 al 18/9 el plan compró
+ * solo núcleo: el verificador dio "con reservas" a 16 de 17 (la misma frase de valuación en 15) y la revisión antes de
+ * comprar nunca corrió (cero filas: una búsqueda por acción y por día a un modelo gratis saturado). Con el verificador
+ * arreglado, APH, SMCI, NVDA y PGY pasaban y el plan igual compraba solo núcleo por "revisión pendiente". Las reglas
+ * fijas que salieron de NBN y GFI (banco sin estados, subió más de 100%, consenso cerca, stop en el ruido, no
+ * diversifica) siguen frenando. De la IA solo frena lo que afirma algo con fuente: "evitar" y una objeción. Lo demás
+ * —con reservas, pendiente, cuestionario anterior, no pude verificar— va escrito en la línea y decide él.
+ */
+/** Motivo por el que la revisión no deja comprar, o null si deja: solo una objeción (que por construcción trae fuente). */
 export function reviewBlock(r: PlanReview | null | undefined): string | null {
+  return r && r.verdict === "objecion" ? `la revisión antes de comprar encontró una objeción: ${r.reason}` : null;
+}
+/** Lo que la revisión deja escrito en la línea sin frenarla. `null` = pendiente; `undefined` = no hay revisor. */
+export function reviewCaution(r: PlanReview | null | undefined): string | null {
   if (r === undefined) return null;
-  if (r === null) return "revisión antes de comprar pendiente: no entra hasta que se revise";
-  if (r.verdict === "sin_objeciones") return null;
-  if (r.verdict === "objecion") return `la revisión antes de comprar encontró una objeción: ${r.reason}`;
-  return `la revisión antes de comprar no pudo verificar: ${r.reason}`;
+  if (r === null) return "revisión antes de comprar pendiente";
+  return r.verdict === "no_pude_verificar" ? `la revisión antes de comprar no pudo verificar: ${r.reason}` : null;
 }
 
-/** Motivo por el que una verificación no deja comprar, o null si deja. `undefined` = no hay verificador: no se exige. */
+/** Motivo por el que una verificación no deja comprar, o null si deja: solo "evitar", sea del cuestionario que sea. */
 export function verificationBlock(v: PlanVerification | null | undefined): string | null {
+  return v && v.verdict === "evitar" ? `verificación web dice evitar: ${v.reason}` : null;
+}
+/** Lo que la verificación deja escrito en la línea sin frenarla. `undefined` = no hay verificador: no se exige. */
+export function verificationCaution(v: PlanVerification | null | undefined): string | null {
   if (v === undefined) return null;
-  if (v === null) return "verificación web pendiente: no entra hasta que se verifique";
-  if (v.verdict !== "apto") return `verificación web ${v.verdict === "evitar" ? "dice evitar" : "con reservas"}: ${v.reason}`;
-  if (v.current === false) return "verificación hecha con el cuestionario anterior: se repite antes de comprarla";
+  if (v === null) return "verificación web pendiente";
+  if (v.verdict === "con_reservas") return `verificación web con reservas: ${v.reason}`;
+  if (v.verdict === "apto" && v.current === false) return "verificación hecha con el cuestionario anterior";
   return null;
 }
+/** Los avisos de las dos compuertas, en orden, para la línea del plan. */
+const avisosDeIa = (v: PlanVerification | null | undefined, r: PlanReview | null | undefined): string[] => [verificationCaution(v), reviewCaution(r)].filter((x): x is string => x !== null);
 /**
  * La verificación como dato de entrada del plan, en el MISMO orden que `verificationBlock` (15/9): LNC figuraba
  * "anterior" en los datos y "con reservas" en el motivo. Sin verificador (undefined) no hay dato.
@@ -105,6 +122,11 @@ export interface PlanLine {
   priority?: number | null;
   /** Cuándo comprarla: ahora, o esperando un nivel. `entryHigh` es el techo de esa franja. */
   entry?: EntryTiming | null;
+  /**
+   * Lo que la verificación web y la revisión antes de comprar dejaron sin cerrar (18/9): no frenan, pero toda pantalla
+   * que diga COMPRAR o SUMAR los muestra al lado. Sin avisos, el campo no está.
+   */
+  avisos?: string[];
   /** Debajo de este precio la orden no se ejecuta: el stop quedaría dentro del ruido de un día (stop + 1 ATR, 14/9). */
   minPrice?: number | null;
   /**
@@ -279,9 +301,11 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     else notes.push(`Sin núcleo definido en config/etfs.json: faltan USD ${Math.round(gap)} para el objetivo del ${c.coreTargetPct}%.`);
   }
 
-  /** Lo que entraría y espera la revisión antes de comprar. */
+  /** Lo que entra y todavía espera la revisión antes de comprar: la API la corre y rearma el plan. */
   const pendientes: string[] = [];
-  /** Lo que entraría y solo espera la verificación web. */
+  /** Avisos de la verificación y la revisión por símbolo, para la razón de su línea (18/9). */
+  const avisosDe = new Map<string, string[]>();
+  /** Lo que entra y no tiene la verificación web vigente: la API la corre y rearma el plan. */
   const porVerificar: string[] = [];
   const faltaVerificar = (v: PlanVerification | null | undefined) => v === null || (v !== undefined && v.current === false);
 
@@ -310,10 +334,9 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       if (allocateCore(amt, `lo que iba a ${s.symbol}, con el stop dentro del ruido`)) sumarPool -= amt;
       continue;
     }
-    // Un SUMAR es una compra: la misma vara que una nueva (13/9). Pendiente en el Radar (null) no frena: lo decide Cartera.
+    // Un SUMAR es una compra: la misma vara que una nueva (13/9). Pendiente en el Radar (null) no avisa: lo decide Cartera.
     const bloqueo = s.verification ? verificationBlock(s.verification) : null;
     if (bloqueo) {
-      if (faltaVerificar(s.verification)) porVerificar.push(s.symbol);
       notes.push(`No se sumó ${s.symbol}: ${bloqueo}. Su parte (USD ${amt}) va al núcleo.`);
       if (allocateCore(amt, `lo que iba a ${s.symbol}, que no pasó la verificación`)) sumarPool -= amt;
       continue;
@@ -321,12 +344,15 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     // Un SUMAR también es una compra: pasa por la revisión antes de comprar (15/9).
     const revision = reviewBlock(s.review);
     if (revision) {
-      if (s.review === null) pendientes.push(s.symbol);
       notes.push(`No se sumó ${s.symbol}: ${revision}. Su parte (USD ${amt}) va al núcleo.`);
-      if (allocateCore(amt, `lo que iba a ${s.symbol}, sin la revisión antes de comprar`)) sumarPool -= amt;
+      if (allocateCore(amt, `lo que iba a ${s.symbol}, con una objeción de la revisión antes de comprar`)) sumarPool -= amt;
       continue;
     }
-    lines.push({ ...line(s.symbol, "sumar", amt, `subponderada (${s.weightPct}% vs ${Math.round((equalTarget / total) * 100)}% igualitario)`), stop: s.stop ?? null, target: s.target ?? null, minPrice: minPriceFor(s.stop, s.atr) });
+    // Se suma, y lo que la IA no pudo cerrar va escrito en la línea y anotado para que corra (18/9).
+    if (s.verification && faltaVerificar(s.verification)) porVerificar.push(s.symbol);
+    if (s.review === null) pendientes.push(s.symbol);
+    const avisosSumar = avisosDeIa(s.verification ? s.verification : undefined, s.review);
+    lines.push({ ...line(s.symbol, "sumar", amt, [`subponderada (${s.weightPct}% vs ${Math.round((equalTarget / total) * 100)}% igualitario)`, ...avisosSumar.map((a) => `⚠ ${a}`)].join(" · ")), stop: s.stop ?? null, target: s.target ?? null, minPrice: minPriceFor(s.stop, s.atr), ...(avisosSumar.length ? { avisos: avisosSumar } : {}) });
     remaining -= amt;
     sumarPool -= amt;
   }
@@ -402,11 +428,10 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         leftOut.push({ symbol: b.symbol, reason: `${place}: ya está en el tope del ${c.maxPositionPct}% por posición` });
         return;
       }
-      // Una acción entra solo verificada, apta y con el cuestionario vigente (13/9). Con reservas, pendiente o con el
-      // cuestionario anterior queda en la fila con su motivo. Los ETFs no se verifican en la web.
+      // De la verificación web solo frena "evitar" (18/9). Con reservas, pendiente o con el cuestionario anterior entra,
+      // con el aviso escrito en la línea. Los ETFs no se verifican en la web.
       const bloqueo = pool.kind === "etf" ? null : verificationBlock(b.verification);
       if (bloqueo) {
-        if (faltaVerificar(b.verification)) porVerificar.push(b.symbol);
         leftOut.push({ symbol: b.symbol, reason: `${place}: ${bloqueo}` });
         if (pool.kind === "stock") caidas.push(b.priority);
         return;
@@ -425,14 +450,19 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         leftOut.push({ symbol: b.symbol, reason: vacantes > 0 ? `${place}: el lugar libre era de una acción que quedó afuera (no pasó la verificación, stop en el ruido, no diversifica o convicción negativa), y esa parte va al núcleo` : `${place}: tope de ${maxNew} posiciones nuevas` });
         return;
       }
-      // Revisión antes de comprar (15/9), solo sobre lo que va a entrar: pendiente, con objeción o sin poder verificar no
-      // entra, y como con la verificación, su lugar va al núcleo. Los ETFs no se revisan: no tienen hechos de una empresa.
+      // Revisión antes de comprar (15/9), solo sobre lo que va a entrar: con una objeción no entra y su lugar va al
+      // núcleo. Pendiente o sin poder verificar entra con el aviso (18/9). Los ETFs no se revisan.
       const revision = pool.kind === "etf" ? null : reviewBlock(b.review);
       if (revision) {
-        if (b.review === null) pendientes.push(b.symbol);
         leftOut.push({ symbol: b.symbol, reason: `${place}: ${revision}` });
         if (pool.kind === "stock") caidas.push(b.priority);
         return;
+      }
+      // Entra. Lo que le falta de la IA queda anotado para que corra sola (verificación y revisión) y escrito en la línea.
+      if (pool.kind !== "etf") {
+        if (faltaVerificar(b.verification)) porVerificar.push(b.symbol);
+        if (b.review === null) pendientes.push(b.symbol);
+        avisosDe.set(b.symbol, avisosDeIa(b.verification, b.review));
       }
       chosen.push(b);
       if (pool.kind === "stock") placeOf.set(b.symbol, `${idx + 1}° por convicción de ${queue.length} COMPRAR del Radar`);
@@ -469,8 +499,10 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       }
       const kind: PlanLine["kind"] = b.kind === "watch" ? "seguimiento" : "comprar";
       const base = b.kind === "watch" ? `tu lista de seguimiento, COMPRAR hoy${b.score !== null ? `, score ${b.score}` : ""}` : b.kind === "etf" ? "ETF satélite con fuerza relativa positiva" : `${placeOf.get(b.symbol) ?? "candidato del Radar"}, convicción ${b.priority ?? "—"}${b.score !== null ? `, score ${b.score}` : ""}`;
-      const why = b.cautions?.length ? `${base} · ⚠ ${b.cautions.join(" · ⚠ ")}` : base;
-      lines.push({ ...line(b.symbol, kind, amt, why), entryHigh: b.entryHigh ?? null, stop: b.stop ?? null, target: b.target ?? null, priority: b.priority ?? null, entry: b.entry ?? null, minPrice: minPriceFor(b.stop, b.atr) });
+      const salvedades = [...(b.cautions ?? []), ...(avisosDe.get(b.symbol) ?? [])];
+      const why = salvedades.length ? `${base} · ⚠ ${salvedades.join(" · ⚠ ")}` : base;
+      const avisos = avisosDe.get(b.symbol) ?? [];
+      lines.push({ ...line(b.symbol, kind, amt, why), entryHigh: b.entryHigh ?? null, stop: b.stop ?? null, target: b.target ?? null, priority: b.priority ?? null, entry: b.entry ?? null, minPrice: minPriceFor(b.stop, b.atr), ...(avisos.length ? { avisos } : {}) });
       used += amt;
     });
     remaining -= used;
@@ -508,7 +540,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     const detalle = esperando.map((l) => (l.entry!.state === "esperar_retroceso" ? `${l.symbol}: orden limitada en ${l.entry!.level}` : `${l.symbol}: comprar si cierra arriba de ${l.entry!.level}`)).join(", ");
     notes.push(`Hoy se ejecutan USD ${miles(Math.round(aporte) - enEspera)} de USD ${miles(aporte)}. Los otros USD ${miles(enEspera)} esperan su nivel, no van a mercado: ${detalle}. Vale ${esperando[0]!.entry!.validSessions} ruedas; si no se da, esa plata se reasigna en la próxima corrida.`);
   }
-  if (pendientes.length) notes.push(`Revisión antes de comprar pendiente: ${pendientes.join(", ")}. Mientras corre, el plan no se ejecuta; cuando termine se rearma solo.`);
+  if (pendientes.length) notes.push(`Revisión antes de comprar pendiente: ${pendientes.join(", ")}. Corre sola en los próximos minutos: si encuentra una objeción con fuente, esa línea sale del plan y "por qué cambió" lo dice; si querés, esperá a que termine.`);
   const totalNucleo = finales.filter((l) => l.kind === "nucleo").reduce((t, l) => t + l.amountUsd, 0);
   const razonNucleo = `núcleo: recibe USD ${miles(totalNucleo)} de ${miles(aporte)} (${Math.round((totalNucleo / aporte) * 100)}%): ${partesDelNucleo.map((x) => `${x.reason} (USD ${miles(x.amount)})`).join(" + ")}`;
   for (const l of finales) {

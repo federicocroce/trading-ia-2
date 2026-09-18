@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planContribution, verificationBlock, verificationLabel, type EtfConfig, type PlanInput } from "../index.js";
+import { planContribution, verificationBlock, verificationCaution, verificationLabel, type EtfConfig, type PlanInput } from "../index.js";
 
 const c = { monthlyUsd: 6500, coreTargetPct: 40, maxPositionPct: 15, maxNewPositionsPerMonth: 2, maxLinePctOfContribution: 50, coreSharePctWhileBelowTarget: 60, sumarSharePctOfRest: 30, watchLinesMax: 1, etfLinesMax: 1 };
 const core: EtfConfig[] = [
@@ -132,15 +132,21 @@ describe("planContribution", () => {
     const cuarenta = (buys: Buy[], extra: Partial<PlanInput> = {}) => planContribution({ ...base, closes: { ...base.closes, APH: 84, NBN: 132, LNC: 44, GFI: 45, XLF: 57 }, buyCandidates: [...buys, { symbol: "XLF", kind: "etf", priority: 1.1, score: null, sizeUsd: 5_000, close: 57, entryHigh: 58, stop: 55, target: 64 }], ...extra }, c, { amountUsd: 40_000 });
     const nucleo = (p: ReturnType<typeof planContribution>) => p.lines.filter((l) => l.kind === "nucleo").reduce((s, l) => s + l.amountUsd, 0);
 
-    it("verificada con el cuestionario anterior no entra, y la siguiente vigente la reemplaza", () => {
-      const p = cuarenta([stock("NBN", 1.63, { ...apta, current: false }), stock("APH", 1.58, apta), stock("NVDA", 1.44, apta), stock("LNC", 1.33, apta), stock("GFI", 0.9, apta)]);
-      expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/cuestionario anterior/);
-      expect(p.lines.map((l) => l.symbol)).toEqual(expect.arrayContaining(["APH", "NVDA", "LNC", "GFI"]));
-      expect(p.lines.some((l) => l.symbol === "XLF")).toBe(false);
+    it("18/9: verificada con el cuestionario anterior entra, con el aviso en la línea, y queda anotada para verificarse", () => {
+      const p = cuarenta([stock("NBN", 1.63, { ...apta, current: false }), stock("APH", 1.58, apta)]);
+      expect(p.lines.find((l) => l.symbol === "NBN")!.rationale).toMatch(/⚠ verificación hecha con el cuestionario anterior/);
+      expect(p.lines.find((l) => l.symbol === "APH")!.rationale).not.toMatch(/⚠/);
+      expect(p.verificationsPending).toEqual(["NBN"]);
+    });
+    it("18/9: 'evitar' sigue frenando, también con el cuestionario anterior", () => {
+      const p = cuarenta([stock("NBN", 1.63, { verdict: "evitar", reason: "la ganancia es un crédito fiscal comprado", current: false }), stock("APH", 1.58, apta)]);
+      expect(p.lines.some((l) => l.symbol === "NBN")).toBe(false);
+      expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/verificación web dice evitar: la ganancia es un crédito fiscal comprado/);
     });
     it("si ninguna la reemplaza, el lugar no lo toma un ETF ni se reparte: va al núcleo y la nota lo dice", () => {
       const lleno = cuarenta([stock("NBN", 1.63, apta), stock("APH", 1.58, apta), stock("NVDA", 1.44, apta), stock("LNC", 1.33, apta)]);
-      const vacio = cuarenta([stock("NBN", 1.63, { verdict: "con_reservas", reason: "sorpresa por impuestos", current: true }), stock("APH", 1.58, apta), stock("NVDA", 1.44, apta), stock("LNC", 1.33, apta), stock("GFI", 0.9, { ...apta, current: false })]);
+      // Desde el 18/9 lo único que la verificación frena por sí sola es "evitar".
+      const vacio = cuarenta([stock("NBN", 1.63, { verdict: "evitar", reason: "sorpresa por impuestos", current: true }), stock("APH", 1.58, apta), stock("NVDA", 1.44, apta), stock("LNC", 1.33, apta), stock("GFI", 0.9, { verdict: "evitar", reason: "licencia de Tarkwa", current: true })]);
       expect(vacio.lines.some((l) => l.symbol === "XLF")).toBe(false);
       expect(vacio.lines.some((l) => l.symbol === "GFI")).toBe(false);
       // Las que entraron reciben lo mismo que con el lugar lleno: la parte de NBN no se reparte entre ellas.
@@ -161,18 +167,33 @@ describe("planContribution", () => {
       expect(p.leftOut!.find((x) => x.symbol === "AES")!.reason).toMatch(/oferta de compra/);
       expect(p.lines.some((l) => l.symbol === "AES")).toBe(false);
     });
-    it("una acción con la verificación pendiente tampoco entra", () => {
-      const p = cuarenta([stock("NBN", 1.63, null), stock("APH", 1.58, apta)]);
-      expect(p.leftOut!.find((x) => x.symbol === "NBN")!.reason).toMatch(/pendiente/);
+    it("18/9: con la verificación pendiente entra, la línea lo dice y el plan la anota para verificarla", () => {
+      const p = cuarenta([stock("SMCI", 1.63, null), stock("APH", 1.58, apta)], { closes: { ...base.closes, SMCI: 40, APH: 84, XLF: 57 } });
+      expect(p.lines.find((l) => l.symbol === "SMCI")!.rationale).toMatch(/⚠ verificación web pendiente/);
+      expect(p.verificationsPending).toEqual(["SMCI"]);
     });
-    it("un SUMAR cuya verificación no está apta no se suma: su parte va al núcleo", () => {
+    it("18/9, TSM: con reservas entra y la reserva va escrita en la línea; el monto no cambia por el aviso", () => {
+      const reservas = { verdict: "con_reservas" as const, reason: "venta neta de acciones por parte de insiders en los últimos 12 meses", current: true };
+      const conAviso = cuarenta([stock("TSM", 1.2, reservas), stock("APH", 1.58, apta)], { closes: { ...base.closes, TSM: 430, APH: 84, XLF: 57 } });
+      const sinAviso = cuarenta([stock("TSM", 1.2, apta), stock("APH", 1.58, apta)], { closes: { ...base.closes, TSM: 430, APH: 84, XLF: 57 } });
+      const linea = conAviso.lines.find((l) => l.symbol === "TSM")!;
+      expect(linea.kind).toBe("comprar");
+      expect(linea.rationale).toMatch(/⚠ verificación web con reservas: venta neta de acciones por parte de insiders/);
+      expect(linea.amountUsd).toBe(sinAviso.lines.find((l) => l.symbol === "TSM")!.amountUsd);
+      // Ya está verificada con el cuestionario vigente: no hay nada que volver a buscar.
+      expect(conAviso.verificationsPending).toEqual([]);
+    });
+    it("18/9: un SUMAR con reservas se suma con el aviso; con 'evitar' no se suma y su parte va al núcleo", () => {
       const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 413.63, target: 498.44 };
       const sano = cuarenta([], { sumarCandidates: [{ ...tsm, verification: apta }] });
       const conReservas = cuarenta([], { sumarCandidates: [{ ...tsm, verification: { verdict: "con_reservas", reason: "prima del ADR", current: true } }] });
+      const evitar = cuarenta([], { sumarCandidates: [{ ...tsm, verification: { verdict: "evitar", reason: "guía retirada", current: true } }] });
       expect(sano.lines.some((l) => l.symbol === "TSM" && l.kind === "sumar")).toBe(true);
-      expect(conReservas.lines.some((l) => l.symbol === "TSM")).toBe(false);
-      expect(conReservas.notes.join(" ")).toMatch(/No se sumó TSM/);
-      expect(nucleo(conReservas)).toBeGreaterThan(nucleo(sano));
+      expect(conReservas.lines.find((l) => l.symbol === "TSM")!.rationale).toMatch(/⚠ verificación web con reservas: prima del ADR/);
+      expect(nucleo(conReservas)).toBe(nucleo(sano));
+      expect(evitar.lines.some((l) => l.symbol === "TSM")).toBe(false);
+      expect(evitar.notes.join(" ")).toMatch(/No se sumó TSM: verificación web dice evitar/);
+      expect(nucleo(evitar)).toBeGreaterThan(nucleo(sano));
     });
   });
 
@@ -241,7 +262,11 @@ describe("revisión antes de comprar (15/9)", () => {
   /*
    * Una segunda búsqueda, independiente de la verificación, sobre lo que el plan va a comprar: razones para NO
    * comprarla hoy. El 14/9 la verificación dio "apto" a GFI sin ver que la licencia de Tarkwa vence en abril de 2027.
-   * Solo "sin objeciones" deja comprar; lo que no se revisó todavía queda pendiente y el plan lo dice.
+   * Hasta el 17/9 solo "sin objeciones" dejaba comprar. El 18/9 el dueño aprobó que las dos compuertas de IA avisen
+   * en vez de bloquear: la tabla de revisiones tenía CERO filas (nunca había corrido), pide una búsqueda por acción y
+   * por día a un modelo gratis saturado, y con la verificación arreglada APH, SMCI, NVDA y PGY pasaban y el plan igual
+   * compraba solo núcleo por "revisión pendiente". Sigue frenando una objeción (que por construcción trae fuente);
+   * "pendiente" y "no pude verificar" van escritos en la línea y decide él.
    */
   type Buy = PlanInput["buyCandidates"][number];
   const apta = { verdict: "apto" as const, reason: "ok", current: true };
@@ -256,23 +281,41 @@ describe("revisión antes de comprar (15/9)", () => {
     expect(p.lines.some((l) => l.symbol === "NVDA")).toBe(true);
     expect(p.reviewsPending ?? []).toEqual([]);
   });
-  it("sin revisar todavía: no entra y queda en la lista de pendientes (lo que el plan compraría si pasa)", () => {
+  it("18/9, APH: sin revisar todavía entra, la línea lo dice, y queda en la lista para que la revisión corra", () => {
     const p = cuarenta([compra("APH", 1.3, null), compra("NVDA", 1.1, sin)]);
-    expect(p.lines.some((l) => l.symbol === "APH")).toBe(false);
-    expect(p.leftOut!.find((x) => x.symbol === "APH")!.reason).toMatch(/revisión antes de comprar pendiente/);
+    expect(p.lines.find((l) => l.symbol === "APH")!.rationale).toMatch(/⚠ revisión antes de comprar pendiente/);
+    expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).not.toMatch(/⚠/);
     expect(p.reviewsPending).toEqual(["APH"]);
+    // La nota ya no dice que el plan no se ejecuta: dice qué pasa si la revisión encuentra algo.
+    expect(p.notes.join(" ")).toMatch(/Revisión antes de comprar pendiente: APH\..*si encuentra una objeción.*sale del plan/);
+    expect(p.notes.join(" ")).not.toMatch(/el plan no se ejecuta/);
   });
-  it("'no pude verificar' tampoco deja comprar; sin revisor (undefined) no se exige", () => {
+  it("18/9: 'no pude verificar' entra con el aviso; sin revisor (undefined) no se exige ni se avisa", () => {
     const p = cuarenta([compra("APH", 1.3, { verdict: "no_pude_verificar", reason: "no encontré el comunicado" })]);
-    expect(p.leftOut!.find((x) => x.symbol === "APH")!.reason).toMatch(/no pudo verificar/);
+    expect(p.lines.find((l) => l.symbol === "APH")!.rationale).toMatch(/⚠ la revisión antes de comprar no pudo verificar: no encontré el comunicado/);
+    expect(p.reviewsPending ?? []).toEqual([]);
     const q = cuarenta([compra("APH", 1.3, undefined)]);
-    expect(q.lines.some((l) => l.symbol === "APH")).toBe(true);
+    expect(q.lines.find((l) => l.symbol === "APH")!.rationale).not.toMatch(/⚠/);
   });
-  it("un SUMAR también pasa por la revisión: pendiente o con objeción, no se suma", () => {
+  it("18/9: los avisos de la IA van también como dato de la línea, para que toda pantalla que diga COMPRAR los muestre", () => {
+    const p = cuarenta([{ ...compra("APH", 1.3, null), verification: { verdict: "con_reservas", reason: "guía que no sube", current: true } }, compra("NVDA", 1.1, sin)]);
+    expect(p.lines.find((l) => l.symbol === "APH")!.avisos).toEqual(["verificación web con reservas: guía que no sube", "revisión antes de comprar pendiente"]);
+    expect(p.lines.find((l) => l.symbol === "NVDA")!.avisos).toBeUndefined();
+    const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 380, target: 498, verification: apta, atr: 11 };
+    expect(cuarenta([], [{ ...tsm, review: null }]).lines.find((l) => l.symbol === "TSM")!.avisos).toEqual(["revisión antes de comprar pendiente"]);
+  });
+  it("18/9: los dos avisos juntos van en la misma línea, después de las salvedades que ya tenía", () => {
+    const p = cuarenta([{ ...compra("APH", 1.3, null), verification: { verdict: "con_reservas", reason: "guía que no sube", current: true }, cautions: ["se mueve como TSM que ya tenés (correlación 0.81)"] }]);
+    expect(p.lines.find((l) => l.symbol === "APH")!.rationale).toMatch(/⚠ se mueve como TSM.* · ⚠ verificación web con reservas: guía que no sube · ⚠ revisión antes de comprar pendiente$/);
+  });
+  it("un SUMAR también pasa por la revisión: con objeción no se suma; pendiente se suma con el aviso (18/9)", () => {
     const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 380, target: 498, verification: apta, atr: 11 };
     const pendiente = cuarenta([], [{ ...tsm, review: null }]);
-    expect(pendiente.lines.some((l) => l.symbol === "TSM")).toBe(false);
+    expect(pendiente.lines.find((l) => l.symbol === "TSM")!.rationale).toMatch(/⚠ revisión antes de comprar pendiente/);
     expect(pendiente.reviewsPending).toEqual(["TSM"]);
+    const objecion = cuarenta([], [{ ...tsm, review: { verdict: "objecion", reason: "rebaja de Morgan Stanley el 12/9" } }]);
+    expect(objecion.lines.some((l) => l.symbol === "TSM")).toBe(false);
+    expect(objecion.notes.join(" ")).toMatch(/No se sumó TSM: la revisión antes de comprar encontró una objeción/);
     const ok = cuarenta([], [{ ...tsm, review: sin }]);
     expect(ok.lines.find((l) => l.symbol === "TSM")!.kind).toBe("sumar");
   });
@@ -298,8 +341,8 @@ describe("convicción negativa y ETF satélite (15/9)", () => {
     expect(p.leftOut!.find((x) => x.symbol === "PBT")!.reason).toMatch(/convicción negativa \(−0,98\)/);
     expect(nucleo(p)).toBe(40_000);
   });
-  it("CIBR: si una acción quedó afuera (pendiente de verificación), el ETF satélite no toma su lugar", () => {
-    const p = cuarenta([pbt({ priority: 0.8, verification: null }), cibr]);
+  it("CIBR: si una acción quedó afuera (la verificación dice evitar), el ETF satélite no toma su lugar", () => {
+    const p = cuarenta([pbt({ priority: 0.8, verification: { verdict: "evitar", reason: "Waddell Ranch sin ingresos", current: true } }), cibr]);
     expect(p.lines.some((l) => l.symbol === "CIBR")).toBe(false);
     expect(p.leftOut!.find((x) => x.symbol === "CIBR")!.reason).toMatch(/lugar libre era de una acción que quedó afuera/);
     expect(nucleo(p)).toBe(40_000);
@@ -336,7 +379,10 @@ describe("auditoría del 15/9: una posición que no se suma tiene un solo motivo
 describe("auditoría del 15/9: los datos de entrada dicen lo mismo que el motivo", () => {
   it("con reservas y con el cuestionario anterior: el dato dice 'con_reservas', como el motivo (LNC y DEC)", () => {
     expect(verificationLabel({ verdict: "con_reservas", reason: "x", current: false })).toBe("con_reservas");
-    expect(verificationBlock({ verdict: "con_reservas", reason: "x", current: false })).toMatch(/con reservas/);
+    // Desde el 18/9 "con reservas" no frena: el mismo texto va como aviso en la línea, y solo "evitar" bloquea.
+    expect(verificationCaution({ verdict: "con_reservas", reason: "x", current: false })).toMatch(/con reservas/);
+    expect(verificationBlock({ verdict: "con_reservas", reason: "x", current: false })).toBeNull();
+    expect(verificationBlock({ verdict: "evitar", reason: "x", current: false })).toMatch(/dice evitar/);
     expect(verificationLabel({ verdict: "apto", reason: "x", current: false })).toBe("anterior");
     expect(verificationLabel({ verdict: "apto", reason: "x", current: true })).toBe("apto");
     expect(verificationLabel(null)).toBe("pendiente");
@@ -357,10 +403,11 @@ describe("auditoría del 15/9: una orden, una base, y el motivo definitivo prime
     // Y no se gasta cuota verificando lo que igual queda afuera.
     expect(p.verificationsPending).toEqual([]);
   });
-  it("BLBD y SEZL: lo único que las frena es la verificación, y el plan lo anota para que se verifique", () => {
+  it("BLBD y SEZL: les falta la verificación vigente; desde el 18/9 entran con el aviso y el plan las anota para que se verifiquen", () => {
     const p = cuarenta([compra("BLBD", 1.01, { verification: null }), compra("SEZL", 1.08, { verification: { ...apta, current: false } })]);
     expect(p.verificationsPending).toEqual(["SEZL", "BLBD"]);
-    expect(p.leftOut!.find((x) => x.symbol === "BLBD")!.reason).toMatch(/verificación web pendiente/);
+    expect(p.lines.find((l) => l.symbol === "BLBD")!.rationale).toMatch(/⚠ verificación web pendiente/);
+    expect(p.lines.find((l) => l.symbol === "SEZL")!.rationale).toMatch(/⚠ verificación hecha con el cuestionario anterior/);
   });
   it("PAM: esperando un retroceso, el stop se mide contra el piso de la franja (81,96), no contra el cierre (86,65)", () => {
     const retroceso = { state: "esperar_retroceso" as const, level: 82.79, levelLabel: "media de 20 ruedas", low: 81.96, high: 82.79, validSessions: 15, sma20: 82.79, sma50: 80, atr14: 2.33, extensionAtr: 2, rangePct60: 80, why: "estirada" };
@@ -390,8 +437,8 @@ describe("auditoría del 15/9: una orden, una base, y el motivo definitivo prime
     expect(l.qty).toBe(Math.floor(l.amountUsd / 65.89));
   });
   it("el núcleo dice lo que recibe de verdad: 40.000 de 40.000, con los lugares vacíos, aunque no entre ninguna acción", () => {
-    // Como el 15/9: varias COMPRAR y ninguna verificada con el cuestionario vigente.
-    const p = cuarenta(["BLBD", "SEZL", "LNC", "DEC", "APH"].map((s, k) => compra(s, 1.2 - k / 10, { verification: null })));
+    // Varias COMPRAR y ninguna entra. El 15/9 alcanzaba con que no estuvieran verificadas; desde el 18/9 solo "evitar" frena.
+    const p = cuarenta(["BLBD", "SEZL", "LNC", "DEC", "APH"].map((s, k) => compra(s, 1.2 - k / 10, { verification: { verdict: "evitar", reason: "x", current: true } })));
     const vti = p.lines.find((l) => l.symbol === "VTI")!;
     expect(vti.rationale).toMatch(/USD 40\.000 de 40\.000 \(100%\)/);
     expect(vti.rationale).toMatch(/lugares vacíos/);

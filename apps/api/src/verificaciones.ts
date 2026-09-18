@@ -8,8 +8,10 @@ import type { Container } from "./container.js";
  * APH, TSM y PBT fallaron por 503 a las 7:50). Ahora las de más convicción que no tienen la verificación vigente se
  * reintentan solas cada 15 minutos, de a dos y hasta 6 veces por día; las que salen bien refrescan su fila y el plan.
  *
- * Qué se verifica lo dice el plan (`verificationsPending`): lo que solo la verificación frena. Antes se tomaban las de
- * más convicción sin verificar, y SNDK y NBN, que una regla fija dejaba afuera igual, se llevaban la cuota.
+ * Qué se verifica lo dice el plan (`verificationsPending`): lo que el plan compra sin la verificación vigente (desde el
+ * 18/9 entra con el aviso en la línea; antes quedaba afuera). Antes se tomaban las de más convicción sin verificar, y
+ * SNDK y NBN, que una regla fija dejaba afuera igual, se llevaban la cuota. Si lo que cambió de versión es solo el
+ * estructurador, `verifyFor` re-estructura el informe guardado y no gasta una búsqueda.
  */
 const REINTENTO_MS = 15 * 60_000;
 const INTENTOS_MAX = 6;

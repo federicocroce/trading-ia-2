@@ -96,9 +96,11 @@ describe("controles que frenan (15/9)", () => {
     expect(controlesBloquean({ ...plan, controles: { ...plan.controles!, error: "/radar/candidates respondió 500" } })).toMatch(/no pudieron correr: .*500/);
     expect(instruccionRadar("COMPRAR", planStatusFor("APH", { ...plan, controles: null })).label).toBe("ESPERAR");
   });
-  it("con la revisión antes de comprar en curso tampoco: faltan líneas que cambiarían los montos de las demás", () => {
-    expect(controlesBloquean({ ...plan, reviewsPending: ["APH", "TSM"] })).toMatch(/revisión antes de comprar en curso \(APH, TSM\)/);
-    expect(instruccionRadar("NUCLEO", planStatusFor("VTI", { ...plan, reviewsPending: ["APH"] })).label).toBe("ESPERAR");
+  it("18/9: la revisión antes de comprar en curso ya no frena el plan: las líneas pendientes entran con su aviso escrito", () => {
+    // Del 15/9 al 18/9 el plan compró solo núcleo: la revisión nunca corrió (cero filas) y todo quedaba "en curso".
+    // Aprobado por el dueño: la IA avisa; de la revisión solo frena una objeción, que saca la línea del plan.
+    expect(controlesBloquean({ ...plan, reviewsPending: ["APH", "TSM"] })).toBeNull();
+    expect(instruccionRadar("NUCLEO", planStatusFor("VTI", { ...plan, reviewsPending: ["APH"] })).label).not.toBe("ESPERAR");
   });
   it("con los controles al día y sin graves, nada cambia; lo que no está en el plan sigue siendo CANDIDATA", () => {
     expect(controlesBloquean(plan)).toBeNull();
@@ -113,5 +115,24 @@ describe("tramos (auditoría del 15/9)", () => {
     // Un plan guardado sin la cifra del tramo (anterior al 15/9) la calcula igual que el plan.
     expect(instruccionRadar("COMPRAR", planStatusFor("APH", { ...plan, tranches: 3 })).detail).toBe("USD 3.452 en el plan · 1er tramo USD 1.150");
     expect(instruccionCartera("SUMAR", planStatusFor("NEM", { ...plan, tranches: 3 })).detail).toBe("USD 1.500 en el plan · 1er tramo USD 500");
+  });
+});
+
+
+describe("los avisos de la IA viajan con COMPRAR en todas las pantallas (18/9)", () => {
+  /*
+   * Desde el 18/9 "con reservas", "pendiente" y "no pude verificar" no frenan: el plan compra y lo dice. El dueño compra
+   * lo que dice COMPRAR en cualquier pantalla, así que el aviso no puede vivir solo en la tabla del plan: va al lado de
+   * la etiqueta, en la fila del Radar y en la ficha.
+   */
+  const conAvisos: ContributionPlan = { ...plan, lines: plan.lines.map((l) => (l.symbol === "APH" ? { ...l, avisos: ["verificación web con reservas: venta neta de insiders", "revisión antes de comprar pendiente"] } : l.symbol === "NEM" ? { ...l, avisos: ["verificación web pendiente"] } : l)) };
+  it("APH: dice COMPRAR con su monto y, al lado, cada aviso", () => {
+    const ins = instruccionRadar("COMPRAR", planStatusFor("APH", conAvisos));
+    expect(ins.label).toBe("COMPRAR");
+    expect(ins.detail).toBe("USD 3.452 en el plan de hoy · ⚠ verificación web con reservas: venta neta de insiders · ⚠ revisión antes de comprar pendiente");
+  });
+  it("un SUMAR también, en Radar y en Cartera; una línea sin avisos queda como siempre", () => {
+    expect(instruccionCartera("SUMAR", planStatusFor("NEM", conAvisos)).detail).toBe("USD 1.500 en el plan de hoy · ⚠ verificación web pendiente");
+    expect(instruccionRadar("COMPRAR", planStatusFor("V", conAvisos)).detail).toBe("USD 2.498 en el plan de hoy");
   });
 });
