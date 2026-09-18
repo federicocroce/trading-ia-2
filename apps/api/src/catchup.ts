@@ -1,5 +1,6 @@
 import { STEPS, buildContributionPlan, dailyRun, tesisSince, dueSteps, expectedDate, measureRadar, measureVerdicts, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, runCartera, scanUniverse, stepById, withUsageStep, type DueStep, type StepId } from "@thesis/pipeline";
 import { state, type Container } from "./container.js";
+import { enTurno } from "./seguimiento.js";
 
 /** El registro de uso de fuentes externas se guarda este tiempo; lo viejo se borra en cada chequeo de "ponerme al día". */
 export const USAGE_RETENTION_DAYS = 90;
@@ -94,7 +95,8 @@ export function defaultRunners(): Runners {
     radar: async (c, today) => {
       const r = await refreshRadar(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
       const m = await measureRadar(c.radarDeps, { today });
-      const w = await refreshWatchlist(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
+      // En su turno (18/9): un alta a la lista puede estar refrescándola en este mismo momento.
+      const w = await enTurno(c, async () => refreshWatchlist(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }));
       await replan(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
       return `${r.refreshed} candidatos refrescados, seguimiento ${w.rows}/${w.symbols}, medidos 7d ${m.candidates["7"]} · 30d ${m.candidates["30"]} · 90d ${m.candidates["90"]}`;
     },

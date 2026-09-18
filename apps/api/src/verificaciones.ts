@@ -1,6 +1,7 @@
 import { todayLocal, verificationOrder } from "@thesis/core";
 import { refreshRadar, refreshWatchlist, replan, verifyFor } from "@thesis/pipeline";
 import type { Container } from "./container.js";
+import { enTurno } from "./seguimiento.js";
 
 /**
  * Verificaciones pendientes (15/9). La verificación web corre con la corrida de la mañana; si Google está saturado a
@@ -62,7 +63,7 @@ export async function asegurarVerificaciones(c: Container, opts: { hoy?: string;
     const refrescar = opts.refrescar ?? (async (simbolos: string[]) => {
       const usd = await portfolioUsd(c);
       await refreshRadar(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos });
-      await refreshWatchlist(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos });
+      await enTurno(c, () => refreshWatchlist(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos }));
       await replan(c.radarDeps, { today: hoy, portfolioUsd: usd });
       await c.controlar?.();
     });

@@ -46,11 +46,20 @@ async function evaluateLifecycle(store: RadarDeps["store"], item: WatchItem, clo
   await store.updateWatchEval(item.symbol, { status: r.status, lastPrice: close, lastReturn: r.returnPct, lastEvaluatedAt: now, resolvedAt: resolved ? now : null, resolutionPrice: resolved ? close : null, resolutionReturn: resolved ? r.returnPct : null });
 }
 
+/**
+ * ¿Se puede refrescar solo una parte de la lista? Solo si sus filas vigentes ya son de hoy: lo vigente de cada familia
+ * es lo de su última fecha, así que una sola fila con fecha de hoy dejaría a todas las demás fuera de lo vigente.
+ * Quien quiere refrescar un símbolo suelto (el alta, una verificación que llegó) pregunta acá; si no, refresca todo.
+ */
+export async function seguimientoAlDia(store: RadarDeps["store"], today: string): Promise<boolean> {
+  return !(await store.latestCandidates()).some((r) => r.kind === "watch" && r.candidateDate !== today);
+}
+
 export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null; only?: string[] }): Promise<{ symbols: number; rows: number; errors: Array<{ symbol: string; error: string }> }> {
   const { store, policy } = deps;
   // Refresco parcial (15/9): como en `refreshRadar`, nunca cambia la fecha de la familia ni borra a las demás.
   const soloEstos = opts.only ? new Set(opts.only.map((s) => s.toUpperCase())) : null;
-  if (soloEstos && (await store.latestCandidates()).some((r) => r.kind === "watch" && r.candidateDate !== opts.today)) return { symbols: 0, rows: 0, errors: [] };
+  if (soloEstos && !(await seguimientoAlDia(store, opts.today))) return { symbols: 0, rows: 0, errors: [] };
   const items = (await store.watchlist()).filter((i) => !soloEstos || soloEstos.has(i.symbol.toUpperCase()));
   if (!items.length) return { symbols: 0, rows: 0, errors: [] };
   const errors: Array<{ symbol: string; error: string }> = [];
