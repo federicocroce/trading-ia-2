@@ -30,9 +30,11 @@ export interface EstadoSeguimiento {
   agendada: Promise<Resultado> | null;
   /** El turno: cada refresco de seguimiento se encadena acá. */
   turno: Promise<unknown>;
+  /** Por símbolo, por qué falló su último análisis. Se borra cuando un refresco lo resuelve. */
+  errores: Map<string, string>;
 }
 
-const estado = (c: Container): EstadoSeguimiento => (c.seguimiento ??= { pendientes: new Set(), completo: false, enCurso: [], hoy: "", agendada: null, turno: Promise.resolve() });
+const estado = (c: Container): EstadoSeguimiento => (c.seguimiento ??= { pendientes: new Set(), completo: false, enCurso: [], hoy: "", agendada: null, turno: Promise.resolve(), errores: new Map() });
 
 /** Corre `fn` cuando terminó el refresco de seguimiento anterior, haya fallado o no. */
 export function enTurno<T>(c: Container, fn: () => Promise<T>): Promise<T> {
@@ -46,6 +48,15 @@ export function enTurno<T>(c: Container, fn: () => Promise<T>): Promise<T> {
 export function refrescando(c: Container): string[] {
   const st = estado(c);
   return [...new Set([...st.enCurso, ...st.pendientes])].sort();
+}
+
+/**
+ * Análisis que fallaron y siguen sin resolverse. Como el alta ya no espera su refresco, el error no viaja en la
+ * respuesta: sin esto un símbolo quedaba sin fila y sin explicación. Vive en memoria: un reinicio lo olvida y la
+ * pantalla vuelve a decir que se completa en el próximo refresco, que es cierto.
+ */
+export function fallidos(c: Container): Array<{ symbol: string; error: string }> {
+  return [...estado(c).errores].map(([symbol, error]) => ({ symbol, error })).sort((a, b) => a.symbol.localeCompare(b.symbol));
 }
 
 /** Termina cuando no queda ningún refresco de seguimiento corriendo ni esperando. */
@@ -82,7 +93,10 @@ async function darVuelta(c: Container): Promise<Resultado> {
     const completo = pidieronTodo || !(await seguimientoAlDia(deps.store, today));
     if (completo) st.enCurso = (await deps.store.watchlist()).map((i) => i.symbol.toUpperCase());
     const portfolioUsd = async () => (await deps.store.latestRisk())?.report.totalValue ?? null;
+    const analizados = st.enCurso;
     const r = await refreshWatchlist(deps, { today, portfolioUsd: await portfolioUsd(), ...(completo ? {} : { only: pedidos }) });
+    for (const s of analizados) st.errores.delete(s);
+    for (const e of r.errors) st.errores.set(e.symbol.toUpperCase(), e.error);
     // Lo que se sacó de la lista mientras se analizaba no deja fila: el plan la compraría como seguimiento.
     await deps.store.pruneCandidates(today, "watch", (await deps.store.watchlist()).map((w) => w.symbol)).catch(() => 0);
     // Toda corrida que cambia las candidatas rearma el plan: el plan es la única fuente de COMPRAR (14/9).

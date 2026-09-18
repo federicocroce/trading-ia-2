@@ -283,6 +283,23 @@ describe("/radar/watchlist: el alta no espera ni rehace la lista (18/9)", () => 
     expect((await store.latestCandidates()).filter((r) => r.kind === "watch").map((r) => r.symbol)).toEqual([]);
   });
 
+  it("si el análisis de un alta falla, la lista dice de cuál y por qué; cuando sale bien, el aviso se va", async () => {
+    // Antes el alta esperaba el refresco y el error viajaba en la respuesta (que nadie mostraba). Ahora que no se
+    // espera, un símbolo sin fila y sin explicación sería un hueco: queda en `failed` hasta que un refresco lo resuelva.
+    let hayVelas = false;
+    const { a, c } = app({ velas: async (s) => (s === "AAA" && !hayVelas ? [] : series(260, 80, 100)) });
+    await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" });
+    await seguimientoQuieto(c);
+    const list = await (await a.request("/radar/watchlist")).json();
+    expect(list.rows).toEqual([]);
+    expect(list.failed).toEqual([{ symbol: "AAA", error: "sin velas" }]);
+    hayVelas = true;
+    await post(a, `/radar/watchlist/refresh?today=${today}`);
+    const despues = await (await a.request("/radar/watchlist")).json();
+    expect(simbolos(despues.rows)).toEqual(["AAA"]);
+    expect(despues.failed).toEqual([]);
+  });
+
   it("el refresco a mano espera su turno detrás de un alta en curso", async () => {
     const f = velasConFreno();
     const { a, c } = app({ velas: f.velas });

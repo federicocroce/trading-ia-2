@@ -37,6 +37,12 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
   const loadWatch = useCallback(() => api.radar.watchlist().then((w) => setWatchItems(w.items)).catch(() => null), []);
   useEffect(() => { void loadWatch(); }, [loadWatch]);
   const load = useCallback(() => api.ticker.get(symbol).then(setT).catch((e) => setErr(String(e))), [symbol]);
+  // Terminó el análisis de un alta a la lista de seguimiento (18/9): si era este símbolo, la ficha ya tiene su fila del Radar.
+  useEffect(() => {
+    const alTerminar = () => { void loadWatch(); void load(); };
+    window.addEventListener("watchlist:refreshed", alTerminar);
+    return () => window.removeEventListener("watchlist:refreshed", alTerminar);
+  }, [loadWatch, load]);
   useEffect(() => {
     let alive = true;
     setT(null);

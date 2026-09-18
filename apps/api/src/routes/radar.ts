@@ -3,7 +3,7 @@ import { todayLocal, assessRegime, summarizeRadar, topPicks, type CandidateRow, 
 import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, comparables, measureRadar, rankRadar, refreshArgentina, refreshRadar, replan, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { state } from "../container.js";
-import { pedirRefresco, refrescando } from "../seguimiento.js";
+import { fallidos, pedirRefresco, refrescando } from "../seguimiento.js";
 
 /** Rutas del Radar (spec etapa 2 §12). El barrido corre en segundo plano y se consulta por estado. */
 export function radarRoutes(c: Container) {
@@ -87,8 +87,12 @@ export function radarRoutes(c: Container) {
     // va la del ranking. Sin esto la barra lo mostraba sin veredicto y la pestaña decía "sin datos todavía" (APH, 15/9).
     const conFila = new Set(watch.map((r) => r.symbol));
     const delRanking = todas.filter((r) => (r.kind === "stock" || r.kind === "etf" || r.kind === "adr") && set.has(r.symbol) && !conFila.has(r.symbol));
+    const rows = [...watch, ...delRanking];
     // `refreshing`: lo que se está analizando o espera su turno (18/9). La fila de un alta llega cuando termina su refresco.
-    return { items, rows: [...watch, ...delRanking], refreshing: date ? [] : refrescando(c) };
+    // `failed`: lo que seguís, no tiene fila y su último análisis falló, con el motivo: un hueco sin explicación no se entiende.
+    const tieneFila = new Set(rows.map((r) => r.symbol));
+    const failed = date ? [] : fallidos(c).filter((f) => set.has(f.symbol) && !tieneFila.has(f.symbol));
+    return { items, rows, refreshing: date ? [] : refrescando(c), failed };
   };
   app.get("/radar/watchlist", async (ctx) => ctx.json(await watchPayload(ctx.req.query("date"))));
   app.post("/radar/watchlist", async (ctx) => {
