@@ -81,3 +81,59 @@ Antes de mergear: pasar los 17 informes guardados por el estructurador nuevo **s
 por uno contra su texto que la lista de reservas esté completa (el riesgo es que el estructurador omita una reserva y
 la regla apruebe de más). La tabla resultante —qué pasa a apto, qué sigue con reservas y por qué— se le muestra al dueño
 antes de mergear.
+
+---
+
+# Segunda parte: las dos compuertas de IA avisan en vez de bloquear (opción A)
+
+Aprobada por el dueño el 18/9, después de ver la simulación de la primera parte.
+
+## Por qué no alcanzaba con arreglar el verificador
+
+Simulación del plan del 18/9 sin escribir, con las 6 verificaciones que la regla pasa a "apto": APH, SMCI, NVDA y PGY
+pasaban la verificación (NVDA y PGY además volvían de OBSERVAR a COMPRAR: la reserva falsa contaba como segunda salvedad
+de calidad) y **el plan seguía comprando solo núcleo**: las cuatro quedaban en "revisión antes de comprar pendiente".
+Esa revisión se creó el 15/9 y **nunca corrió** (`pretrade_reviews`: cero filas). Pide una búsqueda de Gemini por acción
+**y por día**, su instrucción es "buscá razones para no comprarla", y solo "sin objeciones" dejaba pasar. El mismo día,
+16 llamadas a Gemini gratis sin búsqueda lograron 2 respuestas en 10 minutos (503 y claves agotadas).
+
+Las reglas de la app sí encontraban candidatas. Lo que las frenaba eran dos controles de IA en serie, corridos por un
+modelo gratis y saturado, y los dos sesgados al no.
+
+## La regla
+
+- De la IA **solo frena lo que afirma algo con fuente**: verificación "evitar" (sea del cuestionario que sea) y una
+  revisión con "objeción" (toda revisión guardada trae fuentes: una respuesta sin búsqueda se descarta antes).
+- **Avisan y no frenan**: "con reservas", verificación pendiente, verificación con el cuestionario anterior, revisión
+  pendiente y "no pude verificar". Van escritos con ⚠ en la línea del plan y como dato (`PlanLine.avisos`); toda pantalla
+  que diga COMPRAR o SUMAR los muestra al lado de la etiqueta.
+- **Siguen frenando las reglas fijas** que salieron de NBN y GFI: banco sin estados, subió más de 100% en 12 meses,
+  consenso a menos de 10%, bajo oferta de compra, stop en el ruido, no diversifica (correlación ≥ 0,85), convicción
+  negativa, tope por posición.
+- Lo que entra sin verificación vigente o sin revisión queda anotado (`verificationsPending`, `reviewsPending`) y corre
+  solo; si la revisión encuentra una objeción, la línea sale en el rearmado y "por qué cambió" lo dice. Una revisión
+  pendiente ya no pone todo el plan en ESPERAR.
+- "Con reservas" sigue restando 0,3 de convicción y contando como salvedad de calidad en el Radar: eso no cambia.
+
+## Lo que cambia en un caso ya fijado
+
+El caso del 10/9 (APH, NVDA, LNC, NBN, con HRTG afuera por su reserva) pasa a APH, NVDA, HRTG, LNC: HRTG es 3° por
+convicción y entra con su reserva escrita; NBN, 7°, queda sin lugar. La diferencia la explica esta regla y ninguna otra.
+
+## Simulación del plan del 18/9 con el código nuevo (sin escribir)
+
+| escenario | núcleo | acciones | ETF |
+|---|---:|---|---|
+| recién desplegado (verificaciones tal como están) | 26.159 | APH 4.918 · TSM 4.741 · SMCI 4.182, las tres con ⚠ con reservas y ⚠ revisión pendiente | — |
+| verificaciones re-estructuradas | 24.000 | APH 3.608 · SMCI 3.131 · TSM 3.073 (⚠ insiders) · NVDA 2.987, las cuatro con ⚠ revisión pendiente | CIBR 3.201 |
+
+Siguen afuera por regla fija: SNDK, SIMO, LQDA (subieron más de 100%), NBN, ORRF, HSBC (banco sin estados), SLDE, MEDP
+(consenso), CROX, VIST (convicción negativa), PGY (tope de 4 posiciones nuevas).
+
+**Lo que la simulación muestra y esta regla no resuelve:** las cuatro acciones son del mismo tema (semiconductores y
+hardware de IA) y el plan no mide la correlación de las líneas nuevas entre sí, solo contra lo que ya se tiene.
+
+## Riesgo aceptado
+
+Se pierde el freno automático del 15/9 ("el verificador falla cerrado" como bloqueo). Lo cubren las reglas fijas y el
+aviso visible; una reserva genuina (HRTG: reservas liberadas en temporada benigna) ya no deja afuera, la muestra.
