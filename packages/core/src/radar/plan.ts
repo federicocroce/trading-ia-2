@@ -25,7 +25,7 @@ export interface PlanInput {
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva.
    *  `atr`: ATR de 14 ruedas al día de la fila, para medir si el stop quedó dentro del ruido (ver `noiseBlock`).
    *  `overlap`: la posición tuya con la que más se mueve; desde `OVERLAP_BLOCK_CORR` no entra como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined; /** Si ya la tenés, qué dice Cartera hoy: con REVISAR o VENDER el plan no la compra como nueva (18/9). */ cartera?: { verb: string; reason: string } | null }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   /** Fecha del plan y decisiones de la Fed (`config/fomc.json`): con una dentro de 3 días hábiles, el primer tramo va después. */
@@ -428,6 +428,13 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         leftOut.push({ symbol: b.symbol, reason: `${place}: ya está en el tope del ${c.maxPositionPct}% por posición` });
         return;
       }
+      // Para lo que ya tenés manda Cartera (18/9): si dice REVISAR o VENDER, el plan no puede decir COMPRAR. Con las
+      // compuertas avisando, TSM quedaba "REVISAR: no sumes hasta resolver esto" en Cartera y "COMPRAR USD 4.741" en el plan.
+      if (b.cartera && (b.cartera.verb === "REVISAR" || b.cartera.verb === "VENDER")) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ya la tenés y Cartera dice ${b.cartera.verb} (${b.cartera.reason}): no se compra más hasta resolverlo` });
+        if (pool.kind === "stock") caidas.push(b.priority);
+        return;
+      }
       // De la verificación web solo frena "evitar" (18/9). Con reservas, pendiente o con el cuestionario anterior entra,
       // con el aviso escrito en la línea. Los ETFs no se verifican en la web.
       const bloqueo = pool.kind === "etf" ? null : verificationBlock(b.verification);
@@ -540,6 +547,12 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     const detalle = esperando.map((l) => (l.entry!.state === "esperar_retroceso" ? `${l.symbol}: orden limitada en ${l.entry!.level}` : `${l.symbol}: comprar si cierra arriba de ${l.entry!.level}`)).join(", ");
     notes.push(`Hoy se ejecutan USD ${miles(Math.round(aporte) - enEspera)} de USD ${miles(aporte)}. Los otros USD ${miles(enEspera)} esperan su nivel, no van a mercado: ${detalle}. Vale ${esperando[0]!.entry!.validSessions} ruedas; si no se da, esa plata se reasigna en la próxima corrida.`);
   }
+  // Una línea elegida puede caerse después (monto chico, sin stop): lo anotado para revisar o verificar son solo las que
+  // quedaron. Si no, la app gasta una búsqueda en lo que no compra y la nota contradice a la tabla de afuera (18/9).
+  const enElPlan = new Set(finales.map((l) => l.symbol));
+  const quedaron = (xs: string[]) => [...new Set(xs)].filter((s) => enElPlan.has(s));
+  pendientes.splice(0, pendientes.length, ...quedaron(pendientes));
+  porVerificar.splice(0, porVerificar.length, ...quedaron(porVerificar));
   if (pendientes.length) notes.push(`Revisión antes de comprar pendiente: ${pendientes.join(", ")}. Corre sola en los próximos minutos: si encuentra una objeción con fuente, esa línea sale del plan y "por qué cambió" lo dice; si querés, esperá a que termine.`);
   const totalNucleo = finales.filter((l) => l.kind === "nucleo").reduce((t, l) => t + l.amountUsd, 0);
   const razonNucleo = `núcleo: recibe USD ${miles(totalNucleo)} de ${miles(aporte)} (${Math.round((totalNucleo / aporte) * 100)}%): ${partesDelNucleo.map((x) => `${x.reason} (USD ${miles(x.amount)})`).join(" + ")}`;

@@ -10,11 +10,11 @@ import { BANDA_EPS_NUCLEO, estadoVerificacion, fuentesTexto, peNucleo } from "./
  *   queda COMPRAR por reglas", que para ellas es falso.
  */
 describe("estadoVerificacion", () => {
-  it("NBN el 15/9: APTA con el cuestionario anterior no se ve en verde y dice que se repite antes de comprar", () => {
+  it("NBN el 15/9: APTA con el cuestionario anterior no se ve en verde y dice que se repite (desde el 18/9, sin frenar la compra)", () => {
     const e = estadoVerificacion({ v: { verdict: "apto" }, current: false });
     expect(e.kind).toBe("anterior");
     expect(e.chip).toEqual({ label: "APTA", className: "verb CANDIDATA" });
-    expect(e.nota).toBe("cuestionario anterior: se repite antes de comprar");
+    expect(e.nota).toBe("cuestionario anterior: se repite sola; mientras tanto no frena la compra");
   });
   it("una advertencia no se apaga por ser del cuestionario anterior; la vigente se ve como siempre (TSM con reservas)", () => {
     expect(estadoVerificacion({ v: { verdict: "evitar" }, current: false }).chip?.className).toBe("bad");
@@ -25,7 +25,8 @@ describe("estadoVerificacion", () => {
   it("SNDK y BLBD: COMPRAR por reglas sin verificación es \"pendiente\", no \"se verifica solo lo que queda COMPRAR\"", () => {
     const e = estadoVerificacion({ v: null, current: null, fila: { verdict: "COMPRAR", flags: ["consenso_compra", "verificacion_pendiente"] } });
     expect(e.kind).toBe("pendiente");
-    expect(e.nota).toBe("verificación web pendiente: queda COMPRAR por reglas y el modelo todavía no la verificó. El plan no la compra hasta que se verifique.");
+    // Desde el 18/9 pendiente no frena: el plan la puede comprar, con el aviso al lado de COMPRAR.
+    expect(e.nota).toBe("verificación web pendiente: queda COMPRAR por reglas y el modelo todavía no la verificó. No frena la compra: si el plan la compra, lo dice con ⚠ al lado.");
   });
   it("sin fila COMPRAR (una posición fuera del Radar, u OBSERVAR), la regla general sí es cierta", () => {
     expect(estadoVerificacion({ v: null, current: null, fila: null }).nota).toBe("sin verificación web: se verifica solo lo que queda COMPRAR por reglas, y se repite a los 7 días");

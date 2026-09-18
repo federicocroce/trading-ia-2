@@ -177,7 +177,7 @@ export interface CandidateVerifier {
    * ¿El informe guardado con esa versión responde el mismo cuestionario de investigación que el vigente? (18/9) Si sí,
    * se vuelve a estructurar su texto en vez de buscar de nuevo: la búsqueda es la cuota escasa.
    */
-  puedeReestructurar?(promptVersion: string): boolean;
+  puedeReestructurar?(promptVersion: string, researchText?: string): boolean;
   reestructurar?(input: { symbol: string; today: string; researchText: string; sources: Array<{ title: string; url: string }>; model: string | null }): Promise<VerifierResult>;
 }
 

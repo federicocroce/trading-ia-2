@@ -38,7 +38,7 @@ const FLAG_LABEL: Record<string, string> = {
   verificacion_reservas: "verificación web: con reservas",
   verificacion_evitar: "verificación web: evitar",
   verificacion_pendiente: "verificación web pendiente",
-  verificacion_anterior: "verificación apta con el cuestionario anterior: se repite antes de comprar",
+  verificacion_anterior: "verificación apta con el cuestionario anterior: se repite sola y no frena la compra",
   consenso_en_precio: "objetivo de consenso a < 10% del precio",
   subio_mucho_12m: "subió > 100% en 12 meses",
   nucleo_por_calendario: "del núcleo: se compra por calendario, sin timing",

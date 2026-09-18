@@ -177,6 +177,11 @@ describe("la reserva por valuación la decide el código (18/9)", () => {
     const v = { verdict: "con_reservas" as const, reason: "39x contra un máximo de 40x", reservas: [valuacion], valuationNumbers: nums(39, 12, 40) };
     expect(aplicarValuacion(v)).toEqual(v);
   });
+  it("dos reservas de valuación sobre múltiplos distintos: los números son de una sola, así que no se toca (falla cerrado)", () => {
+    const otra = { tipo: "valuacion" as const, detalle: "precio sobre valor libro tangible en su máximo de 5 años" };
+    const v = { verdict: "con_reservas" as const, reason: "P/E en el tercio superior y valor libro en máximo", reservas: [valuacion, otra], valuationNumbers: nums(29.5, 22, 32.5) };
+    expect(aplicarValuacion(v)).toEqual(v);
+  });
   it("falla cerrado: con reservas sin lista de reservas no se toca; evitar y apto tampoco", () => {
     const sinLista = { verdict: "con_reservas" as const, reason: "x", reservas: [], valuationNumbers: nums(29.5, 22, 32.5) };
     expect(aplicarValuacion(sinLista)).toEqual(sinLista);
@@ -224,6 +229,9 @@ describe("volver a estructurar sin volver a buscar (18/9)", () => {
     const rec = memRecorder();
     const v = new GeminiCandidateVerifier({ keys: ["k0"], models: ["A"], researchModels: ["A"], fetch: ff.fetch, recorder: rec });
     expect(v.puedeReestructurar("v1-07c33234178c-gemini")).toBe(true);
+    expect(v.puedeReestructurar("v1-07c33234178c-gemini", texto)).toBe(true);
+    // Un informe guardado que está cortado no se puede re-estructurar NUNCA: quien llama tiene que buscar de nuevo, no reintentar.
+    expect(v.puedeReestructurar("v1-07c33234178c-gemini", "DICTAMEN: APTO — x (se cortó)")).toBe(false);
     expect(v.puedeReestructurar("v1-c12a96012ca5-gemini")).toBe(false);
     expect(v.puedeReestructurar(v.promptVersion)).toBe(false);
     const fuentes = [{ title: "sec.gov", url: "https://redirect/1" }];

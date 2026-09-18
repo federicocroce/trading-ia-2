@@ -181,7 +181,8 @@ const porQueNoVale = (n: ValuationNumbers | null): string => {
  * sin lista de reservas no toca nada (falla cerrado). Corre antes que `aplicarFaltantes`.
  */
 export function aplicarValuacion<T extends { verdict: (typeof VERDICTS)[number]; reason: string; reservas: Reserva[]; valuationNumbers: ValuationNumbers | null }>(v: T): T {
-  if (v.verdict !== "con_reservas" || !v.reservas.some((r) => r.tipo === "valuacion")) return v;
+  // Con dos reservas de valuación (P/E y valor libro, por ejemplo) los números son de una sola: no se toca.
+  if (v.verdict !== "con_reservas" || v.reservas.filter((r) => r.tipo === "valuacion").length !== 1) return v;
   if (reservaDeValuacionVale(v.valuationNumbers)) return v;
   const quedan = v.reservas.filter((r) => r.tipo !== "valuacion");
   const porQue = porQueNoVale(v.valuationNumbers);
@@ -245,8 +246,11 @@ export class GeminiCandidateVerifier implements CandidateVerifier {
     return this.estructurar(input.symbol, input.today, research);
   }
   /** ¿El informe guardado con esa versión se puede volver a estructurar, sin buscar de nuevo? */
-  puedeReestructurar(promptVersion: string): boolean {
-    return promptVersion !== this.promptVersion && VERSIONES_MISMO_INFORME.includes(promptVersion);
+  puedeReestructurar(promptVersion: string, researchText?: string): boolean {
+    if (promptVersion === this.promptVersion || !VERSIONES_MISMO_INFORME.includes(promptVersion)) return false;
+    // Un informe cortado no se puede re-estructurar nunca: decir que no acá hace que se busque de nuevo, en vez de
+    // reintentar en vano hasta que venza.
+    return researchText === undefined || INFORME_COMPLETO_RE.test(researchText);
   }
   /** Vuelve a estructurar un informe guardado: una llamada sin búsqueda, y las mismas reglas que una verificación nueva. */
   async reestructurar(i: { symbol: string; today: string; researchText: string; sources: Array<{ title: string; url: string }>; model: string | null }): Promise<VerifierResult> {

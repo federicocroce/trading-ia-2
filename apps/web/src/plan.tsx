@@ -33,7 +33,7 @@ export function usePlan(): ContributionPlan | null {
 export function InstruccionChip({ ins, detail = true, small = false }: { ins: Instruccion; detail?: boolean; small?: boolean }) {
   return (
     <>
-      <span className={`verb ${ins.tone}`} style={small ? { fontSize: 10, padding: "0 6px" } : undefined} title={ins.detail ?? undefined}>{ins.label}</span>
+      <span className={`verb ${ins.tone}`} style={small ? { fontSize: 10, padding: "0 6px" } : undefined} title={ins.detail ?? undefined}>{ins.label}{ins.avisos ? " ⚠" : ""}</span>
       {detail && ins.detail && <span className="muted" style={{ fontSize: 12 }}> {ins.detail}</span>}
     </>
   );

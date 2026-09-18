@@ -542,12 +542,11 @@ describe("plan: verificación con el cuestionario vigente (13/9)", () => {
     // pasaban a "anterior" de un día para el otro: con la regla vieja el plan volvía a comprar solo núcleo.
     const vieja = plan.lines.find((l) => l.symbol === compras[0]!.symbol);
     const nueva = plan.lines.find((l) => l.symbol === compras[1]!.symbol);
-    if (vieja) {
-      expect(vieja.avisos).toContain("verificación hecha con el cuestionario anterior");
-      expect(plan.verificationsPending).toContain(compras[0]!.symbol);
-    } else expect(plan.leftOut?.find((x) => x.symbol === compras[0]!.symbol)?.reason).not.toMatch(/cuestionario anterior/);
-    if (nueva) expect(nueva.avisos ?? []).not.toContain("verificación hecha con el cuestionario anterior");
-    expect(vieja ?? nueva).toBeDefined();
+    if (!vieja || !nueva) expect.fail(`el fixture tiene que dejar entrar a las dos: ${JSON.stringify(plan.leftOut)}`);
+    expect(vieja.avisos).toContain("verificación hecha con el cuestionario anterior");
+    expect(plan.verificationsPending).toContain(compras[0]!.symbol);
+    expect(nueva.avisos ?? []).not.toContain("verificación hecha con el cuestionario anterior");
+    expect(plan.verificationsPending).not.toContain(compras[1]!.symbol);
   });
 });
 

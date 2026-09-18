@@ -20,10 +20,10 @@ export function estadoVerificacion(i: { v: { verdict: Veredicto } | null | undef
   if (i.v) {
     const anterior = i.current === false;
     const className = anterior && i.v.verdict === "apto" ? "verb CANDIDATA" : CLASE[i.v.verdict];
-    return { kind: anterior ? "anterior" : "vigente", chip: { label: ETIQUETA[i.v.verdict], className }, nota: anterior ? "cuestionario anterior: se repite antes de comprar" : null };
+    return { kind: anterior ? "anterior" : "vigente", chip: { label: ETIQUETA[i.v.verdict], className }, nota: anterior ? "cuestionario anterior: se repite sola; mientras tanto no frena la compra" : null };
   }
   const pendiente = !!i.fila && (i.fila.flags.includes("verificacion_pendiente") || i.fila.verdict === "COMPRAR");
-  if (pendiente) return { kind: "pendiente", chip: null, nota: "verificación web pendiente: queda COMPRAR por reglas y el modelo todavía no la verificó. El plan no la compra hasta que se verifique." };
+  if (pendiente) return { kind: "pendiente", chip: null, nota: "verificación web pendiente: queda COMPRAR por reglas y el modelo todavía no la verificó. No frena la compra: si el plan la compra, lo dice con ⚠ al lado." };
   return { kind: "sin", chip: null, nota: "sin verificación web: se verifica solo lo que queda COMPRAR por reglas, y se repite a los 7 días" };
 }
 

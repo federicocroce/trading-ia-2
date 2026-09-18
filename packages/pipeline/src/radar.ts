@@ -893,7 +893,9 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           priority: c.kind === "stock" ? (conviction.get(c.symbol) ?? null) : c.kind === "watch" ? -(c.riskScore ?? 10) : (c.axes["rs6m"] ?? null),
           // La salvedad que más pesa al comprar: si se mueve como algo tuyo, la línea del plan lo dice.
           cautions: overlap[c.symbol] ? [overlapCaution(overlap[c.symbol]!)] : [],
-          // Verificación web: entra solo apta y con el cuestionario vigente; si no, la nota dice por qué.
+          // Para lo que ya tenés manda Cartera (18/9): con REVISAR o VENDER el plan no la compra como nueva.
+          cartera: (() => { const v = verdicts.find((x) => x.symbol.toUpperCase() === c.symbol.toUpperCase()); return v ? { verb: v.verb, reason: v.reason } : null; })(),
+          // Verificación web (18/9): solo "evitar" la deja afuera; con reservas, pendiente o anterior entra con el aviso.
           verification: c.kind === "etf" ? undefined : planVerification(c.verification),
           // Salvedades de precio (consenso en el precio, subida de 12 meses): tampoco entran como nueva.
           flags: c.flags,

@@ -24,6 +24,8 @@ export interface Instruccion {
   tone: "COMPRAR" | "SUMAR" | "NUCLEO" | "CANDIDATA" | "OBSERVAR" | "MANTENER" | "VENDER" | "REVISAR" | "ESPERAR";
   /** Lo que el dueño necesita leer al lado: el monto o por qué no se compra. */
   detail: string | null;
+  /** Cuántos avisos de la IA lleva la línea (18/9): donde la etiqueta va sola, se marca con ⚠. */
+  avisos?: number;
 }
 
 const usd = (n: number) => `USD ${Math.round(n).toLocaleString("es-AR")}`;
@@ -32,6 +34,7 @@ const usd = (n: number) => `USD ${Math.round(n).toLocaleString("es-AR")}`;
  * compran 8.000. El monto del tramo es el del plan; un plan guardado sin él lo calcula con la misma regla.
  */
 const enPlan = (s: { amountUsd: number; trancheUsd?: number; avisos?: string[] }) => [s.trancheUsd !== undefined ? `${usd(s.amountUsd)} en el plan · 1er tramo ${usd(s.trancheUsd)}` : `${usd(s.amountUsd)} en el plan de hoy`, ...(s.avisos ?? []).map((a) => `⚠ ${a}`)].join(" · ");
+const conAvisos = (s: { avisos?: string[] }) => (s.avisos?.length ? { avisos: s.avisos.length } : {});
 /** "5° por convicción: verificación web con reservas: …" → sin el lugar en la fila, que no le importa a quien lee. */
 const sinLugar = (reason: string) => reason.replace(/^(?:\d+° por convicción|seguimiento|ETF): /, "");
 
@@ -86,8 +89,8 @@ export function instruccionRadar(verdict: string, status: PlanStatus, context?: 
   if (verdict === "OBSERVAR") return { label: "OBSERVAR", tone: "OBSERVAR", detail: null };
   if (status && status.kind === "frenado") return esperar(status);
   if (verdict === "NUCLEO") return { label: "NÚCLEO", tone: "NUCLEO", detail: status && status.kind === "nucleo" ? enPlan(status) : null };
-  if (status && (status.kind === "comprar" || status.kind === "seguimiento")) return { label: "COMPRAR", tone: "COMPRAR", detail: enPlan(status) };
-  if (status && status.kind === "sumar") return { label: "SUMAR", tone: "SUMAR", detail: enPlan(status) };
+  if (status && (status.kind === "comprar" || status.kind === "seguimiento")) return { label: "COMPRAR", tone: "COMPRAR", detail: enPlan(status), ...conAvisos(status) };
+  if (status && status.kind === "sumar") return { label: "SUMAR", tone: "SUMAR", detail: enPlan(status), ...conAvisos(status) };
   const detail = context === "argentina" ? "el plan en dólares no compra papeles argentinos" : status && status.kind === "fuera" ? `no se compra: ${sinLugar(status.reason)}` : "no está en el plan de hoy";
   return { label: "CANDIDATA", tone: "CANDIDATA", detail };
 }
@@ -96,6 +99,6 @@ export function instruccionRadar(verdict: string, status: PlanStatus, context?: 
 export function instruccionCartera(verb: Verb, status: PlanStatus): Instruccion {
   if (verb !== "SUMAR") return { label: verb, tone: verb, detail: null };
   if (status && status.kind === "frenado") return esperar(status);
-  if (status && status.kind === "sumar") return { label: "SUMAR", tone: "SUMAR", detail: enPlan(status) };
+  if (status && status.kind === "sumar") return { label: "SUMAR", tone: "SUMAR", detail: enPlan(status), ...conAvisos(status) };
   return { label: "MANTENER", tone: "MANTENER", detail: status && status.kind === "fuera" ? `no se suma hoy: ${sinLugar(status.reason)}` : "no se suma en el plan de hoy" };
 }

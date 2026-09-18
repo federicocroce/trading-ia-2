@@ -71,7 +71,7 @@ const INFO: Record<string, string> = {
   crecimiento_no_confiable: "en bancos, el crecimiento de ingresos que da Finnhub no es confiable (NBN +124% contra +4% real): el ranking no lo usa",
   banco_sin_estados: "banco sin estados de la SEC: la app no puede verificar su ganancia, así que no entra al plan",
   verificacion_pendiente: "verificación web pendiente (todavía no respondió el modelo)",
-  verificacion_anterior: "verificación hecha con el cuestionario anterior: se repite antes de comprarla",
+  verificacion_anterior: "verificación hecha con el cuestionario anterior: se repite sola",
   guia_reafirmada: "reafirmó la guía (hecho verificado)",
 };
 const SMALL_GROUP = 10;

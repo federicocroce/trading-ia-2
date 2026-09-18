@@ -45,7 +45,7 @@ export async function verifyFor(deps: VerifyDeps, symbol: string, opts: { today:
   if (prev && fresca && prev.promptVersion === verifier.promptVersion) return summary(prev);
   // Cambió el estructurador pero no lo que se le pregunta a la web (18/9): el informe guardado se vuelve a estructurar.
   // No es una búsqueda: no descuenta presupuesto, y la fila conserva su fecha (los 7 días se cuentan desde la búsqueda).
-  if (prev && fresca && prev.researchText && verifier.reestructurar && verifier.puedeReestructurar?.(prev.promptVersion)) {
+  if (prev && fresca && prev.researchText && verifier.reestructurar && verifier.puedeReestructurar?.(prev.promptVersion, prev.researchText)) {
     try {
       const r = await verifier.reestructurar({ symbol: sym, today: prev.date, researchText: prev.researchText, sources: prev.sources, model: prev.model });
       const full: CandidateVerification = { ...r, symbol: sym, date: prev.date, detectedAt: new Date().toISOString(), promptVersion: verifier.promptVersion };

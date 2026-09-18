@@ -131,6 +131,10 @@ describe("los avisos de la IA viajan con COMPRAR en todas las pantallas (18/9)",
     expect(ins.label).toBe("COMPRAR");
     expect(ins.detail).toBe("USD 3.452 en el plan de hoy · ⚠ verificación web con reservas: venta neta de insiders · ⚠ revisión antes de comprar pendiente");
   });
+  it("donde la etiqueta va sola, sin el texto al lado (la barra lateral), COMPRAR lleva la marca ⚠", () => {
+    expect(instruccionRadar("COMPRAR", planStatusFor("APH", conAvisos)).avisos).toBe(2);
+    expect(instruccionRadar("COMPRAR", planStatusFor("V", conAvisos)).avisos ?? 0).toBe(0);
+  });
   it("un SUMAR también, en Radar y en Cartera; una línea sin avisos queda como siempre", () => {
     expect(instruccionCartera("SUMAR", planStatusFor("NEM", conAvisos)).detail).toBe("USD 1.500 en el plan de hoy · ⚠ verificación web pendiente");
     expect(instruccionRadar("COMPRAR", planStatusFor("V", conAvisos)).detail).toBe("USD 2.498 en el plan de hoy");

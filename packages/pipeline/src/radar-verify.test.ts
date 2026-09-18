@@ -86,7 +86,7 @@ describe("verifyFor: volver a estructurar sin volver a buscar (18/9)", () => {
     const textos: string[] = [];
     return Object.assign(v, {
       textos,
-      puedeReestructurar: (version: string) => compatibles.includes(version),
+      puedeReestructurar: (version: string, texto?: string) => compatibles.includes(version) && texto !== "cortado",
       async reestructurar(i: { symbol: string; today: string; researchText: string; sources: Array<{ title: string; url: string }>; model: string | null }) {
         textos.push(`${i.symbol}|${i.today}|${i.researchText}`);
         const r = results.shift();
@@ -132,6 +132,15 @@ describe("verifyFor: volver a estructurar sin volver a buscar (18/9)", () => {
     const b = reestructurador([result("apto")], ["v1-otra"]);
     expect((await verifyFor({ store: otra, verifier: b }, "APH", { today: "2026-09-18", name: null }))?.verdict).toBe("evitar");
     expect(b.textos).toEqual([]);
+  });
+  it("un informe guardado que no se puede re-estructurar (cortado) no se reintenta en vano: se busca de nuevo", async () => {
+    const store = new MemoryStore();
+    await verifyFor({ store, verifier: verifier([{ ...result("con_reservas", "tercio superior"), researchText: "cortado" }], "v1-viejo") }, "APH", { today: "2026-09-17", name: null });
+    const v = reestructurador([result("apto")], ["v1-viejo"]);
+    const r = await verifyFor({ store, verifier: v }, "APH", { today: "2026-09-18", name: null });
+    expect(v.textos).toEqual([]);
+    expect(v.calls).toEqual(["APH"]);
+    expect(r).toMatchObject({ verdict: "evitar", promptVersion: "v2-nuevo", date: "2026-09-18" });
   });
   it("si el estructurador falla, queda lo que había (con su versión) y no se gasta una búsqueda: se reintenta en la próxima vuelta", async () => {
     const store = new MemoryStore();

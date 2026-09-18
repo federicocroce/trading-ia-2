@@ -304,6 +304,39 @@ describe("revisión antes de comprar (15/9)", () => {
     const tsm = { symbol: "TSM", valueUsd: 7_000, weightPct: 7, stop: 380, target: 498, verification: apta, atr: 11 };
     expect(cuarenta([], [{ ...tsm, review: null }]).lines.find((l) => l.symbol === "TSM")!.avisos).toEqual(["revisión antes de comprar pendiente"]);
   });
+  it("18/9, TSM: si ya la tenés y Cartera dice REVISAR o VENDER, el plan no la compra como nueva: dos pantallas no pueden decir cosas opuestas", () => {
+    // El 18/9 Cartera decía "TSM: REVISAR — la verificación web tiene reservas. No sumes hasta resolver esto" y, con
+    // las compuertas avisando, el plan iba a decir "COMPRAR TSM USD 4.741". Para lo que ya tenés manda Cartera.
+    const p = cuarenta([{ ...compra("TSM", 1.3, sin), cartera: { verb: "REVISAR", reason: "la verificación web del 2026-09-15 tiene reservas" } }, compra("NVDA", 1.1, sin)]);
+    expect(p.lines.some((l) => l.symbol === "TSM")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "TSM")!.reason).toBe("1° por convicción: ya la tenés y Cartera dice REVISAR (la verificación web del 2026-09-15 tiene reservas): no se compra más hasta resolverlo");
+    expect(p.lines.some((l) => l.symbol === "NVDA")).toBe(true);
+    // No se gasta una revisión ni una verificación en lo que igual queda afuera.
+    const q = cuarenta([{ ...compra("TSM", 1.3, null), verification: null, cartera: { verb: "VENDER", reason: "cerró bajo su stop" } }]);
+    expect(q.reviewsPending ?? []).toEqual([]);
+    expect(q.verificationsPending ?? []).toEqual([]);
+    // Con MANTENER o SUMAR en Cartera no hay contradicción: entra como cualquier otra.
+    expect(cuarenta([{ ...compra("TSM", 1.3, sin), cartera: { verb: "MANTENER", reason: "dejá correr" } }]).lines.some((l) => l.symbol === "TSM")).toBe(true);
+  });
+  it("18/9: lo anotado para revisar o verificar son solo líneas que quedaron en el plan, no lo que entró y después se cayó", () => {
+    // Una línea elegida puede caerse después (monto menor a USD 100, o sin stop): si queda anotada, la app gasta una
+    // búsqueda en algo que no compra y la nota dice "pendiente: X" mientras la tabla de afuera muestra a X excluida.
+    const chica = cuarenta([{ ...compra("APH", 1.3, null), verification: null, sizeUsd: 50 }, compra("NVDA", 1.1, sin)]);
+    expect(chica.lines.some((l) => l.symbol === "APH")).toBe(false);
+    expect(chica.reviewsPending ?? []).toEqual([]);
+    expect(chica.verificationsPending ?? []).toEqual([]);
+    expect(chica.notes.join(" ")).not.toMatch(/Revisión antes de comprar pendiente/);
+    const sinStop = cuarenta([{ ...compra("APH", 1.3, null), verification: null, stop: null }, compra("NVDA", 1.1, sin)]);
+    expect(sinStop.lines.some((l) => l.symbol === "APH")).toBe(false);
+    expect(sinStop.reviewsPending ?? []).toEqual([]);
+    expect(sinStop.verificationsPending ?? []).toEqual([]);
+  });
+  it("18/9: una de tu lista de seguimiento también lleva sus avisos como dato", () => {
+    const v: Buy = { ...compra("V", -2, null), kind: "watch", verification: { verdict: "con_reservas", reason: "investigación antimonopolio", current: true } };
+    const linea = cuarenta([v]).lines.find((l) => l.symbol === "V")!;
+    expect(linea.kind).toBe("seguimiento");
+    expect(linea.avisos).toEqual(["verificación web con reservas: investigación antimonopolio", "revisión antes de comprar pendiente"]);
+  });
   it("18/9: los dos avisos juntos van en la misma línea, después de las salvedades que ya tenía", () => {
     const p = cuarenta([{ ...compra("APH", 1.3, null), verification: { verdict: "con_reservas", reason: "guía que no sube", current: true }, cautions: ["se mueve como TSM que ya tenés (correlación 0.81)"] }]);
     expect(p.lines.find((l) => l.symbol === "APH")!.rationale).toMatch(/⚠ se mueve como TSM.* · ⚠ verificación web con reservas: guía que no sube · ⚠ revisión antes de comprar pendiente$/);
