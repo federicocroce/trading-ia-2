@@ -5,6 +5,7 @@ import { bajoOfertaDeCompra } from "./oferta.js";
 import { banderasDeHechos, type HechoExterno } from "./hechos.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
 import { earningsQualityFlags, hasExtraordinary } from "./statements.js";
+import { banderaDeLider, estadoDeLider } from "./lider.js";
 import { crossesSplit } from "./split.js";
 import type { AnalystTargets, CandidateEvent, CoreEarnings, RadarPolicy, VerificationSummary } from "./types.js";
 
@@ -345,6 +346,9 @@ export function decideCandidate(
   // avisa: no cambia el veredicto. El consenso fuera de escala (APH tras su split: 196 contra 78) ya viene descartado.
   const consenso = consensusTargetOf(close, i.analystTargets, i.verification?.consensusTarget);
   if (target !== null && consenso !== null && target >= consenso * TARGET_OVER_CONSENSUS) flags.push("objetivo_sobre_consenso");
+  // Líder frenado solo por haber subido (21/9): una marca para la lista que se mide. No toca veredicto ni convicción.
+  const lider = banderaDeLider(estadoDeLider({ flags, reasons, entryState: entry?.state ?? null, target, held: i.held === true }));
+  if (lider) flags.push(lider);
   const risk = riskScore({ beta: i.f.metrics["beta"] ?? null, atrPct: gate.atrPct, debtToEquity: i.f.metrics["totalDebt/totalEquityAnnual"] ?? null, dollarVolumeUsd: i.f.dollarVolumeUsd, mcapUsd: i.f.mcapUsd });
   return { verdict: reasons.length ? "OBSERVAR" : "COMPRAR", flags, close, entry, entryLow, entryHigh, stop, target, size: size ? { qty: size.qty, sizeUsd: size.sizeUsd } : null, riskScore: risk, reasons, gate };
 }

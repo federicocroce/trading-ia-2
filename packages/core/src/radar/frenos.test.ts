@@ -44,6 +44,11 @@ describe("medirFrenos", () => {
     expect(m.desde).toBe("2026-09-14");
     expect(m.hasta).toBe("2026-09-15");
   });
+  it("21/9: las dos listas de líderes se miden sobre todas las filas, también las que la técnica frenaba por 'no perseguir'", () => {
+    const v = medirFrenos([...filas, fila("SIMO", "2026-09-21", ["sorpresa_positiva", "subio_mucho_12m", "lider_en_retroceso"], 6), fila("META", "2026-09-21", ["no_perseguir", "lider_esperando"], 12, { kind: "watch", verdict: "OBSERVAR" })], 7);
+    expect(v.grupos.find((g) => g.clave === "lider_en_retroceso")).toMatchObject({ n: 1, alfa: 6, lista: ["SIMO"] });
+    expect(v.grupos.find((g) => g.clave === "lider_esperando")).toMatchObject({ n: 1, alfa: 12, lista: ["META"] });
+  });
   it("sin filas medidas a ese horizonte devuelve los grupos vacíos, sin inventar un promedio", () => {
     const v = medirFrenos(filas, 30);
     expect(v.grupos.every((g) => g.n === 0 && g.alfa === null)).toBe(true);

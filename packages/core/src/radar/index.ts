@@ -27,3 +27,4 @@ export * from "./sanitize.js";
 export * from "./pantallas.js";
 export * from "./split.js";
 export * from "./frenos.js";
+export * from "./lider.js";

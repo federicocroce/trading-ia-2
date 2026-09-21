@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { filasDeLideres } from "./lideres";
 import { controlesBloquean, instruccionRadar, planLoCompra, planStatusFor } from "./instruccion";
 import { baseCandidata, baseLinea, pctDesde, qtyLinea, riesgoLinea, tramoLinea, type Base } from "./orden";
 import { InstruccionChip, RadarVerdict, invalidatePlan } from "./plan";
@@ -152,6 +153,7 @@ export function Radar() {
         </div>
       )}
       {sub === "resumen" && plan && <PlanCard p={plan} top={top} radarDate={cands[0]?.candidateDate ?? null} busy={busy === "plan"} onBuild={async (amountUsd) => { await act("plan", async () => { const np = await api.radar.buildPlan(amountUsd); setPlan(np); invalidatePlan(); return `Plan ${np.month} armado para ${money(np.totalUsd)}.`; }); }} />}
+      {sub === "resumen" && <LideresCard rows={[...cands, ...(watch?.rows ?? [])]} />}
       {sub === "resumen" && !plan && <div className="card muted">Todavía no hay plan: poné un monto y apretá "Rearmar plan". Hasta que exista, la app no dice COMPRAR en ninguna pantalla.</div>}
       {sub === "acciones" && opts && (
         <div className="card form-row">
@@ -485,6 +487,39 @@ function sortPlanLines(lines: PlanLine[], sort: PlanSort): PlanLine[] {
     if ((ka === null) !== (kb === null)) return ka === null ? 1 : -1;
     return KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
   });
+}
+
+/**
+ * Líderes (21/9): lo que la app frena solo por haber subido. NO entra al plan ni dice COMPRAR: es una lista que se mide
+ * (`pnpm frenos`), para decidir con números si se le abre lugar. "En retroceso" = hoy está en una zona donde entrar no es
+ * perseguir, con medio tamaño; "esperando" = todavía extendida, con el nivel que tendría que tocar.
+ */
+function LideresCard({ rows }: { rows: Candidate[] }) {
+  const filas = filasDeLideres(rows);
+  if (!filas.length) return null;
+  return (
+    <div className="card">
+      <b>Líderes</b> <span className="muted">{rows[0]?.candidateDate ? `precios al cierre usado por el Radar del ${rows[0].candidateDate} · ` : ""}frenadas solo por haber subido · <b>no entra al plan: es una lista que se está midiendo</b> · el tamaño es la mitad del de una compra normal</span>
+      <table style={{ marginTop: 6 }}>
+        <thead><tr><th>símbolo</th><th>estado</th><th>precio</th><th>dónde entrar</th><th>stop</th><th>objetivo</th><th>medio tamaño</th><th>a favor</th><th>por qué la frena la app</th></tr></thead>
+        <tbody>
+          {filas.map((l) => (
+            <tr key={l.symbol}>
+              <td><SymbolLink symbol={l.symbol} /></td>
+              <td>{l.estado === "en_retroceso" ? <span className="verb CANDIDATA">EN RETROCESO</span> : <span className="muted">esperando</span>}</td>
+              <td className="mono">{f2(l.close)}</td>
+              <td className="mono">{l.franja}</td>
+              <td className="mono">{f2(l.stop)}</td>
+              <td className="mono">{f2(l.target)}</td>
+              <td className="mono">{money(l.medioTamanoUsd)}</td>
+              <td className="muted">{l.aFavor.join(" · ") || "—"}</td>
+              <td className="muted">{l.porQue}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 /**

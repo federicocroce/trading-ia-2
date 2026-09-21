@@ -214,3 +214,26 @@ Aprobado por el dueño: convertirlas en reglas, para que la app llegue sola o lo
 
 Las dos son avisos con peso en la convicción, no frenos: el orden del plan puede cambiar, y `pnpm frenos` las va a medir.
 De paso: un test de rutas tenía una fecha fija (25/9/2026) que empezó a fallar el 21/9; ahora es relativa.
+
+---
+
+# Sexta parte (21/9): la lista de líderes, que se mide y no entra al plan
+
+META subió 12,7% en un día (Muse, Connect el 23/9) y la app no la compraba ni antes ni después; "subió más de 100%" saca
+del plan a SNDK, SIMO, TER y MU. Los frenos cuidan de comprar techos, pero la app decía "no" y nunca volvía con un "ahora
+sí". Medido ese día a 7 días: lo que frenó "no perseguir" (19 símbolos) rindió −0,41% contra −1,31% de lo que sí dejaba
+comprar; "subió más de 100%" (4 símbolos) −3,56%: poco dato y en las dos direcciones. Aprobado por el dueño: **primero
+medir, sin plata.**
+
+- `estadoDeLider` (núcleo, puro): líder = frenada **solo** por haber subido ("no perseguir", "subió más de 100%", y el
+  "consenso cerca" o las "dos salvedades" que salgan de eso), sin nada en contra del negocio, que no esté ya en cartera y que
+  no se esté debilitando ("esperar confirmación": LRCX bajo su media de 50). **En retroceso** = hoy en zona, con boleto
+  ejecutable y algo a favor (guía subida o sorpresa positiva). **Esperando** = todavía extendida.
+- Es una marca en la fila (`lider_en_retroceso`, `lider_esperando`): no toca veredicto ni convicción ni plan. Así la medición
+  que ya existe la cubre sin tabla nueva: `pnpm frenos` suma los dos grupos.
+- Tarjeta "Líderes" en el resumen del Radar: estado, dónde entrar o qué nivel esperar, stop, objetivo y **medio tamaño**, con
+  el cartel de que no entra al plan. Auditada: fecha del precio a la vista, el motivo real de la espera (BE), sin LRCX ni
+  posiciones propias.
+- Al 21/9 (simulado): en retroceso PARR, SHIP, SIMO, TER; esperando BE, FRO, META, SNDK.
+- Se decide con `pnpm frenos 7` y `30`: si "líder en retroceso" le gana a "COMPRAR que ningún freno tocó" con 10 o más
+  símbolos, se le abren 1 o 2 lugares en el plan con medio tamaño; si pierde, no se puso un peso.

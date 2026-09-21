@@ -76,6 +76,8 @@ const INFO: Record<string, string> = {
   verificacion_pendiente: "verificación web pendiente (todavía no respondió el modelo)",
   verificacion_anterior: "verificación hecha con el cuestionario anterior: se repite sola",
   guia_reafirmada: "reafirmó la guía (hecho verificado)",
+  lider_en_retroceso: "líder en retroceso: la frena solo haber subido y hoy está en zona de entrada (lista que se mide, no entra al plan)",
+  lider_esperando: "líder esperando su retroceso: la frena solo haber subido (lista que se mide, no entra al plan)",
 };
 const SMALL_GROUP = 10;
 const MIN_GAIN_PCT = 5;

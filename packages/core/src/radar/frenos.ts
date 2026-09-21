@@ -29,6 +29,7 @@ export const FRENOS_MINIMO_SIMBOLOS = 10;
 const TECNICA = ["bajo_sma200", "bajo_stop", "no_perseguir", "sin_historial"];
 const FRENOS = Object.keys(PLAN_BLOCKERS);
 const AVISOS: Record<string, string> = { verificacion_apta: "verificación web apta", verificacion_reservas: "verificación web con reservas", verificacion_evitar: "verificación web dice evitar" };
+const LIDERES: Record<string, string> = { lider_en_retroceso: "líder en retroceso (lo que la lista habría comprado)", lider_esperando: "líder esperando su retroceso" };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export function medirFrenos(filas: FilaMedida[], horizonte: 7 | 30 | 90): { horizonte: number; desde: string | null; hasta: string | null; sinMedir: number; grupos: GrupoDeFreno[] } {
@@ -43,7 +44,10 @@ export function medirFrenos(filas: FilaMedida[], horizonte: 7 | 30 | 90): { hori
   const sinFreno = grupo("sin_freno", "COMPRAR que ningún freno tocó", medidas.filter((f) => f.verdict === "COMPRAR" && !f.flags.some((x) => FRENOS.includes(x))));
   const porFreno = FRENOS.map((k) => grupo(k, PLAN_BLOCKERS[k]!.split(":")[0]!, medidas.filter((f) => f.flags.includes(k))));
   const porAviso = Object.entries(AVISOS).map(([k, t]) => grupo(k, t, medidas.filter((f) => f.flags.includes(k))));
-  for (const g of [...porFreno, ...porAviso]) g.contraSinFreno = g.alfa !== null && sinFreno.alfa !== null ? r2(g.alfa - sinFreno.alfa) : null;
+  // Las listas de líderes (21/9) se miden sobre TODAS las filas: "esperando" incluye lo que la técnica frena por no perseguir.
+  const todasMedidas = filas.filter((f) => (f.kind === "stock" || f.kind === "watch") && alfaDe(f) !== null);
+  const porLider = Object.entries(LIDERES).map(([k, t]) => grupo(k, t, todasMedidas.filter((f) => f.flags.includes(k))));
+  for (const g of [...porFreno, ...porAviso, ...porLider]) g.contraSinFreno = g.alfa !== null && sinFreno.alfa !== null ? r2(g.alfa - sinFreno.alfa) : null;
   const fechas = medidas.map((f) => f.candidateDate).sort();
-  return { horizonte, desde: fechas[0] ?? null, hasta: fechas[fechas.length - 1] ?? null, sinMedir: comprables.length - medidas.length, grupos: [sinFreno, ...porFreno, ...porAviso] };
+  return { horizonte, desde: fechas[0] ?? null, hasta: fechas[fechas.length - 1] ?? null, sinMedir: comprables.length - medidas.length, grupos: [sinFreno, ...porFreno, ...porAviso, ...porLider] };
 }

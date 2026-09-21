@@ -51,6 +51,8 @@ const FLAG_LABEL: Record<string, string> = {
   // Hechos externos (17/9): datos con fecha y fuente que carga el importador; la ficha muestra el detalle y el enlace.
   guia_subida: "subió la guía (hecho verificado)",
   guia_recortada: "recortó la guía (hecho verificado)",
+  lider_en_retroceso: "líder en retroceso: la frena solo haber subido y hoy está en zona (lista que se mide; no entra al plan)",
+  lider_esperando: "líder esperando su retroceso (lista que se mide; no entra al plan)",
   investigacion_abierta: "investigación regulatoria abierta (hecho verificado): un titular puede abrir con un salto por debajo del stop",
   objetivo_sobre_consenso: "el objetivo de la app está 15% o más arriba del consenso de analistas",
   guia_reafirmada: "reafirmó la guía (hecho verificado)",
@@ -108,7 +110,7 @@ const BUENAS = new Set(["consenso_compra", "insiders_compran", "sorpresa_positiv
  * sea del núcleo se pintaba en ámbar con el mismo ⚑ que una salvedad, y "en línea con el CCL", que es la
  * situación normal de un CEDEAR, también.
  */
-const NEUTRAS = new Set(["nucleo_por_calendario", "en_linea"]);
+const NEUTRAS = new Set(["nucleo_por_calendario", "en_linea", "lider_en_retroceso", "lider_esperando"]);
 /** Ni a favor ni en contra: falta un dato. No es un defecto de la empresa, es un límite de la fuente. */
 // `crecimiento_no_confiable`: el número de la fuente no sirve en bancos y el ranking ya no lo usa (NBN, 13/9).
 // `banco_sin_estados`: tampoco es un defecto del banco; es que la app no lo puede verificar, y por eso no lo compra (14/9).

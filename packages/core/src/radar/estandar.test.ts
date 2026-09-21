@@ -69,6 +69,22 @@ describe("salvedades de precio (pieza 3)", () => {
     const calm = decideCandidate({ f, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
     if (!("excluded" in calm)) expect(calm.flags).not.toContain("subio_mucho_12m");
   });
+  it("21/9: la que solo frena el haber subido lleva la marca de líder, sin cambiar veredicto ni convicción", () => {
+    const runup = series(Array.from({ length: 260 }, (_, i) => 70 * Math.pow(160 / 70, i / 259)));
+    const sorpresa: typeof f = { ...f, earningsSurprises: [{ period: "2026-06-30", actual: 1.2, estimate: 1, surprisePercent: 20 }] };
+    const d = decideCandidate({ f: sorpresa, candles: runup, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+    const sinSubir = decideCandidate({ f: sorpresa, candles: up, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+    if ("excluded" in d || "excluded" in sinSubir) throw new Error("fixture");
+    expect(d.flags).toContain("subio_mucho_12m");
+    expect(d.flags).toContain("sorpresa_positiva");
+    // Con algo a favor y boleto, depende solo de dónde está el precio: en zona es "en retroceso"; extendida, "esperando".
+    const enZona = (d.entry?.state === "en_zona" || d.entry?.state === "retroceso") && !d.flags.includes("no_perseguir") && d.target !== null;
+    expect(d.flags).toContain(enZona ? "lider_en_retroceso" : "lider_esperando");
+    expect(d.flags).not.toContain(enZona ? "lider_esperando" : "lider_en_retroceso");
+    // No cambia el veredicto: es el mismo que sin la marca (una sola salvedad de precio no observa).
+    expect(d.verdict).toBe(d.reasons.length ? "OBSERVAR" : "COMPRAR");
+    expect(sinSubir.flags.some((x) => x.startsWith("lider_"))).toBe(false);
+  });
   it("las dos juntas ya observan (dos salvedades de calidad o precio)", () => {
     const runup = series(Array.from({ length: 260 }, (_, i) => 70 * Math.pow(160 / 70, i / 259)));
     const d = decideCandidate({ f, candles: runup, nthAppearance: 1, portfolioUsd: 150_000, today, analystTargets: { n: 2, median: 165, min: 160, max: 170, latestDate: today } }, policy);
