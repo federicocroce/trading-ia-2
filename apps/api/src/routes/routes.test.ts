@@ -16,7 +16,9 @@ const broker: Broker & { n: number } = {
   async getOrder() { throw new Error("x"); },
   async cancel() {},
 };
-const event: RawEvent = { id: randomUUID(), ticker: "XXXX", eventType: "earnings", source: "manual", eventDate: "2026-09-25", sourceRef: "r", title: "Earnings", payload: {}, observedAt: "2026-09-04T00:00:00Z" };
+// Fecha relativa (21/9): con "2026-09-25" fija, el test empezó a fallar cuando el evento quedó a menos días que el mínimo del filtro.
+const EN_UN_MES = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+const event: RawEvent = { id: randomUUID(), ticker: "XXXX", eventType: "earnings", source: "manual", eventDate: EN_UN_MES, sourceRef: "r", title: "Earnings", payload: {}, observedAt: "2026-09-04T00:00:00Z" };
 const reasoner: Reasoner = {
   promptVersion: "v-test",
   propose: async (b) => ({ ticker: b.event.ticker, eventType: "earnings", eventDate: b.event.eventDate, direction: "long", pEstimate: 0.7, pMarket: 0.5, instrument: "stock", entryMax: 10.5, target: 11, invalidation: "Preanuncio negativo de guidance antes del reporte.", confidence: "med", reasoning: "Razonamiento de prueba suficientemente largo para pasar la validación mínima.", sources: ["s"] }),

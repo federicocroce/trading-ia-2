@@ -63,6 +63,9 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   consenso_en_precio: { text: "el objetivo de consenso está a menos de 10% del precio: poco margen", penalty: 0.3 },
   subio_mucho_12m: { text: "subió más de 100% en 12 meses: el precio ya descuenta mucho", penalty: 0.3 },
   guia_recortada: { text: "recortó la guía (hecho verificado, con fuente en la ficha)", penalty: 0.3 },
+  // 21/9, SMCI: lo que ninguna regla medía. La investigación pesa como un evento moderado; el objetivo, como los insiders.
+  investigacion_abierta: { text: "investigación regulatoria abierta (hecho verificado, con fuente en la ficha): un titular puede abrir con un salto por debajo del stop", penalty: 0.3 },
+  objetivo_sobre_consenso: { text: "el objetivo de la app está 15% o más arriba del consenso de analistas: es mecánico (el doble del riesgo), no una opinión", penalty: 0.15 },
   ganancia_por_reservas: { text: "la ganancia publicada lleva reservas liberadas: sin ellas no llega al consenso (hecho verificado, con fuente en la ficha)", penalty: 0.3 },
 };
 const INFO: Record<string, string> = {

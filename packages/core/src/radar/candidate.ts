@@ -29,6 +29,8 @@ export const QUALITY_OBSERVE_AT = 2;
  * con objetivo cercano (LNC a 5x, +8%) no es "en el precio". `subio_mucho_12m`: subida mayor a 100% en 12 meses.
  */
 export const PRICE_THRESHOLDS = { consensusMinUpsidePct: 10, consensusRunupPct: 25, runup12mPct: 100 };
+/** Desde cuánto por encima del consenso el objetivo de la app se avisa (21/9: SMCI 53,15 contra 42,38, +25%). */
+export const TARGET_OVER_CONSENSUS = 1.15;
 
 /**
  * Banda de escala del consenso. Fuera de esto el número no es una opinión audaz: es un precio de otra serie,
@@ -339,6 +341,10 @@ export function decideCandidate(
   const stop = ejecutable && !i.held ? entryStop(i.candles, entryLow) : trailing;
   const target = ejecutable ? computeTarget(entryHigh, stop) : null;
   const size = ejecutable ? positionSize({ entryHigh, stop, portfolioUsd: i.portfolioUsd }, p.sizing) : null;
+  // El objetivo es mecánico (el doble del riesgo desde la entrada). Si el consenso de analistas queda muy por debajo, se
+  // avisa: no cambia el veredicto. El consenso fuera de escala (APH tras su split: 196 contra 78) ya viene descartado.
+  const consenso = consensusTargetOf(close, i.analystTargets, i.verification?.consensusTarget);
+  if (target !== null && consenso !== null && target >= consenso * TARGET_OVER_CONSENSUS) flags.push("objetivo_sobre_consenso");
   const risk = riskScore({ beta: i.f.metrics["beta"] ?? null, atrPct: gate.atrPct, debtToEquity: i.f.metrics["totalDebt/totalEquityAnnual"] ?? null, dollarVolumeUsd: i.f.dollarVolumeUsd, mcapUsd: i.f.mcapUsd });
   return { verdict: reasons.length ? "OBSERVAR" : "COMPRAR", flags, close, entry, entryLow, entryHigh, stop, target, size: size ? { qty: size.qty, sizeUsd: size.sizeUsd } : null, riskScore: risk, reasons, gate };
 }

@@ -126,3 +126,29 @@ describe("verificación con el cuestionario anterior (auditoría del 15/9)", () 
     expect(d.flags).not.toContain("verificacion_apta");
   });
 });
+
+describe("objetivo de la app muy por encima del consenso (21/9, SMCI)", () => {
+  // SMCI: la app le calculaba objetivo 53,15 (el doble del riesgo desde la entrada) y el consenso de analistas era 42,38.
+  // El objetivo de la app es mecánico; si los que siguen a la empresa ven mucho menos, hay que saberlo antes de comprar.
+  const conConsenso = (median: number) => decideCandidate({ ...base, analystTargets: { n: 12, median, min: median * 0.8, max: median * 1.2, latestDate: today } }, policy);
+  it("objetivo de la app 15% o más arriba del consenso → objetivo_sobre_consenso; cerca o debajo → nada; sin consenso → nada", () => {
+    const d = decideCandidate(base, policy);
+    if ("excluded" in d || d.target === null) throw new Error("el fixture tiene que dar objetivo");
+    const lejos = conConsenso(d.target / 1.25);
+    const cerca = conConsenso(d.target / 1.05);
+    const arriba = conConsenso(d.target * 1.2);
+    if ("excluded" in lejos || "excluded" in cerca || "excluded" in arriba) throw new Error("fixture");
+    expect(lejos.flags).toContain("objetivo_sobre_consenso");
+    expect(cerca.flags).not.toContain("objetivo_sobre_consenso");
+    expect(arriba.flags).not.toContain("objetivo_sobre_consenso");
+    expect(d.flags).not.toContain("objetivo_sobre_consenso");
+    // Es un aviso: no cambia el veredicto.
+    expect(lejos.verdict).toBe(d.verdict);
+  });
+  it("las dos salvedades nuevas restan convicción: la investigación 0,3 (como un evento moderado) y el objetivo 0,15", () => {
+    const limpia = convictionFor(row({ flags: [] }), null, {})!;
+    expect(convictionFor(row({ flags: ["investigacion_abierta"] }), null, {})!.conviction).toBeCloseTo(limpia.conviction - 0.3, 4);
+    expect(convictionFor(row({ flags: ["objetivo_sobre_consenso"] }), null, {})!.conviction).toBeCloseTo(limpia.conviction - 0.15, 4);
+    expect(convictionFor(row({ flags: ["investigacion_abierta"] }), null, {})!.cautions.join(" ")).toMatch(/investigación regulatoria abierta/);
+  });
+});

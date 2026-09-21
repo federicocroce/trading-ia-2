@@ -193,3 +193,24 @@ estados, 1 consenso cerca, 2 convicción negativa, 1 Cartera dice REVISAR).
 
 **No se tocó:** las dos reglas de precio ("subió más de 100%", "consenso a menos de 10%"). Chocan con cómo elige la app (elige
 lo que sube y lo saca por haber subido), pero se deciden con la medición, no a ojo.
+
+---
+
+# Quinta parte (21/9): dos avisos que salieron de comparar el plan con la lectura del agente
+
+El 21/9 el plan compraba APH, CDLR, SEZL y SMCI. La revisión automática no corrió (Gemini agotado) y el dueño pidió el
+criterio del agente contra fuentes primarias. Coincidió en todo menos en SMCI, por dos cosas que ninguna regla medía.
+Aprobado por el dueño: convertirlas en reglas, para que la app llegue sola o lo desmienta.
+
+1. **`investigacion_regulatoria`, un tipo nuevo de hecho externo** (organismos, asunto, estado, si la empresa está acusada;
+   ventana de un año). Abierta y verificada → bandera `investigacion_abierta`: resta 0,3 de convicción (como un evento
+   moderado) y va al lado de COMPRAR ("un titular puede abrir con un salto por debajo del stop"). No frena. SMCI: su 10-K dice
+   que DOJ, SEC y BIS siguen abiertas. El comunicado de un estudio de abogados buscando demandantes —lo que había marcado
+   la revisión automática el 18/9— **no** es este hecho, y la skill `/hechos` lo dice. Se suman justice.gov, ftc.gov y bis.gov
+   a las fuentes primarias.
+2. **`objetivo_sobre_consenso`**: el objetivo de la app (mecánico: el doble del riesgo desde la entrada) queda 15% o más por
+   encima del consenso de analistas (SMCI: 53,15 contra 42,38). Resta 0,15 y va al lado de COMPRAR. No cambia el veredicto.
+   Un consenso fuera de escala (APH tras su split: 196 contra 78) ya se descarta antes.
+
+Las dos son avisos con peso en la convicción, no frenos: el orden del plan puede cambiar, y `pnpm frenos` las va a medir.
+De paso: un test de rutas tenía una fecha fija (25/9/2026) que empezó a fallar el 21/9; ahora es relativa.

@@ -347,6 +347,12 @@ describe("revisión antes de comprar (15/9)", () => {
     expect(linea.kind).toBe("seguimiento");
     expect(linea.avisos).toEqual(["verificación web con reservas: investigación antimonopolio", "revisión antes de comprar pendiente"]);
   });
+  it("21/9, SMCI: una investigación regulatoria abierta y un objetivo muy arriba del consenso van al lado de COMPRAR, antes que los avisos de la IA", () => {
+    const p = cuarenta([{ ...compra("SMCI", 1.3, null), flags: ["sorpresa_positiva", "investigacion_abierta", "objetivo_sobre_consenso"] }]);
+    const l = p.lines.find((x) => x.symbol === "SMCI")!;
+    expect(l.avisos).toEqual(["investigación regulatoria abierta: un titular puede abrir con un salto por debajo del stop (el hecho y su fuente están en la ficha)", "el objetivo de la app está 15% o más arriba del consenso de analistas", "revisión antes de comprar pendiente"]);
+    expect(l.rationale).toMatch(/⚠ investigación regulatoria abierta/);
+  });
   it("18/9: los dos avisos juntos van en la misma línea, después de las salvedades que ya tenía", () => {
     const p = cuarenta([{ ...compra("APH", 1.3, null), verification: { verdict: "con_reservas", reason: "guía que no sube", current: true }, cautions: ["se mueve como TSM que ya tenés (correlación 0.81)"] }]);
     expect(p.lines.find((l) => l.symbol === "APH")!.rationale).toMatch(/⚠ se mueve como TSM.* · ⚠ verificación web con reservas: guía que no sube · ⚠ revisión antes de comprar pendiente$/);

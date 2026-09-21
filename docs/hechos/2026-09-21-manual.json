@@ -1,0 +1,11 @@
+{
+  "hechos": [
+    {
+      "tipo": "investigacion_regulatoria",
+      "symbol": "SMCI",
+      "fecha": "2026-08-28",
+      "valor": { "organismos": ["DOJ", "SEC", "BIS"], "asunto": "desvío de servidores a China en violación de controles de exportación (acusación del 19/3/2026 a un cofundador; investigación interna cerrada el 20/8)", "estado": "abierta", "empresaAcusada": false },
+      "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/0001375365/000137536526000022/smci-20260630.htm", "titulo": "10-K del ejercicio cerrado el 30/6/2026 (contingencias)" }
+    }
+  ]
+}

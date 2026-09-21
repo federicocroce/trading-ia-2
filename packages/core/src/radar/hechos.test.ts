@@ -82,3 +82,31 @@ describe("simbolosConPuerta", () => {
     expect(simbolosConPuerta(hs, today, 1)).toEqual(["FIVE"]);
   });
 });
+
+describe("investigación regulatoria abierta (21/9, SMCI)", () => {
+  /*
+   * El 21/9 el plan compraba SMCI y la revisión del dueño con el agente encontró lo que ninguna regla medía: el 10-K dice
+   * que las investigaciones del DOJ, la SEC y la BIS siguen abiertas (desvío de servidores a China, acusación del 19/3 a
+   * un cofundador; la empresa no está acusada). Un titular de esos abre con un salto por debajo del stop. La revisión
+   * automática, en cambio, había marcado el comunicado de un estudio de abogados buscando demandantes: eso NO es un hecho.
+   * Es un hecho, no un veredicto: organismo, asunto, estado y fuente primaria. La app le pone el peso.
+   */
+  const smci: HechoEntrada = { tipo: "investigacion_regulatoria", symbol: "SMCI", fecha: "2026-08-28", valor: { organismos: ["DOJ", "SEC", "BIS"], asunto: "desvío de servidores a China en violación de controles de exportación", estado: "abierta", empresaAcusada: false }, fuente: { url: "https://www.sec.gov/Archives/edgar/data/0001375365/000137536526000022/smci-20260630.htm", titulo: "10-K FY2026" } };
+  it("el esquema acepta el hecho y rechaza un estado que no existe o una lista de organismos vacía", () => {
+    expect(HechoEntradaSchema.safeParse(smci).success).toBe(true);
+    expect(HechoEntradaSchema.safeParse({ ...smci, valor: { ...smci.valor, estado: "quizás" } }).success).toBe(false);
+    expect(HechoEntradaSchema.safeParse({ ...smci, valor: { ...smci.valor, organismos: [] } }).success).toBe(false);
+  });
+  it("abierta y verificada → investigacion_abierta; cerrada, no verificada o vencida (más de un año) → nada", () => {
+    expect(banderasDeHechos([h(smci)], "2026-09-21")).toEqual(["investigacion_abierta"]);
+    expect(banderasDeHechos([h({ ...smci, valor: { ...smci.valor, estado: "cerrada" } } as HechoEntrada)], "2026-09-21")).toEqual([]);
+    expect(banderasDeHechos([h(smci, "no_verificado")], "2026-09-21")).toEqual([]);
+    expect(banderasDeHechos([h(smci)], "2027-09-21")).toEqual([]);
+  });
+  it("el texto dice quién investiga, qué, y si la empresa está acusada", () => {
+    expect(textoDeHecho(h(smci))).toBe("investigación abierta de DOJ, SEC y BIS (desvío de servidores a China en violación de controles de exportación); la empresa no está acusada");
+  });
+  it("no abre la puerta de entrada: es una salvedad, no un motivo para mirar a la empresa", () => {
+    expect(simbolosConPuerta([h(smci)], "2026-09-21")).toEqual([]);
+  });
+});

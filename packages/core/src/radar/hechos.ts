@@ -11,7 +11,7 @@ import { z } from "zod";
  * cables de comunicados). Lo demás se muestra con su estado y no cambia banderas, veredictos ni convicción (13/9: un
  * dato inventado dentro de un recordatorio no puede mover un plan).
  */
-export const HECHO_TIPOS = ["guia", "ganancia_por_reservas", "oferta_de_compra"] as const;
+export const HECHO_TIPOS = ["guia", "ganancia_por_reservas", "oferta_de_compra", "investigacion_regulatoria"] as const;
 export type HechoTipo = (typeof HECHO_TIPOS)[number];
 
 const fechaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "fecha AAAA-MM-DD");
@@ -21,17 +21,25 @@ export const GuiaValorSchema = z.object({ direccion: z.enum(["sube", "baja", "re
 export const ReservasValorSchema = z.object({ trimestre: z.string().min(1), montoUsd: z.number(), puntosCombinado: z.number().nullable(), epsPublicado: z.number(), epsSinReservas: z.number(), epsConsenso: z.number().nullable() });
 export const OfertaValorSchema = z.object({ comprador: z.string().min(1), efectivoUsd: z.number().nullable(), ratio: z.object({ acciones: z.number().positive(), de: z.string().min(1) }).nullable(), etapa: z.string().min(1), cierreEsperado: z.string().nullable(), formulario: z.string().nullable() });
 
+/**
+ * Investigación de un regulador o fiscalía (21/9, SMCI: DOJ, SEC y BIS abiertas según su 10-K). El hecho es que el
+ * organismo investiga, dicho por la empresa en un filing o por el organismo. El comunicado de un estudio de abogados
+ * buscando demandantes NO es esto: no entra aunque venga por un cable de comunicados.
+ */
+export const InvestigacionValorSchema = z.object({ organismos: z.array(z.string().min(1)).min(1), asunto: z.string().min(1), estado: z.enum(["abierta", "cerrada"]), empresaAcusada: z.boolean() });
+
 const comun = { symbol: simbolo, fecha: fechaIso, fuente: FuenteSchema };
 export const HechoEntradaSchema = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("guia"), ...comun, valor: GuiaValorSchema }),
   z.object({ tipo: z.literal("ganancia_por_reservas"), ...comun, valor: ReservasValorSchema }),
   z.object({ tipo: z.literal("oferta_de_compra"), ...comun, valor: OfertaValorSchema }),
+  z.object({ tipo: z.literal("investigacion_regulatoria"), ...comun, valor: InvestigacionValorSchema }),
 ]);
 export type HechoEntrada = z.infer<typeof HechoEntradaSchema>;
 export type HechoExterno = HechoEntrada & { primaria: boolean; estado: "verificado" | "no_verificado"; origen: "agente" | "manual"; detectadoAt: string; vigenteHasta: string | null };
 
 /** Cuánto dura cada tipo de hecho. Una oferta firmada hace meses sigue fijando el precio (AES: 400 días, como EDGAR). */
-export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, oferta_de_compra: 400 };
+export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, oferta_de_compra: 400, investigacion_regulatoria: 365 };
 export const VENTANA_MAXIMA_DIAS = 400;
 /** La puerta de entrada al ranking: como mucho estos símbolos, los más recientes. */
 export const PUERTA_TOPE = 20;
@@ -74,6 +82,10 @@ export function textoDeHecho(h: HechoExterno): string {
   if (h.tipo === "ganancia_por_reservas") {
     return `la ganancia del ${h.valor.trimestre} lleva ${millones(h.valor.montoUsd)} de reservas liberadas: sin eso ${coma(h.valor.epsSinReservas)} contra ${h.valor.epsConsenso === null ? "—" : coma(h.valor.epsConsenso)} esperado`;
   }
+  if (h.tipo === "investigacion_regulatoria") {
+    const quienes = h.valor.organismos.length > 1 ? `${h.valor.organismos.slice(0, -1).join(", ")} y ${h.valor.organismos[h.valor.organismos.length - 1]}` : h.valor.organismos[0]!;
+    return `investigación ${h.valor.estado} de ${quienes} (${h.valor.asunto}); la empresa ${h.valor.empresaAcusada ? "está acusada" : "no está acusada"}`;
+  }
   const v = h.valor;
   if (v.ratio) return `vale ${coma(v.ratio.acciones)} acciones de ${v.ratio.de} (${v.comprador}, ${v.etapa})`;
   return `vendida a ${v.efectivoUsd === null ? "—" : coma(v.efectivoUsd)} en efectivo (${v.comprador}, ${v.etapa})`;
@@ -94,6 +106,7 @@ export function banderasDeHechos(hechos: readonly HechoExterno[], today: string)
       const sobrevive = h.valor.epsConsenso !== null && h.valor.epsSinReservas >= h.valor.epsConsenso;
       if (!sobrevive) add("ganancia_por_reservas");
     } else if (h.tipo === "oferta_de_compra") add("bajo_oferta_de_compra");
+    else if (h.tipo === "investigacion_regulatoria" && h.valor.estado === "abierta") add("investigacion_abierta");
   }
   return out;
 }

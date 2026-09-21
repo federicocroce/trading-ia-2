@@ -51,6 +51,8 @@ const FLAG_LABEL: Record<string, string> = {
   // Hechos externos (17/9): datos con fecha y fuente que carga el importador; la ficha muestra el detalle y el enlace.
   guia_subida: "subió la guía (hecho verificado)",
   guia_recortada: "recortó la guía (hecho verificado)",
+  investigacion_abierta: "investigación regulatoria abierta (hecho verificado): un titular puede abrir con un salto por debajo del stop",
+  objetivo_sobre_consenso: "el objetivo de la app está 15% o más arriba del consenso de analistas",
   guia_reafirmada: "reafirmó la guía (hecho verificado)",
   ganancia_por_reservas: "la ganancia lleva reservas liberadas: sin ellas no llega al consenso (hecho verificado)",
 };

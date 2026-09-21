@@ -15,6 +15,11 @@ export function textoDeHecho(h: HechoExterno): string {
     const consenso = v["epsConsenso"] as number | null;
     return `la ganancia del ${String(v["trimestre"])} lleva ${millones(Number(v["montoUsd"]))} de reservas liberadas: sin eso ${coma(Number(v["epsSinReservas"]))} contra ${consenso === null ? "—" : coma(consenso)} esperado`;
   }
+  if (h.tipo === "investigacion_regulatoria") {
+    const orgs = (v["organismos"] as string[] | undefined) ?? [];
+    const quienes = orgs.length > 1 ? `${orgs.slice(0, -1).join(", ")} y ${orgs[orgs.length - 1]}` : (orgs[0] ?? "—");
+    return `investigación ${String(v["estado"])} de ${quienes} (${String(v["asunto"])}); la empresa ${v["empresaAcusada"] ? "está acusada" : "no está acusada"}`;
+  }
   const ratio = v["ratio"] as { acciones: number; de: string } | null;
   const efectivo = v["efectivoUsd"] as number | null;
   if (ratio) return `vale ${coma(ratio.acciones)} acciones de ${ratio.de} (${String(v["comprador"])}, ${String(v["etapa"])})`;

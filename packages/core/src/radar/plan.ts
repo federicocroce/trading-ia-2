@@ -88,6 +88,15 @@ export function verificationCaution(v: PlanVerification | null | undefined): str
   if (v.verdict === "apto" && v.current === false) return "verificación hecha con el cuestionario anterior";
   return null;
 }
+/**
+ * Salvedades de la fila que no frenan pero tienen que leerse al lado de COMPRAR (21/9, SMCI): el dueño compra lo que dice
+ * COMPRAR, y estas dos son justo lo que el stop no cubre o lo que el objetivo promete de más.
+ */
+export const AVISOS_DE_FILA: Record<string, string> = {
+  investigacion_abierta: "investigación regulatoria abierta: un titular puede abrir con un salto por debajo del stop (el hecho y su fuente están en la ficha)",
+  objetivo_sobre_consenso: "el objetivo de la app está 15% o más arriba del consenso de analistas",
+};
+const avisosDeFila = (flags: readonly string[] | undefined): string[] => (flags ?? []).flatMap((f) => (AVISOS_DE_FILA[f] ? [AVISOS_DE_FILA[f]!] : []));
 /** Los avisos de las dos compuertas, en orden, para la línea del plan. */
 const avisosDeIa = (v: PlanVerification | null | undefined, r: PlanReview | null | undefined): string[] => [verificationCaution(v), reviewCaution(r)].filter((x): x is string => x !== null);
 /**
@@ -459,7 +468,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       if (pool.kind !== "etf") {
         if (faltaVerificar(b.verification)) porVerificar.push(b.symbol);
         if (b.review === null) pendientes.push(b.symbol);
-        avisosDe.set(b.symbol, avisosDeIa(b.verification, b.review));
+        avisosDe.set(b.symbol, [...avisosDeFila(b.flags), ...avisosDeIa(b.verification, b.review)]);
       }
       chosen.push(b);
       if (pool.kind === "stock") placeOf.set(b.symbol, `${idx + 1}° por convicción de ${queue.length} COMPRAR del Radar`);
