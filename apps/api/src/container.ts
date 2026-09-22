@@ -3,7 +3,7 @@ import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRss
 import { DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, todayLocal, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, eventUniverse, scanEventsFor, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
-import { AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiPreTradeReviewer, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
+import { AgentReviewer, AgentVerifier, AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiPreTradeReviewer, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
 import { KeyedRateLimiter, recordingFetch } from "@thesis/core";
 import { StoreUsageRecorder } from "@thesis/pipeline";
 import type { Config, ReasonerConfig } from "./config.js";
@@ -88,13 +88,16 @@ export function buildCardWriter(r: ReasonerConfig, shared: GeminiShared = {}): C
 
 /** Clasificador de titulares del Radar: misma regla de proveedor. Solo clasifica; el veredicto lo deciden las reglas. */
 /** Verificación web por candidata: solo con Gemini (búsqueda de Google integrada). Con Anthropic no hay verificador. */
-export function buildVerifier(r: ReasonerConfig, shared: GeminiShared = {}): CandidateVerifier | null {
+export function buildVerifier(r: ReasonerConfig, shared: GeminiShared = {}, modo: "agente" | "gemini" = "agente"): CandidateVerifier | null {
+  // Con el agente (22/9) la app no busca: la verificación la escribe el agente de Claude por cron.
+  if (modo === "agente") return new AgentVerifier();
   if (r.kind !== "gemini") return null;
   return new GeminiCandidateVerifier({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
 }
 
 /** Revisión antes de comprar (15/9): solo con Gemini, como la verificación. Sin revisor, el plan no la exige. */
-export function buildReviewer(r: ReasonerConfig, shared: GeminiShared = {}): import("@thesis/core").PreTradeReviewer | null {
+export function buildReviewer(r: ReasonerConfig, shared: GeminiShared = {}, modo: "agente" | "gemini" = "agente"): import("@thesis/core").PreTradeReviewer | null {
+  if (modo === "agente") return new AgentReviewer();
   if (r.kind !== "gemini") return null;
   return new GeminiPreTradeReviewer({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
 }
@@ -224,8 +227,8 @@ export function buildContainer(cfg: Config): Container {
     statements: new SecStatements(http),
     news: finnhub ? { companyNews: (s, from, to) => finnhub.companyNews(s, from, to) } : null,
     eventClassifier: buildEventClassifier(cfg.reasoner, gemini),
-    verifier: buildVerifier(cfg.reasoner, gemini),
-    reviewer: buildReviewer(cfg.reasoner, gemini),
+    verifier: buildVerifier(cfg.reasoner, gemini, cfg.verificador),
+    reviewer: buildReviewer(cfg.reasoner, gemini, cfg.verificador),
   };
 
   // Las noticias de las posiciones se leen con la misma cadena que las candidatas (Finnhub + clasificador):

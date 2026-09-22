@@ -29,6 +29,8 @@ export interface Config {
   radar: RadarConfig;
   universe: Universe;
   csvPath: string;
+  /** Quién verifica y revisa antes de comprar (22/9): el agente de Claude por cron (por defecto) o Gemini. */
+  verificador: "agente" | "gemini";
 }
 
 export interface Universe {
@@ -77,6 +79,14 @@ export function resolveReasoner(env: Record<string, string | undefined>): Reason
   };
 }
 
+/** VERIFICADOR=agente|gemini. Por defecto el agente: Gemini gratis se agotaba e inventaba datos (22/9). */
+export function resolveVerificador(env: NodeJS.ProcessEnv): "agente" | "gemini" {
+  const v = env["VERIFICADOR"]?.trim().toLowerCase();
+  if (!v || v === "agente") return "agente";
+  if (v === "gemini") return "gemini";
+  throw new Error(`VERIFICADOR=${v} desconocido (agente|gemini)`);
+}
+
 export interface RadarConfig {
   taxonomy: TaxonomyConfig;
   etfs: EtfConfig[];
@@ -86,10 +96,13 @@ export interface RadarConfig {
   fomc: string[];
   /** Hosts cuya URL vale como fuente primaria de un hecho externo (config/hechos-fuentes.json): reguladores y cables de comunicados. */
   hechosFuentes: string[];
+  /** Topes diarios del agente de verificación (config/verificacion-agente.json, 22/9). */
+  agente: { topeVerificaciones: number; topeRevisiones: number };
 }
 
 const FomcSchema = z.object({ decisiones: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)) });
 const HechosFuentesSchema = z.object({ hostsPrimarios: z.array(z.string().min(1)) });
+const AgenteSchema = z.object({ topeVerificaciones: z.number().int().min(0).max(40), topeRevisiones: z.number().int().min(0).max(20) });
 
 /** Lee y valida config/taxonomia.json, config/etfs.json, config/radar-policy.json, config/argentina.json, config/fomc.json y config/hechos-fuentes.json. */
 export async function loadRadarConfig(root: string): Promise<RadarConfig> {
@@ -101,6 +114,7 @@ export async function loadRadarConfig(root: string): Promise<RadarConfig> {
     argentina: ArgentinaConfigSchema.parse(await read("argentina.json")),
     fomc: FomcSchema.parse(await read("fomc.json")).decisiones,
     hechosFuentes: HechosFuentesSchema.parse(await read("hechos-fuentes.json")).hostsPrimarios,
+    agente: AgenteSchema.parse(await read("verificacion-agente.json")),
   };
 }
 
@@ -152,6 +166,7 @@ export async function loadConfig(root?: string): Promise<Config> {
     radarRefreshCron: process.env["RADAR_REFRESH_CRON"] ?? "50 7 * * 1-5",
     radarPlanCron: process.env["RADAR_PLAN_CRON"] ?? "0 8 1 * *",
     catchupAuto: process.env["CATCHUP_AUTO"] !== "0",
+    verificador: resolveVerificador(process.env),
     radar: await loadRadarConfig(root),
     universe,
     csvPath: process.env["MANUAL_CSV"] ?? path.join(root, "config", "events.csv"),

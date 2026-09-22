@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { AnthropicCardWriter, AnthropicNarrator, AnthropicReasoner, GeminiCardWriter, GeminiNarrator, GeminiReasoner } from "@thesis/reasoner";
-import { resolveReasoner } from "./config.js";
+import { resolveReasoner, resolveVerificador } from "./config.js";
 import { buildCardWriter, buildNarrator, buildReasoner } from "./container.js";
 import { loadRadarConfig } from "./config.js";
 
@@ -70,5 +70,18 @@ describe("loadRadarConfig", () => {
     // El esquema descarta en silencio lo que no declara: sin esta línea, `maxRows` viajaba en el JSON y nunca
     // llegaba al motor, así que el corte habría seguido igual y el arreglo no se notaba (16/9).
     expect(c.policy.candidates.maxRows).toBe(80);
+  });
+});
+
+describe("resolveVerificador (22/9)", () => {
+  it("por defecto el agente de Claude; VERIFICADOR=gemini vuelve a lo anterior; otro valor es un error", () => {
+    expect(resolveVerificador({})).toBe("agente");
+    expect(resolveVerificador({ VERIFICADOR: "Agente" })).toBe("agente");
+    expect(resolveVerificador({ VERIFICADOR: "gemini" })).toBe("gemini");
+    expect(() => resolveVerificador({ VERIFICADOR: "otro" })).toThrow(/agente\|gemini/);
+  });
+  it("los topes diarios del agente salen de config/verificacion-agente.json: 8 verificaciones y 5 revisiones", async () => {
+    const root = new URL("../../..", import.meta.url).pathname;
+    expect((await loadRadarConfig(decodeURIComponent(root))).agente).toEqual({ topeVerificaciones: 8, topeRevisiones: 5 });
   });
 });

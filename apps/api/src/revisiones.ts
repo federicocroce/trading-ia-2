@@ -24,7 +24,9 @@ const portfolioUsd = async (c: Container) => (await c.store.latestRisk().catch((
 export async function asegurarRevisiones(c: Container, opts: { hoy?: string; rearmar?: () => Promise<unknown>; ahora?: () => number } = {}): Promise<void> {
   const reviewer = c.radarDeps.reviewer;
   const st = (c.revisiones ??= { ultimoIntento: new Map(), fallas: new Map(), corriendo: false });
-  if (!reviewer || st.corriendo) return;
+  // Con el agente de Claude (22/9) la revisión la escribe el agente: si esta vuelta corriera, fallaría tres veces y
+  // guardaría "no pude verificar" en cada línea del plan.
+  if (!reviewer || reviewer.porAgente || st.corriendo) return;
   st.corriendo = true;
   try {
     const hoy = opts.hoy ?? todayLocal();

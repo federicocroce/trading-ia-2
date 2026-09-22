@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { medirFrenos, todayLocal } from "@thesis/core";
-import { buildContributionPlan, checkRun, explorarMercado, importarHechos, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
+import { buildContributionPlan, checkRun, explorarMercado, importarDelAgente, importarHechos, pendientesDelAgente, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
 import { loadConfig, findRoot } from "./config.js";
 import { buildContainer } from "./container.js";
 
@@ -16,7 +16,7 @@ process.on("SIGINT", () => { stop = true; console.log("\n[radar] deteniendo al t
 const deps = { ...c.radarDeps, shouldStop: () => stop, onProgress: (p: { done: number; total: number; stage: string }) => console.log(`[radar] ${p.stage}: ${p.done}/${p.total}`) };
 
 // El registro de uso atribuye cada pedido al mismo paso que en "ponerme al día" (scan/rank → scan; refresh/measure → radar).
-const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", frenos: "radar", reverificar: "radar" };
+const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", frenos: "radar", reverificar: "radar", verificar: "agente" };
 let code = 0;
 await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   if (cmd === "scan") console.log(await scanUniverse(deps, { scanDate: today, today }));
@@ -38,6 +38,33 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       const contra = g.contraSinFreno === null ? "" : ` · ${g.contraSinFreno > 0 ? "+" : ""}${g.contraSinFreno} puntos contra lo que ningún freno tocó`;
       console.log(`[frenos] ${g.titulo}: ${g.n} filas de ${g.simbolos} símbolos · ${alfa}${contra}${g.n > 0 && g.pocasFilas ? " · POCOS SÍMBOLOS: es ruido" : ""}${g.lista.length ? ` · ${g.lista.slice(0, 12).join(" ")}${g.lista.length > 12 ? " …" : ""}` : ""}`);
     }
+  }
+  else if (cmd === "verificar") {
+    // La puerta del agente de verificación (22/9). Solo lectura con --pendientes; --importar valida, decide por regla y
+    // guarda (con --ensayo, decide y muestra sin guardar), y después le pide a la API que refresque esas filas y el plan.
+    const args = process.argv.slice(3);
+    const val = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
+    if (args.includes("--pendientes")) {
+      const simbolos = args.filter((a, i) => !a.startsWith("--") && args[i - 1] !== "--salida");
+      const p = await pendientesDelAgente(deps, { today, topeVerificaciones: cfg.radar.agente.topeVerificaciones, topeRevisiones: cfg.radar.agente.topeRevisiones, ...(simbolos.length ? { simbolos } : {}) });
+      const salida = val("--salida");
+      const json = JSON.stringify(p, null, 2);
+      if (salida) { await writeFile(path.isAbsolute(salida) ? salida : path.resolve(await findRoot(), salida), json); console.log(`[verificar] ${p.verificar.length} a verificar y ${p.revisar.length} a revisar → ${salida}`); }
+      else console.log(json);
+    } else if (val("--importar")) {
+      const archivo = val("--importar")!;
+      const ruta = path.isAbsolute(archivo) ? archivo : path.resolve(await findRoot(), archivo);
+      const ensayo = args.includes("--ensayo");
+      const r = await importarDelAgente(c.store, JSON.parse(await readFile(ruta, "utf8")), { hostsPrimarios: cfg.radar.hechosFuentes, today, version: deps.verifier?.promptVersion ?? "", versionRevision: deps.reviewer?.promptVersion ?? "", ensayo });
+      console.log(JSON.stringify(r, null, 2));
+      console.log(`[verificar] ${ensayo ? "ENSAYO, no se guardó nada: " : ""}${r.verificados.length} verificaciones, ${r.revisados.length} revisiones, ${r.rechazados.length} rechazadas`);
+      const simbolos = [...new Set([...r.verificados, ...r.revisados].map((x) => x.symbol))];
+      if (!ensayo && simbolos.length) {
+        const res = await fetch(`http://localhost:${cfg.port}/radar/tras-verificar`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ symbols: simbolos }) }).catch((e: unknown) => e as Error);
+        console.log(res instanceof Error || !res.ok ? `[verificar] la API no respondió (${res instanceof Error ? res.message : res.status}): el próximo refresco lo toma igual` : "[verificar] la API refrescó esas filas y rearmó el plan");
+      }
+      if (!r.verificados.length && !r.revisados.length) code = 1;
+    } else { console.error("uso: tsx src/radar-cli.ts verificar --pendientes [--salida archivo] [SÍMBOLOS…] | verificar --importar archivo [--ensayo]"); code = 1; }
   }
   else if (cmd === "reverificar") {
     // A pedido (18/9): una fila en OBSERVAR por un "evitar" no se vuelve a verificar sola. Sin --buscar re-estructura el

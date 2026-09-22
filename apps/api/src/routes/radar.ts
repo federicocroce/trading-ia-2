@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { todayLocal, assessRegime, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
 import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, comparables, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
+import { refrescarTrasVerificar } from "../verificaciones.js";
 import { state } from "../container.js";
 
 /** Rutas del Radar (spec etapa 2 §12). El barrido corre en segundo plano y se consulta por estado. */
@@ -169,6 +170,13 @@ export function radarRoutes(c: Container) {
     await replan(deps, { today: t, portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
     await c.controlar?.().catch(() => null);
     return ctx.json({ ...r, measured });
+  });
+  // El importador del agente de verificación avisa que guardó (22/9): refrescar esas filas, rearmar el plan y controlar.
+  app.post("/radar/tras-verificar", async (ctx) => {
+    const body = (await ctx.req.json().catch(() => ({}))) as { symbols?: unknown };
+    const symbols = Array.isArray(body.symbols) ? body.symbols.filter((s): s is string => typeof s === "string").map((s) => s.toUpperCase()) : [];
+    await refrescarTrasVerificar(c, today(ctx), symbols);
+    return ctx.json({ refrescados: symbols });
   });
   app.get("/radar/plan", async (ctx) => ctx.json(await store.latestPlan()));
   app.post("/radar/plan", async (ctx) => {

@@ -61,3 +61,16 @@ describe("verificaciones pendientes (15/9)", () => {
     expect(m.refrescados).toEqual([]);
   });
 });
+
+describe("con el agente de Claude (22/9)", () => {
+  it("la vuelta de cada 15 minutos no corre: la verificación la escribe el agente por cron", async () => {
+    const store = new MemoryStore();
+    await store.upsertCandidates([fila("APH", 2)]);
+    let llamadas = 0;
+    const verifier = { promptVersion: "agente-v1-x", porAgente: true, verify: async () => { llamadas++; throw new Error("no"); } };
+    const refrescados: string[][] = [];
+    await asegurarVerificaciones({ store, radarDeps: { store, verifier } } as unknown as Container, { hoy: HOY, ahora: () => 0, refrescar: async (x) => { refrescados.push(x); } });
+    expect(llamadas).toBe(0);
+    expect(refrescados).toEqual([]);
+  });
+});

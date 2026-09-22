@@ -52,3 +52,15 @@ describe("revisiones pendientes (15/9)", () => {
     expect(m.rearmados()).toBe(0);
   });
 });
+
+describe("con el agente de Claude (22/9)", () => {
+  it("la vuelta no corre: si corriera, fallaría tres veces y guardaría 'no pude verificar' en cada línea", async () => {
+    const store = new MemoryStore();
+    await store.savePlan(plan);
+    let llamadas = 0;
+    const reviewer = { promptVersion: "agente-r1-x", porAgente: true, review: async () => { llamadas++; throw new Error("no"); } };
+    for (let i = 0; i < 4; i++) await asegurarRevisiones({ store, radarDeps: { store, reviewer } } as unknown as Container, { hoy: HOY, ahora: () => i * 3_600_000, rearmar: async () => {} });
+    expect(llamadas).toBe(0);
+    expect(await store.preTradeReviews(HOY)).toEqual([]);
+  });
+});

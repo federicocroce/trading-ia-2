@@ -31,7 +31,8 @@ const portfolioUsd = async (c: Container) => (await c.store.latestRisk().catch((
 export async function asegurarVerificaciones(c: Container, opts: { hoy?: string; ahora?: () => number; refrescar?: (simbolos: string[]) => Promise<unknown> } = {}): Promise<void> {
   const verifier = c.radarDeps.verifier;
   const st = (c.verificaciones ??= { ultimoIntento: new Map(), intentos: new Map(), corriendo: false });
-  if (!verifier || st.corriendo) return;
+  // Con el agente de Claude (22/9) la verificación la escribe el agente por cron: esta vuelta no tiene nada que hacer.
+  if (!verifier || verifier.porAgente || st.corriendo) return;
   st.corriendo = true;
   try {
     const hoy = opts.hoy ?? todayLocal();
@@ -61,15 +62,24 @@ export async function asegurarVerificaciones(c: Container, opts: { hoy?: string;
       if (v && v.promptVersion === verifier.promptVersion) bien.push(s);
     }
     if (!bien.length) return;
-    const refrescar = opts.refrescar ?? (async (simbolos: string[]) => {
-      const usd = await portfolioUsd(c);
-      await refreshRadar(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos });
-      await refreshWatchlist(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos });
-      await replan(c.radarDeps, { today: hoy, portfolioUsd: usd });
-      await c.controlar?.();
-    });
+    const refrescar = opts.refrescar ?? ((simbolos: string[]) => refrescarTrasVerificar(c, hoy, simbolos));
     await refrescar(bien);
   } finally {
     st.corriendo = false;
   }
+}
+
+/**
+ * Lo que se hace cuando llega una verificación o una revisión nueva: refrescar solo esas filas (Radar y seguimiento),
+ * rearmar el plan y correr los controles. Lo usa esta vuelta y `POST /radar/tras-verificar`, que llama el importador del
+ * agente (22/9).
+ */
+export async function refrescarTrasVerificar(c: Container, hoy: string, simbolos: string[]): Promise<void> {
+  const usd = await portfolioUsd(c);
+  if (simbolos.length) {
+    await refreshRadar(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos });
+    await refreshWatchlist(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos });
+  }
+  await replan(c.radarDeps, { today: hoy, portfolioUsd: usd });
+  await c.controlar?.();
 }
