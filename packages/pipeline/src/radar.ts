@@ -784,7 +784,8 @@ export async function replan(deps: RadarDeps, opts: { today: string; portfolioUs
  */
 export async function reviewPending(deps: RadarDeps, opts: { today: string; symbols?: string[]; budget?: number }): Promise<{ reviewed: string[]; errors: Array<{ symbol: string; error: string }> }> {
   const reviewer = deps.reviewer;
-  if (!reviewer) return { reviewed: [], errors: [] };
+  // Con el agente (22/9) la revisión la escribe el agente por cron: acá no se llama.
+  if (!reviewer || reviewer.porAgente) return { reviewed: [], errors: [] };
   const plan = await deps.store.latestPlan();
   const pendientes = (opts.symbols ?? plan?.reviewsPending ?? []).slice(0, opts.budget ?? 6);
   const filas = new Map((await deps.store.latestCandidates()).map((c) => [c.symbol, c]));

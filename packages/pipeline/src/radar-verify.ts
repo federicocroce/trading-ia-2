@@ -44,6 +44,11 @@ export async function verifyFor(deps: VerifyDeps, symbol: string, opts: { today:
   const verifier = deps.verifier;
   if (!verifier) return null;
   const sym = symbol.toUpperCase();
+  // Con el agente (22/9) la app no busca: lee lo que el agente guardó, sin llamar ni gastar presupuesto.
+  if (verifier.porAgente) {
+    const guardada = await deps.store.verification(sym).catch(() => null);
+    return guardada ? summary(guardada) : null;
+  }
   const prev = await deps.store.verification(sym);
   const fresca = !opts.forzar && prev !== null && ageDays(prev.date, opts.today) < VERIFY_FRESH_DAYS;
   if (prev && fresca && prev.promptVersion === verifier.promptVersion) return summary(prev);

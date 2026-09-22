@@ -21,3 +21,4 @@ export * from "./radar-verify.js";
 export * from "./universe.js";
 export * from "./consistency.js";
 export * from "./hechos.js";
+export * from "./agente.js";
