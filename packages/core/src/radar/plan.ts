@@ -552,7 +552,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   const quedaron = (xs: string[]) => [...new Set(xs)].filter((s) => enElPlan.has(s));
   pendientes.splice(0, pendientes.length, ...quedaron(pendientes));
   porVerificar.splice(0, porVerificar.length, ...quedaron(porVerificar));
-  if (pendientes.length) notes.push(`Revisión antes de comprar pendiente: ${pendientes.join(", ")}. Corre sola en los próximos minutos: si encuentra una objeción, queda escrita con ⚠ en la línea y "por qué cambió" lo dice; si querés, esperá a que termine.`);
+  if (pendientes.length) notes.push(`Revisión antes de comprar pendiente: ${pendientes.join(", ")}. Si encuentra una objeción, queda escrita con ⚠ en la línea y "por qué cambió" lo dice.`);
   const totalNucleo = finales.filter((l) => l.kind === "nucleo").reduce((t, l) => t + l.amountUsd, 0);
   const razonNucleo = `núcleo: recibe USD ${miles(totalNucleo)} de ${miles(aporte)} (${Math.round((totalNucleo / aporte) * 100)}%): ${partesDelNucleo.map((x) => `${x.reason} (USD ${miles(x.amount)})`).join(" + ")}`;
   for (const l of finales) {

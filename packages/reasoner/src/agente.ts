@@ -11,6 +11,12 @@ import { RESERVA_TIPOS, VERDICTS, aplicarExtraordinarios, aplicarFaltantes, apli
  */
 export const EVITAR_MOTIVOS = ["item_unico", "ingresos_cayendo_sin_guia", "evento_binario", "precio_sobre_consenso_tras_suba", "catalizadores_consumidos"] as const;
 export const OBJECION_TIPOS = ["resultados", "regulacion", "capital", "analistas", "noticias"] as const;
+/**
+ * Qué dato faltó. Solo los críticos (todos menos `otro`) bajan un apto: en el ensayo del 22/9 los agentes anotaban como
+ * faltante el rango de 5 años del P/E o un consenso que difería entre fuentes, y con eso todo quedaba "con reservas".
+ * Son los datos críticos del criterio escrito desde el 15/9.
+ */
+export const FALTANTE_DATOS = ["ganancia_limpia", "extraordinarios", "guia", "regulatorio", "ofertas_de_acciones", "banco_inmobiliario", "otro"] as const;
 
 export const CUESTIONARIO_VERIFICACION_AGENTE = `VERIFICACIÓN. Para cada símbolo, leé el ÚLTIMO comunicado de resultados trimestrales (8-K con exhibit 99 o 6-K en sec.gov, o el comunicado en prnewswire/globenewswire/businesswire), el último 10-Q o 10-K y los Form 4 de los últimos 90 días. Respondé en JSON, sin prosa alrededor, un objeto por símbolo con esta forma exacta:
 { "symbol", "fecha": hoy AAAA-MM-DD,
@@ -21,9 +27,10 @@ export const CUESTIONARIO_VERIFICACION_AGENTE = `VERIFICACIÓN. Para cada símbo
   "proximosResultados": fecha o null,
   "reservas": [{ "tipo": uno de ${RESERVA_TIPOS.join(", ")}, "detalle": una oración con el dato, "fuente": { "url", "titulo" } }],
   "evitar": [{ "motivo": uno de ${EVITAR_MOTIVOS.join(", ")}, "detalle", "fuente": { "url", "titulo" } }],
-  "faltantes": [datos críticos que no encontraste: ganancia limpia y consenso, ítems no recurrentes, guía, riesgos regulatorios o de licencias, ofertas de acciones de 90 días, en bancos inmobiliario comercial sobre capital],
+  "faltantes": [{ "dato": uno de ${FALTANTE_DATOS.join(", ")}, "detalle" }] (lo que buscaste y no encontraste; los críticos son la ganancia limpia y su consenso, los ítems no recurrentes, la guía, los riesgos regulatorios o de licencias, las ofertas de acciones de 90 días y, en bancos, el inmobiliario comercial sobre capital; cualquier otro dato es "otro"),
   "fuentes": [{ "url", "titulo" }] (todas las que usaste, al menos una),
   "resumen": el informe en texto, en español, con fechas }
+Textos cortos: una oración, hasta 200 caracteres (lo más largo se recorta). Si la empresa no da guía, escribí "guia": "no da guía" (no es un faltante). Un dato que no encontraste NO es una reserva: va a "faltantes".
 Qué es cada cosa. RESERVA: una salvedad seria con su dato y su fuente (extraordinarios con su monto; valuación con los tres números; banco con inmobiliario comercial arriba de 300% del capital y fondeo mayorista creciendo; pico de ciclo; guía que no sube con precios presionados; insiders vendiendo fuerte acciones que YA tenían —ejercer opciones y vender el mismo día no es reserva—; un solo analista; adquisición apalancada pendiente; demanda de accionistas con moción pendiente). EVITAR: la ganancia se explica por un ítem único y sin él pierde o apenas gana (item_unico); ingresos cayendo y guía sin sostén; evento binario en menos de 6 semanas (decisión regulatoria, panel, juicio); precio en o sobre el objetivo de consenso tras subir más de 50% en 12 meses; catalizadores ya consumidos con núcleo débil.`;
 
 export const CUESTIONARIO_REVISION_AGENTE = `REVISIÓN ANTES DE COMPRAR. Para cada símbolo de "revisar", buscá lo publicado en los últimos 30 días y lo que vence en los próximos 6 meses que cambie la compra de hoy: resultados (ganancia por ítems únicos, guía recortada o retirada), regulación (licencias o permisos que vencen, investigaciones de un organismo, sanciones, litigios materiales con fecha), capital (ofertas de acciones o convertibles, ventas grandes del accionista de control, rating de deuda), analistas (rebajas de los últimos 30 días), noticias de los últimos 7 días. Respondé en JSON, un objeto por símbolo:
@@ -43,8 +50,10 @@ export const AGENTE_REVISION_VERSION = `agente-r1-${h12(CUESTIONARIO_REVISION_AG
 
 const fechaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "fecha AAAA-MM-DD");
 const simbolo = z.string().regex(/^[A-Za-z][A-Za-z0-9.-]{0,9}$/, "símbolo");
-const Fuente = z.object({ url: z.string().url(), titulo: z.string().min(1).max(200) }).strict();
-const texto = (max: number) => z.string().min(1).max(max);
+/** Un texto más largo que el límite se recorta: en el ensayo del 22/9 los agentes escribían de más y se rechazaba todo. */
+const texto = (max: number) => z.string().min(1).transform((x) => x.trim().slice(0, max));
+const Fuente = z.object({ url: z.string().url(), titulo: texto(200) });
+const VALUACION_VACIA = { texto: null, metric: null, current: null, min5y: null, max5y: null, growthAccelerating: null };
 
 export const VerificacionAgenteSchema = z
   .object({
@@ -55,25 +64,23 @@ export const VerificacionAgenteSchema = z
         fechaReporte: fechaIso.nullable(),
         ventasVsConsenso: texto(200).nullable(),
         gananciaVsConsenso: texto(200).nullable(),
-        extraordinarios: z.array(z.object({ detalle: texto(200), montoUsd: z.number().nullable() }).strict()).max(12),
+        extraordinarios: z.array(z.object({ detalle: texto(200), montoUsd: z.number().nullable() })).max(12),
         epsLimpia: z.number().nullable(),
         epsConsenso: z.number().nullable(),
         guia: texto(300).nullable(),
       })
-      .strict()
       .nullable(),
-    analistas: z.array(z.object({ fecha: fechaIso, firma: texto(80), accion: texto(40), objetivo: z.number().nullable() }).strict()).max(40),
+    analistas: z.array(z.object({ fecha: fechaIso, firma: texto(80), accion: texto(40), objetivo: z.number().nullable() })).max(40),
     consensoObjetivo: z.number().nullable(),
-    eventos: z.array(z.object({ fecha: fechaIso, tipo: texto(40), titular: texto(300) }).strict()).max(40),
-    valuacion: z.object({ texto: texto(300).nullable(), metric: texto(60).nullable(), current: z.number().nullable(), min5y: z.number().nullable(), max5y: z.number().nullable(), growthAccelerating: z.boolean().nullable() }).strict(),
+    eventos: z.array(z.object({ fecha: fechaIso, tipo: texto(40), titular: texto(300) })).max(40),
+    valuacion: z.object({ texto: texto(300).nullable(), metric: texto(60).nullable(), current: z.number().nullable(), min5y: z.number().nullable(), max5y: z.number().nullable(), growthAccelerating: z.boolean().nullable() }).nullable().transform((v) => v ?? VALUACION_VACIA),
     proximosResultados: fechaIso.nullable(),
-    reservas: z.array(z.object({ tipo: z.enum(RESERVA_TIPOS), detalle: texto(200), fuente: Fuente }).strict()).max(12),
-    evitar: z.array(z.object({ motivo: z.enum(EVITAR_MOTIVOS), detalle: texto(200), fuente: Fuente }).strict()).max(6),
-    faltantes: z.array(texto(200)).max(8),
+    reservas: z.array(z.object({ tipo: z.enum(RESERVA_TIPOS), detalle: texto(200), fuente: Fuente })).max(12),
+    evitar: z.array(z.object({ motivo: z.enum(EVITAR_MOTIVOS), detalle: texto(200), fuente: Fuente })).max(6),
+    faltantes: z.array(z.object({ dato: z.enum(FALTANTE_DATOS), detalle: texto(200) })).transform((xs) => xs.slice(0, 12)),
     fuentes: z.array(Fuente).min(1).max(40),
     resumen: texto(8000),
-  })
-  .strict();
+  });
 export type VerificacionAgente = z.infer<typeof VerificacionAgenteSchema>;
 
 export const RevisionAgenteSchema = z
@@ -82,11 +89,10 @@ export const RevisionAgenteSchema = z
     fecha: fechaIso,
     busquedaHecha: z.boolean(),
     motivoSinBusqueda: texto(300).nullable(),
-    objeciones: z.array(z.object({ tipo: z.enum(OBJECION_TIPOS), detalle: texto(300), fecha: fechaIso, fuente: Fuente }).strict()).max(12),
+    objeciones: z.array(z.object({ tipo: z.enum(OBJECION_TIPOS), detalle: texto(300), fecha: fechaIso, fuente: Fuente })).max(12),
     fuentes: z.array(Fuente).max(40),
     resumen: z.string().max(6000),
-  })
-  .strict();
+  });
 export type RevisionAgente = z.infer<typeof RevisionAgenteSchema>;
 
 const MODELO = "claude (agente)";
@@ -100,21 +106,26 @@ const millones = (usd: number) => `USD ${coma(usd / 1e6)} M`;
  * trimestre también.
  */
 export function dictamenDeVerificacion(v: VerificacionAgente, hostsPrimarios: readonly string[]): VerifierResult {
-  const evitarConFuente = v.evitar.filter((e) => esFuentePrimaria(e.fuente.url, hostsPrimarios));
-  const bajanAReserva: Reserva[] = v.evitar.filter((e) => !evitarConFuente.includes(e)).map((e) => ({ tipo: "otra", detalle: e.detalle }));
-  const reservas: Reserva[] = [...v.reservas.map((r) => ({ tipo: r.tipo, detalle: r.detalle })), ...bajanAReserva];
-  const guia = v.ultimoTrimestre?.guia ?? null;
-  const sinReservas = `sin reservas con fuente${guia ? `; guía: ${guia}` : ""}`.slice(0, 300);
-  let decision: { verdict: (typeof VERDICTS)[number]; reason: string; reservas: Reserva[] };
-  if (evitarConFuente.length) {
-    decision = { verdict: "evitar", reason: evitarConFuente[0]!.detalle, reservas };
+  const deAbogados = (f: { detalle: string; fuente: { url: string; titulo: string } }) => ESTUDIO_DE_ABOGADOS.test(`${f.detalle} ${f.fuente.titulo} ${f.fuente.url}`);
+  const q = v.ultimoTrimestre;
+  // Evitar: con fuente primaria, que no sea un estudio de abogados, y si depende del trimestre, con el trimestre encontrado.
+  const dependeDelTrimestre = (m: string) => m === "item_unico" || m === "ingresos_cayendo_sin_guia";
+  const evitarValido = v.evitar.filter((e) => !deAbogados(e) && esFuentePrimaria(e.fuente.url, hostsPrimarios) && !(q === null && dependeDelTrimestre(e.motivo)));
+  const bajanAReserva: Reserva[] = v.evitar.filter((e) => !evitarValido.includes(e) && !deAbogados(e)).map((e) => ({ tipo: "otra", detalle: e.detalle }));
+  // Un dato que no encontró no es una reserva (ensayo del 22/9): va por faltantes.
+  const reservas: Reserva[] = [...v.reservas.filter((r) => r.tipo !== "dato_faltante" && !deAbogados(r)).map((r) => ({ tipo: r.tipo, detalle: r.detalle })), ...bajanAReserva];
+  // Faltantes críticos. La ganancia limpia contra el consenso la exige el código aunque el agente no la anote (falla cerrado).
+  const criticos = v.faltantes.filter((f) => f.dato !== "otro").map((f) => f.detalle);
+  if ((q === null || q.epsLimpia === null || q.epsConsenso === null) && !v.faltantes.some((f) => f.dato === "ganancia_limpia")) criticos.unshift("la ganancia limpia contra el consenso");
+  const sinReservas = `sin reservas con fuente${q?.guia ? `; guía: ${q.guia}` : ""}`.slice(0, 300);
+  let final: { verdict: (typeof VERDICTS)[number]; reason: string };
+  if (evitarValido.length) {
+    final = { verdict: "evitar", reason: evitarValido[0]!.detalle };
   } else {
     const inicial = { verdict: reservas.length ? ("con_reservas" as const) : ("apto" as const), reason: reservas[0]?.detalle ?? sinReservas, reservas };
-    const tras = aplicarValuacion({ ...aplicarExtraordinarios(inicial, { limpia: v.ultimoTrimestre?.epsLimpia ?? null, consenso: v.ultimoTrimestre?.epsConsenso ?? null }), valuationNumbers: v.valuacion });
-    decision = { verdict: tras.verdict, reason: tras.reason, reservas: tras.reservas };
+    const tras = aplicarValuacion({ ...aplicarExtraordinarios(inicial, { limpia: q?.epsLimpia ?? null, consenso: q?.epsConsenso ?? null }), valuationNumbers: v.valuacion });
+    final = aplicarFaltantes({ verdict: tras.verdict, reason: tras.reason }, criticos);
   }
-  const final = aplicarFaltantes({ verdict: decision.verdict, reason: decision.reason }, v.faltantes);
-  const q = v.ultimoTrimestre;
   return {
     verdict: final.verdict,
     reason: final.reason.slice(0, 300),

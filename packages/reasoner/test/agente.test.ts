@@ -32,10 +32,23 @@ describe("dictamenDeVerificacion: la app decide con los hallazgos del agente", (
     const v = base({ symbol: "BSM", ultimoTrimestre: { ...base().ultimoTrimestre!, epsLimpia: 0.31, epsConsenso: 0.36 }, reservas: [{ tipo: "extraordinarios", detalle: "ganancia por venta de activos: sin ella 0,31 contra 0,36", fuente: sec() }] });
     expect(dictamenDeVerificacion(v, HOSTS)).toMatchObject({ verdict: "con_reservas", reason: "ganancia por venta de activos: sin ella 0,31 contra 0,36" });
   });
-  it("extraordinarios sin los dos números no es reserva (el criterio escrito lo exige); si falta el dato, vuelve por FALTANTES", () => {
+  it("extraordinarios sin los dos números: no es reserva, pero el código anota que falta la ganancia limpia y queda con reservas (falla cerrado)", () => {
+    // Revisión del 22/9: si el agente se olvidaba de anotarlo en faltantes, la reserva caía y quedaba apto: el patrón de NBN.
     const sinNumeros = base({ ultimoTrimestre: { ...base().ultimoTrimestre!, epsLimpia: null }, reservas: [{ tipo: "extraordinarios", detalle: "hubo un ítem", fuente: sec() }] });
-    expect(dictamenDeVerificacion(sinNumeros, HOSTS).verdict).toBe("apto");
-    expect(dictamenDeVerificacion({ ...sinNumeros, faltantes: ["ganancia por acción limpia contra el consenso"] }, HOSTS).verdict).toBe("con_reservas");
+    const r = dictamenDeVerificacion(sinNumeros, HOSTS);
+    expect(r.verdict).toBe("con_reservas");
+    expect(r.reason).toMatch(/falta verificar: la ganancia limpia contra el consenso/);
+    // Sin último trimestre, lo mismo.
+    expect(dictamenDeVerificacion(base({ ultimoTrimestre: null }), HOSTS).verdict).toBe("con_reservas");
+  });
+  it("22/9, ensayo real: los faltantes que no son críticos (el rango de 5 años del P/E, un consenso que difiere entre fuentes) no bajan un apto", () => {
+    const v = base({ faltantes: [{ dato: "otro", detalle: "mínimo y máximo de 5 años del P/E adelantado" }, { dato: "otro", detalle: "consenso de ventas exacto" }] });
+    expect(dictamenDeVerificacion(v, HOSTS).verdict).toBe("apto");
+    expect(dictamenDeVerificacion(base({ faltantes: [{ dato: "regulatorio", detalle: "estado de la licencia" }] }), HOSTS)).toMatchObject({ verdict: "con_reservas", reason: "falta verificar: estado de la licencia" });
+  });
+  it("22/9, ensayo real: una 'reserva' que es un dato que no encontró no es reserva", () => {
+    const v = base({ reservas: [{ tipo: "dato_faltante", detalle: "No encontré el rango de 5 años del P/E", fuente: sec() }] });
+    expect(dictamenDeVerificacion(v, HOSTS).verdict).toBe("apto");
   });
   it("ATEX 12/9: evitar por un ítem único con 8-K en sec.gov → evitar, con ese motivo", () => {
     const v = base({ symbol: "ATEX", evitar: [{ motivo: "item_unico", detalle: "la ganancia del trimestre es una ganancia contable por venta; sin ella pierde 12 M", fuente: sec() }] });
@@ -44,14 +57,23 @@ describe("dictamenDeVerificacion: la app decide con los hallazgos del agente", (
   it("AII: un evitar sin fuente primaria baja a reserva; y un evitar que no encontró ni el trimestre pasa a con reservas", () => {
     const sinPrimaria = base({ symbol: "AII", evitar: [{ motivo: "catalizadores_consumidos", detalle: "el mercado ya descontó la temporada", fuente: portal }] });
     expect(dictamenDeVerificacion(sinPrimaria, HOSTS)).toMatchObject({ verdict: "con_reservas", reason: "el mercado ya descontó la temporada" });
-    const ciego = base({ symbol: "AII", ultimoTrimestre: null, evitar: [{ motivo: "item_unico", detalle: "x", fuente: sec() }], faltantes: ["último trimestre reportado", "analistas", "eventos", "valuación", "ganancia operativa", "próxima fecha de resultados"] });
+    // Un evitar que depende del trimestre (ítem único, ingresos cayendo) sin haber encontrado el trimestre no vale.
+    const ciego = base({ symbol: "AII", ultimoTrimestre: null, evitar: [{ motivo: "item_unico", detalle: "x", fuente: sec() }] });
     expect(dictamenDeVerificacion(ciego, HOSTS).verdict).toBe("con_reservas");
+    // Revisión del 22/9: un evento binario con fuente del regulador sigue siendo evitar aunque no haya encontrado el trimestre.
+    const fda = base({ symbol: "BIO", ultimoTrimestre: null, evitar: [{ motivo: "evento_binario", detalle: "decisión de la FDA el 2026-10-15", fuente: { url: "https://www.fda.gov/advisory-committees/x", titulo: "FDA" } }] });
+    expect(dictamenDeVerificacion(fda, [...HOSTS, "fda.gov"]).verdict).toBe("evitar");
   });
   it("APH: valuación 29,5x en un rango de 22 a 32,5 no está en su máximo → apto, con los números", () => {
     const v = base({ symbol: "APH", valuacion: { texto: "P/E adelantado 29,5x", metric: "P/E adelantado", current: 29.5, min5y: 22, max5y: 32.5, growthAccelerating: true }, reservas: [{ tipo: "valuacion", detalle: "en el tercio superior de 5 años", fuente: sec() }] });
     const r = dictamenDeVerificacion(v, HOSTS);
     expect(r.verdict).toBe("apto");
     expect(r.reason).toContain("29,5");
+  });
+  it("22/9: un evitar o una reserva que sale del comunicado de un estudio de abogados (aunque venga por un cable) no cuenta", () => {
+    const cable = { url: "https://www.globenewswire.com/news-release/2026/09/17/x/kuehn-law-encourages-investors.html", titulo: "Kuehn Law Encourages Investors of X" };
+    const v = base({ evitar: [{ motivo: "evento_binario", detalle: "investigación a la empresa", fuente: cable }], reservas: [{ tipo: "demanda", detalle: "Kuehn Law encourages investors to contact the firm", fuente: cable }] });
+    expect(dictamenDeVerificacion(v, HOSTS).verdict).toBe("apto");
   });
   it("sin reservas: apto con la guía en el motivo; y los campos van a la forma que guarda la app", () => {
     const r = dictamenDeVerificacion(base({ analistas: [{ fecha: "2026-09-10", firma: "UBS", accion: "sube objetivo", objetivo: 150 }], consensoObjetivo: 140, proximosResultados: "2026-11-05", valuacion: { texto: "22x adelantado", metric: null, current: null, min5y: null, max5y: null, growthAccelerating: null } }), HOSTS);
@@ -78,6 +100,17 @@ describe("dictamenDeRevision", () => {
 });
 
 describe("esquema, versión y verificador que no busca", () => {
+  it("22/9, ensayo real: un texto más largo que el límite se recorta en vez de rechazar el ítem; valuación null y claves de más se toleran", () => {
+    const largo = "x".repeat(500);
+    const p = VerificacionAgenteSchema.safeParse({ ...base(), valuacion: null, extra: 1, reservas: [{ tipo: "insiders", detalle: largo, fuente: sec() }], analistas: [{ fecha: "2026-09-10", firma: "UBS", accion: largo, objetivo: null }] });
+    expect(p.success).toBe(true);
+    if (p.success) {
+      expect(p.data.reservas[0]!.detalle).toHaveLength(200);
+      expect(p.data.analistas[0]!.accion).toHaveLength(40);
+      expect(p.data.valuacion).toEqual({ texto: null, metric: null, current: null, min5y: null, max5y: null, growthAccelerating: null });
+    }
+    expect(RevisionAgenteSchema.safeParse({ symbol: "X", fecha: "2026-09-22", busquedaHecha: true, motivoSinBusqueda: null, objeciones: [{ tipo: "capital", detalle: largo, fecha: "2026-09-01", fuente: sec() }], fuentes: [], resumen: "" }).success).toBe(true);
+  });
   it("un hallazgo sin URL, una reserva de un tipo que no existe o un símbolo raro se rechazan", () => {
     expect(VerificacionAgenteSchema.safeParse(base()).success).toBe(true);
     expect(VerificacionAgenteSchema.safeParse(base({ reservas: [{ tipo: "valuacion", detalle: "x", fuente: { url: "", titulo: "x" } }] })).success).toBe(false);
@@ -91,6 +124,7 @@ describe("esquema, versión y verificador que no busca", () => {
     expect(AGENTE_REVISION_VERSION).toMatch(/^agente-r1-[0-9a-f]{12}$/);
     expect(CUESTIONARIO_AGENTE).toContain("NO escribas veredictos");
     expect(CUESTIONARIO_AGENTE).toContain("estudio de abogados");
+    expect(CUESTIONARIO_AGENTE).toContain("no da guía");
   });
   it("el verificador y el revisor del agente no buscan: avisan que lo hace el agente", async () => {
     const v = new AgentVerifier();

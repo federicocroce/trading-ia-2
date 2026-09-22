@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Corre la skill /verificar sin nadie en la terminal (lunes a viernes 08:15). Espera a que el Radar del día esté refrescado
-# (hasta 3 horas: el 22/9 un corte de luz dejó el refresco para las 09:51). El agente sólo puede usar el CLI del Radar,
-# búsqueda y lectura web, agentes y escribir en docs/verificaciones.
+# (hasta 3 horas: el 22/9 un corte de luz dejó el refresco para las 09:51). El agente puede usar el CLI del Radar, cat/ls/
+# mkdir, búsqueda y lectura web, agentes, y leer y escribir archivos del repo (la skill le pide escribir solo en
+# docs/verificaciones; la base la toca únicamente el importador).
 export PATH="$HOME/.nvm/versions/node/v24.15.0/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
 cd "$(dirname "$0")/../.." || exit 1
 for i in $(seq 1 120); do docker info >/dev/null 2>&1 && break; sleep 5; done
@@ -22,4 +23,5 @@ claude -p "/verificar" \
   --allowedTools "Bash(pnpm --filter @thesis/api exec tsx src/radar-cli.ts *),Bash(cat *),Bash(ls *),Bash(mkdir *),Bash(export *),Bash(. *),Bash(source *),Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Agent" \
   --permission-mode acceptEdits \
   --max-turns 200
-echo "[verificar] $(date '+%F %T') termina con código $?"
+rc=$?
+echo "[verificar] $(date '+%F %T') termina con código $rc"

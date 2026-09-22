@@ -99,7 +99,22 @@ sigue con lo guardado y sus avisos. Un hallazgo sin URL se rechaza.
 
 - La compuerta del plan: de la IA solo frena "evitar"; lo demás va como aviso al lado de COMPRAR.
 - Las reglas fijas, la convicción, el Radar, Cartera.
-- Las verificaciones viejas de Gemini: quedan como historial.
+- Las verificaciones viejas de Gemini siguen valiendo como "cuestionario anterior" (aviso) hasta que el agente verifica ese
+  símbolo; la tabla guarda una fila por símbolo, así que la del agente la reemplaza (corrección del 22/9, revisión de código).
+
+## Correcciones después del ensayo y la revisión (22/9)
+
+- Los textos más largos que el límite se recortan en vez de rechazar el ítem: en el ensayo se rechazaron 7 de 8.
+- `faltantes` pasa a ser `[{ dato, detalle }]`: solo los críticos (ganancia limpia, extraordinarios, guía, regulatorio,
+  ofertas de acciones, inmobiliario de bancos) bajan un apto. Los agentes anotaban como faltante el rango de 5 años del P/E.
+- La ganancia limpia contra el consenso la exige el código aunque el agente no la anote (falla cerrado).
+- Una "reserva" de tipo `dato_faltante` no es reserva. Un "evitar" o una reserva que sale de un estudio de abogados no cuenta
+  aunque venga por un cable primario.
+- Un "evitar" que depende del trimestre (ítem único, ingresos cayendo) sin el trimestre encontrado baja a reserva; un evento
+  binario con fuente del regulador sigue siendo evitar.
+- Las líneas de ETF del plan no gastan verificación ni revisión. Un archivo con fecha anterior a ayer no se reimporta.
+- `reverificar`, `verificar-cartera` y el importador avisan si el modo no corresponde. El instalador del cron va aparte
+  (`install-verificar.sh`) para no reiniciar la API ni el web.
 
 ## Casos reales bajo test
 

@@ -29,7 +29,8 @@ export async function pendientesDelAgente(deps: { store: Store; verifier?: Candi
   const filas = await store.latestCandidates();
   const porSimbolo = new Map(filas.map((f) => [f.symbol.toUpperCase(), f]));
   const plan = await store.latestPlan().catch(() => null);
-  const lineas = (plan?.lines ?? []).filter((l) => l.kind !== "nucleo");
+  // Los ETFs no se verifican ni se revisan (el plan no los exige): una línea de ETF no gasta un lugar del agente.
+  const lineas = (plan?.lines ?? []).filter((l) => l.kind !== "nucleo" && porSimbolo.get(l.symbol.toUpperCase())?.kind !== "etf");
   const nombre = async (s: string) => (await store.profile(s).catch(() => null))?.profile.name ?? null;
 
   let aVerificar: string[];
@@ -88,10 +89,15 @@ export async function importarDelAgente(store: Pick<Store, "saveVerification" | 
     return out;
   }
   const detectedAt = new Date().toISOString();
+  // Un archivo viejo no se reimporta: se guardaría con la fecha de hoy y extendería la vigencia de 7 días. Ayer todavía vale
+  // por si la corrida cruza la medianoche.
+  const ayer = new Date(Date.parse(opts.today) - 86_400_000).toISOString().slice(0, 10);
+  const fechaMala = (fecha: string, que: string): string | null => (fecha > opts.today ? `${que} con fecha futura (${fecha})` : fecha < ayer ? `${que} con fecha vieja (${fecha}): no se reimporta` : null);
   for (const item of a.verificaciones) {
     const p = VerificacionAgenteSchema.safeParse(item);
     if (!p.success) { out.rechazados.push({ symbol: simboloDe(item), motivo: `verificación: ${motivoZod(p.error)}` }); continue; }
-    if (p.data.fecha > opts.today) { out.rechazados.push({ symbol: p.data.symbol.toUpperCase(), motivo: `verificación con fecha futura (${p.data.fecha})` }); continue; }
+    const malaV = fechaMala(p.data.fecha, "verificación");
+    if (malaV) { out.rechazados.push({ symbol: p.data.symbol.toUpperCase(), motivo: malaV }); continue; }
     const symbol = p.data.symbol.toUpperCase();
     const d = dictamenDeVerificacion(p.data, opts.hostsPrimarios);
     if (!opts.ensayo) await store.saveVerification({ ...d, symbol, date: opts.today, detectedAt, promptVersion: opts.version });
@@ -100,6 +106,8 @@ export async function importarDelAgente(store: Pick<Store, "saveVerification" | 
   for (const item of Array.isArray(a.revisiones) ? a.revisiones : []) {
     const p = RevisionAgenteSchema.safeParse(item);
     if (!p.success) { out.rechazados.push({ symbol: simboloDe(item), motivo: `revisión: ${motivoZod(p.error)}` }); continue; }
+    const malaR = fechaMala(p.data.fecha, "revisión");
+    if (malaR) { out.rechazados.push({ symbol: p.data.symbol.toUpperCase(), motivo: malaR }); continue; }
     const symbol = p.data.symbol.toUpperCase();
     const d = dictamenDeRevision(p.data);
     if (!opts.ensayo) await store.savePreTradeReview({ ...d, symbol, date: opts.today, promptVersion: opts.versionRevision });

@@ -44,24 +44,6 @@ launchctl bootout "gui/$(id -u)/com.thesis-engine.hechos" >/dev/null 2>&1 || tru
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 echo "instalado com.thesis-engine.hechos (sábados 09:00, log en $LOGS/hechos.log)"
 
-# El agente de verificación (22/9): lunes a viernes 08:15, después del refresco de las 07:50. El script espera a que el
-# Radar del día esté refrescado (hasta 3 horas), así que un corte de luz o una tapa cerrada no lo hacen correr antes.
-chmod +x "$ROOT/scripts/launchd/run-verificar.sh"
-PLIST="$HOME/Library/LaunchAgents/com.thesis-engine.verificar.plist"
-DIAS=""
-for d in 1 2 3 4 5; do DIAS="$DIAS<dict><key>Weekday</key><integer>$d</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>"; done
-cat > "$PLIST" <<PL
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>com.thesis-engine.verificar</string>
-  <key>ProgramArguments</key><array><string>/bin/zsh</string><string>$ROOT/scripts/launchd/run-verificar.sh</string></array>
-  <key>StartCalendarInterval</key><array>$DIAS</array>
-  <key>RunAtLoad</key><false/>
-  <key>StandardOutPath</key><string>$LOGS/verificar.log</string>
-  <key>StandardErrorPath</key><string>$LOGS/verificar.err.log</string>
-</dict></plist>
-PL
-launchctl bootout "gui/$(id -u)/com.thesis-engine.verificar" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "instalado com.thesis-engine.verificar (lunes a viernes 08:15, log en $LOGS/verificar.log)"
+
+# El agente de verificación (22/9): se instala aparte, para poder hacerlo sin reiniciar la API ni el web.
+"$ROOT/scripts/launchd/install-verificar.sh"

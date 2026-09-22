@@ -296,7 +296,7 @@ describe("revisión antes de comprar (15/9)", () => {
     expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).not.toMatch(/⚠/);
     expect(p.reviewsPending).toEqual(["APH"]);
     // La nota ya no dice que el plan no se ejecuta: dice qué pasa si la revisión encuentra algo.
-    expect(p.notes.join(" ")).toMatch(/Revisión antes de comprar pendiente: APH\..*si encuentra una objeción.*queda escrita/);
+    expect(p.notes.join(" ")).toMatch(/Revisión antes de comprar pendiente: APH\. Si encuentra una objeción, queda escrita/);
     expect(p.notes.join(" ")).not.toMatch(/sale del plan/);
     expect(p.notes.join(" ")).not.toMatch(/el plan no se ejecuta/);
   });

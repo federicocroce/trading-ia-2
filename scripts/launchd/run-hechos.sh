@@ -11,4 +11,5 @@ claude -p "/hechos" \
   --allowedTools "Bash(pnpm --filter @thesis/api exec tsx src/radar-cli.ts *),Bash(cat *),Bash(ls *),Bash(mkdir *),Bash(export *),Bash(. *),Bash(source *),Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Agent" \
   --permission-mode acceptEdits \
   --max-turns 200
-echo "[hechos] $(date '+%F %T') termina con código $?"
+rc=$?
+echo "[hechos] $(date '+%F %T') termina con código $rc"

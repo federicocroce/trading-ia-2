@@ -51,6 +51,9 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       const json = JSON.stringify(p, null, 2);
       if (salida) { await writeFile(path.isAbsolute(salida) ? salida : path.resolve(await findRoot(), salida), json); console.log(`[verificar] ${p.verificar.length} a verificar y ${p.revisar.length} a revisar → ${salida}`); }
       else console.log(json);
+    } else if (val("--importar") && !deps.verifier?.porAgente) {
+      // Con VERIFICADOR=gemini se guardaría lo del agente bajo la versión de Gemini.
+      console.error("[verificar] el importador del agente necesita VERIFICADOR=agente"); code = 1;
     } else if (val("--importar")) {
       const archivo = val("--importar")!;
       const ruta = path.isAbsolute(archivo) ? archivo : path.resolve(await findRoot(), archivo);
@@ -70,7 +73,8 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
     // A pedido (18/9): una fila en OBSERVAR por un "evitar" no se vuelve a verificar sola. Sin --buscar re-estructura el
     // informe guardado si se puede (no gasta búsqueda); con --buscar hace una búsqueda nueva (gasta una de la cuota).
     const sym = process.argv[3]?.toUpperCase();
-    if (!sym || sym.startsWith("--") || !deps.verifier) { console.error("uso: tsx src/radar-cli.ts reverificar SÍMBOLO [--buscar]  (necesita el verificador configurado)"); code = 1; }
+    if (deps.verifier?.porAgente) { console.error("[reverificar] con VERIFICADOR=agente la verificación la hace el agente: corré /verificar SÍMBOLO (o 'verificar --pendientes SÍMBOLO')"); code = 1; }
+    else if (!sym || sym.startsWith("--") || !deps.verifier) { console.error("uso: tsx src/radar-cli.ts reverificar SÍMBOLO [--buscar]  (necesita el verificador configurado)"); code = 1; }
     else {
       const antes = await c.store.verification(sym);
       const perfil = await c.store.profile(sym).catch(() => null);
@@ -85,6 +89,8 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   // mira solo el precio: la evidencia del negocio existía para las candidatas y no para tus posiciones,
   // que es al revés de lo que conviene, porque ahí está la plata puesta.
   else if (cmd === "verificar-cartera") {
+    if (deps.verifier?.porAgente) { console.error("[cartera] con VERIFICADOR=agente la verificación la hace el agente: corré /verificar con los símbolos de tu cartera"); code = 1; }
+    else {
     const posiciones = await c.store.positions();
     const budget: VerifyBudget = { left: Number(process.argv[3]) > 0 ? Number(process.argv[3]) : 6 };
     let quedan = posiciones.length;
@@ -94,6 +100,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       const v = await verifyFor(deps, p.symbol, { today, name: perfil?.profile.name ?? null, context: `posición en cartera, capa ${p.layer}`, budget });
       console.log(`${p.symbol}: ${v ? `${v.verdict} — ${v.reason.slice(0, 130)}` : "sin verificación"}`);
       quedan--;
+    }
     }
   }
   // mercado [...] [SÍMBOLOS...]: el embudo del comando /mercado con las reglas de la app. NO escribe nada: ni el Radar,

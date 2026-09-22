@@ -15,7 +15,7 @@ const fila = (symbol: string, over: Partial<CandidateRow> = {}): CandidateRow =>
 const plan = (lineas: Array<[string, "comprar" | "nucleo" | "sumar" | "seguimiento"]>, extra: Partial<ContributionPlan> = {}): ContributionPlan => ({ month: "2026-09", totalUsd: 40_000, lines: lineas.map(([symbol, kind]) => ({ symbol, kind, amountUsd: 1000, rationale: "", close: 100, spyClose: null, alpha30dPct: null, alpha90dPct: null, stop: kind === "nucleo" ? null : 90 })), notes: [], ...extra });
 const deps = (store: MemoryStore) => ({ store, verifier: new AgentVerifier(), reviewer: new AgentReviewer() });
 const sec = { url: "https://www.sec.gov/Archives/edgar/data/1/x.htm", titulo: "8-K" };
-const verif = (symbol: string, over: Record<string, unknown> = {}) => ({ symbol, fecha: HOY, ultimoTrimestre: null, analistas: [], consensoObjetivo: null, eventos: [], valuacion: { texto: null, metric: null, current: null, min5y: null, max5y: null, growthAccelerating: null }, proximosResultados: null, reservas: [], evitar: [], faltantes: [], fuentes: [sec], resumen: "informe", ...over });
+const verif = (symbol: string, over: Record<string, unknown> = {}) => ({ symbol, fecha: HOY, ultimoTrimestre: { fechaReporte: "2026-08-06", ventasVsConsenso: null, gananciaVsConsenso: null, extraordinarios: [], epsLimpia: 1, epsConsenso: 0.9, guia: null }, analistas: [], consensoObjetivo: null, eventos: [], valuacion: { texto: null, metric: null, current: null, min5y: null, max5y: null, growthAccelerating: null }, proximosResultados: null, reservas: [], evitar: [], faltantes: [], fuentes: [sec], resumen: "informe", ...over });
 
 describe("pendientesDelAgente", () => {
   it("primero las líneas del plan (sin el núcleo), después lo que el plan anotó, después las COMPRAR por convicción; con topes", async () => {
@@ -30,6 +30,19 @@ describe("pendientesDelAgente", () => {
     expect(p.versionRevision).toBe(AGENTE_REVISION_VERSION);
     expect(p.cuestionario).toContain("NO escribas veredictos");
     expect(p.revisar[0]).toMatchObject({ linea: { kind: "comprar", close: 100, stop: 90 } });
+  });
+  it("revisión del 22/9: una línea de ETF del plan no gasta verificación ni revisión (los ETFs no se verifican); sin plan, solo las COMPRAR", async () => {
+    const store = new MemoryStore();
+    await store.upsertCandidates([fila("CIBR", { kind: "etf" }), fila("APH")]);
+    await store.savePlan(plan([["CIBR", "comprar"], ["APH", "comprar"]]));
+    const p = await pendientesDelAgente(deps(store), { today: HOY, topeVerificaciones: 8, topeRevisiones: 5 });
+    expect(p.verificar.map((x) => x.symbol)).toEqual(["APH"]);
+    expect(p.revisar.map((x) => x.symbol)).toEqual(["APH"]);
+    const sinPlan = new MemoryStore();
+    await sinPlan.upsertCandidates([fila("PGY")]);
+    const q = await pendientesDelAgente(deps(sinPlan), { today: HOY, topeVerificaciones: 8, topeRevisiones: 5 });
+    expect(q.verificar.map((x) => x.symbol)).toEqual(["PGY"]);
+    expect(q.revisar).toEqual([]);
   });
   it("lo ya verificado por el agente en los últimos 7 días y lo ya revisado hoy no vuelve; lo de Gemini sí", async () => {
     const store = new MemoryStore();
@@ -66,6 +79,12 @@ describe("importarDelAgente", () => {
     expect(r.rechazados[0]).toMatchObject({ symbol: "MALO" });
     expect(await store.verification("ATEX")).toMatchObject({ verdict: "evitar", date: HOY, promptVersion: AGENTE_VERSION, model: "claude (agente)" });
     expect(await store.preTradeReviews(HOY)).toEqual([expect.objectContaining({ symbol: "CDLR", promptVersion: AGENTE_REVISION_VERSION })]);
+  });
+  it("revisión del 22/9: un archivo viejo no se reimporta (extendería la vigencia); ayer todavía vale por si la corrida cruza la medianoche", async () => {
+    const store = new MemoryStore();
+    const r = await importarDelAgente(store, { verificaciones: [verif("VIEJA", { fecha: "2026-09-15" }), verif("AYER", { fecha: "2026-09-21" })], revisiones: [{ symbol: "VIEJA", fecha: "2026-09-15", busquedaHecha: true, motivoSinBusqueda: null, objeciones: [], fuentes: [], resumen: "" }] }, opts);
+    expect(r.verificados.map((x) => x.symbol)).toEqual(["AYER"]);
+    expect(r.rechazados.map((x) => [x.symbol, x.motivo])).toEqual([["VIEJA", "verificación con fecha vieja (2026-09-15): no se reimporta"], ["VIEJA", "revisión con fecha vieja (2026-09-15): no se reimporta"]]);
   });
   it("en ensayo decide igual pero no escribe nada", async () => {
     const store = new MemoryStore();
