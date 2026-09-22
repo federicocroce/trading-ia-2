@@ -172,6 +172,8 @@ export interface VerifierInput {
 export type VerifierResult = Omit<CandidateVerification, "symbol" | "date" | "detectedAt" | "promptVersion">;
 export interface CandidateVerifier {
   readonly promptVersion: string;
+  /** La verificación la hace el agente de Claude por cron (22/9): la app no llama a `verify`, lee lo guardado. */
+  readonly porAgente?: boolean;
   verify(input: VerifierInput): Promise<VerifierResult>;
   /**
    * ¿El informe guardado con esa versión responde el mismo cuestionario de investigación que el vigente? (18/9) Si sí,
@@ -202,6 +204,8 @@ export interface PreTradeReviewResult {
 }
 export interface PreTradeReviewer {
   readonly promptVersion: string;
+  /** La revisión la escribe el agente de Claude por cron (22/9): la app no llama a `review`. */
+  readonly porAgente?: boolean;
   review(input: PreTradeReviewInput): Promise<PreTradeReviewResult>;
 }
 /** Una revisión guardada: una por símbolo y por día. */

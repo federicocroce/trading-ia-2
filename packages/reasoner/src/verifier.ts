@@ -201,6 +201,26 @@ export function aplicarValuacion<T extends { verdict: (typeof VERDICTS)[number];
   return { ...v, reservas: quedan, reason: `${quedan[0]!.detalle} (la valuación no es reserva: ${porQue})`.slice(0, 300) };
 }
 
+/** "En línea o por debajo del consenso": hasta 3% arriba sigue siendo en línea. */
+export const EXTRAORDINARIOS_EN_LINEA = 1.03;
+
+/**
+ * La reserva por extraordinarios la decide el código (22/9), igual que la de valuación. El criterio escrito desde el 13/9:
+ * es reserva "la sorpresa del trimestre desaparece sin los ítems no recurrentes (solo si nombrás el ítem, su monto y la
+ * fuente, y la ganancia limpia queda en línea o debajo del consenso)". Gemini la marcaba igual con la limpia arriba
+ * (BLBD, PAM, CROX) y para SEZL inventó "0,04 contra 0,09": el comunicado dice 1,13 contra 0,95. Sin los dos números no
+ * es reserva; el dato que falta vuelve por FALTANTES.
+ */
+export function aplicarExtraordinarios<T extends { verdict: (typeof VERDICTS)[number]; reason: string; reservas: Reserva[] }>(v: T, eps: { limpia: number | null; consenso: number | null }): T {
+  if (v.verdict !== "con_reservas" || !v.reservas.some((r) => r.tipo === "extraordinarios")) return v;
+  const { limpia, consenso } = eps;
+  if (limpia !== null && consenso !== null && limpia <= consenso * EXTRAORDINARIOS_EN_LINEA) return v;
+  const porQue = limpia === null || consenso === null ? "sin la ganancia limpia y el consenso no es reserva" : `ganancia limpia ${coma(limpia)} contra ${coma(consenso)} de consenso: la sorpresa sobrevive sin el ítem`;
+  const quedan = v.reservas.filter((r) => r.tipo !== "extraordinarios");
+  if (!quedan.length) return { ...v, verdict: "apto", reservas: [], reason: `la única reserva eran extraordinarios: ${porQue}`.slice(0, 300) };
+  return { ...v, reservas: quedan, reason: `${quedan[0]!.detalle} (los extraordinarios no son reserva: ${porQue})`.slice(0, 300) };
+}
+
 /**
  * Versiones guardadas cuyo informe responde el MISMO cuestionario de investigación que el vigente (18/9): cambió el
  * estructurador, no lo que se le pregunta a la web, así que su `researchText` se puede volver a estructurar sin gastar
