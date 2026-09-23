@@ -30,7 +30,8 @@
     "consistencia": "pnpm --filter @thesis/api exec tsx src/radar-cli.ts consistencia",
     "frenos": "pnpm --filter @thesis/api exec tsx src/radar-cli.ts frenos",
     "verificar": "sh scripts/verificar.sh",
-    "test:db": "TEST_DATABASE_URL=postgres://thesis:thesis@localhost:5433/thesis_test vitest run packages/db"
+    "test:db": "TEST_DATABASE_URL=postgres://thesis:thesis@localhost:5433/thesis_test vitest run packages/db",
+    "guardia": "pnpm --filter @thesis/api exec tsx src/radar-cli.ts guardia"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
