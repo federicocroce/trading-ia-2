@@ -1,6 +1,7 @@
 import { todayLocal, verificationOrder } from "@thesis/core";
 import { refreshRadar, refreshWatchlist, replan, verifyFor } from "@thesis/pipeline";
 import type { Container } from "./container.js";
+import { enTurno } from "./seguimiento.js";
 
 /**
  * Verificaciones pendientes (15/9). La verificación web corre con la corrida de la mañana; si Google está saturado a
@@ -78,7 +79,9 @@ export async function refrescarTrasVerificar(c: Container, hoy: string, simbolos
   const usd = await portfolioUsd(c);
   if (simbolos.length) {
     await refreshRadar(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos });
-    await refreshWatchlist(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos });
+    // Por el turno: si dos verificaciones llegan juntas, o una llega mientras el alta está analizando, los
+    // refrescos de seguimiento se encadenan en vez de pisarse (18/9, tres refrescos completos a la vez).
+    await enTurno(c, () => refreshWatchlist(c.radarDeps, { today: hoy, portfolioUsd: usd, only: simbolos }));
   }
   await replan(c.radarDeps, { today: hoy, portfolioUsd: usd });
   await c.controlar?.();

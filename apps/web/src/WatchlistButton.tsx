@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, type WatchItem, type WatchStatus } from "./api";
+import { seguirRefresco } from "./seguirRefresco";
 
 const STATUS: Record<WatchStatus, { icon: string; label: string; cls: string; help: string }> = {
   live: { icon: "🟢", label: "VIVA", cls: "ok", help: "En seguimiento: no tocó stop ni objetivo y no venció el plazo." },
@@ -31,7 +32,7 @@ export function WatchlistButton({ symbol, items, onChanged }: { symbol: string; 
   const item = items.find((i) => i.symbol === symbol.toUpperCase());
   if (item) return <WatchStatusBadge item={item} />;
   return (
-    <button className="ghost" style={{ fontSize: 11, padding: "2px 8px" }} disabled={busy} onClick={async (e) => { e.stopPropagation(); setBusy(true); try { await api.radar.addWatch(symbol); onChanged(); } finally { setBusy(false); } }}>
+    <button className="ghost" style={{ fontSize: 11, padding: "2px 8px" }} disabled={busy} onClick={async (e) => { e.stopPropagation(); setBusy(true); try { seguirRefresco(await api.radar.addWatch(symbol)); onChanged(); } finally { setBusy(false); } }}>
       {busy ? "…" : "+ Watchlist"}
     </button>
   );

@@ -13,6 +13,8 @@ import { Flags, countSalvedades } from "./flags";
 import { sorpresaTexto } from "./sorpresas";
 import { VerificationSections } from "./Verification";
 import { PeersTable } from "./Peers";
+import { sinFila } from "./seguimiento";
+import { seguirRefresco } from "./seguirRefresco";
 
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -93,6 +95,12 @@ export function Radar() {
   }, [filter]);
   useEffect(() => {
     load().catch((e) => setMsg(String(e)));
+  }, [load]);
+  // El análisis de un alta a la lista de seguimiento terminó (18/9): su fila y el plan rearmado ya están en el servidor.
+  useEffect(() => {
+    const alTerminar = () => void load().catch(() => null);
+    window.addEventListener("watchlist:refreshed", alTerminar);
+    return () => window.removeEventListener("watchlist:refreshed", alTerminar);
   }, [load]);
   useEffect(() => {
     if (!scan?.running) return;
@@ -305,8 +313,8 @@ const CEDEAR_FLAG: Record<string, string> = { en_linea: "en línea", caro_vs_ccl
 function WatchCard({ w, plan, ten, setWatch, editing, setEditing, reload }: { w: Watchlist; plan: ContributionPlan | null; ten: Tenencias; setWatch: (w: Watchlist) => void; editing: string | null; setEditing: (s: string | null) => void; reload: () => Promise<void> }) {
   const [err, setErr] = useState<string | null>(null);
   const rows = [...w.rows].sort((a, b) => (a.verdict === b.verdict ? (b.score ?? -Infinity) - (a.score ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
-  const rowFor = new Map(rows.map((r) => [r.symbol, r]));
-  const withoutRow = w.items.filter((i) => !rowFor.has(i.symbol)).map((i) => i.symbol);
+  // Lo recién agregado se analiza después de responder (18/9): su fila llega sola; el resto espera el refresco del día.
+  const { analizando, fallaron, esperan } = sinFila(w);
   async function remove(s: string) {
     setWatch(await api.radar.removeWatch(s));
   }
@@ -315,10 +323,12 @@ function WatchCard({ w, plan, ten, setWatch, editing, setEditing, reload }: { w:
       <div className="row">
         <b>Seguimiento</b> <span className="muted help" title={HELP["seguimiento"]!.short}>({w.items.length}) tus tickers, con las reglas del Radar aunque el ranking no los elija</span>
         <div style={{ flex: 1 }} />
-        <div style={{ width: 340 }}><SymbolSearch existing={new Set(w.items.map((i) => i.symbol))} onAdd={async (s) => { setErr(null); try { setWatch(await api.radar.addWatch(s)); window.dispatchEvent(new Event("watchlist:changed")); } catch (e) { setErr(String(e)); } }} /></div>
+        <div style={{ width: 340 }}><SymbolSearch existing={new Set(w.items.map((i) => i.symbol))} onAdd={async (s) => { setErr(null); try { const lista = await api.radar.addWatch(s); setWatch(lista); seguirRefresco(lista); window.dispatchEvent(new Event("watchlist:changed")); } catch (e) { setErr(String(e)); } }} /></div>
       </div>
       {err && <div className="err">{err}</div>}
-      {withoutRow.length > 0 && <div className="muted" style={{ marginTop: 6 }}>Sin fila del Radar todavía: {withoutRow.join(", ")} (se completan en el próximo refresco de seguimiento).</div>}
+      {analizando.length > 0 && <div className="muted" style={{ marginTop: 6 }}>Analizando {analizando.join(", ")} con las reglas del Radar: la fila aparece sola cuando termina, sin recargar.</div>}
+      {fallaron.length > 0 && <div className="warn" style={{ marginTop: 6 }}>No se pudo analizar {fallaron.map((f) => `${f.symbol} (${f.error})`).join(", ")}. Se vuelve a intentar en el próximo refresco de seguimiento.</div>}
+      {esperan.length > 0 && <div className="muted" style={{ marginTop: 6 }}>Sin fila del Radar todavía: {esperan.join(", ")} (se completan en el próximo refresco de seguimiento).</div>}
       <table style={{ marginTop: 8 }}>
         <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="score" /><Th k="rank" /><Th k="precio" /><Th k="entrada" /><Th k="stop" /><Th k="objetivo" /><Th k="tamano" /><Th k="riesgo" /><Th k="etiquetas" /><th></th></tr></thead>
         <tbody>

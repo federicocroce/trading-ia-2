@@ -144,23 +144,33 @@ export interface RankedStock {
   medians: Record<string, number | null>;
 }
 
-/** Score de un miembro dentro de un conjunto (el conjunto incluye al miembro). null si ≤ 1 eje disponible. */
-function scoreWithin(symbol: string, set: Fundamentals[], weights: RadarPolicy["weights"]): { score: number; axes: Record<Axis, number | null> } | null {
-  const idx = set.findIndex((f) => f.symbol === symbol);
-  const axes = {} as Record<Axis, number | null>;
-  for (const axis of AXES) {
-    const zs: number[] = [];
-    for (const spec of AXIS_METRICS[axis]) {
-      const z = robustZ(set.map((f) => metricOf(f, spec)))[idx];
-      if (z !== null && z !== undefined) zs.push(spec.invert ? -z : z);
+/**
+ * Score de cada miembro de un conjunto, en el orden del conjunto. null si ≤ 1 eje disponible.
+ *
+ * El z de cada métrica se calcula UNA vez por conjunto (18/9). Antes se puntuaba de a un miembro y cada puntaje
+ * recalculaba el z del conjunto entero: para saber el lugar en el grupo se puntuaba a todos, así que el costo por
+ * símbolo era el cuadrado del grupo. Con diez pares no se nota; en un grupo por industria de 190 eran 85–90 s de
+ * CPU sobre el universo de 2.724, con la API sin contestar mientras tanto (el alta a la lista de seguimiento).
+ */
+function scoresWithin(set: Fundamentals[], weights: RadarPolicy["weights"]): Array<{ score: number; axes: Record<Axis, number | null> } | null> {
+  const zOf = new Map<string, Array<number | null>>();
+  for (const axis of AXES) for (const spec of AXIS_METRICS[axis]) zOf.set(spec.key, robustZ(set.map((f) => metricOf(f, spec))));
+  return set.map((_, idx) => {
+    const axes = {} as Record<Axis, number | null>;
+    for (const axis of AXES) {
+      const zs: number[] = [];
+      for (const spec of AXIS_METRICS[axis]) {
+        const z = zOf.get(spec.key)![idx];
+        if (z !== null && z !== undefined) zs.push(spec.invert ? -z : z);
+      }
+      axes[axis] = zs.length ? round4(zs.reduce((a, b) => a + b, 0) / zs.length) : null;
     }
-    axes[axis] = zs.length ? round4(zs.reduce((a, b) => a + b, 0) / zs.length) : null;
-  }
-  const available = AXES.filter((a) => axes[a] !== null);
-  if (available.length <= 1) return null;
-  const wsum = available.reduce((s, a) => s + weights[a], 0);
-  const score = round4(available.reduce((s, a) => s + weights[a] * axes[a]!, 0) / wsum);
-  return { score, axes };
+    const available = AXES.filter((a) => axes[a] !== null);
+    if (available.length <= 1) return null;
+    const wsum = available.reduce((s, a) => s + weights[a], 0);
+    const score = round4(available.reduce((s, a) => s + weights[a] * axes[a]!, 0) / wsum);
+    return { score, axes };
+  });
 }
 
 /**
@@ -192,12 +202,13 @@ export function rankStocks(all: Map<string, Fundamentals>, weights: RadarPolicy[
       continue;
     }
     const set = [f, ...g.members.map((m) => all.get(m)!)];
-    const own = scoreWithin(f.symbol, set, weights);
+    const within = scoresWithin(set, weights);
+    const own = within[0];
     if (!own) {
       skipped.push({ symbol: f.symbol, reason: "ejes_insuficientes" });
       continue;
     }
-    const scores = set.map((m) => ({ symbol: m.symbol, score: scoreWithin(m.symbol, set, weights)?.score ?? Number.NEGATIVE_INFINITY })).sort((a, b) => b.score - a.score);
+    const scores = set.map((m, i) => ({ symbol: m.symbol, score: within[i]?.score ?? Number.NEGATIVE_INFINITY })).sort((a, b) => b.score - a.score);
     const rankInGroup = scores.findIndex((s) => s.symbol === f.symbol) + 1;
     ranked.push({ symbol: f.symbol, score: own.score, axes: own.axes, group: g.members, basis: g.basis, rankInGroup, groupSize: set.length, medians: groupMedians(set) });
   }

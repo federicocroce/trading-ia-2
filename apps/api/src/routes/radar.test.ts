@@ -6,18 +6,20 @@ import { radarRoutes } from "./radar.js";
 import { pricesRoutes } from "./prices.js";
 import { taxonomyRoutes } from "./taxonomy.js";
 import { state, type Container } from "../container.js";
+import { seguimientoQuieto } from "../seguimiento.js";
 
 const series = (n: number, from: number, to: number): Candle[] => Array.from({ length: n }, (_, i) => ({ date: new Date(Date.parse("2025-09-01") + i * 86_400_000).toISOString().slice(0, 10), open: from, high: from * 1.01, low: from * 0.99, close: from + ((to - from) * i) / (n - 1), volume: 1_000_000 }));
 const today = "2026-05-19";
 
-function app() {
+/** `velas` reemplaza la fuente de velas del Radar: los tests del alta la usan para frenarla y contar los pedidos. */
+function app(opts: { velas?: (symbol: string) => Promise<Candle[]> } = {}) {
   const store = new MemoryStore();
   const taxonomy = { sectors: ["Tecnología", "Otros"], themes: ["IA", "semiconductores"], industryToSector: { Semiconductors: "Tecnología" }, industryToThemes: { Semiconductors: ["semiconductores"] }, symbolToThemes: {}, symbolToAssetClass: {} };
   const radarDeps = {
     store,
     assets: { list: async () => [{ symbol: "AAA", name: "Aaa", exchange: "NASDAQ", tradable: true }], snapshots: async (s: string[]) => s.map((x) => ({ symbol: x, price: 100, iexVolume: 100_000 })) },
     fundamentals: { profile: async (s: string) => ({ symbol: s, name: s, country: "US", industry: "Semiconductors", marketCap: null, currency: "USD", shareOutstanding: 100 }), metrics: async () => ({ "3MonthAverageTradingVolume": 5 }), peers: async () => [], recommendation: async () => null, earningsSurprises: async () => null, insiders: async () => ({ buys: 0, sells: 0 }), nextEarnings: async () => null },
-    history: { candles: async () => series(260, 80, 100) },
+    history: { candles: opts.velas ?? (async () => series(260, 80, 100)) },
     cardWriter: null,
     taxonomy,
     etfs: [{ symbol: "VTI", name: "VTI", role: "nucleo" as const, exposure: "rv_us" as const, ter: 0.03, themes: [], coreWeight: 1 }],
@@ -39,7 +41,7 @@ function app() {
   a.route("/", radarRoutes(c));
   a.route("/", taxonomyRoutes(c));
   a.get("/runs/dates", async (ctx) => ctx.json(await store.runDates(90)));
-  return { a, store };
+  return { a, store, c };
 }
 const post = (a: Hono, path: string, body?: unknown) => a.request(path, { method: "POST", ...(body ? { body: JSON.stringify(body), headers: { "content-type": "application/json" } } : {}) });
 
@@ -152,17 +154,18 @@ describe("/radar/argentina", () => {
 
 describe("/radar/watchlist", () => {
   it("alta, refresco con veredicto técnico, listado y baja", async () => {
-    const { a } = app();
+    const { a, c } = app();
     expect((await post(a, "/radar/watchlist", { symbol: "bad symbol" })).status).toBe(400);
     const added = await (await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" })).json();
     expect(added.items.map((i: { symbol: string }) => i.symbol)).toEqual(["AAA"]);
     // Foto del alta: precio vivo y estado del ciclo de vida.
     expect(added.items[0]).toMatchObject({ entryPrice: 101, entryAction: "manual", status: "live", horizonDays: 30 });
-    expect(added.refreshed.rows).toBe(1);
-    expect(added.rows[0].kind).toBe("watch");
-    expect(["COMPRAR", "OBSERVAR"]).toContain(added.rows[0].verdict);
+    // La fila llega sola cuando termina el refresco, que corre después de responder (18/9).
+    await seguimientoQuieto(c);
     const list = await (await a.request("/radar/watchlist")).json();
     expect(list.rows).toHaveLength(1);
+    expect(list.rows[0].kind).toBe("watch");
+    expect(["COMPRAR", "OBSERVAR"]).toContain(list.rows[0].verdict);
     // No aparece entre las acciones candidatas ni en el top de convicción.
     expect((await (await a.request("/radar/candidates?kind=stock")).json()).some((c: { symbol: string }) => c.symbol === "AAA")).toBe(false);
     expect((await (await a.request("/radar/top")).json()).picks.some((p: { symbol: string }) => p.symbol === "AAA")).toBe(false);
@@ -187,6 +190,125 @@ describe("/radar/candidates/:symbol: los mismos comparables que la ficha (audito
     expect(d.medians.revenueGrowthTTMYoy).toBeNull();
     // Sin verificador no se puede decir si la verificación es del cuestionario vigente.
     expect(d.verificationCurrent).toBeNull();
+  });
+});
+
+/**
+ * El alta tardaba unos 10 minutos (18/9): rehacía los 19 símbolos de la lista en serie (velas, noticias, clasificador
+ * de eventos con Gemini en 503, ofertas de la SEC), después el plan y los controles, y recién ahí respondía; dos altas
+ * seguidas corrían dos refrescos completos a la vez. Ahora responde apenas guarda el alta, refresca solo el símbolo
+ * nuevo y nunca hay dos refrescos de seguimiento corriendo juntos.
+ */
+describe("/radar/watchlist: el alta no espera ni rehace la lista (18/9)", () => {
+  /** Velas con freno: cada pedido queda esperando hasta `soltar()`. Cuenta qué se pidió y cuántos pedidos hubo a la vez. */
+  const velasConFreno = () => {
+    const pedidas: string[] = [];
+    const st = { enVuelo: 0, maxEnVuelo: 0, libre: false };
+    const esperando: Array<() => void> = [];
+    const velas = async (symbol: string) => {
+      pedidas.push(symbol);
+      st.maxEnVuelo = Math.max(st.maxEnVuelo, ++st.enVuelo);
+      if (!st.libre) await new Promise<void>((r) => esperando.push(r));
+      st.enVuelo--;
+      return series(260, 80, 100);
+    };
+    return { velas, pedidas, st, soltar: () => { st.libre = true; esperando.splice(0).forEach((r) => r()); } };
+  };
+  const simbolos = (xs: Array<{ symbol: string }>) => xs.map((x) => x.symbol).sort();
+
+  it("responde con el alta guardada sin esperar el refresco, y avisa qué se está analizando", async () => {
+    const f = velasConFreno();
+    const { a, c } = app({ velas: f.velas });
+    const r = await Promise.race([post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" }), new Promise<"colgado">((ok) => setTimeout(() => ok("colgado"), 1000))]);
+    if (r === "colgado") throw new Error("el alta se quedó esperando el refresco");
+    const added = await r.json();
+    expect(simbolos(added.items)).toEqual(["AAA"]);
+    expect(added.rows).toEqual([]);
+    expect(added.refreshing).toEqual(["AAA"]);
+    f.soltar();
+    await seguimientoQuieto(c);
+    const list = await (await a.request("/radar/watchlist")).json();
+    expect(simbolos(list.rows)).toEqual(["AAA"]);
+    expect(list.refreshing).toEqual([]);
+  });
+
+  it("refresca solo el símbolo nuevo: lo que ya se refrescó hoy no se vuelve a pedir y conserva su fila", async () => {
+    const f = velasConFreno();
+    f.soltar();
+    const { a, c } = app({ velas: f.velas });
+    await post(a, `/radar/watchlist?today=${today}`, { symbol: "bbb" });
+    await seguimientoQuieto(c);
+    f.pedidas.length = 0;
+    await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" });
+    await seguimientoQuieto(c);
+    expect(f.pedidas).toContain("AAA");
+    expect(f.pedidas).not.toContain("BBB");
+    expect(simbolos((await (await a.request("/radar/watchlist")).json()).rows)).toEqual(["AAA", "BBB"]);
+  });
+
+  it("si la lista todavía no se refrescó hoy, el alta la refresca entera: una sola fila de hoy dejaría a las demás fuera de lo vigente", async () => {
+    const { a, c } = app();
+    await post(a, "/radar/watchlist?today=2026-05-18", { symbol: "bbb" });
+    await seguimientoQuieto(c);
+    await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" });
+    await seguimientoQuieto(c);
+    const list = await (await a.request("/radar/watchlist")).json();
+    expect(list.rows.map((r: { symbol: string; candidateDate: string }) => `${r.symbol} ${r.candidateDate}`).sort()).toEqual([`AAA ${today}`, `BBB ${today}`]);
+  });
+
+  it("dos altas seguidas: las dos responden enseguida y nunca corren dos refrescos a la vez", async () => {
+    const f = velasConFreno();
+    const { a, c } = app({ velas: f.velas });
+    const uno = await (await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" })).json();
+    const dos = await (await post(a, `/radar/watchlist?today=${today}`, { symbol: "bbb" })).json();
+    expect(uno.refreshing).toEqual(["AAA"]);
+    expect(dos.refreshing).toEqual(["AAA", "BBB"]);
+    f.soltar();
+    await seguimientoQuieto(c);
+    // Cada refresco pide las velas de a una: dos pedidos a la vez son dos refrescos a la vez.
+    expect(f.st.maxEnVuelo).toBe(1);
+    const list = await (await a.request("/radar/watchlist")).json();
+    expect(simbolos(list.rows)).toEqual(["AAA", "BBB"]);
+    expect(list.refreshing).toEqual([]);
+  });
+
+  it("si lo sacás mientras se analiza, no le queda una fila de seguimiento que el plan pueda comprar", async () => {
+    const f = velasConFreno();
+    const { a, c, store } = app({ velas: f.velas });
+    // El refresco de AAA ya leyó la lista y está frenado pidiendo velas cuando llega la baja.
+    await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" });
+    await a.request(`/radar/watchlist/AAA?today=${today}`, { method: "DELETE" });
+    f.soltar();
+    await seguimientoQuieto(c);
+    expect((await store.latestCandidates()).filter((r) => r.kind === "watch").map((r) => r.symbol)).toEqual([]);
+  });
+
+  it("si el análisis de un alta falla, la lista dice de cuál y por qué; cuando sale bien, el aviso se va", async () => {
+    // Antes el alta esperaba el refresco y el error viajaba en la respuesta (que nadie mostraba). Ahora que no se
+    // espera, un símbolo sin fila y sin explicación sería un hueco: queda en `failed` hasta que un refresco lo resuelva.
+    let hayVelas = false;
+    const { a, c } = app({ velas: async (s) => (s === "AAA" && !hayVelas ? [] : series(260, 80, 100)) });
+    await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" });
+    await seguimientoQuieto(c);
+    const list = await (await a.request("/radar/watchlist")).json();
+    expect(list.rows).toEqual([]);
+    expect(list.failed).toEqual([{ symbol: "AAA", error: "sin velas" }]);
+    hayVelas = true;
+    await post(a, `/radar/watchlist/refresh?today=${today}`);
+    const despues = await (await a.request("/radar/watchlist")).json();
+    expect(simbolos(despues.rows)).toEqual(["AAA"]);
+    expect(despues.failed).toEqual([]);
+  });
+
+  it("el refresco a mano espera su turno detrás de un alta en curso", async () => {
+    const f = velasConFreno();
+    const { a, c } = app({ velas: f.velas });
+    await post(a, `/radar/watchlist?today=${today}`, { symbol: "aaa" });
+    const aMano = post(a, `/radar/watchlist/refresh?today=${today}`);
+    f.soltar();
+    expect(await (await aMano).json()).toMatchObject({ symbols: 1, rows: 1, errors: [] });
+    await seguimientoQuieto(c);
+    expect(f.st.maxEnVuelo).toBe(1);
   });
 });
 

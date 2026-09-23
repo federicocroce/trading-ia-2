@@ -52,6 +52,8 @@ export interface Container {
   revisiones?: import("./revisiones.js").EstadoRevisiones;
   /** Reintentos de la verificación web de lo que el plan compraría (ver `verificaciones.ts`). */
   verificaciones?: import("./verificaciones.js").EstadoVerificaciones;
+  /** Cola del refresco de la lista de seguimiento: uno a la vez (ver `seguimiento.ts`). */
+  seguimiento?: import("./seguimiento.js").EstadoSeguimiento;
   /** Página por ticker (etapa 2b): agregador + gráfico intradiario en vivo. */
   tickerDeps: TickerDeps & { chart: { bars(symbol: string, range: string, interval: string): Promise<import("@thesis/core").ChartBar[]> } };
   marketData: MarketData;

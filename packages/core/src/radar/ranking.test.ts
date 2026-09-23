@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupMedians, peerGroup, rankStocks, robustZ, unreliableGrowthKeys, type Fundamentals } from "./index.js";
+import { AXES, AXIS_METRICS, groupMedians, peerGroup, rankStocks, robustZ, unreliableGrowthKeys, type Fundamentals } from "./index.js";
 
 const weights = { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 };
 const base = { peTTM: 20, evEbitdaTTM: 12, psTTM: 3, roeTTM: 15, operatingMarginTTM: 20, netProfitMarginTTM: 12, revenueGrowthTTMYoy: 10, revenueGrowth5Y: 8, epsGrowthTTMYoy: 10, "totalDebt/totalEquityAnnual": 0.5, currentRatioAnnual: 1.5 };
@@ -108,6 +108,54 @@ describe("groupMedians", () => {
 
   it("un P/E negativo no es barato, es no ganar plata: no entra en la mediana", () => {
     expect(groupMedians([pe(10), pe(20), pe(-500)])["peTTM"]).toBe(15);
+  });
+});
+
+/**
+ * El costo del ranking (18/9). Agregar un ticker a la lista de seguimiento tardaba unos 10 minutos y en el medio la
+ * API no contestaba nada: `rankStocks` sobre los 2.724 símbolos del universo eran 85–90 s de CPU sin soltar el hilo.
+ * Por cada símbolo se puntuaba a cada miembro de su grupo, y cada puntaje recalculaba el z del grupo entero: cúbico
+ * en el tamaño del grupo. Con diez pares no se nota; 641 símbolos caen al grupo por industria (mediana 82, máximo
+ * 190) y eran el 99,9% del costo. La regla: el z de cada métrica se calcula una vez por grupo. Con eso el mismo
+ * universo tarda 1,6 s y la salida es idéntica (mismos 2.684 rankeados, puntajes, ejes, medianas, orden y descartes).
+ */
+describe("rankStocks: una pasada por grupo (alta a la lista de seguimiento, 18/9)", () => {
+  const azar = (semilla: number) => () => (semilla = (semilla * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  /** Una industria sin pares declarados: todos caen al grupo por industria, que es el caso caro. `lecturas` cuenta cada métrica leída. */
+  const industria = (nombre: string, n: number, semilla: number, lecturas?: { n: number }): Array<[string, Fundamentals]> => {
+    const r = azar(semilla);
+    return Array.from({ length: n }, (_, i) => {
+      const crudas: Record<string, number | null> = Object.fromEntries(Object.entries(base).map(([k, v]) => [k, r() < 0.1 ? null : v * (0.4 + 1.6 * r())]));
+      if (i % 7 === 0) crudas["peTTM"] = -3; // pierde plata: el P/E negativo no entra
+      const metrics = lecturas ? new Proxy(crudas, { get: (t, k) => { lecturas.n++; return t[k as string]; } }) : crudas;
+      return [`${nombre}${i}`, mk(`${nombre}${i}`, nombre, metrics)] as [string, Fundamentals];
+    });
+  };
+
+  it("duplicar el grupo multiplica el trabajo por cuatro, no por ocho", () => {
+    const lecturasDe = (n: number) => { const l = { n: 0 }; rankStocks(new Map(industria("Ind", n, 7, l)), weights); return l.n; };
+    expect(lecturasDe(40) / lecturasDe(20)).toBeLessThan(5);
+  });
+
+  it("el puntaje y el lugar en el grupo siguen siendo los de la definición: z robusto de cada métrica dentro del grupo", () => {
+    const universo = new Map<string, Fundamentals>([...industria("Semis", 30, 1), ...industria("Banks", 12, 2), ...all]);
+    const valor = (f: Fundamentals, spec: { key: string; positiveOnly?: boolean }) => { const v = f.metrics[spec.key]; return v === null || v === undefined || !Number.isFinite(v) || unreliableGrowthKeys(f).includes(spec.key) || (spec.positiveOnly && v <= 0) ? null : v; };
+    const r4 = (x: number) => Math.round(x * 10_000) / 10_000;
+    const segunDefinicion = (f: Fundamentals, set: Fundamentals[]) => {
+      const i = set.indexOf(f);
+      const ejes = AXES.map((eje) => { const zs = AXIS_METRICS[eje].flatMap((spec) => { const z = robustZ(set.map((m) => valor(m, spec)))[i]; return z === null || z === undefined ? [] : [spec.invert ? -z : z]; }); return zs.length ? r4(zs.reduce((a, b) => a + b, 0) / zs.length) : null; });
+      const hay = AXES.map((eje, k) => ({ eje, v: ejes[k]! })).filter((e) => e.v !== null);
+      return hay.length <= 1 ? null : r4(hay.reduce((s, e) => s + weights[e.eje] * e.v, 0) / hay.reduce((s, e) => s + weights[e.eje], 0));
+    };
+    const { ranked } = rankStocks(universo, weights);
+    expect(ranked.length).toBeGreaterThan(40);
+    for (const fila of ranked) {
+      const f = universo.get(fila.symbol)!;
+      const set = [f, ...fila.group.map((s) => universo.get(s)!)];
+      expect([fila.symbol, fila.score]).toEqual([fila.symbol, segunDefinicion(f, set)]);
+      const mejores = set.filter((m) => (segunDefinicion(m, set) ?? Number.NEGATIVE_INFINITY) > fila.score).length;
+      expect([fila.symbol, fila.rankInGroup]).toEqual([fila.symbol, mejores + 1]);
+    }
   });
 });
 

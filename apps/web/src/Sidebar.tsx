@@ -5,6 +5,8 @@ import { goToSymbol } from "./SymbolLink";
 import { WatchStatusBadge, isResolved } from "./WatchlistButton";
 import { SymbolSearch } from "./SymbolSearch";
 import { RadarVerdict, usePlan } from "./plan";
+import { sinFila } from "./seguimiento";
+import { seguirRefresco } from "./seguirRefresco";
 
 /** Watchlist en barra lateral (portada de trading v1): precios vivos, búsqueda, filtro por tipo, orden, ciclo de vida, alta y baja. */
 type SortMode = "default" | "changeDesc" | "changeAsc" | "category";
@@ -24,8 +26,17 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
   const [sort, setSort] = useState<SortMode>(readSort);
   const [err, setErr] = useState<string | null>(null);
 
-  const load = async () => { try { setW(await api.radar.watchlist()); } catch (e) { setErr(String(e)); } };
-  useEffect(() => { void load(); const onPop = () => void load(); window.addEventListener("watchlist:changed", onPop); return () => window.removeEventListener("watchlist:changed", onPop); }, []);
+  // La barra está siempre montada: es la que sigue el análisis de un alta hasta que termina (18/9), venga de donde venga.
+  const ver = (lista: Watchlist) => { setW(lista); seguirRefresco(lista); };
+  const load = async () => { try { ver(await api.radar.watchlist()); } catch (e) { setErr(String(e)); } };
+  useEffect(() => {
+    void load();
+    const onPop = () => void load();
+    window.addEventListener("watchlist:changed", onPop);
+    window.addEventListener("watchlist:refreshed", onPop);
+    return () => { window.removeEventListener("watchlist:changed", onPop); window.removeEventListener("watchlist:refreshed", onPop); };
+  }, []);
+  const { analizando, fallo } = useMemo(() => { const s = w ? sinFila(w) : null; return { analizando: new Set(s?.analizando ?? []), fallo: new Map((s?.fallaron ?? []).map((f) => [f.symbol, f.error])) }; }, [w]);
   const symbols = useMemo(() => (w?.items ?? []).map((i) => i.symbol), [w]);
   useEffect(() => { try { localStorage.setItem("watchlist:sort", sort); } catch { /* sin almacenamiento */ } }, [sort]);
 
@@ -48,7 +59,7 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
   async function add(s: string) {
     if (!s) return;
     setErr(null);
-    try { setW(await api.radar.addWatch(s)); window.dispatchEvent(new Event("watchlist:changed")); } catch (e) { setErr(String(e)); }
+    try { ver(await api.radar.addWatch(s)); window.dispatchEvent(new Event("watchlist:changed")); } catch (e) { setErr(String(e)); }
   }
   async function remove(s: string) {
     setW(await api.radar.removeWatch(s));
@@ -82,7 +93,7 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
           return (
             <div key={i.symbol} className={`sidebar-row ${review ? "review" : ""}`} onClick={() => goToSymbol(i.symbol)}>
               <div style={{ minWidth: 0 }}>
-                <div className="row" style={{ gap: 6 }}><span>{FLAG[r?.tags?.assetClass ?? ""] ?? "🌐"}</span><b>{i.symbol}</b>{r && <RadarVerdict symbol={i.symbol} verdict={r.verdict} plan={plan} detail={false} small />}</div>
+                <div className="row" style={{ gap: 6 }}><span>{FLAG[r?.tags?.assetClass ?? ""] ?? "🌐"}</span><b>{i.symbol}</b>{r && <RadarVerdict symbol={i.symbol} verdict={r.verdict} plan={plan} detail={false} small />}{analizando.has(i.symbol) && <span className="muted" style={{ fontSize: 11 }} title="Recién agregado: se está analizando con las reglas del Radar. El veredicto aparece solo cuando termina, sin recargar.">analizando…</span>}{fallo.has(i.symbol) && <span className="warn" style={{ fontSize: 11 }} title={`No se pudo analizar: ${fallo.get(i.symbol)}. Se vuelve a intentar en el próximo refresco de seguimiento.`}>⚠ sin analizar</span>}</div>
                 <div style={{ marginTop: 2 }}><WatchStatusBadge item={i} /></div>
               </div>
               <div className="row" style={{ gap: 6 }}>

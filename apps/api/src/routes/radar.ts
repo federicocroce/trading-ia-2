@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { todayLocal, assessRegime, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
-import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, comparables, measureRadar, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse } from "@thesis/pipeline";
+import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, comparables, measureRadar, rankRadar, refreshArgentina, refreshRadar, replan, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { refrescarTrasVerificar } from "../verificaciones.js";
 import { state } from "../container.js";
+import { fallidos, pedirRefresco, refrescando } from "../seguimiento.js";
 
 /** Rutas del Radar (spec etapa 2 §12). El barrido corre en segundo plano y se consulta por estado. */
 export function radarRoutes(c: Container) {
@@ -87,7 +88,12 @@ export function radarRoutes(c: Container) {
     // va la del ranking. Sin esto la barra lo mostraba sin veredicto y la pestaña decía "sin datos todavía" (APH, 15/9).
     const conFila = new Set(watch.map((r) => r.symbol));
     const delRanking = todas.filter((r) => (r.kind === "stock" || r.kind === "etf" || r.kind === "adr") && set.has(r.symbol) && !conFila.has(r.symbol));
-    return { items, rows: [...watch, ...delRanking] };
+    const rows = [...watch, ...delRanking];
+    // `refreshing`: lo que se está analizando o espera su turno (18/9). La fila de un alta llega cuando termina su refresco.
+    // `failed`: lo que seguís, no tiene fila y su último análisis falló, con el motivo: un hueco sin explicación no se entiende.
+    const tieneFila = new Set(rows.map((r) => r.symbol));
+    const failed = date ? [] : fallidos(c).filter((f) => set.has(f.symbol) && !tieneFila.has(f.symbol));
+    return { items, rows, refreshing: date ? [] : refrescando(c), failed };
   };
   app.get("/radar/watchlist", async (ctx) => ctx.json(await watchPayload(ctx.req.query("date"))));
   app.post("/radar/watchlist", async (ctx) => {
@@ -101,10 +107,10 @@ export function radarRoutes(c: Container) {
     // Solo un COMPRAR tiene ticket válido (stop por debajo del precio); un OBSERVAR bajo el stop no lleva niveles: vive o expira.
     const ticket = row?.verdict === "COMPRAR" ? { targetPrice: row.target, stopLoss: row.stop } : { targetPrice: null, stopLoss: null };
     await store.addWatch(symbol, { note: body.note ?? null, entryPrice, entryAction: row?.verdict ?? "manual", ...ticket, thesis: row?.summary ?? null, horizonDays: 30 });
-    const r = await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
-    await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
-    await c.controlar?.().catch(() => null);
-    return ctx.json({ ...(await watchPayload()), refreshed: r });
+    // No se espera el refresco (18/9): rehacía la lista entera antes de responder y el alta tardaba unos 10 minutos.
+    // Corre después, solo para este símbolo y detrás de cualquier otro refresco en curso (ver `seguimiento.ts`).
+    void pedirRefresco(c, { today: today(ctx), simbolos: [symbol] }).catch(() => null);
+    return ctx.json(await watchPayload());
   });
   app.delete("/radar/watchlist/:symbol", async (ctx) => {
     await store.removeWatch(ctx.req.param("symbol"));
@@ -114,12 +120,8 @@ export function radarRoutes(c: Container) {
     await c.controlar?.().catch(() => null);
     return ctx.json(await watchPayload());
   });
-  app.post("/radar/watchlist/refresh", async (ctx) => {
-    const r = await refreshWatchlist(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() });
-    await replan(deps, { today: today(ctx), portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
-    await c.controlar?.().catch(() => null);
-    return ctx.json(r);
-  });
+  // La lista entera, a mano: espera su turno detrás de lo que esté corriendo y rearma el plan al terminar.
+  app.post("/radar/watchlist/refresh", async (ctx) => ctx.json(await pedirRefresco(c, { today: today(ctx) })));
   app.get("/radar/candidates/:symbol", async (ctx) => {
     const symbol = ctx.req.param("symbol").toUpperCase();
     const cand = (await store.latestCandidates()).find((r) => r.symbol === symbol);
