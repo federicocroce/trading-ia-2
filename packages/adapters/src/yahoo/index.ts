@@ -17,24 +17,42 @@ interface YahooChartResp {
 
 const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
 
-/** Parser puro del chart API v8 de Yahoo. */
-export function parseYahooChart(json: unknown): Candle[] {
+/**
+ * Parser puro del chart API v8 de Yahoo, con las sesiones que vinieron vacías.
+ *
+ * Yahoo lista el timestamp de la rueda aunque no tenga sus precios: ese día llega con `close: null`. La vela
+ * no se puede inventar, así que se descarta, pero la fecha se devuelve aparte como hueco. Sin eso la serie
+ * queda con un agujero indistinguible de un feriado y nadie se entera: el 22/9/2026 Yahoo devolvió la rueda
+ * entera de EE.UU. vacía y el plan del 23/9 se armó con los cierres del 21/9. El relleno lo hace
+ * `FallbackPriceHistory` con el respaldo, que es el único que sabe si esa rueda existió de verdad.
+ */
+export function parseYahooChartWithGaps(json: unknown): { candles: Candle[]; gaps: string[] } {
   const d = json as YahooChartResp;
   if (d.chart?.error) throw new Error(`yahoo: ${d.chart.error.description}`);
   const r = d.chart?.result?.[0];
-  if (!r?.timestamp) return [];
+  if (!r?.timestamp) return { candles: [], gaps: [] };
   const q = r.indicators.quote[0]!;
   // `adjclose` incluye dividendos: sin él, un ETF de letras parece plano (ver Candle.adjClose).
   const adj = r.indicators.adjclose?.[0]?.adjclose;
-  const out: Candle[] = [];
+  const candles: Candle[] = [];
+  const gaps: string[] = [];
   r.timestamp.forEach((ts, i) => {
+    const date = new Date(ts * 1000).toISOString().slice(0, 10);
     const close = q.close[i];
-    if (close === null || close === undefined) return;
+    if (close === null || close === undefined) {
+      gaps.push(date);
+      return;
+    }
     const a = adj?.[i];
     // Yahoo devuelve floats con ruido (44.36000061035156): se redondea a 4 decimales en la fuente.
-    out.push({ date: new Date(ts * 1000).toISOString().slice(0, 10), adjClose: a != null && Number.isFinite(a) ? r4(a) : null, open: r4(q.open[i] ?? close), high: r4(q.high[i] ?? close), low: r4(q.low[i] ?? close), close: r4(close), volume: q.volume[i] ?? 0});
+    candles.push({ date, adjClose: a != null && Number.isFinite(a) ? r4(a) : null, open: r4(q.open[i] ?? close), high: r4(q.high[i] ?? close), low: r4(q.low[i] ?? close), close: r4(close), volume: q.volume[i] ?? 0});
   });
-  return out;
+  return { candles, gaps };
+}
+
+/** Parser puro del chart API v8 de Yahoo. */
+export function parseYahooChart(json: unknown): Candle[] {
+  return parseYahooChartWithGaps(json).candles;
 }
 
 const rangeFor = (days: number) => (days <= 60 ? "3mo" : days <= 120 ? "6mo" : days <= 250 ? "1y" : "2y");
@@ -43,8 +61,11 @@ const rangeFor = (days: number) => (days <= 60 ? "3mo" : days <= 120 ? "6mo" : d
 export class YahooPriceHistory implements PriceHistory {
   constructor(private readonly http: HttpClient) {}
   async candles(symbol: string, days: number): Promise<Candle[]> {
+    return (await this.candlesWithGaps(symbol, days)).candles;
+  }
+  async candlesWithGaps(symbol: string, days: number): Promise<{ candles: Candle[]; gaps: string[] }> {
     const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol.toUpperCase())}?range=${rangeFor(days)}&interval=1d`;
-    return parseYahooChart(await this.http.getJson(url));
+    return parseYahooChartWithGaps(await this.http.getJson(url));
   }
 }
 

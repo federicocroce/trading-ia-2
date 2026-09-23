@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AlpacaPriceHistory, CompletedSessionsHistory, FallbackPriceHistory, FinnhubProfiles, YahooPriceHistory, fixtureHttpClient, parseYahooChart } from "../src/index.js";
+import { AlpacaPriceHistory, CompletedSessionsHistory, FallbackPriceHistory, FinnhubProfiles, YahooPriceHistory, fixtureHttpClient, parseYahooChart, parseYahooChartWithGaps } from "../src/index.js";
 
 const yahoo = { chart: { result: [{ timestamp: [1756684800, 1756771200, 1756857600], indicators: { quote: [{ open: [1, 2, null], high: [2, 3, null], low: [0.5, 1.5, null], close: [1.5, 2.5, null], volume: [100, 200, null] }] } }], error: null } };
 
@@ -68,5 +68,56 @@ describe("CompletedSessionsHistory", () => {
   });
   it("los .BA usan el cierre de Buenos Aires", async () => {
     expect((await new CompletedSessionsHistory(inner, () => new Date("2026-09-09T19:30:00Z")).candles("GGAL.BA", 260)).map((c) => c.date)).toEqual(["2026-09-08"]);
+  });
+});
+
+/**
+ * Regla del 23/9/2026: una sesión que la fuente lista pero devuelve vacía se rellena con el respaldo.
+ * Caso real: el 22/9 Yahoo devolvió `close: null` para TODOS los símbolos de EE.UU. El parser descartaba
+ * la fila (bien: no hay precio), pero el respaldo solo entraba si el primario lanzaba o venía vacío, así que
+ * la serie terminó el 21/9 sin que nadie se enterara y el plan del 23/9 se armó con cierres de dos días atrás.
+ */
+describe("huecos de una sesión en el primario", () => {
+  const conHueco = { chart: { result: [{ timestamp: [1758513600, 1758600000, 1758686400], indicators: { quote: [{ open: [1, null, 3], high: [2, null, 4], low: [0.5, null, 2.5], close: [1.5, null, 3.5], volume: [100, null, 300] }] } }], error: null } };
+
+  it("parseYahooChartWithGaps informa las fechas que Yahoo listó sin cierre", () => {
+    const { candles, gaps } = parseYahooChartWithGaps(conHueco);
+    expect(candles.map((c) => c.date)).toEqual(["2025-09-22", "2025-09-24"]);
+    expect(gaps).toEqual(["2025-09-23"]);
+  });
+
+  it("parseYahooChart sigue devolviendo solo las velas", () => {
+    expect(parseYahooChart(conHueco).map((c) => c.date)).toEqual(["2025-09-22", "2025-09-24"]);
+  });
+
+  const vela = (date: string, close: number) => ({ date, open: close, high: close, low: close, close, volume: 1 });
+
+  it("rellena el hueco con el respaldo y deja la serie ordenada", async () => {
+    const primary = {
+      candles: async () => [vela("2026-09-21", 80.72), vela("2026-09-23", 81.8)],
+      candlesWithGaps: async () => ({ candles: [vela("2026-09-21", 80.72), vela("2026-09-23", 81.8)], gaps: ["2026-09-22"] }),
+    };
+    const fallback = { candles: async () => [vela("2026-09-21", 80.74), vela("2026-09-22", 82.86), vela("2026-09-23", 81.85)] };
+    const c = await new FallbackPriceHistory(primary, fallback).candles("APH", 60);
+    expect(c.map((x) => x.date)).toEqual(["2026-09-21", "2026-09-22", "2026-09-23"]);
+    expect(c.map((x) => x.close)).toEqual([80.72, 82.86, 81.8]); // solo la faltante viene del respaldo
+  });
+
+  it("si el respaldo tampoco tiene esa sesión (feriado) devuelve la serie tal cual", async () => {
+    const primary = {
+      candles: async () => [vela("2026-09-21", 80.72)],
+      candlesWithGaps: async () => ({ candles: [vela("2026-09-21", 80.72)], gaps: ["2026-09-22"] }),
+    };
+    const fallback = { candles: async () => [vela("2026-09-21", 80.74)] };
+    expect((await new FallbackPriceHistory(primary, fallback).candles("APH", 60)).map((x) => x.date)).toEqual(["2026-09-21"]);
+  });
+
+  it("si el respaldo falla el hueco no rompe la serie del primario", async () => {
+    const primary = {
+      candles: async () => [vela("2026-09-21", 80.72)],
+      candlesWithGaps: async () => ({ candles: [vela("2026-09-21", 80.72)], gaps: ["2026-09-22"] }),
+    };
+    const fallback = { candles: async () => { throw new Error("alpaca caído"); } };
+    expect((await new FallbackPriceHistory(primary, fallback).candles("APH", 60)).map((x) => x.date)).toEqual(["2026-09-21"]);
   });
 });
