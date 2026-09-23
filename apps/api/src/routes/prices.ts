@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import { marketOf, quoteIsStale } from "@thesis/core";
 import type { LiveQuote } from "@thesis/core";
 import type { Container } from "../container.js";
 
@@ -20,13 +21,12 @@ export interface PriceRow {
 }
 const QUOTES_TTL_MS = 60_000;
 const TAPE_TTL_MS = 5 * 60_000;
-const STALE_AFTER_H = 30;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function toPriceRow(q: LiveQuote, now = Date.now()): PriceRow {
   const change = q.prevClose ? round2(q.price - q.prevClose) : null;
   const changePct = q.prevClose ? round2(((q.price - q.prevClose) / q.prevClose) * 100) : null;
-  const stale = q.asOf ? now - Date.parse(q.asOf) > STALE_AFTER_H * 3_600_000 : true;
+  const stale = quoteIsStale(q.asOf, new Date(now), marketOf(q.symbol));
   return { symbol: q.symbol, price: q.price, prevClose: q.prevClose, change, changePct, asOf: q.asOf, stale, currency: q.currency ?? null };
 }
 

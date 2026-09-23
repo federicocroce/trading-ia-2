@@ -5,9 +5,9 @@ import type { Candle } from "../cartera/types.js";
  * cierre produce stops, objetivos y cierres falsos (caso ZVRA 2026-09-09). Sin red: solo reloj y zona horaria.
  */
 export type MarketId = "us" | "ar";
-const MARKETS: Record<MarketId, { tz: string; closeMinutes: number }> = {
-  us: { tz: "America/New_York", closeMinutes: 16 * 60 + 10 },
-  ar: { tz: "America/Argentina/Buenos_Aires", closeMinutes: 17 * 60 + 10 },
+const MARKETS: Record<MarketId, { tz: string; openMinutes: number; closeMinutes: number }> = {
+  us: { tz: "America/New_York", openMinutes: 9 * 60 + 30, closeMinutes: 16 * 60 + 10 },
+  ar: { tz: "America/Argentina/Buenos_Aires", openMinutes: 11 * 60, closeMinutes: 17 * 60 + 10 },
 };
 
 export function localDateTime(now: Date, tz: string): { date: string; minutes: number } {
@@ -61,4 +61,30 @@ export function completedCandles(candles: Candle[], now: Date, market: MarketId 
   const m = MARKETS[market];
   const { date, minutes } = localDateTime(now, m.tz);
   return last.date === date && minutes < m.closeMinutes ? candles.slice(0, -1) : candles;
+}
+
+/** Horas después de las cuales una cotización es vieja aunque no haya habido rueda: el papel dejó de operar. */
+const STALE_AFTER_H = 30;
+
+/**
+ * ¿La cotización que estoy mostrando es de otra rueda? (23/9/2026)
+ *
+ * El único criterio era "más de 30 horas", pensado para el papel que dejó de operar. Pero AII no imprimió ni un
+ * trade en IEX en toda la rueda del 23/9, así que el hub siguió sirviendo el último de ayer con `stale: false`:
+ * la app mostraba 26,005 mientras la acción valía 25,33 (−2,6%), justo cuando había que poner la orden. Con el
+ * mercado abierto, una cotización de otro día es vieja aunque tenga 20 horas. Sin rueda hoy (fin de semana,
+ * feriado) o antes de la apertura, la del día anterior es la que corresponde y no se marca.
+ */
+export function quoteIsStale(asOf: string | null, now: Date, market: MarketId = "us"): boolean {
+  if (!asOf) return true;
+  const t = Date.parse(asOf);
+  if (Number.isNaN(t)) return true;
+  if (now.getTime() - t > STALE_AFTER_H * 3_600_000) return true;
+  const m = MARKETS[market];
+  const cotizacion = localDateTime(new Date(t), m.tz);
+  const ahora = localDateTime(now, m.tz);
+  // `>=` y no `===`: una cotización POSTERIOR al reloj (relojes desfasados, o un reloj inyectado en tests) no es
+  // vieja de ninguna manera, y con `===` caía del lado equivocado.
+  if (cotizacion.date >= ahora.date) return false;
+  return esRueda(atNoon(ahora.date), market) && ahora.minutes >= m.openMinutes;
 }
