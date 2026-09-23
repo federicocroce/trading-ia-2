@@ -8,10 +8,25 @@ while read -r _local_ref _local_sha remote_ref _remote_sha; do
 done
 [ "$a_master" -eq 0 ] && exit 0
 
-# Desde el editor o desde otra sesión el PATH puede no tener node: se usa el de nvm.
-if ! command -v pnpm >/dev/null 2>&1 && [ -d "$HOME/.nvm/versions/node" ]; then
-  PATH="$(ls -d "$HOME"/.nvm/versions/node/*/bin | tail -1):$PATH"
-  export PATH
+# Desde el editor o desde otra sesión el PATH puede no tener node ni pnpm: se usa el de nvm. Dos arreglos del
+# 23/9, porque el push murió con "env: node: No such file or directory" sin correr un solo test: se pregunta por
+# los dos binarios (con pnpm instalado aparte el guard viejo pasaba y node seguía faltando), y se busca la
+# versión que TENGA pnpm empezando por la de por defecto de nvm, en vez de la última por nombre: la última era
+# v25.2.1, que no lo tiene instalado.
+if ! command -v node >/dev/null 2>&1 || ! command -v pnpm >/dev/null 2>&1; then
+  for v in "$(cat "$HOME/.nvm/alias/default" 2>/dev/null)" $(ls -r "$HOME/.nvm/versions/node" 2>/dev/null); do
+    [ -n "$v" ] || continue
+    d="$HOME/.nvm/versions/node/v${v#v}/bin"
+    if [ -x "$d/node" ] && [ -x "$d/pnpm" ]; then
+      PATH="$d:$PATH"
+      export PATH
+      break
+    fi
+  done
+fi
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "[pre-push] no encuentro pnpm: no puedo verificar, no empujo a master" >&2
+  exit 1
 fi
 echo "[pre-push] empuje a master: corre pnpm verificar"
 exec pnpm -s verificar
