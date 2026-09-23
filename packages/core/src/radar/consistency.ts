@@ -52,6 +52,11 @@ export interface ConsistencyInput {
   held?: string[];
   /** Última verificación guardada por símbolo (la que muestra la ficha). Sin esto no corre `verificacion_desfasada`. */
   verifications?: Record<string, { date: string; verdict: string } | null>;
+  /**
+   * La última rueda que ya cerró (`lastCompletedSession`). Es el único dato de este chequeo que NO sale de lo
+   * guardado: sin un testigo de afuera, unas velas viejas coinciden perfecto consigo mismas. Sin esto se saltea.
+   */
+  lastSession?: string | null;
 }
 
 export const CONSISTENCY_THRESHOLDS = {
@@ -265,6 +270,23 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     //    afuera a propósito: no tienen hechos de una empresa que leer.
     if (i.newsScannedTo && (row.kind === "stock" || row.kind === "watch") && i.newsScannedTo[row.symbol] === null) {
       add("noticias_sin_leer", row.symbol, "aviso", "es candidata y nunca se leyó una noticia suya: sus eventos vacíos no prueban nada");
+    }
+  }
+
+  // 5b. Las velas tienen que llegar hasta la última rueda cerrada. Es el único chequeo que mira un testigo de
+  //     afuera (el calendario) en vez de contrastar lo guardado contra lo guardado, y existe por el 23/9/2026:
+  //     Yahoo devolvió la rueda del 22 vacía para todos los símbolos de EE.UU., las velas terminaron el 21 y el
+  //     plan salió con esos cierres. `precio_guardado` no lo vio porque la fila coincidía con sus propias velas,
+  //     y tolera a propósito el cierre anterior (el cron arma el Radar antes de que exista la vela del día).
+  //     Solo se miran los símbolos sobre los que se actúa —COMPRAR y líneas del plan—: el resto sería ruido.
+  if (i.lastSession) {
+    const enPlan = new Set((i.plan?.lines ?? []).map((l) => l.symbol.toUpperCase()));
+    for (const row of i.rows) {
+      if (row.verdict !== "COMPRAR" && !enPlan.has(row.symbol.toUpperCase())) continue;
+      const ultima = i.candles[row.symbol]?.at(-1)?.date;
+      if (ultima && ultima < i.lastSession) {
+        add("velas_desfasadas", row.symbol, "grave", `su última vela es del ${ultima} y la última rueda cerrada es la del ${i.lastSession}: el precio, el stop y el objetivo salen de datos viejos`);
+      }
     }
   }
 

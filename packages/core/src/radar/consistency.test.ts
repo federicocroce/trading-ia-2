@@ -449,3 +449,59 @@ describe("la verificación de la fila es la guardada (auditoría del 15/9)", () 
     expect(f).toEqual([]);
   });
 });
+
+/**
+ * 23/9/2026: el plan se armó con los cierres del 21/9 porque Yahoo devolvió la rueda del 22 vacía para todos
+ * los símbolos de EE.UU. Ningún chequeo lo vio: `precio_guardado` compara la fila contra SUS PROPIAS velas
+ * guardadas, y coincidían perfecto — con velas viejas. Esto mira las velas contra el calendario.
+ */
+describe("velas_desfasadas", () => {
+  const conSesion = (over: Parameters<typeof checkConsistency>[0]) => checkConsistency({ lastSession: "2026-09-22", today: "2026-09-23", ...over });
+
+  it("un COMPRAR cuya última vela no es la última rueda cerrada es grave", () => {
+    const f = solo("velas_desfasadas", conSesion({
+      rows: [fila({ symbol: "APH", candidateDate: "2026-09-23", close: 80.72 })],
+      candles: { APH: [vela("2026-09-18", 77.55), vela("2026-09-21", 80.72)] },
+      plan: null,
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("2026-09-21");
+    expect(f[0]!.detail).toContain("2026-09-22");
+  });
+
+  it("una línea del plan desfasada es grave aunque su fila no sea COMPRAR", () => {
+    const f = solo("velas_desfasadas", conSesion({
+      rows: [fila({ symbol: "VTI", candidateDate: "2026-09-23", verdict: "OBSERVAR", close: 381.1 })],
+      candles: { VTI: [vela("2026-09-21", 381.1)] },
+      plan: plan([linea({ symbol: "VTI", kind: "nucleo", stop: null, close: 381.1 })]),
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+  });
+
+  it("al día no reporta nada", () => {
+    expect(solo("velas_desfasadas", conSesion({
+      rows: [fila({ symbol: "APH", candidateDate: "2026-09-23", close: 82.86 })],
+      candles: { APH: [vela("2026-09-21", 80.72), vela("2026-09-22", 82.86)] },
+      plan: plan([linea({ symbol: "APH", close: 82.86 })]),
+    }))).toEqual([]);
+  });
+
+  it("sin lastSession el chequeo se saltea, como los demás", () => {
+    expect(solo("velas_desfasadas", checkConsistency({
+      rows: [fila({ symbol: "APH", candidateDate: "2026-09-23", close: 80.72 })],
+      candles: { APH: [vela("2026-09-21", 80.72)] },
+      plan: null,
+      today: "2026-09-23",
+    }))).toEqual([]);
+  });
+
+  it("un símbolo que no se compra ni está en el plan no ensucia la salida", () => {
+    expect(solo("velas_desfasadas", conSesion({
+      rows: [fila({ symbol: "ZZZ", candidateDate: "2026-09-23", verdict: "OBSERVAR", close: 10 })],
+      candles: { ZZZ: [vela("2026-09-21", 10)] },
+      plan: null,
+    }))).toEqual([]);
+  });
+});
