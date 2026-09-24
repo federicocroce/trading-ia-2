@@ -1,0 +1,34 @@
+{
+  "hechos": [
+    {
+      "tipo": "evento_de_capital",
+      "symbol": "INDV",
+      "fecha": "2026-09-17",
+      "valor": {
+        "clase": "dividendo_especial",
+        "fechaEvento": "2026-10-30",
+        "montoPorAccionUsd": 8.13,
+        "detalle": "registro del 30/10, sujeto al cierre de la fusión con Supernus"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001625297/000110465926108417/tm2623753d7_ex99-1.htm",
+        "titulo": "8-K de Indivior del 17/9/2026, exhibit 99.1: 'special cash dividend ... $8.13 per share ... holders of record ... as of October 30, 2026 ... contingent upon the closing of ... the Merger with Supernus'"
+      }
+    },
+    {
+      "tipo": "evento_de_capital",
+      "symbol": "CTVA",
+      "fecha": "2026-09-15",
+      "valor": {
+        "clase": "escision",
+        "fechaEvento": "2026-10-01",
+        "montoPorAccionUsd": null,
+        "detalle": "1 acción de Vylor por cada acción de Corteva"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1755672/000119312526391369/d71834d8k.htm",
+        "titulo": "8-K de Corteva del 15/9/2026: 'Distribution is expected to be completed prior to 9:30 a.m. ... on October 1, 2026 ... one share of Vylor Common Stock for every share of Corteva common stock'"
+      }
+    }
+  ]
+}
