@@ -198,11 +198,26 @@ async function runSteps(c: Container, ids: StepId[], runners: Runners, now: Date
 }
 
 /** Un paso a mano (botón "Correr" del panel), esté pendiente o no. */
-export async function runStep(c: Container, id: StepId, opts: { now?: Date; runners?: Runners } = {}): Promise<CatchUpResult> {
-  if (state.catchup.running) return state.catchup.last ?? { at: new Date().toISOString(), ran: [] };
+/**
+ * El turno del catch-up (24/9/2026). Lo que llega con otro paso corriendo se encadena en vez de perderse.
+ *
+ * Por qué. Los crons de la mañana están a cinco minutos uno de otro (tesis 07:30, cartera 07:45, radar 07:50).
+ * El 24/9 `cartera` tardó más de cinco minutos porque Gemini devolvía 503; el cron de `radar` se disparó con el
+ * candado puesto y `runStep` devolvía el resultado ANTERIOR en silencio: no corrió nada, no registró nada, y el
+ * Radar se quedó sin refrescar toda la mañana. Se enteró el control `velas_desfasadas` con 46 graves, no la app.
+ * Un paso que el reloj pidió no se puede perder porque otro se alargó; a lo sumo empieza más tarde.
+ */
+let turnoDeCorrida: Promise<unknown> = Promise.resolve();
+function enTurnoDeCorrida<T>(fn: () => Promise<T>): Promise<T> {
+  const r = turnoDeCorrida.then(fn);
+  turnoDeCorrida = r.catch(() => undefined);
+  return r;
+}
+
+async function correrPasos(c: Container, ids: StepId[], opts: { now?: Date; runners?: Runners }): Promise<CatchUpResult> {
   state.catchup.running = true;
   try {
-    const r = await runSteps(c, [id], opts.runners ?? c.catchupRunners ?? defaultRunners(), opts.now ?? new Date());
+    const r = await runSteps(c, ids, opts.runners ?? c.catchupRunners ?? defaultRunners(), opts.now ?? new Date());
     state.catchup.last = r;
     return r;
   } finally {
@@ -210,10 +225,21 @@ export async function runStep(c: Container, id: StepId, opts: { now?: Date; runn
   }
 }
 
+/**
+ * Corre un paso. Con `esperarTurno` (los crons) espera a que termine lo que esté corriendo; sin él (el botón de
+ * la pantalla) devuelve lo último y no encola, para no dejar colgada la respuesta HTTP diez minutos.
+ */
+export async function runStep(c: Container, id: StepId, opts: { now?: Date; runners?: Runners; esperarTurno?: boolean } = {}): Promise<CatchUpResult> {
+  if (!opts.esperarTurno && state.catchup.running) return state.catchup.last ?? { at: new Date().toISOString(), ran: [] };
+  return enTurnoDeCorrida(() => correrPasos(c, [id], opts));
+}
+
 export async function runCatchUp(c: Container, opts: { now?: Date; runners?: Runners } = {}): Promise<CatchUpResult> {
   if (state.catchup.running) return state.catchup.last ?? { at: new Date().toISOString(), ran: [] };
   const now = opts.now ?? new Date();
   const runners = opts.runners ?? c.catchupRunners ?? defaultRunners();
+  // Por el turno, como runStep: si un cron está corriendo, este espera en vez de arrancar en paralelo.
+  return enTurnoDeCorrida(async () => {
   state.catchup.running = true;
   try {
     // Retención del registro de uso: 90 días. Barato (índice por fecha) y corre con cada chequeo.
@@ -225,4 +251,5 @@ export async function runCatchUp(c: Container, opts: { now?: Date; runners?: Run
   } finally {
     state.catchup.running = false;
   }
+  });
 }

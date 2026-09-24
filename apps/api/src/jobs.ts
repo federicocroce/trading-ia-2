@@ -23,7 +23,8 @@ export function cronPlan(cfg: Pick<Config, "dailyCron" | "carteraCron" | "radarS
 export function scheduleJobs(c: Container, cfg: Parameters<typeof cronPlan>[0], schedule: (expr: string, fn: () => Promise<void>) => unknown): void {
   for (const job of cronPlan(cfg)) {
     schedule(job.expr, async () => {
-      for (const id of job.steps) await runStep(c, id).catch((e: unknown) => console.error(`[cron] ${id} falló`, e));
+      // `esperarTurno`: si otro paso se alargó, este espera en vez de perderse (24/9, ver catchup.ts).
+      for (const id of job.steps) await runStep(c, id, { esperarTurno: true }).catch((e: unknown) => console.error(`[cron] ${id} falló`, e));
     });
   }
 }
