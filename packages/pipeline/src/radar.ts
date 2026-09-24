@@ -13,6 +13,7 @@ import {
   sanitizeMetrics,
   assetClassFor,
   computeTrailingStop,
+  coreEarnings,
   decideCandidate,
   seleccionarCandidatas,
   lugarParaNueva,
@@ -354,6 +355,15 @@ export async function statementsFor(deps: RadarDeps, sym: string, today: string)
   const src = deps.statements;
   if (!src) return null;
   let st = await deps.store.statements(sym);
+  // Guardados antes del 24/9 sin núcleo porque faltaba `OperatingIncomeLoss`: se recalcula con lo que ya está (ver
+  // `operativoDe`), sin volver a pedir nada a la SEC.
+  if (st && st.core === null && st.quarters.length) {
+    const core = coreEarnings(st.quarters);
+    if (core) {
+      st = { ...st, core };
+      await deps.store.saveStatements(st);
+    }
+  }
   if (!st || ageDays(st.asOf, today) >= FRESH_DAYS || !hasQualityFields(st)) {
     const fetched = await src.quarters(sym, today).catch((e) => { deps.log?.(`[radar] estados de ${sym} fallaron`, { error: String(e).slice(0, 120) }); return undefined; });
     if (fetched !== undefined) {
