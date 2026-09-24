@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fixtureHttpClient } from "../src/http/index.js";
 import { EdgarIngestor, fetchFilingText, filingUrl, htmlToText } from "../src/edgar/index.js";
 import { EdgarOfferForms, tituloDeFiling } from "../src/edgar/ofertas.js";
+import { ANUNCIO_DE_FUSION, bajoOfertaDeCompra } from "@thesis/core";
 import { NasdaqEarningsIngestor } from "../src/earnings/index.js";
 import { AlpacaMarketData, impliedMoveFromChain, parseOcc } from "../src/alpaca/market.js";
 import { AlpacaBroker } from "../src/alpaca/broker.js";
@@ -241,6 +242,40 @@ describe("EdgarOfferForms", () => {
     await o.offerFilingTitles("AES", { today: "2026-09-17" });
     await o.offerFilingTitles("AES", { today: "2026-09-17" });
     expect(pedidos).toBe(1);
+  });
+  /**
+   * 24/9: MG figuraba COMPRAR con objetivo 23,32 contra una oferta de 20,35 en efectivo firmada el 17/9. Todavía no hay
+   * PREM14A; hay DEFA14A y el 8-K del acuerdo el mismo día. Se lee ese 8-K (un pedido más, solo cuando aparece la
+   * pareja) y, si habla de un acuerdo de fusión, se agrega el título del anuncio.
+   */
+  it("MG: DEFA14A + 8-K 1.01 del mismo día con 'Agreement and Plan of Merger' → título del anuncio", async () => {
+    const leidos: string[] = [];
+    const base = fixtureHttpClient({
+      "https://www.sec.gov/files/company_tickers.json": E.companyTickersMG,
+      "https://data.sec.gov/submissions/CIK0001436126.json": E.submissionsMG,
+      "https://www.sec.gov/Archives/edgar/data/1436126/000114036126037107/ef20082419_8k.htm": E.mg8k,
+    });
+    const http = { ...base, getText: async (url: string) => { leidos.push(url); return base.getText(url); } };
+    const titulos = await new EdgarOfferForms(http).offerFilingTitles("MG", { today: "2026-09-24" });
+    expect(titulos).toEqual([`${ANUNCIO_DE_FUSION} — Mistras Group, Inc.`]);
+    expect(bajoOfertaDeCompra(titulos)).toBe(ANUNCIO_DE_FUSION);
+    expect(leidos).toEqual(["https://www.sec.gov/Archives/edgar/data/1436126/000114036126037107/ef20082419_8k.htm"]);
+  });
+  it("un acuerdo de cooperación con la misma forma (1.01 + 5.02 + DEFA14A) no es una fusión", async () => {
+    const http = fixtureHttpClient({
+      "https://www.sec.gov/files/company_tickers.json": E.companyTickersMG,
+      "https://data.sec.gov/submissions/CIK0001114483.json": E.submissionsITGR,
+      "https://www.sec.gov/Archives/edgar/data/1114483/000117184326001505/f8k_031226.htm": E.itgr8k,
+    });
+    expect(await new EdgarOfferForms(http).offerFilingTitles("ITGR", { today: "2026-03-20" })).toEqual([]);
+  });
+  it("si el 8-K no se puede leer, la consulta falla (y la corrida la cuenta como fallida): no se afirma nada", async () => {
+    const base = fixtureHttpClient({
+      "https://www.sec.gov/files/company_tickers.json": E.companyTickersMG,
+      "https://data.sec.gov/submissions/CIK0001436126.json": E.submissionsMG,
+    });
+    const http = { ...base, getText: async () => { throw new Error("HTTP 503"); } };
+    await expect(new EdgarOfferForms(http).offerFilingTitles("MG", { today: "2026-09-24" })).rejects.toThrow("503");
   });
   it("tituloDeFiling: sin items ni con items", () => {
     expect(tituloDeFiling("DEFM14A", "", "AES CORP")).toBe("DEFM14A — AES CORP");

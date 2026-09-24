@@ -23,8 +23,57 @@
  */
 export const FORMULARIOS_DE_OFERTA = ["DEFM14A", "PREM14A", "SC 14D9", "425"] as const;
 
+/**
+ * Título que escribe la consulta a EDGAR cuando confirmó un anuncio de fusión (ver `anuncioDeFusion`): no es un
+ * formulario de la SEC, es la pareja 8-K + DEFA14A con el texto leído. Prueba solo.
+ */
+export const ANUNCIO_DE_FUSION = "ANUNCIO DE FUSION";
+
 /** Formularios cuya sola presencia prueba que la empresa está en venta (a diferencia del 425, ver arriba). */
 const FORMULARIOS_QUE_PRUEBAN_SOLOS = ["DEFM14A", "PREM14A", "SC 14D9"] as const;
+
+/** Cuánto vale el anuncio: para entonces la fusión tiene su PREM14A (que dura 400 días) o se cayó. */
+export const VENTANA_ANUNCIO_DIAS = 120;
+const DIA = 86_400_000;
+
+/** Un filing como lo lista el JSON de submissions de EDGAR; `ref` es lo que identifica al documento para leerlo. */
+export interface FilingListado<R = string> { form: string; fecha: string; items: string; ref: R }
+
+/**
+ * El 8-K que hay que leer para saber si la empresa acaba de firmar su venta, o null. Es el 8-K con item 1.01 que el
+ * emisor presentó el mismo día que un DEFA14A (o con un día de diferencia), en los últimos `VENTANA_ANUNCIO_DIAS`.
+ *
+ * Por qué hace falta (24/9): el PREM14A llega semanas después del anuncio, y mientras tanto MG, BWIN y PRTH figuraban
+ * como empresas libres. Por qué no alcanza con la pareja: un acuerdo de cooperación con un activista tiene la misma
+ * forma. Por eso devuelve el 8-K a leer, y lo decide `textoDeFusion`.
+ */
+export function anuncioDeFusion<R>(filings: ReadonlyArray<FilingListado<R>>, today: string): FilingListado<R> | null {
+  const hoy = Date.parse(today);
+  const vigente = (f: FilingListado<R>) => { const edad = (hoy - Date.parse(f.fecha)) / DIA; return edad >= 0 && edad <= VENTANA_ANUNCIO_DIAS; };
+  const votaciones = filings.filter((f) => f.form === "DEFA14A" && vigente(f)).map((f) => Date.parse(f.fecha));
+  if (!votaciones.length) return null;
+  const candidatos = filings
+    .filter((f) => f.form === "8-K" && vigente(f) && f.items.split(",").map((i) => i.trim()).includes("1.01"))
+    .filter((f) => votaciones.some((d) => Math.abs(d - Date.parse(f.fecha)) <= DIA))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  return candidatos[0] ?? null;
+}
+
+/** Frases de un acuerdo de fusión. "Merger" suelto no: aparece en cualquier cosa. */
+const FRASES_DE_FUSION = /agreement\s+and\s+plan\s+of\s+merger|\bmerger\s+agreement\b|arrangement\s+agreement|\btender\s+offer\b/i;
+/** En el 8-K de la vendida, el vehículo de la fusión es subsidiaria del comprador ("Parent", "Purchaser"…): MG, TBRG, BWIN, PRTH. */
+const LA_VENDIDA = /wholly[- ]owned\s+subsidiary\s+of\s+(\w+\s+)?(parent|purchaser|buyer|acquiror|acquirer)\b/i;
+/** En el de la compradora, la empresa es la que compra: VCTR, 31/8. */
+const LA_COMPRADORA = /the\s+company\s+(will|shall|has\s+agreed\s+to)\s+acquire/i;
+
+/**
+ * ¿El 8-K anuncia la venta de la empresa que lo presenta? Tiene que ser un acuerdo de fusión (el de cooperación de ITGR
+ * no lo es) y la empresa tiene que ser la vendida: la compradora también presenta DEFA14A cuando emite acciones y sus
+ * accionistas votan (VCTR, 31/8, comprando First Eagle), y su 8-K dice "Agreement and Plan of Merger" igual.
+ */
+export function textoDeFusion(texto: string): boolean {
+  return FRASES_DE_FUSION.test(texto) && LA_VENDIDA.test(texto) && !LA_COMPRADORA.test(texto);
+}
 
 /**
  * El formulario que prueba que la empresa está bajo oferta de compra, o null si ninguno lo hace.
@@ -38,13 +87,16 @@ const FORMULARIOS_QUE_PRUEBAN_SOLOS = ["DEFM14A", "PREM14A", "SC 14D9"] as const
  */
 export function bajoOfertaDeCompra(titulos: readonly string[]): string | null {
   const encontrados: string[] = [];
+  let anuncio = false;
   for (const t of titulos) {
     const formulario = t.split(" — ")[0]?.replace(/\s*\(items[^)]*\)\s*$/, "").trim();
     if (!formulario) continue;
+    if (formulario === ANUNCIO_DE_FUSION) anuncio = true;
     const hit = FORMULARIOS_DE_OFERTA.find((f) => f === formulario);
     if (hit) encontrados.push(hit);
   }
+  // El formulario de la SEC, si ya lo hay, es mejor prueba que el anuncio leído.
   return encontrados.find((f): f is (typeof FORMULARIOS_QUE_PRUEBAN_SOLOS)[number] =>
     (FORMULARIOS_QUE_PRUEBAN_SOLOS as readonly string[]).includes(f)
-  ) ?? null;
+  ) ?? (anuncio ? ANUNCIO_DE_FUSION : null);
 }
