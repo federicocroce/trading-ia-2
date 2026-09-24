@@ -11,7 +11,7 @@ import { z } from "zod";
  * cables de comunicados). Lo demás se muestra con su estado y no cambia banderas, veredictos ni convicción (13/9: un
  * dato inventado dentro de un recordatorio no puede mover un plan).
  */
-export const HECHO_TIPOS = ["guia", "ganancia_por_reservas", "ganancia_extraordinaria", "oferta_de_compra", "investigacion_regulatoria"] as const;
+export const HECHO_TIPOS = ["guia", "ganancia_por_reservas", "ganancia_extraordinaria", "oferta_de_compra", "investigacion_regulatoria", "evento_de_capital"] as const;
 export type HechoTipo = (typeof HECHO_TIPOS)[number];
 
 const fechaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "fecha AAAA-MM-DD");
@@ -25,6 +25,12 @@ export const ReservasValorSchema = z.object({ trimestre: z.string().min(1), mont
  * tienen legibles (6-K, 20-F). `epsSinExtraordinario` es cálculo propio y la fuente lo dice.
  */
 export const ExtraordinariaValorSchema = z.object({ trimestre: z.string().min(1), montoUsd: z.number(), concepto: z.string().min(1), epsPublicado: z.number(), epsSinExtraordinario: z.number(), epsConsenso: z.number().nullable() });
+/**
+ * Un evento que va a mover el precio de forma mecánica en una fecha conocida (24/9): un dividendo especial (INDV, 8,13
+ * por acción, ~23% del precio, antes del cierre de su fusión con Supernus) o una escisión (CTVA, Vylor el 1/10). Ese
+ * día el precio baja sin que baje nada del negocio, toca el stop y el objetivo deja de tener sentido.
+ */
+export const EventoDeCapitalValorSchema = z.object({ clase: z.enum(["dividendo_especial", "escision"]), fechaEvento: fechaIso, montoPorAccionUsd: z.number().positive().nullable(), detalle: z.string().min(1) });
 export const OfertaValorSchema = z.object({ comprador: z.string().min(1), efectivoUsd: z.number().nullable(), ratio: z.object({ acciones: z.number().positive(), de: z.string().min(1) }).nullable(), etapa: z.string().min(1), cierreEsperado: z.string().nullable(), formulario: z.string().nullable() });
 
 /**
@@ -41,16 +47,20 @@ export const HechoEntradaSchema = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("ganancia_extraordinaria"), ...comun, valor: ExtraordinariaValorSchema }),
   z.object({ tipo: z.literal("oferta_de_compra"), ...comun, valor: OfertaValorSchema }),
   z.object({ tipo: z.literal("investigacion_regulatoria"), ...comun, valor: InvestigacionValorSchema }),
+  z.object({ tipo: z.literal("evento_de_capital"), ...comun, valor: EventoDeCapitalValorSchema }),
 ]);
 export type HechoEntrada = z.infer<typeof HechoEntradaSchema>;
 export type HechoExterno = HechoEntrada & { primaria: boolean; estado: "verificado" | "no_verificado"; origen: "agente" | "manual"; detectadoAt: string; vigenteHasta: string | null };
 
 /** Cuánto dura cada tipo de hecho. Una oferta firmada hace meses sigue fijando el precio (AES: 400 días, como EDGAR). */
-export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, ganancia_extraordinaria: 120, oferta_de_compra: 400, investigacion_regulatoria: 365 };
+export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, ganancia_extraordinaria: 120, oferta_de_compra: 400, investigacion_regulatoria: 365, evento_de_capital: 400 };
 export const VENTANA_MAXIMA_DIAS = 400;
 /** La puerta de entrada al ranking: como mucho estos símbolos, los más recientes. */
 export const PUERTA_TOPE = 20;
 const DAY = 86_400_000;
+/** Cuántos días después del evento de capital sigue la marca. */
+export const EVENTO_DIAS_DESPUES = 3;
+const addDaysIso = (d: string, n: number) => new Date(Date.parse(d) + n * DAY).toISOString().slice(0, 10);
 
 export function esFuentePrimaria(url: string, hosts: readonly string[]): boolean {
   let host: string;
@@ -92,6 +102,10 @@ export function textoDeHecho(h: HechoExterno): string {
   if (h.tipo === "ganancia_extraordinaria") {
     return `la ganancia del ${h.valor.trimestre} lleva ${millones(h.valor.montoUsd)} de ${h.valor.concepto}: sin eso ${coma(h.valor.epsSinExtraordinario)} contra ${h.valor.epsConsenso === null ? "—" : coma(h.valor.epsConsenso)} esperado`;
   }
+  if (h.tipo === "evento_de_capital") {
+    const que = h.valor.clase === "dividendo_especial" ? `dividendo especial${h.valor.montoPorAccionUsd === null ? "" : ` de ${coma(h.valor.montoPorAccionUsd)} por acción`}` : "escisión";
+    return `${que} el ${h.valor.fechaEvento} (${h.valor.detalle}): hasta entonces los niveles no valen`;
+  }
   if (h.tipo === "investigacion_regulatoria") {
     const quienes = h.valor.organismos.length > 1 ? `${h.valor.organismos.slice(0, -1).join(", ")} y ${h.valor.organismos[h.valor.organismos.length - 1]}` : h.valor.organismos[0]!;
     return `investigación ${h.valor.estado} de ${quienes} (${h.valor.asunto}); la empresa ${h.valor.empresaAcusada ? "está acusada" : "no está acusada"}`;
@@ -120,6 +134,8 @@ export function banderasDeHechos(hechos: readonly HechoExterno[], today: string)
       if (!sobrevive) add("ganancia_extraordinaria");
     } else if (h.tipo === "oferta_de_compra") add("bajo_oferta_de_compra");
     else if (h.tipo === "investigacion_regulatoria" && h.valor.estado === "abierta") add("investigacion_abierta");
+    // Hasta 3 días después del evento: el precio ya se acomodó y las velas nuevas lo muestran.
+    else if (h.tipo === "evento_de_capital" && today <= addDaysIso(h.valor.fechaEvento, EVENTO_DIAS_DESPUES)) add("evento_de_capital_pendiente");
   }
   return out;
 }

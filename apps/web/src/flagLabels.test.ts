@@ -108,6 +108,8 @@ describe("el título de cada bandera dice lo que hace (auditoría del 15/9)", ()
     expect(flagTone("ganancia_extraordinaria")).toBe("salvedad");
     expect(flagLabel("pares_no_comparables")).toBe("sus pares no se mueven como ella: el puesto contra el grupo vale menos");
     expect(flagTone("pares_no_comparables")).toBe("salvedad");
+    expect(flagLabel("evento_de_capital_pendiente")).toBe("dividendo especial o escisión pendiente: ese día el precio baja de forma mecánica (hecho verificado)");
+    expect(flagTone("evento_de_capital_pendiente")).toBe("salvedad");
     expect(flagTone("guia_reafirmada")).toBe("limitacion");
   });
 });

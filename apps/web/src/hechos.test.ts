@@ -21,6 +21,9 @@ describe("textoDeHecho", () => {
   it("ganancia extraordinaria (TAL, 24/9): mismo texto que el núcleo", () => {
     expect(textoDeHecho({ ...base, tipo: "ganancia_extraordinaria", symbol: "TAL", fecha: "2026-07-30", valor: { trimestre: "1T FY27", montoUsd: 405.2e6, concepto: "valor razonable de inversiones", epsPublicado: 0.73, epsSinExtraordinario: 0.2, epsConsenso: 0.29 }, fuente: { url: "https://www.sec.gov/t", titulo: "6-K" } })).toBe("la ganancia del 1T FY27 lleva USD 405 M de valor razonable de inversiones: sin eso 0,2 contra 0,29 esperado");
   });
+  it("evento de capital (INDV, 24/9): mismo texto que el núcleo", () => {
+    expect(textoDeHecho({ ...base, tipo: "evento_de_capital", symbol: "INDV", fecha: "2026-09-17", valor: { clase: "dividendo_especial", fechaEvento: "2026-10-30", montoPorAccionUsd: 8.13, detalle: "condicionado al cierre de la fusión con Supernus" }, fuente: { url: "https://www.sec.gov/i", titulo: "8-K" } })).toBe("dividendo especial de 8,13 por acción el 2026-10-30 (condicionado al cierre de la fusión con Supernus): hasta entonces los niveles no valen");
+  });
   it("oferta de compra en efectivo: mismo texto que el núcleo", () => {
     expect(textoDeHecho({ ...base, tipo: "oferta_de_compra", symbol: "AES", fecha: "2026-03-01", valor: { comprador: "GIP/EQT", efectivoUsd: 15, ratio: null, etapa: "faltan FERC y estados", cierreEsperado: null, formulario: "DEFM14A" }, fuente: { url: "https://www.sec.gov/z", titulo: "8-K" } })).toBe("vendida a 15 en efectivo (GIP/EQT, faltan FERC y estados)");
   });
