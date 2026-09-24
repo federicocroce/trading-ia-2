@@ -5,13 +5,18 @@ import { correlation } from "../cartera/risk.js";
 const VENTANA = 252;
 /** Menos que esto en común y la correlación no dice nada. */
 const MIN_COMUNES = 60;
+/**
+ * Cuánto menos que al mercado tiene que parecerse a sus pares para que el grupo no sirva de vara. Sin margen, medio
+ * Radar quedaba marcado por diferencias de ruido (MU 0,51 contra 0,53); con 0,1, el 24/9 quedaron 16 de 71.
+ */
+export const MARGEN_PARES = 0.1;
 
 export interface ParecidoConPares {
   /** Mediana de la correlación de retornos diarios contra cada par. */
   mediana: number | null;
   /** Correlación contra el mercado (SPY), la vara para decir si la mediana es baja. */
   conMercado: number | null;
-  /** Se parece menos a sus pares que al mercado entero: los pares no son pares. */
+  /** Se parece a sus pares `MARGEN_PARES` menos que al mercado entero: los pares no son pares. */
   noSeParecen: boolean;
   porPar: Array<{ symbol: string; corr: number }>;
 }
@@ -54,5 +59,14 @@ export function parecidoConPares(propias: Candle[], pares: Record<string, Candle
     .sort((a, b) => b.corr - a.corr);
   const cs = porPar.map((p) => p.corr).sort((a, b) => a - b);
   const mediana = cs.length ? (cs.length % 2 ? cs[(cs.length - 1) / 2]! : (cs[cs.length / 2 - 1]! + cs[cs.length / 2]!) / 2) : null;
-  return { mediana, conMercado, noSeParecen: mediana !== null && mediana < conMercado, porPar };
+  return { mediana, conMercado, noSeParecen: mediana !== null && mediana < conMercado - MARGEN_PARES, porPar };
+}
+
+/**
+ * La regla (24/9, P15, aprobada por el dueño): si una acción se parece a sus pares claramente menos que al mercado, su
+ * puesto contra ese grupo no dice nada y la fila lleva `pares_no_comparables` (−0,3 de convicción). No cambia el
+ * puntaje ni el veredicto. Sin medición (menos de 60 días, sin velas), no se marca.
+ */
+export function paresNoComparables(m: Pick<ParecidoConPares, "mediana" | "conMercado"> | null): boolean {
+  return !!m && m.mediana !== null && m.conMercado !== null && m.mediana < m.conMercado - MARGEN_PARES;
 }

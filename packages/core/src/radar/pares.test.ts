@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle } from "../cartera/types.js";
-import { parecidoConPares } from "./pares.js";
+import { paresNoComparables, parecidoConPares } from "./pares.js";
 
 const dia = (i: number) => new Date(Date.parse("2025-09-01") + i * 86_400_000).toISOString().slice(0, 10);
 const serie = (retornos: number[], desde = 0): Candle[] => {
@@ -42,6 +42,11 @@ describe("parecidoConPares", () => {
     const corrido = serie(mercado).filter((_, i) => i % 7 !== 3); // le faltan días
     const m = parecidoConPares(propia, { X: corrido }, serie(mercado))!;
     expect(m.porPar[0]!.corr).toBeGreaterThan(0.95);
+  });
+  it("hace falta un margen: parecerse a los pares apenas menos que al mercado (MU 0,51 contra 0,53) no es no parecerse", () => {
+    expect(paresNoComparables({ mediana: 0.51, conMercado: 0.53 })).toBe(false);
+    expect(paresNoComparables({ mediana: 0.41, conMercado: 0.65 })).toBe(true); // NVDA, 24/9
+    expect(paresNoComparables(null)).toBe(false);
   });
   it("con menos de 60 días en común no afirma nada", () => {
     expect(parecidoConPares(serie(mercado.slice(0, 40)), { X: serie(mercado.slice(0, 40)) }, serie(mercado.slice(0, 40)))).toBeNull();

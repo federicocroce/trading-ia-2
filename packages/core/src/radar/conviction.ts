@@ -18,7 +18,7 @@ import type { CandidateRow, Tags } from "./types.js";
  *             −0.3 consenso a menos de 10% del precio; −0.3 subió más de 100% en 12 meses;
  *             −0.3 sensible a tasas (REIT, servicios públicos, minera de oro) con régimen restrictivo.
  *             −0.3 guía recortada / ganancia sostenida por reservas o por extraordinarios (hechos externos verificados);
- *             +0.2 guía subida.
+ *             +0.2 guía subida. −0.3 pares que no se mueven como ella (P15, 24/9).
  * - riesgo: −0.1 por cada punto por encima de 5.
  * - objetivo: −0.3 si queda a menos de 5% (el objetivo es 2× la distancia al stop, no un pronóstico).
  * - tema cargado: −0.3 si comparte un tema donde la cartera ya supera el umbral de concentración.
@@ -69,6 +69,8 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   objetivo_sobre_consenso: { text: "el objetivo de la app está 15% o más arriba del consenso de analistas: es mecánico (el doble del riesgo), no una opinión", penalty: 0.15 },
   ganancia_por_reservas: { text: "la ganancia publicada lleva reservas liberadas: sin ellas no llega al consenso (hecho verificado, con fuente en la ficha)", penalty: 0.3 },
   // 24/9, TAL: la sorpresa era valor razonable de inversiones. El mismo peso que las reservas.
+  // 24/9, P15: NVDA, SMCI, TSM, TAL… se parecían a su grupo menos que al S&P. El puesto contra ellos no dice nada.
+  pares_no_comparables: { text: "sus pares no se mueven como ella (se parece más al mercado que a su grupo): el puesto contra ellos vale menos", penalty: 0.3 },
   ganancia_extraordinaria: { text: "la ganancia publicada no viene del negocio (valor razonable, venta de activos…): sin eso no llega al consenso (hecho verificado, con fuente en la ficha)", penalty: 0.3 },
 };
 const INFO: Record<string, string> = {

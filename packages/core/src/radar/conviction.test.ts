@@ -153,4 +153,10 @@ describe("convicción con hechos externos (17/9)", () => {
     expect(tal.conviction).toBeCloseTo(base - 0.3, 4);
     expect(tal.cautions.join(" ")).toMatch(/no viene del negocio/);
   });
+  it("24/9, P15: pares que no se mueven como ella restan 0,3: el puesto contra ese grupo no dice nada", () => {
+    const base = convictionFor(fila([]), null, {})!.conviction;
+    const nvda = convictionFor(fila(["pares_no_comparables"]), null, {})!;
+    expect(nvda.conviction).toBeCloseTo(base - 0.3, 4);
+    expect(nvda.cautions.join(" ")).toMatch(/pares no se mueven como ella/);
+  });
 });
