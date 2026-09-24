@@ -1,6 +1,23 @@
 {
   "hechos": [
     {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "TAL",
+      "fecha": "2026-07-30",
+      "valor": {
+        "trimestre": "1T FY27 (al 31/5/2026)",
+        "montoUsd": 405200000,
+        "concepto": "valor razonable de inversiones",
+        "epsPublicado": 0.73,
+        "epsSinExtraordinario": 0.2,
+        "epsConsenso": 0.29
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1499620/000110465926088660/tm2621668d1_ex99-1.htm",
+        "titulo": "6-K del 30/7/2026, exhibit 99.1: otros ingresos de 405,2 M 'principalmente por el valor razonable de ciertas inversiones'; antes de impuestos 552,3 M (operación 137,2 + intereses 9,9 + otros 405,2), impuesto 143,7 M (26%), 408,0 M atribuibles = 0,73 por ADS. Sin los otros ingresos, ~0,20 por ADS es cálculo propio ((552,3 − 405,2) × 0,74 ÷ ~559 M de ADS)"
+      }
+    },
+    {
       "tipo": "oferta_de_compra",
       "symbol": "EFSI",
       "fecha": "2026-09-08",

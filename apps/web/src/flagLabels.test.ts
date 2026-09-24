@@ -104,6 +104,8 @@ describe("el título de cada bandera dice lo que hace (auditoría del 15/9)", ()
     expect(flagTone("guia_subida")).toBe("bueno");
     expect(flagTone("guia_recortada")).toBe("salvedad");
     expect(flagTone("ganancia_por_reservas")).toBe("salvedad");
+    expect(flagLabel("ganancia_extraordinaria")).toBe("la ganancia no viene del negocio (valor razonable, venta de activos…): sin eso no llega al consenso (hecho verificado)");
+    expect(flagTone("ganancia_extraordinaria")).toBe("salvedad");
     expect(flagTone("guia_reafirmada")).toBe("limitacion");
   });
 });

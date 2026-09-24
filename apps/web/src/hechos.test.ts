@@ -18,6 +18,9 @@ describe("textoDeHecho", () => {
   it("ganancia por reservas: mismo texto que el núcleo", () => {
     expect(textoDeHecho({ ...base, tipo: "ganancia_por_reservas", symbol: "PGR", fecha: "2026-07-15", valor: { trimestre: "2T 2026", montoUsd: 551e6, puntosCombinado: 2.6, epsPublicado: 4.85, epsSinReservas: 4.11, epsConsenso: 4.7 }, fuente: { url: "https://www.sec.gov/p", titulo: "8-K" } })).toBe("la ganancia del 2T 2026 lleva USD 551 M de reservas liberadas: sin eso 4,11 contra 4,7 esperado");
   });
+  it("ganancia extraordinaria (TAL, 24/9): mismo texto que el núcleo", () => {
+    expect(textoDeHecho({ ...base, tipo: "ganancia_extraordinaria", symbol: "TAL", fecha: "2026-07-30", valor: { trimestre: "1T FY27", montoUsd: 405.2e6, concepto: "valor razonable de inversiones", epsPublicado: 0.73, epsSinExtraordinario: 0.2, epsConsenso: 0.29 }, fuente: { url: "https://www.sec.gov/t", titulo: "6-K" } })).toBe("la ganancia del 1T FY27 lleva USD 405 M de valor razonable de inversiones: sin eso 0,2 contra 0,29 esperado");
+  });
   it("oferta de compra en efectivo: mismo texto que el núcleo", () => {
     expect(textoDeHecho({ ...base, tipo: "oferta_de_compra", symbol: "AES", fecha: "2026-03-01", valor: { comprador: "GIP/EQT", efectivoUsd: 15, ratio: null, etapa: "faltan FERC y estados", cierreEsperado: null, formulario: "DEFM14A" }, fuente: { url: "https://www.sec.gov/z", titulo: "8-K" } })).toBe("vendida a 15 en efectivo (GIP/EQT, faltan FERC y estados)");
   });

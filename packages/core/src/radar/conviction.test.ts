@@ -147,4 +147,10 @@ describe("convicción con hechos externos (17/9)", () => {
     expect(convictionFor(fila(["guia_reafirmada"]), null, {})!.conviction).toBeCloseTo(base, 4);
     expect(convictionFor(fila(["ganancia_por_reservas"]), null, {})!.cautions.join(" ")).toMatch(/reservas liberadas/);
   });
+  it("24/9, TAL: ganancia_extraordinaria resta 0,3 como las reservas, y la salvedad dice que no es operación", () => {
+    const base = convictionFor(fila(["sorpresa_positiva"]), null, {})!.conviction;
+    const tal = convictionFor(fila(["sorpresa_positiva", "ganancia_extraordinaria"]), null, {})!;
+    expect(tal.conviction).toBeCloseTo(base - 0.3, 4);
+    expect(tal.cautions.join(" ")).toMatch(/no viene del negocio/);
+  });
 });
