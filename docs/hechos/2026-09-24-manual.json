@@ -1,0 +1,55 @@
+{
+  "hechos": [
+    {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "TAL",
+      "fecha": "2026-07-30",
+      "valor": {
+        "trimestre": "1T FY27 (al 31/5/2026)",
+        "montoUsd": 405200000,
+        "concepto": "valor razonable de inversiones",
+        "epsPublicado": 0.73,
+        "epsSinExtraordinario": 0.2,
+        "epsConsenso": 0.29
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1499620/000110465926088660/tm2621668d1_ex99-1.htm",
+        "titulo": "6-K del 30/7/2026, exhibit 99.1: otros ingresos de 405,2 M 'principalmente por el valor razonable de ciertas inversiones'; antes de impuestos 552,3 M (operación 137,2 + intereses 9,9 + otros 405,2), impuesto 143,7 M (26%), 408,0 M atribuibles = 0,73 por ADS. Sin los otros ingresos, ~0,20 por ADS es cálculo propio ((552,3 − 405,2) × 0,74 ÷ ~559 M de ADS)"
+      }
+    },
+    {
+      "tipo": "oferta_de_compra",
+      "symbol": "EFSI",
+      "fecha": "2026-09-08",
+      "valor": {
+        "comprador": "John Marshall Bancorp (JMSB)",
+        "efectivoUsd": null,
+        "ratio": { "acciones": 2.0, "de": "JMSB" },
+        "etapa": "acuerdo definitivo firmado; faltan las aprobaciones de los reguladores y de los accionistas",
+        "cierreEsperado": "principios del 1T 2027",
+        "formulario": "8-K de JMSB, exhibit 99.1"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1710482/000155278126000472/e26378_ex99-1.htm",
+        "titulo": "8-K de John Marshall Bancorp del 8/9/2026, exhibit 99.1: cada acción de EFSI se convierte en 2,0 acciones de JMSB"
+      }
+    },
+    {
+      "tipo": "oferta_de_compra",
+      "symbol": "TECK",
+      "fecha": "2026-06-30",
+      "valor": {
+        "comprador": "Anglo American (fusión entre iguales, Anglo Teck)",
+        "efectivoUsd": null,
+        "ratio": { "acciones": 1.3301, "de": "Anglo American" },
+        "etapa": "fusión en curso; faltan aprobaciones regulatorias",
+        "cierreEsperado": null,
+        "formulario": "6-K de Teck, exhibit 99.1"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/886986/000095014226001931/eh260800978_ex9901.htm",
+        "titulo": "6-K de Teck del 30/6/2026, exhibit 99.1: cada acción de Teck se canjea por 1,3301 acciones de Anglo American"
+      }
+    }
+  ]
+}

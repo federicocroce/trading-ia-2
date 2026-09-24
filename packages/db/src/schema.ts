@@ -232,6 +232,8 @@ export const fundamentals = pgTable("fundamentals", {
   earningsSurprises: jsonb("earnings_surprises"),
   metricsRaw: jsonb("metrics_raw"),
   statementsAsOf: date("statements_as_of"),
+  /** Moneda de reporte del perfil (24/9): los montos por acción de `metrics` vienen en ella. null = desconocida. */
+  currency: text("currency"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 /** Estados trimestrales de la SEC y ganancia núcleo (spec verificación §4). */
@@ -516,6 +518,21 @@ export const watchlist = pgTable("watchlist", {
  * primaria; sólo lo verificado produce banderas. Único por (símbolo, tipo, fecha, url): el mismo hecho cargado dos
  * veces se actualiza, no se duplica.
  */
+/** Evaluadas de la preselección que no quedaron en el Radar, con su motivo (24/9). Una fila por fecha y símbolo. */
+export const radarEvaluadas = pgTable(
+  "radar_evaluadas",
+  {
+    fecha: date("fecha").notNull(),
+    symbol: text("symbol").notNull(),
+    posicion: integer("posicion"),
+    veredicto: text("veredicto"),
+    motivo: text("motivo").notNull(),
+    origen: text("origen").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.fecha, t.symbol] }), index("radar_evaluadas_symbol").on(t.symbol)],
+);
+
 export const hechosExternos = pgTable(
   "hechos_externos",
   {

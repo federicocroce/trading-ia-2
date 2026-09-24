@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, lt, notInArray, sql } from "drizzle-orm";
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, EvaluadaRadar, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { CANDIDATE_FAMILIES, computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -320,10 +320,12 @@ export class Repo {
     // acá se omite la clave (undefined) en vez de escribir null, así "sin_estados" solo lo decide quien sí llamó a los estados.
     const f: Fundamentals = { symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers as string[]) ?? [], industry: r.industry, mcapUsd: r.mcapUsd === null ? null : num(r.mcapUsd), dollarVolumeUsd: num(r.dollarVolumeUsd), priceUsd: num(r.priceUsd), nextEarnings: r.nextEarnings, insiderBuys90d: r.insiderBuys90d, insiderSells90d: r.insiderSells90d, analyst: r.analyst as Fundamentals["analyst"], earningsSurprises: r.earningsSurprises as Fundamentals["earningsSurprises"], metricsRaw: (r.metricsRaw as Fundamentals["metricsRaw"]) ?? null };
     if (r.statementsAsOf !== null) f.statementsAsOf = r.statementsAsOf;
+    if (r.currency !== null) f.currency = r.currency;
     return f;
   }
   async saveFundamentals(f: Fundamentals): Promise<void> {
-    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: f.mcapUsd === null ? null : str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, metricsRaw: f.metricsRaw ?? null, statementsAsOf: f.statementsAsOf ?? null, updatedAt: new Date() };
+    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: f.mcapUsd === null ? null : str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, metricsRaw: f.metricsRaw ?? null, statementsAsOf: f.statementsAsOf ?? null, ...(f.currency !== undefined ? { currency: f.currency } : {}), updatedAt: new Date() };
+    // Sin moneda en el objeto (quien la armó no la conocía) se conserva la guardada: un ranking no la borra.
     await this.db.insert(s.fundamentals).values(v).onConflictDoUpdate({ target: s.fundamentals.symbol, set: v });
   }
   async fundamentals(symbol: string): Promise<Fundamentals | null> {
@@ -351,6 +353,21 @@ export class Repo {
     if (!r) return null;
     return { symbol: r.symbol, date: r.date, verdict: r.verdict as CandidateVerification["verdict"], reason: r.reason, lastQuarter: (r.lastQuarter as CandidateVerification["lastQuarter"]) ?? null, analysts: (r.analysts as CandidateVerification["analysts"]) ?? [], consensusTarget: r.consensusTarget === null ? null : num(r.consensusTarget), events: (r.events as CandidateVerification["events"]) ?? [], valuation: r.valuation, nextEarnings: r.nextEarnings, sources: (r.sources as CandidateVerification["sources"]) ?? [], researchText: r.researchText, promptVersion: r.promptVersion, model: r.model, detectedAt: r.detectedAt.toISOString() };
   }
+  // ---------- radar_evaluadas (24/9) ----------
+  async guardarEvaluadas(rows: EvaluadaRadar[]): Promise<number> {
+    // En tandas (~300 por corrida). Dentro de una tanda, un símbolo repetido en la misma fecha deja la última escritura.
+    const unicas = [...new Map(rows.map((e) => [`${e.fecha}|${e.symbol.toUpperCase()}`, e])).values()];
+    for (let i = 0; i < unicas.length; i += 200) {
+      const tanda = unicas.slice(i, i + 200).map((e) => ({ fecha: e.fecha, symbol: e.symbol.toUpperCase(), posicion: e.posicion, veredicto: e.veredicto, motivo: e.motivo, origen: e.origen }));
+      await this.db.insert(s.radarEvaluadas).values(tanda).onConflictDoUpdate({ target: [s.radarEvaluadas.fecha, s.radarEvaluadas.symbol], set: { posicion: sql`excluded.posicion`, veredicto: sql`excluded.veredicto`, motivo: sql`excluded.motivo`, origen: sql`excluded.origen` } });
+    }
+    return rows.length;
+  }
+  async evaluadas(symbol: string, desde: string): Promise<EvaluadaRadar[]> {
+    const rows = await this.db.select().from(s.radarEvaluadas).where(and(eq(s.radarEvaluadas.symbol, symbol.toUpperCase()), gte(s.radarEvaluadas.fecha, desde))).orderBy(desc(s.radarEvaluadas.fecha));
+    return rows.map((r) => ({ fecha: r.fecha, symbol: r.symbol, posicion: r.posicion, veredicto: r.veredicto as EvaluadaRadar["veredicto"], motivo: r.motivo, origen: r.origen as EvaluadaRadar["origen"] }));
+  }
+
   // ---------- hechos_externos (17/9) ----------
   async saveHechos(rows: HechoExterno[]): Promise<number> {
     let n = 0;

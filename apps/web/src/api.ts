@@ -126,7 +126,7 @@ export interface Transaction { id: string; symbol: string; type: "BUY" | "SELL" 
 /** Precio vivo con la variación del día contra el cierre previo. */
 export interface Quote { price: number; prevClose: number | null; change: number | null; changePct: number | null; asOf: string | null; currency?: string | null; /** Marca del servidor (más de 30 horas): la misma para toda la app (15/9). */ stale?: boolean; /** De qué rueda es `prevClose` (15/9). */ prevCloseDate?: string | null }
 /** Hechos externos (17/9): datos con fecha y fuente que la app no puede sacar de sus proveedores, cargados por el importador. */
-export type HechoTipo = "guia" | "ganancia_por_reservas" | "oferta_de_compra" | "investigacion_regulatoria";
+export type HechoTipo = "guia" | "ganancia_por_reservas" | "ganancia_extraordinaria" | "oferta_de_compra" | "investigacion_regulatoria";
 export interface HechoExterno {
   tipo: HechoTipo;
   symbol: string;

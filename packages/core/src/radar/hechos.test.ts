@@ -110,3 +110,35 @@ describe("investigación regulatoria abierta (21/9, SMCI)", () => {
     expect(simbolosConPuerta([h(smci)], "2026-09-21")).toEqual([]);
   });
 });
+
+/**
+ * 24/9, TAL: en el plan del día con USD 3.466 y con `sorpresa_positiva` (0,73 por ADS contra 0,29 de consenso). El
+ * 6-K del 30/7 dice que 405,2 M de los 552,3 M de ganancia antes de impuestos del 1T FY27 son "otros ingresos,
+ * principalmente por el valor razonable de ciertas inversiones"; sin eso quedan ~0,20 por ADS, debajo del consenso.
+ * TAL presenta 6-K y no tiene estados de la SEC legibles, así que `resultado_extraordinario` no puede correr: el dato
+ * entra como hecho, con la misma regla y el mismo peso que las reservas liberadas.
+ */
+describe("ganancia extraordinaria (24/9, TAL)", () => {
+  const tal = (epsSinExtraordinario: number, epsConsenso: number | null = 0.29): HechoEntrada => ({
+    tipo: "ganancia_extraordinaria", symbol: "TAL", fecha: "2026-07-30",
+    valor: { trimestre: "1T FY27", montoUsd: 405.2e6, concepto: "valor razonable de inversiones", epsPublicado: 0.73, epsSinExtraordinario, epsConsenso },
+    fuente: { url: "https://www.sec.gov/Archives/edgar/data/1499620/000110465926088660/tm2621668d1_ex99-1.htm", titulo: "6-K del 30/7/2026, exhibit 99.1" },
+  });
+  it("el esquema acepta el hecho y exige el concepto", () => {
+    expect(HechoEntradaSchema.safeParse(tal(0.2)).success).toBe(true);
+    const sinConcepto = tal(0.2);
+    expect(HechoEntradaSchema.safeParse({ ...sinConcepto, valor: { ...sinConcepto.valor, concepto: "" } }).success).toBe(false);
+  });
+  it("sin el extraordinario no llega al consenso → ganancia_extraordinaria; si llega, nada; sin consenso no se puede probar que sobrevive (igual que las reservas)", () => {
+    expect(banderasDeHechos([h(tal(0.2))], "2026-09-24")).toEqual(["ganancia_extraordinaria"]);
+    expect(banderasDeHechos([h(tal(0.35))], "2026-09-24")).toEqual([]);
+    expect(banderasDeHechos([h(tal(0.2, null))], "2026-09-24")).toEqual(["ganancia_extraordinaria"]);
+    expect(banderasDeHechos([h(tal(0.2), "no_verificado")], "2026-09-24")).toEqual([]);
+  });
+  it("dura 120 días, como las reservas: el trimestre siguiente trae su propio dato", () => {
+    expect(banderasDeHechos([h(tal(0.2))], "2026-12-15")).toEqual([]);
+  });
+  it("el texto dice cuánto, de qué, y contra qué", () => {
+    expect(textoDeHecho(h(tal(0.2)))).toBe("la ganancia del 1T FY27 lleva USD 405 M de valor razonable de inversiones: sin eso 0,2 contra 0,29 esperado");
+  });
+});

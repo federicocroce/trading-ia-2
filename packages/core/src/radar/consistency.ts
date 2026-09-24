@@ -1,8 +1,9 @@
 import type { Candle } from "../cartera/types.js";
 import { atr, computeTrailingStop, ENTRY_STOP_ATR, entryStop } from "../cartera/stop.js";
-import { CONSENSUS_SCALE } from "./candidate.js";
+import { CONSENSUS_SCALE, DIVIDEND_FLAG_MIN_PCT, dividendoNoComprobable } from "./candidate.js";
 import { PLAN_BLOCKERS, STOP_NOISE_ATR, lineHasExit, type ContributionPlan } from "./plan.js";
 import { UNRELIABLE_GROWTH_INDUSTRY } from "./ranking.js";
+import type { FinnhubMetrics } from "./universe.js";
 import type { CandidateRow } from "./types.js";
 
 /**
@@ -46,6 +47,8 @@ export interface ConsistencyInput {
    * con esto se puede distinguir "no hubo eventos" de "nadie miró", que hasta el 12/9 eran el mismo vacío.
    */
   newsScannedTo?: Record<string, string | null>;
+  /** Moneda de reporte por símbolo (para `dividendo_fuera_de_escala`). Sin esto, el chequeo solo mira el desacuerdo de campos. */
+  currencies?: Record<string, string | null>;
   /** Industria de Finnhub por símbolo (para `crecimiento_sin_bandera`: en bancos el crecimiento de ingresos no se usa). */
   industries?: Record<string, string | null>;
   /** Símbolos en cartera. Una posición usa su stop de seguimiento; sin esto no corre `stop_dentro_del_ruido`. */
@@ -234,6 +237,15 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
         const roe = m["roeTTM"];
         const conRoe = roe === null || roe === undefined ? "" : ` y el ROE de ${r2(roe)}%`;
         add("patrimonio_sin_sentido", row.symbol, "aviso", `deuda/patrimonio ${r2(de)}: el patrimonio quedó cerca de cero o negativo, así que ese ratio${conRoe} son artefactos del denominador y el eje de calidad los premia igual`);
+      }
+
+      // El dividendo del proveedor que no se puede comprobar (24/9: MYE con 27%, PBR con 15% en reales). La fila ya no
+      // lo muestra; esto dice que el proveedor lo daba, para que se mire. Solo si hubiera pintado la bandera (> 2%).
+      const dps = m["dividendPerShareTTM"];
+      const moneda = i.currencies?.[row.symbol] ?? null;
+      const porQue = dividendoNoComprobable({ metrics: m satisfies FinnhubMetrics, priceUsd: row.close, currency: moneda });
+      if (porQue && typeof dps === "number" && row.close > 0 && (dps / row.close) * 100 > DIVIDEND_FLAG_MIN_PCT) {
+        add("dividendo_fuera_de_escala", row.symbol, "aviso", `el proveedor da un dividendo de ${r2((dps / row.close) * 100)}% y ${porQue}: no se muestra en la fila`);
       }
 
     }

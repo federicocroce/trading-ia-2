@@ -11,7 +11,7 @@ import { z } from "zod";
  * cables de comunicados). Lo demás se muestra con su estado y no cambia banderas, veredictos ni convicción (13/9: un
  * dato inventado dentro de un recordatorio no puede mover un plan).
  */
-export const HECHO_TIPOS = ["guia", "ganancia_por_reservas", "oferta_de_compra", "investigacion_regulatoria"] as const;
+export const HECHO_TIPOS = ["guia", "ganancia_por_reservas", "ganancia_extraordinaria", "oferta_de_compra", "investigacion_regulatoria"] as const;
 export type HechoTipo = (typeof HECHO_TIPOS)[number];
 
 const fechaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "fecha AAAA-MM-DD");
@@ -19,6 +19,12 @@ const simbolo = z.string().regex(/^[A-Za-z][A-Za-z0-9.-]{0,9}$/);
 export const FuenteSchema = z.object({ url: z.string().url(), titulo: z.string().min(1) });
 export const GuiaValorSchema = z.object({ direccion: z.enum(["sube", "baja", "reafirma"]), metrica: z.string().min(1), periodo: z.string().min(1), antes: z.string().nullable(), despues: z.string().nullable() });
 export const ReservasValorSchema = z.object({ trimestre: z.string().min(1), montoUsd: z.number(), puntosCombinado: z.number().nullable(), epsPublicado: z.number(), epsSinReservas: z.number(), epsConsenso: z.number().nullable() });
+/**
+ * Ganancia que viene de afuera del negocio (24/9, TAL: 405,2 M de valor razonable de inversiones sobre 552,3 M antes de
+ * impuestos). Es el dato que `resultado_extraordinario` saca de los estados de la SEC, para las empresas que no los
+ * tienen legibles (6-K, 20-F). `epsSinExtraordinario` es cálculo propio y la fuente lo dice.
+ */
+export const ExtraordinariaValorSchema = z.object({ trimestre: z.string().min(1), montoUsd: z.number(), concepto: z.string().min(1), epsPublicado: z.number(), epsSinExtraordinario: z.number(), epsConsenso: z.number().nullable() });
 export const OfertaValorSchema = z.object({ comprador: z.string().min(1), efectivoUsd: z.number().nullable(), ratio: z.object({ acciones: z.number().positive(), de: z.string().min(1) }).nullable(), etapa: z.string().min(1), cierreEsperado: z.string().nullable(), formulario: z.string().nullable() });
 
 /**
@@ -32,6 +38,7 @@ const comun = { symbol: simbolo, fecha: fechaIso, fuente: FuenteSchema };
 export const HechoEntradaSchema = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("guia"), ...comun, valor: GuiaValorSchema }),
   z.object({ tipo: z.literal("ganancia_por_reservas"), ...comun, valor: ReservasValorSchema }),
+  z.object({ tipo: z.literal("ganancia_extraordinaria"), ...comun, valor: ExtraordinariaValorSchema }),
   z.object({ tipo: z.literal("oferta_de_compra"), ...comun, valor: OfertaValorSchema }),
   z.object({ tipo: z.literal("investigacion_regulatoria"), ...comun, valor: InvestigacionValorSchema }),
 ]);
@@ -39,7 +46,7 @@ export type HechoEntrada = z.infer<typeof HechoEntradaSchema>;
 export type HechoExterno = HechoEntrada & { primaria: boolean; estado: "verificado" | "no_verificado"; origen: "agente" | "manual"; detectadoAt: string; vigenteHasta: string | null };
 
 /** Cuánto dura cada tipo de hecho. Una oferta firmada hace meses sigue fijando el precio (AES: 400 días, como EDGAR). */
-export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, oferta_de_compra: 400, investigacion_regulatoria: 365 };
+export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, ganancia_extraordinaria: 120, oferta_de_compra: 400, investigacion_regulatoria: 365 };
 export const VENTANA_MAXIMA_DIAS = 400;
 /** La puerta de entrada al ranking: como mucho estos símbolos, los más recientes. */
 export const PUERTA_TOPE = 20;
@@ -82,6 +89,9 @@ export function textoDeHecho(h: HechoExterno): string {
   if (h.tipo === "ganancia_por_reservas") {
     return `la ganancia del ${h.valor.trimestre} lleva ${millones(h.valor.montoUsd)} de reservas liberadas: sin eso ${coma(h.valor.epsSinReservas)} contra ${h.valor.epsConsenso === null ? "—" : coma(h.valor.epsConsenso)} esperado`;
   }
+  if (h.tipo === "ganancia_extraordinaria") {
+    return `la ganancia del ${h.valor.trimestre} lleva ${millones(h.valor.montoUsd)} de ${h.valor.concepto}: sin eso ${coma(h.valor.epsSinExtraordinario)} contra ${h.valor.epsConsenso === null ? "—" : coma(h.valor.epsConsenso)} esperado`;
+  }
   if (h.tipo === "investigacion_regulatoria") {
     const quienes = h.valor.organismos.length > 1 ? `${h.valor.organismos.slice(0, -1).join(", ")} y ${h.valor.organismos[h.valor.organismos.length - 1]}` : h.valor.organismos[0]!;
     return `investigación ${h.valor.estado} de ${quienes} (${h.valor.asunto}); la empresa ${h.valor.empresaAcusada ? "está acusada" : "no está acusada"}`;
@@ -105,6 +115,9 @@ export function banderasDeHechos(hechos: readonly HechoExterno[], today: string)
     else if (h.tipo === "ganancia_por_reservas") {
       const sobrevive = h.valor.epsConsenso !== null && h.valor.epsSinReservas >= h.valor.epsConsenso;
       if (!sobrevive) add("ganancia_por_reservas");
+    } else if (h.tipo === "ganancia_extraordinaria") {
+      const sobrevive = h.valor.epsConsenso !== null && h.valor.epsSinExtraordinario >= h.valor.epsConsenso;
+      if (!sobrevive) add("ganancia_extraordinaria");
     } else if (h.tipo === "oferta_de_compra") add("bajo_oferta_de_compra");
     else if (h.tipo === "investigacion_regulatoria" && h.valor.estado === "abierta") add("investigacion_abierta");
   }

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRssIngestor, CompletedSessionsHistory, CourtListenerIngestor, EdgarIngestor, EdgarOfferForms, FallbackPriceHistory, FinnhubFundamentals, FinnhubProfiles, ManualCsvIngestor, NO_PROFILES, NasdaqEarningsIngestor, RateLimiter, SecStatements, YahooChart, YahooDescriptions, YahooPriceHistory, createHttpClient, createTradingHttp, ArgentinaMacro, YahooSearch } from "@thesis/adapters";
-import { DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, todayLocal, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
+import { bajoOfertaDeCompra, DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, todayLocal, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, eventUniverse, scanEventsFor, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
 import { AgentReviewer, AgentVerifier, AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiPreTradeReviewer, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
@@ -218,9 +218,11 @@ export function buildContainer(cfg: Config): Container {
     filings: (symbol) => store.recentFilingTitles(symbol, 8),
     // Lo guardado en raw_events si hay; si no, EDGAR en vivo (17/9): la regla tiene que llegar a toda la preselección y
     // al comando mercado, no sólo al universo de ingesta. Un pedido por símbolo, cacheado en el proceso, sin escribir.
+    // Lo guardado alcanza solo si prueba la oferta (24/9): un 425 viejo de cuando la empresa era la compradora no puede
+    // tapar el anuncio de su propia venta, que solo ve la consulta en vivo (DEFA14A + 8-K, ver `anuncioDeFusion`).
     filingsDeOferta: async (symbol) => {
       const guardados = await store.offerFilingTitles(symbol);
-      return guardados.length ? guardados : ofertas.offerFilingTitles(symbol, { today: todayLocal() });
+      return bajoOfertaDeCompra(guardados) ? guardados : ofertas.offerFilingTitles(symbol, { today: todayLocal() });
     },
     log: (msg, extra) => console.log(msg, extra ?? ""),
     onProgress: (p) => { state.scan.progress = p; },

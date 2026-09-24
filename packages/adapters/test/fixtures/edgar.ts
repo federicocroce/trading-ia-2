@@ -23,6 +23,43 @@ export const submissionsXXXX = {
  * AES tal como está en EDGAR al 16/9/2026: el DEFM14A de la fusión es del 15/5/2026 y el PREM14A del 4/5/2026,
  * cuatro meses atrás, con 8-K y 10-Q recientes encima. Y presenta DEF 14A todos los marzos, que NO es una oferta.
  */
+/**
+ * MG, EDGAR al 24/9/2026 (recortado): siete DEFA14A y el 8-K del acuerdo con H.I.G. el 18/9, sin PREM14A todavía. El
+ * 8-K de cooperación es inventado para el caso contrario (ITGR tenía la misma forma: 1.01 + 5.02).
+ */
+export const companyTickersMG = {
+  "0": { cik_str: 1436126, ticker: "MG", title: "Mistras Group, Inc." },
+  "1": { cik_str: 1114483, ticker: "ITGR", title: "Integer Holdings Corp" },
+};
+export const submissionsMG = {
+  cik: "1436126",
+  name: "Mistras Group, Inc.",
+  filings: {
+    recent: {
+      accessionNumber: ["0001436126-26-000108", "0001140361-26-037137", "0001140361-26-037117", "0001140361-26-037107", "0001436126-26-000090", "0001436126-26-000050"],
+      filingDate: ["2026-09-22", "2026-09-18", "2026-09-18", "2026-09-18", "2026-08-10", "2026-04-07"],
+      form: ["4", "DEFA14A", "DEFA14A", "8-K", "8-K", "DEFA14A"],
+      primaryDocument: ["xslF345X06/form4.xml", "ef20082425_defa14a.htm", "ef20082419_defa14a.htm", "ef20082419_8k.htm", "mg-8k.htm", "mg-defa14a.htm"],
+      items: ["", "", "", "1.01,5.02,7.01,8.01,9.01", "2.02,9.01", ""],
+    },
+  },
+};
+export const mg8k = `<html><body><p><b>Item 1.01. Entry into a Material Definitive Agreement.</b></p><p><i>Agreement and Plan of Merger</i></p><p>On September 17, 2026, Mistras Group, Inc., a Delaware corporation (the &ldquo;Company&rdquo;), entered into an Agreement and Plan of Merger (the &ldquo;Merger Agreement&rdquo;) with Athena Purchaser, LLC, a Delaware limited liability company (&ldquo;Parent&rdquo;), and Athena Merger Sub, Inc., a Delaware corporation and a wholly owned subsidiary of Parent (&ldquo;Acquisition Sub&rdquo;).</p></body></html>`;
+export const submissionsITGR = {
+  cik: "1114483",
+  name: "Integer Holdings Corp",
+  filings: {
+    recent: {
+      accessionNumber: ["0001114483-26-000010", "0001171843-26-001505"],
+      filingDate: ["2026-03-12", "2026-03-12"],
+      form: ["DEFA14A", "8-K"],
+      primaryDocument: ["itgr-defa14a.htm", "f8k_031226.htm"],
+      items: ["", "1.01,5.02,7.01,9.01"],
+    },
+  },
+};
+export const itgr8k = `<html><body><p>Item 1.01. Entry into a Material Definitive Agreement.</p><p>On March 9, 2026 (the &ldquo;Effective Date&rdquo;), Integer Holdings Corporation (the &ldquo;Company&rdquo;) entered into a Cooperation Agreement (the &ldquo;Cooperation Agreement&rdquo;) by and among the Company, Irenic Capital Management LP</p></body></html>`;
+
 export const submissionsAES = {
   cik: "874761",
   name: "AES CORP",

@@ -30,6 +30,12 @@ export interface Fundamentals {
   metricsRaw?: FinnhubMetrics | null;
   /** Fin del último trimestre usado; null = se intentó y no hay estados (IFRS, sin CIK, sin resultado operativo). */
   statementsAsOf?: string | null;
+  /**
+   * Moneda en la que reporta la empresa (perfil de Finnhub). Los montos por acción de las métricas vienen en esa moneda
+   * y el precio en dólares: sin esto, el dividendo de PBR en reales daba "15%" (24/9). Opcional: null o ausente =
+   * desconocida, y lo que depende de ella se calcula como antes.
+   */
+  currency?: string | null;
 }
 
 export type Axis = "valuation" | "quality" | "growth" | "balance";

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { atr, buildFlags, buildQuarters, clasificarHecho, computeTrailingStop, consensusTargetOf, consensusUpsidePct, coreEarnings, decideCandidate, ENTRY_STOP_ATR, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
+import { atr, buildFlags, buildQuarters, clasificarHecho, computeTrailingStop, consensusTargetOf, consensusUpsidePct, coreEarnings, decideCandidate, dividendoNoComprobable, ENTRY_STOP_ATR, positionSize, riskScore, technicalGate, type Candle, type CompanyFactsJson, type Fundamentals } from "../index.js";
 
 const series = (closes: number[], start = "2025-09-01", volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume }));
@@ -82,6 +82,20 @@ describe("buildFlags", () => {
     const mo = f({ symbol: "MO", priceUsd: 68.87, metrics: { dividendYieldIndicatedAnnual: 9.45262, dividendPerShareTTM: 4.2153 } });
     // La bandera lleva el número para poder contrastarlo: 4,2153 sobre 68,87 = 6,12%.
     expect(buildFlags(mo, gate, 1, 4)).toContain("dividendo:6.12");
+  });
+  it("24/9: un dividendo que no se puede comprobar no se muestra (MYE, PBR); uno alto que sí cierra, sí (ABR)", () => {
+    const tiene = (x: Parameters<typeof buildFlags>[0]) => buildFlags(x, gate, 1, 4).some((b) => b.startsWith("dividendo"));
+    // MYE: Finnhub daba 8,40 de dividendo en 12 meses (27%) y 0,55 anual; la empresa paga 0,135 por trimestre.
+    expect(tiene(f({ symbol: "MYE", priceUsd: 30.99, currency: "USD", metrics: { dividendPerShareTTM: 8.4013, dividendPerShareAnnual: 0.5491 } }))).toBe(false);
+    // PBR: reporta en reales. 3,17 BRL sobre un ADR de 21,14 USD daba "15%".
+    expect(tiene(f({ symbol: "PBR", priceUsd: 21.14, currency: "BRL", metrics: { dividendPerShareTTM: 3.17, dividendPerShareAnnual: 3.17 } }))).toBe(false);
+    // ABR (mREIT, en dólares): 26% es alto pero los dos campos coinciden. Se muestra.
+    expect(buildFlags(f({ symbol: "ABR", priceUsd: 5.25, currency: "USD", metrics: { dividendPerShareTTM: 1.397, dividendPerShareAnnual: 1.6631 } }), gate, 1, 4)).toContain("dividendo:26.61");
+    // Sin moneda guardada (filas de antes de la migración): como antes.
+    expect(buildFlags(f({ priceUsd: 100, metrics: { dividendPerShareTTM: 3 } }), gate, 1, 4)).toContain("dividendo:3");
+    expect(dividendoNoComprobable(f({ symbol: "MYE", priceUsd: 30.99, currency: "USD", metrics: { dividendPerShareTTM: 8.4013, dividendPerShareAnnual: 0.5491 } }))).toMatch(/8,4.*0,55/);
+    expect(dividendoNoComprobable(f({ symbol: "PBR", priceUsd: 21.14, currency: "BRL", metrics: { dividendPerShareTTM: 3.17 } }))).toMatch(/BRL/);
+    expect(dividendoNoComprobable(f({ symbol: "ABR", priceUsd: 5.25, currency: "USD", metrics: { dividendPerShareTTM: 1.397, dividendPerShareAnnual: 1.6631 } }))).toBeNull();
   });
   it("sin el dividendo pagado no se afirma que paga, aunque el campo 'indicado' diga que sí", () => {
     expect(buildFlags(f({ metrics: { dividendYieldIndicatedAnnual: 6 } }), gate, 1, 4).some((x) => x.startsWith("dividendo"))).toBe(false);

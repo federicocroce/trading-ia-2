@@ -80,6 +80,21 @@ export interface Tags {
 /** Etapa del barrido semanal por símbolo (spec §4). */
 export type ScanStage = "alpaca_ok" | "finnhub_ok" | "excluded" | "error";
 
+/**
+ * Una acción de la preselección que se evaluó y no quedó en el Radar, con por qué (24/9). Sin esto, "¿por qué no está
+ * GLXY?" no tenía respuesta: el Radar solo guardaba las filas que entraban. `veredicto` null = una regla la excluyó
+ * antes de decidir (bajo su media de 200, sin historial…), y `motivo` dice cuál.
+ */
+export interface EvaluadaRadar {
+  fecha: string;
+  symbol: string;
+  /** Puesto en el ranking por puntaje del día. */
+  posicion: number | null;
+  veredicto: "COMPRAR" | "OBSERVAR" | null;
+  motivo: string;
+  origen: "ranking" | "refresco";
+}
+
 /** Fila persistida de un candidato del Radar (acción o ETF) con su medición. */
 export interface CandidateRow {
   candidateDate: string;

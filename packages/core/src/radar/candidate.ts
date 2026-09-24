@@ -172,13 +172,43 @@ export function riskScore(i: { beta: number | null; atrPct: number | null; debtT
  * Sobre las 1.335 empresas con los dos datos, 148 recibían la bandera verde sin llegar al 2% real y 92 la merecían sin
  * tenerla; la relación entre los dos campos no es constante, así que no hay factor que lo corrija.
  *
- * Sin el dividendo pagado devuelve null: no se afirma que paga lo que no se puede comprobar.
+ * Sin el dividendo pagado devuelve null: no se afirma que paga lo que no se puede comprobar. Tampoco cuando el dato no
+ * se puede comprobar (ver `dividendoNoComprobable`).
  */
-export function dividendYieldPct(f: Pick<Fundamentals, "metrics" | "priceUsd">): number | null {
+export function dividendYieldPct(f: Pick<Fundamentals, "metrics" | "priceUsd" | "currency">): number | null {
   const dps = f.metrics["dividendPerShareTTM"];
   if (typeof dps !== "number" || !Number.isFinite(dps) || dps <= 0) return null;
   if (!Number.isFinite(f.priceUsd) || f.priceUsd <= 0) return null;
+  if (dividendoNoComprobable(f) !== null) return null;
   return (dps / f.priceUsd) * 100;
+}
+
+/** Cuánto pueden diferir el dividendo de 12 meses y el anual antes de que uno de los dos sea un error del proveedor. */
+export const DIVIDENDO_DESACUERDO_MAX = 2;
+/** Desde qué rendimiento la fila muestra la bandera de dividendo. */
+export const DIVIDEND_FLAG_MIN_PCT = 2;
+
+/**
+ * Por qué el dividendo de 12 meses no se puede usar, o null si se puede. Dos errores del proveedor, los dos del 24/9:
+ *
+ * - La empresa reporta en otra moneda: el dividendo por acción viene en reales, wones o yenes y el precio es el del ADR
+ *   en dólares. PBR daba 15%, TSM 4,7%, KB 3.600% y PKX 20.000%.
+ * - El dividendo de 12 meses y el anual no se parecen: MYE daba 8,40 de 12 meses (27%) y 0,55 anual, y paga 0,135 por
+ *   trimestre. Una mREIT como ABR, que en serio rinde 26%, tiene los dos campos parecidos (1,40 y 1,66).
+ */
+export function dividendoNoComprobable(f: Pick<Fundamentals, "metrics" | "priceUsd" | "currency">): string | null {
+  const dps = f.metrics["dividendPerShareTTM"];
+  if (typeof dps !== "number" || !Number.isFinite(dps) || dps <= 0) return null;
+  if (f.currency && f.currency.toUpperCase() !== "USD") return `reporta en ${f.currency.toUpperCase()}: el dividendo por acción viene en esa moneda y el precio en dólares`;
+  const anual = f.metrics["dividendPerShareAnnual"];
+  if (typeof anual === "number" && Number.isFinite(anual) && anual > 0) {
+    const ratio = dps / anual;
+    if (ratio > DIVIDENDO_DESACUERDO_MAX || ratio < 1 / DIVIDENDO_DESACUERDO_MAX) {
+      const c = (n: number) => (Math.round(n * 100) / 100).toString().replace(".", ",");
+      return `el dividendo de 12 meses (${c(dps)}) y el anual (${c(anual)}) no se parecen: uno de los dos es un error del proveedor`;
+    }
+  }
+  return null;
 }
 
 export function buildFlags(
@@ -202,7 +232,7 @@ export function buildFlags(
     if (last < -5) flags.push("sorpresa_negativa");
   }
   const dy = dividendYieldPct(f);
-  if (dy !== null && dy > 2) flags.push(`dividendo:${round2(dy)}`);
+  if (dy !== null && dy > DIVIDEND_FLAG_MIN_PCT) flags.push(`dividendo:${round2(dy)}`);
   flags.push(...gate.reasons);
   if (nthAppearance >= chronicWeeks) flags.push("residente_cronico");
   if (extra.core === null) flags.push("sin_estados");
