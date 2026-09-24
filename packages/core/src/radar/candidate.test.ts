@@ -295,6 +295,23 @@ describe("decideCandidate bajo oferta de compra", () => {
     expect(d2.verdict).toBe("COMPRAR");
     expect(d2.flags).toContain("guia_subida");
   });
+  /**
+   * 24/9, INDV: el plan la compraba con stop 34,18 y objetivo 44,56, y antes del cierre de su fusión con Supernus paga
+   * un dividendo especial de 8,13 por acción (~23% del precio, registro 30/10). Ese día el precio baja 8 dólares de
+   * golpe y toca el stop: los niveles de la app no valen hasta que el evento pase. Lo mismo una escisión (CTVA, 1/10).
+   */
+  it("un evento de capital pendiente (dividendo especial, escisión) deja la fila en OBSERVAR hasta que pasa", () => {
+    const base = { hostsPrimarios: ["sec.gov"], origen: "manual" as const, detectadoAt: `${today}T00:00:00.000Z` };
+    const indv = clasificarHecho({ tipo: "evento_de_capital", symbol: "INDV", fecha: "2026-05-10", valor: { clase: "dividendo_especial", fechaEvento: "2026-05-30", montoPorAccionUsd: 8.13, detalle: "condicionado al cierre de la fusión con Supernus" }, fuente: { url: "https://www.sec.gov/i", titulo: "8-K" } }, base);
+    const d = decideCandidate({ f: f({ symbol: "INDV" }), candles: up, nthAppearance: 1, portfolioUsd: 150_000, today, hechos: [indv] }, p);
+    if ("excluded" in d) throw new Error("no debería excluir");
+    expect(d.verdict).toBe("OBSERVAR");
+    expect(d.flags).toContain("evento_de_capital_pendiente");
+    expect(d.reasons).toContain("evento_de_capital_pendiente");
+    const despues = decideCandidate({ f: f({ symbol: "INDV" }), candles: up, nthAppearance: 1, portfolioUsd: 150_000, today: "2026-06-05", hechos: [indv] }, p);
+    if ("excluded" in despues) throw new Error("no debería excluir");
+    expect(despues.flags).not.toContain("evento_de_capital_pendiente");
+  });
 });
 
 describe("decideCandidate con estados", () => {

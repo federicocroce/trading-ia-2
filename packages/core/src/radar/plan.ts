@@ -170,6 +170,8 @@ export const PLAN_BLOCKERS: Record<string, string> = {
   // votada por los accionistas. El retorno está topado por contrato y, si el acuerdo se cae, la referencia sin oferta
   // estaba ~25% abajo. Además le parece una compra perfecta: se mueve poco y los múltiplos quedan baratos.
   bajo_oferta_de_compra: "está bajo una oferta de compra (lo dice un formulario de la SEC): el precio está fijado por el acuerdo, así que el objetivo al doble del riesgo no puede pasar",
+  // INDV (24/9): dividendo especial de 8,13 (~23%) antes del cierre de su fusión; ese día el precio baja y toca el stop.
+  evento_de_capital_pendiente: "tiene un dividendo especial o una escisión pendiente (hecho verificado): ese día el precio baja de forma mecánica y los niveles no valen hasta que pase",
 };
 /**
  * A cuántos ATR del stop tiene que estar el precio para comprar o sumar (14/9). APH cerró en 78,55 con el stop de su

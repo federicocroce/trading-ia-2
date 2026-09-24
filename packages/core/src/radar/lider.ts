@@ -14,7 +14,7 @@ const MOTIVOS_PERMITIDOS = new Set(["no_perseguir", "salvedades_de_calidad", "st
 const DE_PRECIO = new Set(["subio_mucho_12m", "consenso_en_precio"]);
 const DE_CALIDAD = ["resultado_extraordinario", "interes_minoritario", "cobranza_lenta", "ganancia_sin_ventas"];
 /** Algo en contra del negocio o un freno que no es de precio: no es un líder, es otra cosa. */
-const EN_CONTRA = ["sorpresa_negativa", "guia_recortada", "investigacion_abierta", "ganancia_por_reservas", "ganancia_extraordinaria", "consenso_venta", "verificacion_evitar", "banco_sin_estados", "bajo_oferta_de_compra", "evento_grave", "bajo_sma200", "bajo_stop", "sin_historial", "resultados_cerca", ...DE_CALIDAD];
+const EN_CONTRA = ["sorpresa_negativa", "guia_recortada", "investigacion_abierta", "ganancia_por_reservas", "ganancia_extraordinaria", "evento_de_capital_pendiente", "consenso_venta", "verificacion_evitar", "banco_sin_estados", "bajo_oferta_de_compra", "evento_grave", "bajo_sma200", "bajo_stop", "sin_historial", "resultados_cerca", ...DE_CALIDAD];
 const A_FAVOR = ["guia_subida", "sorpresa_positiva"];
 
 export function estadoDeLider(d: { flags: readonly string[]; reasons: readonly string[]; entryState: string | null; target: number | null; held?: boolean }): EstadoDeLider | null {

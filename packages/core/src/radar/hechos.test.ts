@@ -118,6 +118,27 @@ describe("investigación regulatoria abierta (21/9, SMCI)", () => {
  * TAL presenta 6-K y no tiene estados de la SEC legibles, así que `resultado_extraordinario` no puede correr: el dato
  * entra como hecho, con la misma regla y el mismo peso que las reservas liberadas.
  */
+describe("evento de capital (24/9, INDV y CTVA)", () => {
+  const indv: HechoEntrada = { tipo: "evento_de_capital", symbol: "INDV", fecha: "2026-09-17", valor: { clase: "dividendo_especial", fechaEvento: "2026-10-30", montoPorAccionUsd: 8.13, detalle: "condicionado al cierre de la fusión con Supernus" }, fuente: { url: "https://www.sec.gov/i", titulo: "8-K del 17/9/2026" } };
+  const ctva: HechoEntrada = { tipo: "evento_de_capital", symbol: "CTVA", fecha: "2026-09-15", valor: { clase: "escision", fechaEvento: "2026-10-01", montoPorAccionUsd: null, detalle: "1 acción de Vylor (VYLR) por cada acción de Corteva" }, fuente: { url: "https://www.sec.gov/c", titulo: "8-K del 15/9/2026" } };
+  it("el esquema acepta dividendo especial y escisión, y rechaza una clase que no existe", () => {
+    expect(HechoEntradaSchema.safeParse(indv).success).toBe(true);
+    expect(HechoEntradaSchema.safeParse(ctva).success).toBe(true);
+    expect(HechoEntradaSchema.safeParse({ ...ctva, valor: { ...ctva.valor, clase: "otra" } }).success).toBe(false);
+  });
+  it("marca desde que se conoce hasta 3 días después del evento; después, nada", () => {
+    expect(banderasDeHechos([h(indv)], "2026-09-24")).toEqual(["evento_de_capital_pendiente"]);
+    expect(banderasDeHechos([h(indv)], "2026-11-02")).toEqual(["evento_de_capital_pendiente"]);
+    expect(banderasDeHechos([h(indv)], "2026-11-03")).toEqual([]);
+    expect(banderasDeHechos([h(ctva)], "2026-09-30")).toEqual(["evento_de_capital_pendiente"]);
+    expect(banderasDeHechos([h(ctva, "no_verificado")], "2026-09-30")).toEqual([]);
+  });
+  it("el texto dice qué, cuándo y cuánto", () => {
+    expect(textoDeHecho(h(indv))).toBe("dividendo especial de 8,13 por acción el 2026-10-30 (condicionado al cierre de la fusión con Supernus): hasta entonces los niveles no valen");
+    expect(textoDeHecho(h(ctva))).toBe("escisión el 2026-10-01 (1 acción de Vylor (VYLR) por cada acción de Corteva): hasta entonces los niveles no valen");
+  });
+});
+
 describe("ganancia extraordinaria (24/9, TAL)", () => {
   const tal = (epsSinExtraordinario: number, epsConsenso: number | null = 0.29): HechoEntrada => ({
     tipo: "ganancia_extraordinaria", symbol: "TAL", fecha: "2026-07-30",

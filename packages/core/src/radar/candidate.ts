@@ -327,7 +327,7 @@ export function decideCandidate(
   // compra también (17/9): una fila que dice COMPRAR se compra, y un precio fijado por contrato no es una compra.
   // Lo mismo un banco cuyos estados la app no puede leer (18/9): 3 de las 12 COMPRAR del Radar eran NBN, ORRF y HSBC, que
   // el plan no compra nunca (14/9), rankean alto por un crecimiento que el proveedor infla y ocupaban filas y verificaciones.
-  const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : []), ...(flags.includes("bajo_oferta_de_compra") ? ["bajo_oferta_de_compra"] : []), ...(flags.includes("banco_sin_estados") ? ["banco_sin_estados"] : [])];
+  const reasons = [...gate.reasons, ...(flags.includes("residente_cronico") ? ["residente_cronico"] : []), ...(flags.includes("evento_grave") ? ["evento_grave"] : []), ...(flags.includes("verificacion_evitar") ? ["verificacion_evitar"] : []), ...(flags.includes("bajo_oferta_de_compra") ? ["bajo_oferta_de_compra"] : []), ...(flags.includes("evento_de_capital_pendiente") ? ["evento_de_capital_pendiente"] : []), ...(flags.includes("banco_sin_estados") ? ["banco_sin_estados"] : [])];
   // Dos o más salvedades de calidad o litigio: cada una sola es una advertencia, juntas son un motivo para observar
   // (enmienda 2026-09-10: NUTX tenía demanda, ingresos cayendo con ganancia subiendo y socios minoritarios, y seguía COMPRAR).
   if (flags.filter((x) => QUALITY_FLAGS.has(x)).length >= QUALITY_OBSERVE_AT) {
