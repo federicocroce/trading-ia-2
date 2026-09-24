@@ -1,0 +1,37 @@
+{
+  "hechos": [
+    {
+      "tipo": "guia",
+      "symbol": "AER",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "ganancia ajustada por acción 2026, sin ventas de activos futuras",
+        "periodo": "FY2026",
+        "antes": "~14,50 (29/4/2026)",
+        "despues": "~16,80"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1378789/000162828026050456/aercap2026secondquarterear.htm",
+        "titulo": "6-K del 29/7/2026, resultados del 2T: 'Raising full-year 2026 adjusted earnings per share guidance to approximately $16.80'; la anterior (~14,50) es del 6-K del 29/4/2026"
+      }
+    },
+    {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "AER",
+      "fecha": "2026-07-29",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 223000000,
+        "concepto": "ganancia por venta de activos (38 aviones y motores)",
+        "epsPublicado": 5.14,
+        "epsSinExtraordinario": 3.95,
+        "epsConsenso": 3.94
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1378789/000162828026050456/aercap2026secondquarterear.htm",
+        "titulo": "6-K del 29/7/2026: 'Net gain on sale of assets ... $223 million, relating to 38 owned assets'; ajustada 811 M = 5,14 por acción (~157,8 M de acciones), tasa efectiva 15,5%. Sin la venta ~3,95 es cálculo propio (5,14 − 223 × 0,845 ÷ 157,8); consenso 3,94 de Zacks"
+      }
+    }
+  ]
+}
