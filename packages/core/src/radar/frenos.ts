@@ -9,7 +9,7 @@ import { PLAN_BLOCKERS } from "./plan.js";
  * Solo acciones que la técnica dejaba comprar: una fila bajo su media de 200 no la frenó la regla de precio.
  * Es una medición, no una regla: no cambia ningún veredicto. Puro.
  */
-export interface FilaMedida { symbol: string; candidateDate: string; kind: string; verdict: string; flags: string[]; alpha7dPct: number | null; alpha30dPct: number | null; alpha90dPct: number | null }
+export interface FilaMedida { symbol: string; candidateDate: string; kind: string; verdict: string; flags: string[]; alpha7dPct: number | null; alpha30dPct: number | null; alpha90dPct: number | null; verification?: { promptVersion?: string | null } | null }
 export interface GrupoDeFreno {
   clave: string;
   titulo: string;
@@ -29,6 +29,12 @@ export const FRENOS_MINIMO_SIMBOLOS = 10;
 const TECNICA = ["bajo_sma200", "bajo_stop", "no_perseguir", "sin_historial"];
 const FRENOS = Object.keys(PLAN_BLOCKERS);
 const AVISOS: Record<string, string> = { verificacion_apta: "verificación web apta", verificacion_reservas: "verificación web con reservas", verificacion_evitar: "verificación web dice evitar" };
+/**
+ * 24/9: desde el 22/9 verifica el agente (`/verificar`), pero las filas siguen arrastrando el veredicto de Gemini hasta
+ * que el agente vuelve a mirar ese símbolo: el 24/9, 25 de 49 filas verificadas traían uno de Gemini, alguno del 12/9.
+ * Medido junto, el juicio del 12/10 sobre el agente sería sobre todo un juicio sobre Gemini. Sin versión, no es del agente.
+ */
+const esDelAgente = (f: FilaMedida) => f.verification?.promptVersion?.startsWith("agente") === true;
 const LIDERES: Record<string, string> = { lider_en_retroceso: "líder en retroceso (lo que la lista habría comprado)", lider_esperando: "líder esperando su retroceso" };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -43,7 +49,10 @@ export function medirFrenos(filas: FilaMedida[], horizonte: 7 | 30 | 90): { hori
   };
   const sinFreno = grupo("sin_freno", "COMPRAR que ningún freno tocó", medidas.filter((f) => f.verdict === "COMPRAR" && !f.flags.some((x) => FRENOS.includes(x))));
   const porFreno = FRENOS.map((k) => grupo(k, PLAN_BLOCKERS[k]!.split(":")[0]!, medidas.filter((f) => f.flags.includes(k))));
-  const porAviso = Object.entries(AVISOS).map(([k, t]) => grupo(k, t, medidas.filter((f) => f.flags.includes(k))));
+  const porAviso = Object.entries(AVISOS).flatMap(([k, t]) => [
+    grupo(k, t, medidas.filter((f) => f.flags.includes(k))),
+    grupo(`${k}_agente`, `${t}, solo del agente`, medidas.filter((f) => f.flags.includes(k) && esDelAgente(f))),
+  ]);
   // Las listas de líderes (21/9) se miden sobre TODAS las filas: "esperando" incluye lo que la técnica frena por no perseguir.
   const todasMedidas = filas.filter((f) => (f.kind === "stock" || f.kind === "watch") && alfaDe(f) !== null);
   const porLider = Object.entries(LIDERES).map(([k, t]) => grupo(k, t, todasMedidas.filter((f) => f.flags.includes(k))));
