@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atr, checkConsistency, computeTrailingStop, entryStop, summarizeFindings, type Candle, type CandidateRow, type ContributionPlan } from "../index.js";
+import { actedOnSymbols, atr, checkConsistency, computeTrailingStop, CONSISTENCY_THRESHOLDS, entryStop, summarizeFindings, type Candle, type CandidateRow, type ContributionPlan, type LivePriceSample } from "../index.js";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -503,5 +503,104 @@ describe("velas_desfasadas", () => {
       candles: { ZZZ: [vela("2026-09-21", 10)] },
       plan: null,
     }))).toEqual([]);
+  });
+});
+
+/**
+ * 23/9/2026: AII no imprimió un solo trade en IEX en toda la rueda y el hub siguió sirviendo el de ayer, 26,005,
+ * mientras la acción valía 25,33 (−2,6%). Lo agarró el dueño consultando Yahoo por afuera: nada comparaba el precio
+ * vivo contra una fuente independiente. Este chequeo es ese testigo: Yahoo, sobre los símbolos sobre los que se actúa.
+ */
+describe("precio_vivo", () => {
+  const duranteLaRueda = "2026-09-24T15:00:00Z"; // jueves 11:00 ET
+  const alaTarde = "2026-09-24T22:00:00Z"; // jueves 18:00 ET, la rueda del 24 ya cerró
+  const conMuestras = (at: string, samples: LivePriceSample[]) =>
+    checkConsistency({ rows: [], candles: {}, plan: null, livePrices: { at, samples } }).filter((x) => x.check.startsWith("precio_vivo"));
+  const q = (price: number, asOf: string | null) => ({ price, asOf });
+
+  it("con la rueda abierta, un hub que se aleja de Yahoo más que la tolerancia es grave", () => {
+    const f = conMuestras(duranteLaRueda, [{ symbol: "APH", hub: q(84.2, "2026-09-24T14:59:40Z"), witness: q(81.59, "2026-09-24T14:59:55Z") }]);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe("precio_vivo");
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("84.2");
+    expect(f[0]!.detail).toContain("81.59");
+  });
+
+  it("con la rueda abierta, dentro de la tolerancia no reporta nada (IEX contra consolidado, segundos de diferencia)", () => {
+    const tol = CONSISTENCY_THRESHOLDS.livePricePct / 100;
+    expect(conMuestras(duranteLaRueda, [{ symbol: "APH", hub: q(81.59 * (1 + tol * 0.9), "2026-09-24T14:58:10Z"), witness: q(81.59, "2026-09-24T14:59:55Z") }])).toEqual([]);
+  });
+
+  it("AII: el hub sirve el trade de ayer y Yahoo ya tiene la rueda de hoy: grave aunque el precio se parezca", () => {
+    const f = conMuestras(duranteLaRueda, [{ symbol: "AII", hub: q(26.005, "2026-09-23T19:59:33Z"), witness: q(26.0, "2026-09-24T14:59:00Z") }]);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe("precio_vivo_desfasado");
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("2026-09-23");
+    expect(f[0]!.detail).toContain("2026-09-24");
+  });
+
+  it("con la rueda cerrada compara contra el cierre regular de la misma rueda", () => {
+    const hub = q(82.4, "2026-09-24T19:59:58Z"); // último trade IEX, 15:59:58 ET
+    expect(conMuestras(alaTarde, [{ symbol: "APH", hub, witness: q(82.43, "2026-09-24T20:00:01Z") }])).toEqual([]);
+    const f = conMuestras(alaTarde, [{ symbol: "APH", hub, witness: q(80.1, "2026-09-24T20:00:01Z") }]);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe("precio_vivo");
+    expect(f[0]!.severity).toBe("grave");
+  });
+
+  it("con la rueda cerrada, un hub que se quedó en una rueda anterior a la del cierre de Yahoo es grave", () => {
+    const f = conMuestras(alaTarde, [{ symbol: "PAM", hub: q(80.4, "2026-09-23T19:58:26Z"), witness: q(79.1, "2026-09-24T20:00:02Z") }]);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe("precio_vivo_desfasado");
+    expect(f[0]!.severity).toBe("grave");
+  });
+
+  it("un trade de fuera de hora no se compara contra el cierre regular: en una noche de balances se mueve 10% con datos correctos", () => {
+    expect(conMuestras(alaTarde, [{ symbol: "APH", hub: q(90, "2026-09-24T21:30:00Z"), witness: q(82.43, "2026-09-24T20:00:01Z") }])).toEqual([]);
+    // pre-mercado del viernes 25, contra el cierre del jueves 24: tampoco
+    expect(conMuestras("2026-09-25T12:45:00Z", [{ symbol: "APH", hub: q(79, "2026-09-25T12:30:00Z"), witness: q(82.43, "2026-09-24T20:00:01Z") }])).toEqual([]);
+  });
+
+  it("si Yahoo no responde NO cuenta como verificado: aviso aparte, no grave", () => {
+    const f = conMuestras(duranteLaRueda, [{ symbol: "APH", hub: q(81.59, "2026-09-24T14:59:40Z"), witness: null }]);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe("precio_vivo_sin_testigo");
+    expect(f[0]!.severity).toBe("aviso");
+    expect(f[0]!.detail).toContain("81.59");
+  });
+
+  it("si Yahoo trae una rueda vieja tampoco sirve de testigo: aviso, no un verde", () => {
+    const f = conMuestras(duranteLaRueda, [{ symbol: "APH", hub: q(81.59, "2026-09-24T14:59:40Z"), witness: q(82.19, "2026-09-23T20:00:00Z") }]);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe("precio_vivo_sin_testigo");
+    expect(f[0]!.severity).toBe("aviso");
+  });
+
+  it("un símbolo sobre el que se actúa y que el hub no sirve es un aviso", () => {
+    const f = conMuestras(duranteLaRueda, [{ symbol: "APH", hub: null, witness: q(81.59, "2026-09-24T14:59:55Z") }]);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe("precio_vivo_sin_hub");
+    expect(f[0]!.severity).toBe("aviso");
+  });
+
+  it("los .BA se saltean: el hub ya los cotiza con Yahoo, no hay testigo independiente", () => {
+    expect(conMuestras(duranteLaRueda, [{ symbol: "GGAL.BA", hub: q(9000, "2026-09-24T14:59:40Z"), witness: q(8000, "2026-09-24T14:59:55Z") }])).toEqual([]);
+  });
+
+  it("sin muestras el chequeo se saltea, como los demás", () => {
+    expect(checkConsistency({ rows: [], candles: {}, plan: null }).filter((x) => x.check.startsWith("precio_vivo"))).toEqual([]);
+  });
+});
+
+describe("actedOnSymbols", () => {
+  it("COMPRAR, líneas del plan y tenencias; sin repetir, sin OBSERVAR ni argentinos en pesos", () => {
+    const s = actedOnSymbols({
+      rows: [fila({ symbol: "APH" }), fila({ symbol: "ZZZ", verdict: "OBSERVAR" }), fila({ symbol: "GGAL.BA", kind: "ar" })],
+      plan: plan([linea({ symbol: "VTI", kind: "nucleo", stop: null }), linea({ symbol: "aph" })]),
+      held: ["GFI", "APH"],
+    });
+    expect(s).toEqual(["APH", "GFI", "VTI"]);
   });
 });

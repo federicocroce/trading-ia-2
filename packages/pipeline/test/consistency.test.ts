@@ -63,3 +63,52 @@ describe("checkRun anclado al momento de la corrida", () => {
     expect(f[0]!.detail).toContain("2026-09-22");
   });
 });
+
+/**
+ * `precio_vivo` (24/9): el precio del hub contra Yahoo. Como `velas_desfasadas`, en core es una función pura y
+ * sin este test podría existir y no correr nunca: la corrida es la que pide los precios y arma las muestras.
+ */
+describe("checkRun con precios vivos", () => {
+  const juevesDuranteLaRueda = new Date("2026-09-24T15:00:00Z"); // 11:00 ET
+  const q = (symbol: string, price: number, asOf: string) => ({ symbol, price, prevClose: null, asOf });
+  const conCartera = { ...store("2026-09-23", "2026-09-24T11:34:13.798Z"), positions: async () => [{ symbol: "GFI" }] };
+
+  it("pide solo lo que se actúa (COMPRAR, plan, cartera) y marca grave un hub corrido", async () => {
+    const pedidos: string[] = [];
+    const livePrices = {
+      hub: async (symbols: string[]) => symbols.map((s) => (s === "APH" ? q(s, 84.2, "2026-09-24T14:59:40Z") : q(s, 40, "2026-09-24T14:59:40Z"))),
+      witness: async (s: string) => { pedidos.push(s); return s === "APH" ? q(s, 81.59, "2026-09-24T14:59:55Z") : q(s, 40.05, "2026-09-24T14:59:50Z"); },
+    };
+    const r = await checkRun({ store: conCartera, livePrices } as never, { today: "2026-09-24", now: () => juevesDuranteLaRueda });
+    expect(pedidos.sort()).toEqual(["APH", "GFI"]);
+    const f = r.findings.filter((x) => x.check.startsWith("precio_vivo"));
+    expect(f).toHaveLength(1);
+    expect(f[0]!).toMatchObject({ check: "precio_vivo", symbol: "APH", severity: "grave" });
+    expect(r.graves).toBeGreaterThan(0);
+  });
+
+  it("si Yahoo falla, cada símbolo queda como aviso sin testigo y la corrida no suma graves por eso", async () => {
+    const livePrices = {
+      hub: async (symbols: string[]) => symbols.map((s) => q(s, 81.59, "2026-09-24T14:59:40Z")),
+      witness: async () => { throw new Error("HTTP 429 Too Many Requests"); },
+    };
+    const r = await checkRun({ store: conCartera, livePrices } as never, { today: "2026-09-24", now: () => juevesDuranteLaRueda });
+    const f = r.findings.filter((x) => x.check.startsWith("precio_vivo"));
+    expect(f.map((x) => [x.check, x.symbol, x.severity])).toEqual([["precio_vivo_sin_testigo", "APH", "aviso"], ["precio_vivo_sin_testigo", "GFI", "aviso"]]);
+    expect(r.graves).toBe(0);
+  });
+
+  it("si el hub no responde, el chequeo no corre en silencio: cada símbolo queda sin hub", async () => {
+    const livePrices = {
+      hub: async () => { throw new Error("alpaca caído"); },
+      witness: async (s: string) => q(s, 81.59, "2026-09-24T14:59:55Z"),
+    };
+    const r = await checkRun({ store: conCartera, livePrices } as never, { today: "2026-09-24", now: () => juevesDuranteLaRueda });
+    expect(r.findings.filter((x) => x.check === "precio_vivo_sin_hub").map((x) => x.symbol)).toEqual(["APH", "GFI"]);
+  });
+
+  it("sin fuentes de precios vivos el chequeo no corre (tests y procesos que no las tienen)", async () => {
+    const r = await checkRun({ store: conCartera } as never, { today: "2026-09-24", now: () => juevesDuranteLaRueda });
+    expect(r.findings.filter((x) => x.check.startsWith("precio_vivo"))).toEqual([]);
+  });
+});

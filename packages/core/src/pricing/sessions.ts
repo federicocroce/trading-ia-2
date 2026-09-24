@@ -54,6 +54,30 @@ export function lastCompletedSession(now: Date, market: MarketId = "us"): string
   return iso(d);
 }
 
+/**
+ * ¿La rueda regular está abierta ahora? (24/9, para `precio_vivo`). Con la rueda abierta el precio vivo se contrasta
+ * contra el vivo del testigo; cerrada, contra el cierre regular de la última rueda. Usa el mismo cierre con margen
+ * que `lastCompletedSession`, así las dos preguntas nunca se contradicen a las 16:05.
+ */
+export function inRegularSession(now: Date, market: MarketId = "us"): boolean {
+  const m = MARKETS[market];
+  const { date, minutes } = localDateTime(now, m.tz);
+  return esRueda(atNoon(date), market) && minutes >= m.openMinutes && minutes < m.closeMinutes;
+}
+
+/**
+ * De qué rueda es un trade y si fue en horario regular. IEX imprime también antes de la apertura y después del
+ * cierre: un trade de las 18:30 es del día, pero no es comparable con el cierre regular. null = sin hora legible.
+ */
+export function tradeSession(asOf: string | null, market: MarketId = "us"): { date: string; regular: boolean } | null {
+  if (!asOf) return null;
+  const t = Date.parse(asOf);
+  if (Number.isNaN(t)) return null;
+  const m = MARKETS[market];
+  const { date, minutes } = localDateTime(new Date(t), m.tz);
+  return { date, regular: minutes >= m.openMinutes && minutes < m.closeMinutes };
+}
+
 /** Descarta la última vela si es la sesión de hoy y todavía no cerró (cierre + 10 minutos). */
 export function completedCandles(candles: Candle[], now: Date, market: MarketId = "us"): Candle[] {
   const last = candles[candles.length - 1];

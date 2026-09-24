@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completedCandles, lastCompletedSession, localDateTime, marketOf, quoteIsStale } from "./sessions.js";
+import { completedCandles, inRegularSession, lastCompletedSession, localDateTime, marketOf, quoteIsStale, tradeSession } from "./sessions.js";
 
 const candle = (date: string) => ({ date, open: 1, high: 1, low: 1, close: 1, volume: 1 });
 
@@ -91,5 +91,32 @@ describe("quoteIsStale", () => {
   it("un feriado de mitad de semana no vuelve vieja la del día anterior", () => {
     // Acción de Gracias, jueves 26/11/2026: a las 11:00 ET la del miércoles al cierre es la que corresponde.
     expect(quoteIsStale("2026-11-25T21:00:00Z", new Date("2026-11-26T16:00:00Z"))).toBe(false);
+  });
+});
+
+/** Para `precio_vivo` (24/9): con la rueda abierta se compara vivo contra vivo; cerrada, contra el cierre regular. */
+describe("inRegularSession", () => {
+  it("jueves 11:00 ET: abierta", () => expect(inRegularSession(new Date("2026-09-24T15:00:00Z"))).toBe(true));
+  it("jueves 08:30 ET (pre-mercado) y 18:00 ET: cerrada", () => {
+    expect(inRegularSession(new Date("2026-09-24T12:30:00Z"))).toBe(false);
+    expect(inRegularSession(new Date("2026-09-24T22:00:00Z"))).toBe(false);
+  });
+  it("sábado y feriado: cerrada", () => {
+    expect(inRegularSession(new Date("2026-09-26T15:00:00Z"))).toBe(false);
+    expect(inRegularSession(new Date("2026-11-26T16:00:00Z"))).toBe(false);
+  });
+});
+
+describe("tradeSession", () => {
+  it("un trade de las 15:58 ET es de la rueda regular de ese día", () => {
+    expect(tradeSession("2026-09-23T19:58:26Z")).toEqual({ date: "2026-09-23", regular: true });
+  });
+  it("uno de las 18:30 ET o de las 08:00 ET es fuera de hora", () => {
+    expect(tradeSession("2026-09-23T22:30:00Z")).toEqual({ date: "2026-09-23", regular: false });
+    expect(tradeSession("2026-09-24T12:00:00Z")).toEqual({ date: "2026-09-24", regular: false });
+  });
+  it("sin hora o con una hora ilegible no hay sesión", () => {
+    expect(tradeSession(null)).toBeNull();
+    expect(tradeSession("ayer")).toBeNull();
   });
 });

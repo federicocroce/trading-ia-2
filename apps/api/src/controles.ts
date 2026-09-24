@@ -1,5 +1,5 @@
 import { checkPantallas, summarizeFindings, todayLocal, type ContributionPlan, type Pantallas, type PlanControles } from "@thesis/core";
-import { checkRun } from "@thesis/pipeline";
+import { checkRun, type LivePriceSources } from "@thesis/pipeline";
 import type { Container } from "./container.js";
 
 /**
@@ -42,13 +42,25 @@ export async function juntarPantallas(pedir: Pedir, plan: ContributionPlan): Pro
   return { candidatos: candidatos ?? [], plan, veredictos: veredictos ?? [], posiciones: posiciones ?? [], movimientos: movimientos ?? [], top: top?.picks ?? [], graficos, ...(novedades ? { novedades } : {}) };
 }
 
+/**
+ * `precio_vivo` tiene que mirar lo que el hub REALMENTE sirve, no un pedido nuevo a su fuente: el caso de AII (23/9) fue
+ * justamente la foto del hub. Sin hub (tests), la fuente del hub; sin fuentes, el chequeo no corre.
+ */
+function preciosDelHub(c: Container): LivePriceSources | null {
+  const src = c.livePrices;
+  if (!src) return null;
+  const hub = c.priceHub;
+  if (!hub) return src;
+  return { ...src, hub: async (symbols) => symbols.flatMap((s) => { const r = hub.get(s); return r ? [{ symbol: r.symbol, price: r.price, prevClose: r.prevClose, asOf: r.asOf }] : []; }) };
+}
+
 /** Corre los controles sobre el plan vigente y los guarda en él. */
 export async function correrControles(c: Container, pedir: Pedir, plan: ContributionPlan & { builtAt: string }, today = todayLocal()): Promise<PlanControles> {
   const at = new Date().toISOString();
   let result: PlanControles;
   try {
     const pantallas = checkPantallas(await juntarPantallas(pedir, plan));
-    const filas = await checkRun({ store: c.radarDeps.store }, { today });
+    const filas = await checkRun({ store: c.radarDeps.store, livePrices: preciosDelHub(c) }, { today });
     const findings = [...pantallas, ...filas.findings].map(({ check, symbol, severity, detail }) => ({ check, symbol, severity, detail }));
     const { graves, avisos } = summarizeFindings(findings);
     result = { at, planBuiltAt: plan.builtAt, graves, avisos, findings };

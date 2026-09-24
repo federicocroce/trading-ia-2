@@ -22,7 +22,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   if (cmd === "scan") console.log(await scanUniverse(deps, { scanDate: today, today }));
   else if (cmd === "rank") { const r = await rankRadar(deps, { today, portfolioUsd }); await replan(deps, { today, portfolioUsd }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; }); console.log(JSON.stringify({ candidates: r.candidates.map((x) => ({ symbol: x.symbol, kind: x.kind, verdict: x.verdict, score: x.score, flags: x.flags })), skipped: r.skipped.length, errors: r.errors }, null, 2)); }
   // Como el paso "radar" de ponerme al día: refresco, medición y lista de seguimiento.
-  else if (cmd === "refresh") { console.log(await refreshRadar(deps, { today, portfolioUsd })); console.log(await measureRadar(deps, { today })); console.log(await refreshWatchlist(deps, { today, portfolioUsd })); await replan(deps, { today, portfolioUsd }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; }); const chk = await checkRun(deps, { today }); if (chk.graves > 0) code = 1; }
+  else if (cmd === "refresh") { console.log(await refreshRadar(deps, { today, portfolioUsd })); console.log(await measureRadar(deps, { today })); console.log(await refreshWatchlist(deps, { today, portfolioUsd })); await replan(deps, { today, portfolioUsd }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; }); const chk = await checkRun({ ...deps, livePrices: c.livePrices ?? null }, { today }); if (chk.graves > 0) code = 1; }
   else if (cmd === "watchlist") { console.log(await refreshWatchlist(deps, { today, portfolioUsd })); await replan(deps, { today, portfolioUsd }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; }); }
   // plan [monto]: sin monto usa el aporte mensual de la política; con monto arma el plan para esa plata.
   else if (cmd === "plan") { const amountUsd = Number(process.argv[3]); console.log(JSON.stringify(await buildContributionPlan(deps, { month: today.slice(0, 7), portfolioUsd, ...(Number.isFinite(amountUsd) && amountUsd > 0 ? { amountUsd } : {}) }), null, 2)); }
@@ -84,7 +84,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
     }
   }
   // Revisa lo guardado contra sus propias fuentes. Sale con 1 si hay algo grave, para que un cron se entere.
-  else if (cmd === "consistencia") { const chk = await checkRun(deps, { today }); if (chk.graves > 0) code = 1; }
+  else if (cmd === "consistencia") { const chk = await checkRun({ ...deps, livePrices: c.livePrices ?? null }, { today }); if (chk.graves > 0) code = 1; }
   // Verifica en la web lo que YA TENÉS, no lo que se quiere comprar. Sin esto el veredicto de mantener
   // mira solo el precio: la evidencia del negocio existía para las candidatas y no para tus posiciones,
   // que es al revés de lo que conviene, porque ahí está la plata puesta.
