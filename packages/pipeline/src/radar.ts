@@ -16,6 +16,8 @@ import {
   decideCandidate,
   seleccionarCandidatas,
   lugarParaNueva,
+  parecidoConPares,
+  type ParecidoConPares,
   type EvaluadaRadar,
   decideEtf,
   holdingsOverlap,
@@ -718,6 +720,32 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   await store.upsertCandidates(quedan);
   if (salen.length) await store.pruneCandidates(opts.today, "stock", quedan.filter((r) => r.kind === "stock").map((r) => r.symbol));
   return { refreshed: quedan.length, errors };
+}
+
+/**
+ * P15 (24/9): para cada acción del Radar, cuánto se parece a los pares con los que la compara el ranking, contra cuánto
+ * se parece al mercado. Solo lectura: las velas se piden en vivo y no se guardan. Ordenada de la que menos se parece a
+ * sus pares a la que más.
+ */
+export async function medirPares(deps: Pick<RadarDeps, "store" | "history">): Promise<Array<{ symbol: string; rankInGroup: number | null; groupSize: number | null } & ParecidoConPares>> {
+  const filas = (await deps.store.latestCandidates()).filter((c) => c.kind === "stock" && c.peerGroup.length);
+  const simbolos = [...new Set(["SPY", ...filas.flatMap((f) => [f.symbol, ...f.peerGroup])])];
+  const velas = new Map<string, Candle[]>();
+  for (let i = 0; i < simbolos.length; i += 10) {
+    const tanda = simbolos.slice(i, i + 10);
+    const res = await Promise.allSettled(tanda.map((s) => deps.history.candles(s, HISTORY_DAYS)));
+    res.forEach((r, j) => { if (r.status === "fulfilled" && r.value.length) velas.set(tanda[j]!, r.value); });
+  }
+  const spy = velas.get("SPY") ?? [];
+  const out: Array<{ symbol: string; rankInGroup: number | null; groupSize: number | null } & ParecidoConPares> = [];
+  for (const f of filas) {
+    const propias = velas.get(f.symbol);
+    if (!propias) continue;
+    const pares = Object.fromEntries(f.peerGroup.flatMap((p) => (velas.has(p) ? [[p, velas.get(p)!] as const] : [])));
+    const m = parecidoConPares(propias, pares, spy);
+    if (m) out.push({ symbol: f.symbol, rankInGroup: f.rankInGroup, groupSize: f.groupSize, ...m });
+  }
+  return out.sort((a, b) => ((a.mediana ?? -1) - (a.conMercado ?? 0)) - ((b.mediana ?? -1) - (b.conMercado ?? 0)));
 }
 
 /**

@@ -6,6 +6,7 @@ export * from "./candidate.js";
 export * from "./oferta.js";
 export * from "./hechos.js";
 export * from "./seleccion.js";
+export * from "./pares.js";
 export * from "./etf.js";
 export * from "./plan.js";
 export * from "./measure.js";

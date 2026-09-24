@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { clasificarHecho, computeTrailingStop, coreEarnings, entryStop, verificationOrder, rankStocks, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
-import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, porQueNoEsta, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, universoDelRanking, withStatements, type RadarDeps } from "../src/index.js";
+import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, universoDelRanking, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
   weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 },
@@ -482,6 +482,18 @@ describe("el Radar suma COMPRAR nuevas todos los días (24/9)", () => {
     const sinRegistro = new MemoryStore();
     for (const f of await store.freshFundamentals(30, TODAY)) await sinRegistro.saveFundamentals(f);
     expect((await porQueNoEsta({ ...d, store: sinRegistro }, "SK", TODAY))[0]).toMatch(/dentro de la preselección .*no hay registro/);
+  });
+
+  it("medirPares (P15): una fila por acción del Radar con su parecido a los pares y al mercado, sin guardar velas", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const guardadas = async () => (await Promise.all(symbols.map((s) => store.candles(s, "2000-01-01")))).reduce((n, c) => n + c.length, 0);
+    const antes = await guardadas();
+    const m = await medirPares({ store, history: { candles: async (s: string) => (s === "SPY" ? series(ramp(80, 100).map((c, i) => c + (i % 3))) : series(ramp(80, 100))) } });
+    expect(m.length).toBe((await store.latestCandidates()).filter((c) => c.kind === "stock").length);
+    expect(m.every((x) => x.porPar.length > 0 && x.mediana !== null && x.conMercado !== null)).toBe(true);
+    expect(await guardadas()).toBe(antes);
   });
 
   it("el refresco parcial (tras verificar) no suma filas: eso es del refresco completo", async () => {
