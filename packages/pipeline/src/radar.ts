@@ -17,6 +17,7 @@ import {
   seleccionarCandidatas,
   lugarParaNueva,
   parecidoConPares,
+  paresNoComparables,
   type ParecidoConPares,
   type EvaluadaRadar,
   decideEtf,
@@ -587,6 +588,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
     await tagSymbol(deps, cfg.symbol, { industry: null, country: "US" });
     rows.push({ ...emptyRow(opts.today, cfg.symbol, "etf", d.verdict, d.close), axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: [...d.reasons, ...d.limitations], spyClose });
   }
+  await marcarPares(deps, rows, candles);
   await store.upsertCandidates(rows);
   // Lo que hoy quedó excluido no puede seguir en pantalla con los números de la corrida anterior del mismo
   // día. MIRG.BA el 13/9: el motor empezó a excluirla por el split sin ajustar y su fila de la mañana
@@ -728,6 +730,10 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     deps.log?.(`[radar] nuevas del día: ${Math.round((Date.now() - t0) / 1000)} s${salen.length ? `, salen ${salen.join(" ")}` : ""}`);
   }
   const quedan = rows.filter((r) => !(r.kind === "stock" && salen.includes(r.symbol)));
+  // El refresco parcial rehace una o dos filas: no vale bajar las velas de todos sus pares para eso, así que la marca de
+  // la fila anterior se conserva (las banderas se recalculan y si no, se perdía).
+  if (!soloEstos) await marcarPares(deps, quedan, candles);
+  else for (const r of quedan) if (latest.find((c) => c.kind === r.kind && c.symbol === r.symbol)?.flags.includes("pares_no_comparables") && !r.flags.includes("pares_no_comparables")) r.flags.push("pares_no_comparables");
   await store.upsertCandidates(quedan);
   // Se borra SOLO lo que cedió su lugar. Una fila de hoy que esta corrida no pudo rehacer (velas que fallaron en un
   // segundo refresco) se conserva: la poda por "lo que no se reescribió" la hacía desaparecer (revisión del 24/9).
@@ -739,6 +745,48 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   return { refreshed: quedan.length, errors };
 }
 
+/** Cuánto se parece cada fila de acciones a sus pares y al mercado. Las velas que ya hay se reusan; el resto se pide en vivo y no se guarda. */
+async function parecidoDeFilas(deps: Pick<RadarDeps, "history">, filas: CandidateRow[], ya: Record<string, Candle[]> = {}): Promise<Map<string, ParecidoConPares>> {
+  const stock = filas.filter((c) => c.kind === "stock" && c.peerGroup.length);
+  const velas = new Map<string, Candle[]>(Object.entries(ya).filter(([, c]) => c.length));
+  const faltan = [...new Set(["SPY", ...stock.flatMap((f) => [f.symbol, ...f.peerGroup])])].filter((s) => !velas.has(s));
+  for (let i = 0; i < faltan.length; i += 10) {
+    const tanda = faltan.slice(i, i + 10);
+    const res = await Promise.allSettled(tanda.map((s) => deps.history.candles(s, HISTORY_DAYS)));
+    res.forEach((r, j) => { if (r.status === "fulfilled" && r.value.length) velas.set(tanda[j]!, r.value); });
+  }
+  const spy = velas.get("SPY") ?? [];
+  const out = new Map<string, ParecidoConPares>();
+  for (const f of stock) {
+    const propias = velas.get(f.symbol);
+    if (!propias) continue;
+    const pares = Object.fromEntries(f.peerGroup.flatMap((p) => (velas.has(p) ? [[p, velas.get(p)!] as const] : [])));
+    const m = parecidoConPares(propias, pares, spy);
+    if (m) out.set(f.symbol, m);
+  }
+  return out;
+}
+
+/**
+ * P15 (24/9): marca `pares_no_comparables` en las filas de acciones que se parecen a sus pares claramente menos que al
+ * mercado (ver `paresNoComparables`). La corren el ranking y el refresco. Si la medición falla, la fila queda como
+ * estaba: es una salvedad, no un freno, y no se inventa.
+ */
+async function marcarPares(deps: RadarDeps, filas: CandidateRow[], ya: Record<string, Candle[]>): Promise<void> {
+  try {
+    const m = await parecidoDeFilas(deps, filas, ya);
+    for (const f of filas) {
+      if (f.kind !== "stock") continue;
+      const medida = m.get(f.symbol);
+      if (!medida) continue;
+      f.flags = f.flags.filter((x) => x !== "pares_no_comparables");
+      if (paresNoComparables(medida)) f.flags.push("pares_no_comparables");
+    }
+  } catch (e) {
+    deps.log?.(`[radar] no se pudo medir el parecido con los pares: ${String(e).slice(0, 120)}`);
+  }
+}
+
 /**
  * P15 (24/9): para cada acción del Radar, cuánto se parece a los pares con los que la compara el ranking, contra cuánto
  * se parece al mercado. Solo lectura: las velas se piden en vivo y no se guardan. Ordenada de la que menos se parece a
@@ -746,23 +794,9 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
  */
 export async function medirPares(deps: Pick<RadarDeps, "store" | "history">): Promise<Array<{ symbol: string; rankInGroup: number | null; groupSize: number | null } & ParecidoConPares>> {
   const filas = (await deps.store.latestCandidates()).filter((c) => c.kind === "stock" && c.peerGroup.length);
-  const simbolos = [...new Set(["SPY", ...filas.flatMap((f) => [f.symbol, ...f.peerGroup])])];
-  const velas = new Map<string, Candle[]>();
-  for (let i = 0; i < simbolos.length; i += 10) {
-    const tanda = simbolos.slice(i, i + 10);
-    const res = await Promise.allSettled(tanda.map((s) => deps.history.candles(s, HISTORY_DAYS)));
-    res.forEach((r, j) => { if (r.status === "fulfilled" && r.value.length) velas.set(tanda[j]!, r.value); });
-  }
-  const spy = velas.get("SPY") ?? [];
-  const out: Array<{ symbol: string; rankInGroup: number | null; groupSize: number | null } & ParecidoConPares> = [];
-  for (const f of filas) {
-    const propias = velas.get(f.symbol);
-    if (!propias) continue;
-    const pares = Object.fromEntries(f.peerGroup.flatMap((p) => (velas.has(p) ? [[p, velas.get(p)!] as const] : [])));
-    const m = parecidoConPares(propias, pares, spy);
-    if (m) out.push({ symbol: f.symbol, rankInGroup: f.rankInGroup, groupSize: f.groupSize, ...m });
-  }
-  return out.sort((a, b) => ((a.mediana ?? -1) - (a.conMercado ?? 0)) - ((b.mediana ?? -1) - (b.conMercado ?? 0)));
+  const m = await parecidoDeFilas(deps, filas);
+  return filas.flatMap((f) => { const x = m.get(f.symbol); return x ? [{ symbol: f.symbol, rankInGroup: f.rankInGroup, groupSize: f.groupSize, ...x }] : []; })
+    .sort((a, b) => ((a.mediana ?? -1) - (a.conMercado ?? 0)) - ((b.mediana ?? -1) - (b.conMercado ?? 0)));
 }
 
 /**

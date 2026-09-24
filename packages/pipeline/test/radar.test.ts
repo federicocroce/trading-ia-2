@@ -572,6 +572,23 @@ describe("el Radar suma COMPRAR nuevas todos los días (24/9)", () => {
     expect((await store.latestCandidates()).map((c) => c.symbol)).not.toContain("SK");
   });
 
+  it("P15: una acción que se mueve como el mercado y no como sus pares lleva pares_no_comparables, en el ranking y en el refresco", async () => {
+    // SA sube con ruido igual al del S&P; sus pares (SB..SF) suben en línea recta.
+    const ruido = ramp(80, 100).map((c, i) => c * (1 + Math.sin(i * 0.37) * 0.02 + Math.cos(i * 1.3) * 0.01));
+    const velas = new Map<string, Candle[]>([["SA", series(ruido)], ["SPY", series(ruido.map((c) => c * 5))]]);
+    const { store, d } = deps({ history: conVelas(velas) });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const sa = (await store.latestCandidates()).find((c) => c.symbol === "SA")!;
+    expect(sa.flags).toContain("pares_no_comparables");
+    expect((await store.latestCandidates()).filter((c) => c.kind === "stock" && c.symbol !== "SA").every((c) => !c.flags.includes("pares_no_comparables"))).toBe(true);
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000 });
+    expect((await store.latestCandidates()).find((c) => c.symbol === "SA")!.flags).toContain("pares_no_comparables");
+    // El refresco parcial (tras verificar) no la vuelve a medir, pero tampoco la pierde.
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000, only: ["SA"] });
+    expect((await store.latestCandidates()).find((c) => c.symbol === "SA")!.flags).toContain("pares_no_comparables");
+  });
+
   it("el refresco parcial (tras verificar) no suma filas: eso es del refresco completo", async () => {
     const velas = new Map<string, Candle[]>([["SK", cae]]);
     const { store, d } = deps({ history: conVelas(velas) });

@@ -57,6 +57,7 @@ const FLAG_LABEL: Record<string, string> = {
   objetivo_sobre_consenso: "el objetivo de la app está 15% o más arriba del consenso de analistas",
   guia_reafirmada: "reafirmó la guía (hecho verificado)",
   ganancia_por_reservas: "la ganancia lleva reservas liberadas: sin ellas no llega al consenso (hecho verificado)",
+  pares_no_comparables: "sus pares no se mueven como ella: el puesto contra el grupo vale menos",
   ganancia_extraordinaria: "la ganancia no viene del negocio (valor razonable, venta de activos…): sin eso no llega al consenso (hecho verificado)",
 };
 /**
