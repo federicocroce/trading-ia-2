@@ -143,8 +143,18 @@ const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
 const sumOrNull = (xs: Array<number | null>): number | null => (xs.some((x) => x === null) ? null : xs.reduce<number>((a, b) => a + (b as number), 0));
 
 /** Ganancia núcleo sobre los últimos 4 trimestres (spec verificación §4): operativo núcleo = operativo − ganancias extraordinarias operativas. null si no hay 4 con operativo y neto. */
+/**
+ * El resultado operativo del trimestre. Si la empresa no publica `OperatingIncomeLoss` (LLY, MRK, JNJ: van directo al
+ * resultado antes de impuestos) pero sí el resultado antes de impuestos y el no operativo, es la resta (24/9: 110 de 521
+ * empresas sin ganancia núcleo). Sin el no operativo no se inventa: un banco o una aseguradora siguen sin núcleo.
+ */
+export function operativoDe(q: Pick<QuarterStatement, "operatingIncome" | "pretaxIncome" | "nonoperatingIncome">): number | null {
+  if (q.operatingIncome !== null) return q.operatingIncome;
+  return q.pretaxIncome !== null && q.nonoperatingIncome !== null ? q.pretaxIncome - q.nonoperatingIncome : null;
+}
+
 export function coreEarnings(quarters: QuarterStatement[]): CoreEarnings | null {
-  const last4 = quarters.filter((q) => q.operatingIncome !== null && q.netIncome !== null).slice(-4);
+  const last4 = quarters.map((q) => ({ ...q, operatingIncome: operativoDe(q) })).filter((q) => q.operatingIncome !== null && q.netIncome !== null).slice(-4);
   if (last4.length < 4) return null;
   const operatingIncomeTTM = sumOrNull(last4.map((q) => q.operatingIncome))!;
   const netIncomeTTM = sumOrNull(last4.map((q) => q.netIncome))!;
@@ -204,7 +214,7 @@ export function lastQuarterYoy(quarters: QuarterStatement[]): CoreEarnings["last
     return d >= 350 && d <= 380;
   });
   if (!prev) return null;
-  return { end: last.end, revenuePct: yoyPct(last.revenue, prev.revenue), operatingPct: yoyPct(last.operatingIncome, prev.operatingIncome) };
+  return { end: last.end, revenuePct: yoyPct(last.revenue, prev.revenue), operatingPct: yoyPct(operativoDe(last), operativoDe(prev)) };
 }
 
 /** Umbrales de calidad de la ganancia (spec verificación, enmienda 2026-09-10). */

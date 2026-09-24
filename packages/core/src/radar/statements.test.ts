@@ -59,6 +59,32 @@ describe("buildQuarters (SEC companyfacts)", () => {
   });
 });
 
+/**
+ * 24/9: LLY entraba al plan con `sin_estados` aunque presenta 10-Q: no publica `OperatingIncomeLoss` (va directo al
+ * resultado antes de impuestos), así que la ganancia núcleo no se calculaba y el ranking usaba lo de Finnhub. Lo mismo
+ * 110 empresas de 521 sin núcleo (MRK, JNJ, GLXY, REITs, químicas). Si la empresa publica el resultado antes de
+ * impuestos y el no operativo, el operativo es la resta. Los cuatro trimestres son los de la SEC guardados el 20/9.
+ */
+describe("coreEarnings sin OperatingIncomeLoss (LLY, 24/9)", () => {
+  const base = { capex: null, equity: 30e9, receivables: 18e9, extraordinary: [], noncontrolling: null, operatingIncome: null, operatingCashFlow: 5e9 };
+  const lly: QuarterStatement[] = [
+    { ...base, fp: "Q3", start: "2025-07-01", end: "2025-09-30", revenue: 17_600_800_000, netIncome: 5_582_500_000, taxExpense: 1_649_900_000, pretaxIncome: 7_232_400_000, dilutedShares: 898_800_000, nonoperatingIncome: -133_100_000 },
+    { ...base, fp: "Q4", start: "2025-10-01", end: "2025-12-31", revenue: 19_292_000_000, netIncome: 6_637_700_000, taxExpense: 1_628_500_000, pretaxIncome: 8_266_200_000, dilutedShares: -400_000, nonoperatingIncome: -108_300_000 },
+    { ...base, fp: "Q1", start: "2026-01-01", end: "2026-03-31", revenue: 19_799_000_000, netIncome: 7_396_000_000, taxExpense: 1_454_000_000, pretaxIncome: 8_850_000_000, dilutedShares: 895_900_000, nonoperatingIncome: -65_000_000 },
+    { ...base, fp: "Q2", start: "2026-04-01", end: "2026-06-30", revenue: 22_974_000_000, netIncome: 7_095_000_000, taxExpense: 2_152_000_000, pretaxIncome: 9_247_000_000, dilutedShares: 893_700_000, nonoperatingIncome: 269_000_000 },
+  ];
+  it("el operativo es el resultado antes de impuestos menos el no operativo", () => {
+    const core = coreEarnings(lly)!;
+    expect(core).not.toBeNull();
+    // (7.232,4 + 133,1) + (8.266,2 + 108,3) + (8.850 + 65) + (9.247 − 269) = 33.633
+    expect(M(core.operatingIncomeTTM)).toBe(33633);
+    expect(core.coreEpsTTM).toBeGreaterThan(0);
+  });
+  it("sin el no operativo no se inventa: sigue sin núcleo (un banco, una aseguradora)", () => {
+    expect(coreEarnings(lly.map((q) => ({ ...q, nonoperatingIncome: null })))).toBeNull();
+  });
+});
+
 describe("coreEarnings (ZVRA, TTM al Q2 2026)", () => {
   const core = coreEarnings(buildQuarters(zvra))!;
   it("suma los últimos 4 trimestres y resta solo la ganancia operativa del Q1 2026", () => {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { clasificarHecho, computeTrailingStop, coreEarnings, entryStop, verificationOrder, rankStocks, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
-import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, universoDelRanking, withStatements, type RadarDeps } from "../src/index.js";
+import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, statementsFor, universoDelRanking, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
   weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 },
@@ -813,6 +813,20 @@ describe("rankRadar con estados de la SEC", () => {
     for (const s of symbols) await store.saveStatements({ symbol: s, cik: "1", asOf: "2026-05-20", quarters: old, core: null });
     await refreshRadar(d, { today: "2026-05-21", portfolioUsd: 150_000 });
     expect(calls.length).toBeGreaterThan(0);
+  });
+});
+
+describe("estados guardados sin núcleo por falta de OperatingIncomeLoss (LLY, 24/9)", () => {
+  it("se recalcula el núcleo con lo guardado, sin volver a pedir a la SEC", async () => {
+    const store = new MemoryStore();
+    const q = (end: string, pretax: number, noop: number): QuarterStatement => ({ fp: "Q", start: end, end, revenue: 20e9, netIncome: pretax * 0.8, taxExpense: pretax * 0.2, pretaxIncome: pretax, dilutedShares: 9e8, nonoperatingIncome: noop, operatingIncome: null, capex: null, equity: 3e10, receivables: 1e10, extraordinary: [], noncontrolling: null, operatingCashFlow: 5e9 });
+    await store.saveStatements({ symbol: "LLY", cik: "59478", asOf: TODAY, quarters: [q("2025-09-30", 7.2e9, -1e8), q("2025-12-31", 8.3e9, -1e8), q("2026-03-31", 8.9e9, -6e7), q("2026-06-30", 9.2e9, 2.7e8)], core: null });
+    let pedidos = 0;
+    const { d } = deps({ store, statements: { quarters: async () => { pedidos++; return null; } } });
+    const st = await statementsFor(d, "LLY", TODAY);
+    expect(st?.core).not.toBeNull();
+    expect(pedidos).toBe(0);
+    expect((await store.statements("LLY"))?.core).not.toBeNull();
   });
 });
 
