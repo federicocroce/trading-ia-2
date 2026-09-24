@@ -1,4 +1,5 @@
 import type { Candle } from "../cartera/types.js";
+import { inRegularSession, lastCompletedSession, localDateTime, marketOf, tradeSession } from "../pricing/sessions.js";
 import { atr, computeTrailingStop, ENTRY_STOP_ATR, entryStop } from "../cartera/stop.js";
 import { CONSENSUS_SCALE, DIVIDEND_FLAG_MIN_PCT, dividendoNoComprobable } from "./candidate.js";
 import { PLAN_BLOCKERS, STOP_NOISE_ATR, lineHasExit, type ContributionPlan } from "./plan.js";
@@ -60,6 +61,28 @@ export interface ConsistencyInput {
    * guardado: sin un testigo de afuera, unas velas viejas coinciden perfecto consigo mismas. Sin esto se saltea.
    */
   lastSession?: string | null;
+  /**
+   * El precio vivo que sirve el hub contra un testigo independiente (Yahoo), tomados en el instante `at`. Es el
+   * segundo testigo de afuera: sin él, un hub que sirve el trade de ayer no tiene quién lo contradiga (AII, 23/9).
+   * Sin esto se saltea. Solo tiene que traer los símbolos sobre los que se actúa (`actedOnSymbols`).
+   */
+  livePrices?: { at: string; samples: LivePriceSample[] } | null;
+}
+
+/** Un precio con la hora de su último trade. */
+export interface TimedPrice {
+  price: number;
+  asOf: string | null;
+  /** Solo del hub: si la app ya la muestra como vieja (`quoteIsStale`, la misma marca que ve la pantalla). */
+  stale?: boolean;
+}
+
+export interface LivePriceSample {
+  symbol: string;
+  /** Lo que sirve el hub (último trade de Alpaca IEX). null = el hub no tiene precio para el símbolo. */
+  hub: TimedPrice | null;
+  /** El testigo: precio de mercado regular de Yahoo y su hora. null = Yahoo no respondió o no trajo precio. */
+  witness: TimedPrice | null;
 }
 
 export const CONSISTENCY_THRESHOLDS = {
@@ -67,6 +90,15 @@ export const CONSISTENCY_THRESHOLDS = {
   priceEpsilon: 0.01,
   /** Tolerancia del stop: el cálculo redondea a dos decimales en un lado y no en el otro. */
   stopEpsilon: 0.02,
+  /**
+   * Diferencia tolerada entre el precio del hub y el de Yahoo, en %. El hub es el último trade de IEX (2-3% del
+   * volumen); Yahoo, el consolidado. En un papel líquido difieren en centavos, pero en uno finito el último trade de
+   * IEX puede tener varios minutos (VIST el 24/9 a las 11:03 ET servía uno de las 10:37), y fuera de hora el último
+   * trade continuo de IEX no es la subasta de cierre, que en un desbalance se corre medio punto. 1% deja pasar ese
+   * ruido y agarra con margen lo que importa: AII el 23/9 estaba 2,6% corrido. Más ancho ya no serviría: el stop de
+   * compra está a 2,5 ATR, del orden de 5-7%, y un precio corrido 2% es un tercio de la distancia al stop.
+   */
+  livePricePct: 1,
 };
 
 /**
@@ -302,6 +334,9 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     }
   }
 
+  // 5c. El precio vivo del hub contra Yahoo (ver `checkLivePrices`): el segundo testigo de afuera.
+  if (i.livePrices) out.push(...checkLivePrices(new Date(i.livePrices.at), i.livePrices.samples));
+
   // 6. Invariante del plan: toda línea que no sea núcleo tiene que tener salida.
   for (const l of i.plan?.lines ?? []) {
     if (!lineHasExit(l)) add("linea_sin_salida", l.symbol, "grave", `línea "${l.kind}" sin stop: es plata que entra y no sale`);
@@ -334,6 +369,78 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     if (bloqueo) add("plan_con_bloqueo", l.symbol, "grave", `el plan lo compra y la fila de hoy dice ${PLAN_BLOCKERS[bloqueo]}`);
   }
 
+  return out;
+}
+
+/**
+ * Los símbolos sobre los que se actúa: COMPRAR, líneas del plan y tenencias. Es el alcance de los chequeos que
+ * miran un testigo de afuera: el resto sería ruido (y pedidos de red). Los argentinos en pesos van aparte: no
+ * cotizan en IEX y el hub ya los pide a Yahoo, así que Yahoo no sería un testigo independiente.
+ */
+export function actedOnSymbols(i: { rows: CandidateRow[]; plan: ContributionPlan | null; held?: string[] | null }): string[] {
+  const out = new Set<string>();
+  for (const r of i.rows) if (r.verdict === "COMPRAR" && r.kind !== "ar" && r.kind !== "cedear") out.add(r.symbol.toUpperCase());
+  for (const l of i.plan?.lines ?? []) out.add(l.symbol.toUpperCase());
+  for (const h of i.held ?? []) out.add(h.toUpperCase());
+  return [...out].filter((s) => marketOf(s) === "us").sort();
+}
+
+/**
+ * `precio_vivo`: el precio que sirve el hub contra Yahoo (24/9). Existe por AII del 23/9: no imprimió un solo trade
+ * en IEX en toda la rueda y el hub siguió sirviendo el de ayer (26,005 con la acción en 25,33). Lo agarró el dueño
+ * consultando Yahoo a mano. Tres reglas, pensadas para no gritar con datos correctos:
+ *
+ * - Un hub cuyo último trade es de una rueda ANTERIOR a la del testigo y que la app muestra como de hoy es grave, se
+ *   parezca o no el precio. Si la app ya lo marca viejo, es un aviso: la pantalla no miente.
+ * - Con la rueda abierta se compara vivo contra vivo; cerrada, el último trade regular del hub contra el cierre
+ *   regular de Yahoo de esa misma rueda. Un trade de fuera de hora no se compara: Yahoo solo da el regular, y en
+ *   una noche de balances el after-market se mueve 10% con datos correctos.
+ * - Sin testigo (Yahoo no respondió, o trae una rueda vieja) NO es un verde: es un aviso aparte, porque un
+ *   verificador que no encontró el dato no puede contar como que verificó (NBN, 14/9). No es grave: que Yahoo
+ *   se caiga no dice nada del precio del hub.
+ */
+export function checkLivePrices(at: Date, samples: LivePriceSample[]): Finding[] {
+  const out: Finding[] = [];
+  const add = (check: string, symbol: string, severity: FindingSeverity, detail: string) => out.push({ check, symbol, severity, detail });
+  const tol = CONSISTENCY_THRESHOLDS.livePricePct;
+  for (const s of samples) {
+    const market = marketOf(s.symbol);
+    if (market !== "us") continue;
+    const abierta = inRegularSession(at, market);
+    // La rueda de la que TIENE que ser el testigo: la de hoy con el mercado abierto, la última cerrada si no.
+    const esperada = abierta ? localDateTime(at, "America/New_York").date : lastCompletedSession(at, market);
+    if (!s.hub) {
+      add("precio_vivo_sin_hub", s.symbol, "aviso", `se actúa sobre él y el hub no sirve precio${s.witness ? ` (Yahoo: ${r2(s.witness.price)})` : ""}`);
+      continue;
+    }
+    const testigo = s.witness ? tradeSession(s.witness.asOf, market) : null;
+    if (!s.witness || !testigo) {
+      add("precio_vivo_sin_testigo", s.symbol, "aviso", `Yahoo no devolvió precio: los ${r2(s.hub.price)} del hub quedan sin contrastar, no cuentan como verificados`);
+      continue;
+    }
+    const hub = tradeSession(s.hub.asOf, market);
+    const pct = r2(((s.hub.price - s.witness.price) / s.witness.price) * 100);
+    const contra = `Yahoo ${r2(s.witness.price)} del ${testigo.date} (${pct > 0 ? "+" : ""}${pct}%)`;
+    if (!hub || hub.date < testigo.date) {
+      // Si la pantalla ya la marca vieja (8ce6ec0), la app dice la verdad: un papel finito que todavía no imprimió en
+      // IEX no frena el plan. BLX y PAM el 24/9 a las 11:10 ET. Grave es mostrarla como de hoy, que fue lo de AII.
+      if (s.hub.stale === true) {
+        add("precio_vivo_viejo", s.symbol, "aviso", `el hub sirve ${r2(s.hub.price)}, el último trade ${hub ? `del ${hub.date}` : "sin hora"}, y ${contra}; la app ya lo muestra como viejo`);
+        continue;
+      }
+      add("precio_vivo_desfasado", s.symbol, "grave", `el hub sirve ${r2(s.hub.price)}, el último trade ${hub ? `del ${hub.date}` : "sin hora"}, y ${contra}: el precio que muestra la app es de otra rueda`);
+      continue;
+    }
+    if (testigo.date < esperada) {
+      add("precio_vivo_sin_testigo", s.symbol, "aviso", `Yahoo trae la rueda del ${testigo.date} y la que corresponde es la del ${esperada}: los ${r2(s.hub.price)} del hub quedan sin contrastar`);
+      continue;
+    }
+    // Con la rueda cerrada, un trade de fuera de hora (o de una rueda posterior, el pre-mercado) no tiene con qué compararse.
+    if (!abierta && (!hub.regular || hub.date > testigo.date)) continue;
+    if (Math.abs(pct) > tol) {
+      add("precio_vivo", s.symbol, "grave", `el hub sirve ${r2(s.hub.price)} y ${contra}${abierta ? "" : ", al cierre"}: más de ${tol}% de diferencia`);
+    }
+  }
   return out;
 }
 

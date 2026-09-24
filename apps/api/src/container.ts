@@ -44,6 +44,11 @@ export interface Container {
   symbolSearch: { search(query: string): Promise<import("@thesis/adapters").SymbolHit[]> };
   /** Precios vivos por lote para la watchlist y la cinta del header. */
   pricesDeps: { quotes(symbols: string[]): Promise<import("@thesis/core").LiveQuote[]> };
+  /**
+   * Precio vivo contra un testigo independiente (24/9, `precio_vivo`): la fuente del hub (Alpaca IEX) y Yahoo. En la
+   * API, `controles.ts` reemplaza `hub` por la foto del hub mismo; la CLI no tiene hub y pide a su misma fuente.
+   */
+  livePrices?: import("@thesis/pipeline").LivePriceSources;
   /** Solo para tests: reemplaza los pasos reales de "ponerme al día". */
   catchupRunners?: import("./catchup.js").Runners;
   /** Asegura los controles automáticos sobre el plan vigente (15/9). Lo arma el servidor; en los tests puede no estar. */
@@ -294,6 +299,8 @@ export function buildContainer(cfg: Config): Container {
       return [...a, ...b.filter((q): q is NonNullable<typeof q> => q !== null)];
     },
   };
+  // El testigo es la meta del chart de Yahoo (mismo cliente, mismo registro de uso): un pedido por símbolo.
+  const livePrices: Container["livePrices"] = { hub: (symbols) => pricesDeps.quotes(symbols), witness: (symbol) => yahooChart.quote(symbol) };
   const symbolSearch = new YahooSearch(yahooHttp);
-  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, pricesDeps, symbolSearch, marketData, broker, risk, runDeps, snapshot, account, usage };
+  return { cfg, store, carteraDeps, radarDeps, argentinaDeps, tickerDeps, pricesDeps, livePrices, symbolSearch, marketData, broker, risk, runDeps, snapshot, account, usage };
 }
