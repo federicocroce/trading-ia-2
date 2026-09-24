@@ -337,6 +337,18 @@ describe("checkConsistency", () => {
     expect(solo("patrimonio_sin_sentido", r)[0]!.detail).toContain("eje de calidad los premia");
   });
 
+  it("24/9: un dividendo que no se puede comprobar se avisa (MYE 27%, PBR en reales); uno que cierra, no (ABR)", () => {
+    const r = checkConsistency({
+      rows: [fila({ symbol: "MYE", close: 30.99 }), fila({ symbol: "PBR", close: 21.14 }), fila({ symbol: "ABR", close: 5.25 })], candles: {}, plan: null,
+      metrics: { MYE: { dividendPerShareTTM: 8.4013, dividendPerShareAnnual: 0.5491 }, PBR: { dividendPerShareTTM: 3.17 }, ABR: { dividendPerShareTTM: 1.397, dividendPerShareAnnual: 1.6631 } },
+      currencies: { MYE: "USD", PBR: "BRL", ABR: "USD" },
+    });
+    const d = solo("dividendo_fuera_de_escala", r);
+    expect(d.map((x) => x.symbol).sort()).toEqual(["MYE", "PBR"]);
+    expect(d.every((x) => x.severity === "aviso")).toBe(true);
+    expect(d.find((x) => x.symbol === "MYE")!.detail).toMatch(/27.*no se muestra/);
+  });
+
   it("una empresa apalancada pero con patrimonio real no se reporta", () => {
     const r = checkConsistency({
       rows: [fila({ symbol: "HSBC" })], candles: {}, plan: null,

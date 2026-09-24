@@ -320,10 +320,12 @@ export class Repo {
     // acá se omite la clave (undefined) en vez de escribir null, así "sin_estados" solo lo decide quien sí llamó a los estados.
     const f: Fundamentals = { symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers as string[]) ?? [], industry: r.industry, mcapUsd: r.mcapUsd === null ? null : num(r.mcapUsd), dollarVolumeUsd: num(r.dollarVolumeUsd), priceUsd: num(r.priceUsd), nextEarnings: r.nextEarnings, insiderBuys90d: r.insiderBuys90d, insiderSells90d: r.insiderSells90d, analyst: r.analyst as Fundamentals["analyst"], earningsSurprises: r.earningsSurprises as Fundamentals["earningsSurprises"], metricsRaw: (r.metricsRaw as Fundamentals["metricsRaw"]) ?? null };
     if (r.statementsAsOf !== null) f.statementsAsOf = r.statementsAsOf;
+    if (r.currency !== null) f.currency = r.currency;
     return f;
   }
   async saveFundamentals(f: Fundamentals): Promise<void> {
-    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: f.mcapUsd === null ? null : str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, metricsRaw: f.metricsRaw ?? null, statementsAsOf: f.statementsAsOf ?? null, updatedAt: new Date() };
+    const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: f.mcapUsd === null ? null : str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, metricsRaw: f.metricsRaw ?? null, statementsAsOf: f.statementsAsOf ?? null, ...(f.currency !== undefined ? { currency: f.currency } : {}), updatedAt: new Date() };
+    // Sin moneda en el objeto (quien la armó no la conocía) se conserva la guardada: un ranking no la borra.
     await this.db.insert(s.fundamentals).values(v).onConflictDoUpdate({ target: s.fundamentals.symbol, set: v });
   }
   async fundamentals(symbol: string): Promise<Fundamentals | null> {

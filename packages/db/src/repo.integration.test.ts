@@ -222,6 +222,13 @@ d("Repo (Postgres real)", () => {
     await repo.saveFundamentals({ ...base, metricsRaw: { peTTM: 12.8 }, statementsAsOf: null });
     f = await repo.fundamentals(sym);
     expect(f && "statementsAsOf" in f).toBe(false);
+
+    // 24/9: la moneda de reporte va y viene, y un guardado que no la trae (el ranking) no la borra.
+    expect(f && "currency" in f).toBe(false);
+    await repo.saveFundamentals({ ...base, currency: "BRL" });
+    expect((await repo.fundamentals(sym))?.currency).toBe("BRL");
+    await repo.saveFundamentals(base);
+    expect((await repo.fundamentals(sym))?.currency).toBe("BRL");
   });
 
   it("ticker: descripción, velas diarias y noticias", async () => {

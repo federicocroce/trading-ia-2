@@ -37,12 +37,14 @@ export async function checkRun(deps: Pick<RadarDeps, "store" | "log">, opts: { t
   const metrics: Record<string, Record<string, number | null | undefined>> = {};
   const mcaps: Record<string, number | null> = {};
   const industries: Record<string, string | null> = {};
+  const currencies: Record<string, string | null> = {};
   for (const r of rows) {
     const f = await deps.store.fundamentals(r.symbol).catch(() => null);
     if (f) {
       metrics[r.symbol] = f.metrics;
       mcaps[r.symbol] = f.mcapUsd;
       industries[r.symbol] = f.industry;
+      currencies[r.symbol] = f.currency ?? null;
     }
   }
   // Hasta qué fecha se leyeron las noticias de cada símbolo: es lo que separa "no hubo eventos" de "nadie miró".
@@ -56,7 +58,7 @@ export async function checkRun(deps: Pick<RadarDeps, "store" | "log">, opts: { t
     const v = await deps.store.verification(r.symbol).catch(() => null);
     verifications[r.symbol] = v ? { date: v.date, verdict: v.verdict } : null;
   }
-  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, industries, newsScannedTo, verifications, lastSession, today: opts.today, ...(held ? { held } : {}) });
+  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, industries, currencies, newsScannedTo, verifications, lastSession, today: opts.today, ...(held ? { held } : {}) });
   const { graves, avisos } = summarizeFindings(findings);
   if (findings.length === 0) deps.log?.(`[consistencia] ${rows.length} filas revisadas: sin contradicciones`);
   else {

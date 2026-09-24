@@ -88,6 +88,12 @@ describe("scanUniverse con ADRs", () => {
     const f = await store.fundamentals("GGAL");
     expect(f?.mcapUsd).toBeNull();
     expect(f?.dollarVolumeUsd).toBeCloseTo(830_000 * 44.36, -3);
+    // 24/9: la moneda de reporte queda guardada (el dividendo en pesos no se divide por el precio en dólares) y un
+    // guardado posterior que no la trae no la borra.
+    expect(f?.currency).toBe("ARS");
+    const { currency: _sinMoneda, ...sinMoneda } = f!;
+    await store.saveFundamentals(sinMoneda);
+    expect((await store.fundamentals("GGAL"))?.currency).toBe("ARS");
     expect((await store.tags("GGAL"))?.assetClass).toBe("adr");
   });
 });

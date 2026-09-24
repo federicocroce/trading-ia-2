@@ -232,6 +232,8 @@ export const fundamentals = pgTable("fundamentals", {
   earningsSurprises: jsonb("earnings_surprises"),
   metricsRaw: jsonb("metrics_raw"),
   statementsAsOf: date("statements_as_of"),
+  /** Moneda de reporte del perfil (24/9): los montos por acción de `metrics` vienen en ella. null = desconocida. */
+  currency: text("currency"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 /** Estados trimestrales de la SEC y ganancia núcleo (spec verificación §4). */

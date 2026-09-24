@@ -176,6 +176,13 @@
       "when": 1789490000000,
       "tag": "0024_hechos_externos",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790264734715,
+      "tag": "0025_moneda_de_reporte",
+      "breakpoints": true
     }
   ]
 }

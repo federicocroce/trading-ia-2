@@ -388,7 +388,10 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
     return Object.fromEntries(this.tagsMap);
   }
   async saveFundamentals(f: Fundamentals) {
-    this.fundamentalsMap.set(f.symbol.toUpperCase(), { ...f, symbol: f.symbol.toUpperCase() });
+    // Igual que Postgres: sin moneda en el objeto se conserva la guardada.
+    const prev = this.fundamentalsMap.get(f.symbol.toUpperCase());
+    const currency = f.currency !== undefined ? f.currency : prev?.currency;
+    this.fundamentalsMap.set(f.symbol.toUpperCase(), { ...f, symbol: f.symbol.toUpperCase(), ...(currency !== undefined ? { currency } : {}) });
   }
   async fundamentals(symbol: string) {
     return this.fundamentalsMap.get(symbol.toUpperCase()) ?? null;

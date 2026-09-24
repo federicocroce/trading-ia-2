@@ -250,7 +250,7 @@ export async function scanUniverse(deps: RadarDeps, opts: { scanDate: string; to
         continue;
       }
       const peers = await deps.fundamentals.peers(sym);
-      await store.saveFundamentals({ symbol: sym, asOf: opts.today, metrics, peers, industry: profile.industry, mcapUsd: qb.mcapUsd, dollarVolumeUsd: qb.dollarVolumeUsd!, priceUsd, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null });
+      await store.saveFundamentals({ symbol: sym, asOf: opts.today, metrics, peers, industry: profile.industry, mcapUsd: qb.mcapUsd, dollarVolumeUsd: qb.dollarVolumeUsd!, priceUsd, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null, currency: profile.currency ?? null });
       await tagSymbol(deps, sym, { industry: profile.industry, country: profile.country });
       await store.scanUpsert([{ scanDate: opts.scanDate, symbol: sym, stage: "finnhub_ok", reason: null }]);
       fundamentalsOk++;
