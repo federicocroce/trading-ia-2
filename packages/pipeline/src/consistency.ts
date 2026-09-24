@@ -1,5 +1,5 @@
 import type { Candle, Finding, LivePriceSample, LiveQuote } from "@thesis/core";
-import { actedOnSymbols, checkConsistency, lastCompletedSession, summarizeFindings } from "@thesis/core";
+import { actedOnSymbols, checkConsistency, lastCompletedSession, marketOf, quoteIsStale, summarizeFindings } from "@thesis/core";
 import type { RadarDeps } from "./radar.js";
 
 /**
@@ -20,7 +20,8 @@ export interface ConsistencyReport {
  * símbolo). Sin esto el chequeo no corre: los tests y los procesos que no tienen red no lo necesitan.
  */
 export interface LivePriceSources {
-  hub(symbols: string[]): Promise<LiveQuote[]>;
+  /** `stale` es la marca que ya ve la pantalla (la foto del hub); sin ella se calcula igual que la pantalla. */
+  hub(symbols: string[]): Promise<Array<LiveQuote & { stale?: boolean }>>;
   witness(symbol: string): Promise<LiveQuote | null>;
 }
 
@@ -29,13 +30,13 @@ export interface LivePriceSources {
  * null y core lo reporta como aviso (sin hub, sin testigo), nunca como verificado. Yahoo va de a un pedido por
  * símbolo, en serie: el cliente HTTP ya espacia los pedidos al mismo host y son unas decenas de símbolos.
  */
-export async function sampleLivePrices(src: LivePriceSources, symbols: string[]): Promise<LivePriceSample[]> {
-  const hub = new Map((await src.hub(symbols).catch(() => [] as LiveQuote[])).map((q) => [q.symbol.toUpperCase(), q]));
+export async function sampleLivePrices(src: LivePriceSources, symbols: string[], at: Date): Promise<LivePriceSample[]> {
+  const hub = new Map((await src.hub(symbols).catch(() => [] as Array<LiveQuote & { stale?: boolean }>)).map((q) => [q.symbol.toUpperCase(), q]));
   const out: LivePriceSample[] = [];
   for (const symbol of symbols) {
     const w = await src.witness(symbol).catch(() => null);
     const h = hub.get(symbol) ?? null;
-    out.push({ symbol, hub: h ? { price: h.price, asOf: h.asOf } : null, witness: w && Number.isFinite(w.price) ? { price: w.price, asOf: w.asOf } : null });
+    out.push({ symbol, hub: h ? { price: h.price, asOf: h.asOf, stale: h.stale ?? quoteIsStale(h.asOf, at, marketOf(symbol)) } : null, witness: w && Number.isFinite(w.price) ? { price: w.price, asOf: w.asOf } : null });
   }
   return out;
 }
@@ -87,7 +88,7 @@ export async function checkRun(deps: Pick<RadarDeps, "store" | "log"> & { livePr
   if (deps.livePrices) {
     const at = (opts.now ?? (() => new Date()))();
     const symbols = actedOnSymbols({ rows, plan, held: held ?? null });
-    livePrices = { at: at.toISOString(), samples: await sampleLivePrices(deps.livePrices, symbols) };
+    livePrices = { at: at.toISOString(), samples: await sampleLivePrices(deps.livePrices, symbols, at) };
   }
   const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, industries, newsScannedTo, verifications, lastSession, livePrices, today: opts.today, ...(held ? { held } : {}) });
   const { graves, avisos } = summarizeFindings(findings);

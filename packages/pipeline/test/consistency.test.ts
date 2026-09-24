@@ -87,6 +87,17 @@ describe("checkRun con precios vivos", () => {
     expect(r.graves).toBeGreaterThan(0);
   });
 
+  it("lo que el hub ya marca viejo es aviso; sin la marca (CLI, sin hub) se calcula igual que la pantalla", async () => {
+    const livePrices = {
+      hub: async (symbols: string[]) => symbols.map((s) => (s === "APH" ? { ...q(s, 81.6, "2026-09-23T19:59:40Z"), stale: true } : q(s, 40, "2026-09-23T19:59:40Z"))),
+      witness: async (s: string) => q(s, s === "APH" ? 81.59 : 40.05, "2026-09-24T14:59:55Z"),
+    };
+    const r = await checkRun({ store: conCartera, livePrices } as never, { today: "2026-09-24", now: () => juevesDuranteLaRueda });
+    const f = r.findings.filter((x) => x.check.startsWith("precio_vivo"));
+    // GFI llega sin marca: con la rueda abierta, un trade de ayer es viejo para la pantalla (quoteIsStale), así que tampoco es grave.
+    expect(f.map((x) => [x.check, x.symbol, x.severity])).toEqual([["precio_vivo_viejo", "APH", "aviso"], ["precio_vivo_viejo", "GFI", "aviso"]]);
+  });
+
   it("si Yahoo falla, cada símbolo queda como aviso sin testigo y la corrida no suma graves por eso", async () => {
     const livePrices = {
       hub: async (symbols: string[]) => symbols.map((s) => q(s, 81.59, "2026-09-24T14:59:40Z")),

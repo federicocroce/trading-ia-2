@@ -51,7 +51,7 @@ function preciosDelHub(c: Container): LivePriceSources | null {
   if (!src) return null;
   const hub = c.priceHub;
   if (!hub) return src;
-  return { ...src, hub: async (symbols) => symbols.flatMap((s) => { const r = hub.get(s); return r ? [{ symbol: r.symbol, price: r.price, prevClose: r.prevClose, asOf: r.asOf }] : []; }) };
+  return { ...src, hub: async (symbols) => symbols.flatMap((s) => { const r = hub.get(s); return r ? [{ symbol: r.symbol, price: r.price, prevClose: r.prevClose, asOf: r.asOf, stale: r.stale }] : []; }) };
 }
 
 /** Corre los controles sobre el plan vigente y los guarda en él. */

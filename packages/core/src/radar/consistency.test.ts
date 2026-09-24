@@ -532,8 +532,8 @@ describe("precio_vivo", () => {
     expect(conMuestras(duranteLaRueda, [{ symbol: "APH", hub: q(81.59 * (1 + tol * 0.9), "2026-09-24T14:58:10Z"), witness: q(81.59, "2026-09-24T14:59:55Z") }])).toEqual([]);
   });
 
-  it("AII: el hub sirve el trade de ayer y Yahoo ya tiene la rueda de hoy: grave aunque el precio se parezca", () => {
-    const f = conMuestras(duranteLaRueda, [{ symbol: "AII", hub: q(26.005, "2026-09-23T19:59:33Z"), witness: q(26.0, "2026-09-24T14:59:00Z") }]);
+  it("AII: el hub sirve el trade de ayer COMO SI FUERA DE HOY y Yahoo ya tiene la rueda de hoy: grave aunque el precio se parezca", () => {
+    const f = conMuestras(duranteLaRueda, [{ symbol: "AII", hub: { ...q(26.005, "2026-09-23T19:59:33Z"), stale: false }, witness: q(26.0, "2026-09-24T14:59:00Z") }]);
     expect(f).toHaveLength(1);
     expect(f[0]!.check).toBe("precio_vivo_desfasado");
     expect(f[0]!.severity).toBe("grave");
@@ -550,8 +550,17 @@ describe("precio_vivo", () => {
     expect(f[0]!.severity).toBe("grave");
   });
 
+  it("BLX y PAM el 24/9: el hub sirve el trade de ayer pero la app ya lo muestra como viejo: aviso, no grave", () => {
+    // Desde 8ce6ec0 la pantalla marca vieja una cotización de otra rueda. Frenar el plan por un papel finito que todavía
+    // no imprimió en IEX, cuando la app ya dice la verdad, es un grave que grita con datos correctos.
+    const f = conMuestras(duranteLaRueda, [{ symbol: "BLX", hub: { ...q(55.07, "2026-09-23T19:59:42Z"), stale: true }, witness: q(54.9, "2026-09-24T14:59:00Z") }]);
+    expect(f).toHaveLength(1);
+    expect(f[0]!).toMatchObject({ check: "precio_vivo_viejo", symbol: "BLX", severity: "aviso" });
+    expect(f[0]!.detail).toContain("2026-09-23");
+  });
+
   it("con la rueda cerrada, un hub que se quedó en una rueda anterior a la del cierre de Yahoo es grave", () => {
-    const f = conMuestras(alaTarde, [{ symbol: "PAM", hub: q(80.4, "2026-09-23T19:58:26Z"), witness: q(79.1, "2026-09-24T20:00:02Z") }]);
+    const f = conMuestras(alaTarde, [{ symbol: "PAM", hub: { ...q(80.4, "2026-09-23T19:58:26Z"), stale: false }, witness: q(79.1, "2026-09-24T20:00:02Z") }]);
     expect(f).toHaveLength(1);
     expect(f[0]!.check).toBe("precio_vivo_desfasado");
     expect(f[0]!.severity).toBe("grave");

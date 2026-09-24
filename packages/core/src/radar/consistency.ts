@@ -70,6 +70,8 @@ export interface ConsistencyInput {
 export interface TimedPrice {
   price: number;
   asOf: string | null;
+  /** Solo del hub: si la app ya la muestra como vieja (`quoteIsStale`, la misma marca que ve la pantalla). */
+  stale?: boolean;
 }
 
 export interface LivePriceSample {
@@ -376,7 +378,8 @@ export function actedOnSymbols(i: { rows: CandidateRow[]; plan: ContributionPlan
  * en IEX en toda la rueda y el hub siguió sirviendo el de ayer (26,005 con la acción en 25,33). Lo agarró el dueño
  * consultando Yahoo a mano. Tres reglas, pensadas para no gritar con datos correctos:
  *
- * - Un hub cuyo último trade es de una rueda ANTERIOR a la del testigo es grave, se parezca o no el precio.
+ * - Un hub cuyo último trade es de una rueda ANTERIOR a la del testigo y que la app muestra como de hoy es grave, se
+ *   parezca o no el precio. Si la app ya lo marca viejo, es un aviso: la pantalla no miente.
  * - Con la rueda abierta se compara vivo contra vivo; cerrada, el último trade regular del hub contra el cierre
  *   regular de Yahoo de esa misma rueda. Un trade de fuera de hora no se compara: Yahoo solo da el regular, y en
  *   una noche de balances el after-market se mueve 10% con datos correctos.
@@ -407,6 +410,12 @@ export function checkLivePrices(at: Date, samples: LivePriceSample[]): Finding[]
     const pct = r2(((s.hub.price - s.witness.price) / s.witness.price) * 100);
     const contra = `Yahoo ${r2(s.witness.price)} del ${testigo.date} (${pct > 0 ? "+" : ""}${pct}%)`;
     if (!hub || hub.date < testigo.date) {
+      // Si la pantalla ya la marca vieja (8ce6ec0), la app dice la verdad: un papel finito que todavía no imprimió en
+      // IEX no frena el plan. BLX y PAM el 24/9 a las 11:10 ET. Grave es mostrarla como de hoy, que fue lo de AII.
+      if (s.hub.stale === true) {
+        add("precio_vivo_viejo", s.symbol, "aviso", `el hub sirve ${r2(s.hub.price)}, el último trade ${hub ? `del ${hub.date}` : "sin hora"}, y ${contra}; la app ya lo muestra como viejo`);
+        continue;
+      }
       add("precio_vivo_desfasado", s.symbol, "grave", `el hub sirve ${r2(s.hub.price)}, el último trade ${hub ? `del ${hub.date}` : "sin hora"}, y ${contra}: el precio que muestra la app es de otra rueda`);
       continue;
     }
