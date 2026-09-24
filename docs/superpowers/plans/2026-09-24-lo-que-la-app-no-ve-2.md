@@ -79,6 +79,22 @@ TWLO…); las dos 1 de 11. Los pares salen de Finnhub y comparten su industria g
   retornos diarios de un año contra la mediana de su grupo, con las velas guardadas, y lista las de correlación baja.
 - El número va al informe y a la memoria; el cambio de regla (si hace falta) se decide con él.
 
+## Lo que cambió al implementar (24/9)
+
+- **P5c**: el barrido de las 275 que pasaban el filtro técnico encontró un falso positivo: VCTR, la COMPRADORA de First
+  Eagle, también presenta DEFA14A (emite acciones y sus accionistas votan). El texto tiene que decir además que la
+  empresa es la vendida ("wholly owned subsidiary of Parent") y no que compra ("the Company will acquire"). Con eso: MG,
+  BWIN y PRTH marcadas; VCTR, ITGR (cooperación) y RPAY no; cero anuncios falsos en las 275. La pareja admite hasta
+  3 días corridos (8-K del viernes, DEFA14A del lunes).
+- **P11**: el botón "Refrescar" de la web no suma nuevas (tarda minutos y el pedido espera la respuesta): lo hace la
+  corrida de la mañana. La poda borra solo lo que cedió su lugar. Si sumar falla, las filas del día se guardan igual.
+  Una candidata que al completarse quedó OBSERVAR no vuelve a pedir la ficha hasta el ranking del domingo.
+  `radar_evaluadas` no se purga (unas 300 filas por día); se lee una ventana de 14 días.
+- **P15**: las velas se piden en vivo (sin guardarlas) en vez de usar las guardadas, porque la mayoría de los pares no
+  tiene velas en la base; y la medida es la mediana de las correlaciones contra cada par, comparada con la correlación
+  contra SPY. Resultado del 24/9: de 71 acciones medibles, 16 se parecen a sus pares claramente menos que al mercado
+  (margen 0,1): 10 con pares de Finnhub y 6 con el respaldo por industria.
+
 ## Cierre
 
 `pnpm verificar` en verde, revisión de código, merge a master con el hook, reinicio de la API y una corrida del

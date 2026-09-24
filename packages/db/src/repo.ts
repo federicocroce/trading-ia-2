@@ -355,9 +355,11 @@ export class Repo {
   }
   // ---------- radar_evaluadas (24/9) ----------
   async guardarEvaluadas(rows: EvaluadaRadar[]): Promise<number> {
-    for (const e of rows) {
-      const v = { fecha: e.fecha, symbol: e.symbol.toUpperCase(), posicion: e.posicion, veredicto: e.veredicto, motivo: e.motivo, origen: e.origen };
-      await this.db.insert(s.radarEvaluadas).values(v).onConflictDoUpdate({ target: [s.radarEvaluadas.fecha, s.radarEvaluadas.symbol], set: v });
+    // En tandas (~300 por corrida). Dentro de una tanda, un símbolo repetido en la misma fecha deja la última escritura.
+    const unicas = [...new Map(rows.map((e) => [`${e.fecha}|${e.symbol.toUpperCase()}`, e])).values()];
+    for (let i = 0; i < unicas.length; i += 200) {
+      const tanda = unicas.slice(i, i + 200).map((e) => ({ fecha: e.fecha, symbol: e.symbol.toUpperCase(), posicion: e.posicion, veredicto: e.veredicto, motivo: e.motivo, origen: e.origen }));
+      await this.db.insert(s.radarEvaluadas).values(tanda).onConflictDoUpdate({ target: [s.radarEvaluadas.fecha, s.radarEvaluadas.symbol], set: { posicion: sql`excluded.posicion`, veredicto: sql`excluded.veredicto`, motivo: sql`excluded.motivo`, origen: sql`excluded.origen` } });
     }
     return rows.length;
   }

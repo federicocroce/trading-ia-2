@@ -35,13 +35,15 @@ const FORMULARIOS_QUE_PRUEBAN_SOLOS = ["DEFM14A", "PREM14A", "SC 14D9"] as const
 /** Cuánto vale el anuncio: para entonces la fusión tiene su PREM14A (que dura 400 días) o se cayó. */
 export const VENTANA_ANUNCIO_DIAS = 120;
 const DIA = 86_400_000;
+/** Cuántos días corridos pueden separar el 8-K del DEFA14A: un 8-K del viernes con el material del lunes es la misma pareja. */
+const PAREJA_DIAS = 3;
 
 /** Un filing como lo lista el JSON de submissions de EDGAR; `ref` es lo que identifica al documento para leerlo. */
 export interface FilingListado<R = string> { form: string; fecha: string; items: string; ref: R }
 
 /**
  * El 8-K que hay que leer para saber si la empresa acaba de firmar su venta, o null. Es el 8-K con item 1.01 que el
- * emisor presentó el mismo día que un DEFA14A (o con un día de diferencia), en los últimos `VENTANA_ANUNCIO_DIAS`.
+ * emisor presentó cerca de un DEFA14A (hasta `PAREJA_DIAS` días corridos), en los últimos `VENTANA_ANUNCIO_DIAS`.
  *
  * Por qué hace falta (24/9): el PREM14A llega semanas después del anuncio, y mientras tanto MG, BWIN y PRTH figuraban
  * como empresas libres. Por qué no alcanza con la pareja: un acuerdo de cooperación con un activista tiene la misma
@@ -54,7 +56,7 @@ export function anuncioDeFusion<R>(filings: ReadonlyArray<FilingListado<R>>, tod
   if (!votaciones.length) return null;
   const candidatos = filings
     .filter((f) => f.form === "8-K" && vigente(f) && f.items.split(",").map((i) => i.trim()).includes("1.01"))
-    .filter((f) => votaciones.some((d) => Math.abs(d - Date.parse(f.fecha)) <= DIA))
+    .filter((f) => votaciones.some((d) => Math.abs(d - Date.parse(f.fecha)) <= PAREJA_DIAS * DIA))
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
   return candidatos[0] ?? null;
 }
@@ -64,7 +66,7 @@ const FRASES_DE_FUSION = /agreement\s+and\s+plan\s+of\s+merger|\bmerger\s+agreem
 /** En el 8-K de la vendida, el vehículo de la fusión es subsidiaria del comprador ("Parent", "Purchaser"…): MG, TBRG, BWIN, PRTH. */
 const LA_VENDIDA = /wholly[- ]owned\s+subsidiary\s+of\s+(\w+\s+)?(parent|purchaser|buyer|acquiror|acquirer)\b/i;
 /** En el de la compradora, la empresa es la que compra: VCTR, 31/8. */
-const LA_COMPRADORA = /the\s+company\s+(will|shall|has\s+agreed\s+to)\s+acquire/i;
+const LA_COMPRADORA = /the\s+company\s+(will|shall|has\s+agreed\s+to|agreed\s+to|would)\s+acquire\b|the\s+company\s+acquired\b/i;
 
 /**
  * ¿El 8-K anuncia la venta de la empresa que lo presenta? Tiene que ser un acuerdo de fusión (el de cooperación de ITGR

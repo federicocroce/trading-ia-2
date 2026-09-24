@@ -167,7 +167,8 @@ export function radarRoutes(c: Container) {
   });
   app.post("/radar/refresh", async (ctx) => {
     const t = today(ctx);
-    const r = await refreshRadar(deps, { today: t, portfolioUsd: await portfolioUsd() });
+    // El botón no suma nuevas (24/9): eso es de la corrida de la mañana, y este pedido espera la respuesta.
+    const r = await refreshRadar(deps, { today: t, portfolioUsd: await portfolioUsd(), sumarNuevas: false });
     const measured = await measureRadar(deps, { today: t });
     await replan(deps, { today: t, portfolioUsd: await portfolioUsd() }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
     await c.controlar?.().catch(() => null);

@@ -496,6 +496,82 @@ describe("el Radar suma COMPRAR nuevas todos los días (24/9)", () => {
     expect(await guardadas()).toBe(antes);
   });
 
+  // Revisión de código del 24/9: la poda borraba toda fila del día que la corrida no reescribiera.
+  it("un segundo refresco del mismo día con una falla de velas no borra la fila de la mañana: solo sale la que cede su lugar", async () => {
+    const velas = new Map<string, Candle[]>([["SK", cae]]);
+    const falla = new Set<string>();
+    const hist = conVelas(velas);
+    const { store, d } = deps({ history: { candles: async (s: string) => { if (falla.has(s)) throw new Error("HTTP 429"); return hist.candles(s); } } });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000 }); // la corrida de la mañana, sin cambios
+    const manana = (await store.latestCandidates()).filter((c) => c.kind === "stock");
+    const porPuntaje = [...manana].sort((a, b) => a.score! - b.score!);
+    const peor = porPuntaje[0]!;
+    const sinVelas = porPuntaje[1]!;
+    velas.set("SK", sube);
+    velas.set(peor.symbol, cae);
+    falla.add(sinVelas.symbol);
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000 }); // el botón, a la tarde
+    const tarde = (await store.latestCandidates()).filter((c) => c.kind === "stock").map((c) => c.symbol);
+    expect(tarde).toContain("SK");
+    expect(tarde).not.toContain(peor.symbol);
+    expect(tarde).toContain(sinVelas.symbol);
+  });
+
+  it("si sumar las nuevas falla, las filas del día se refrescan igual y el error queda anotado", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const roto = Object.assign(Object.create(Object.getPrototypeOf(store)), store, { freshFundamentals: async () => { throw new Error("base caída"); } });
+    const r = await refreshRadar({ ...d, store: roto }, { today: "2026-05-20", portfolioUsd: 100_000 });
+    expect(r.refreshed).toBe(12);
+    expect(r.errors.some((e) => /nuevas del día.*base caída/.test(e.error))).toBe(true);
+    expect((await store.latestCandidates()).every((c) => c.candidateDate === "2026-05-20")).toBe(true);
+  });
+
+  it("una nueva que al completarse queda OBSERVAR (la ficha la degrada) no entra, y no se le vuelve a pedir la ficha en la semana", async () => {
+    const velas = new Map<string, Candle[]>([["SK", cae]]);
+    const fichas: string[] = [];
+    const base = deps().d.cardWriter!;
+    const cardWriter: CardWriter = { promptVersion: "card-test", write: async (i: CardInput) => { fichas.push(i.symbol); return { ...(await base.write(i)), ...(i.symbol === "SK" ? { degrade: true, degradeReason: "6-K: guía recortada" } : {}) }; } };
+    const { store, d } = deps({ history: conVelas(velas), cardWriter });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const peor = [...(await store.latestCandidates()).filter((c) => c.kind === "stock")].sort((a, b) => a.score! - b.score!)[0]!;
+    velas.set("SK", sube);
+    velas.set(peor.symbol, cae);
+    fichas.length = 0;
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000 });
+    expect(fichas).toContain("SK");
+    expect((await store.latestCandidates()).map((c) => c.symbol)).not.toContain("SK");
+    expect((await store.evaluadas("SK", "2026-05-20"))[0]!.motivo).toMatch(/quedó OBSERVAR/);
+    fichas.length = 0;
+    await refreshRadar(d, { today: "2026-05-21", portfolioUsd: 100_000 });
+    expect(fichas).not.toContain("SK");
+    expect((await store.evaluadas("SK", "2026-05-21"))[0]!.motivo).toMatch(/ya quedó OBSERVAR el 2026-05-20/);
+    // El jueves sigue salteada por el rechazo del martes (no por la anotación del miércoles, que no se encadena)…
+    fichas.length = 0;
+    await refreshRadar(d, { today: "2026-05-22", portfolioUsd: 100_000 });
+    expect(fichas).not.toContain("SK");
+    expect((await store.evaluadas("SK", "2026-05-22"))[0]!.motivo).toMatch(/ya quedó OBSERVAR el 2026-05-20/);
+    // …y el lunes siguiente, después del domingo, el rechazo de la semana anterior ya no la saltea.
+    await refreshRadar(d, { today: "2026-05-25", portfolioUsd: 100_000 });
+    expect((await store.evaluadas("SK", "2026-05-25"))[0]!.motivo).not.toMatch(/ya quedó OBSERVAR/);
+  });
+
+  it("el botón de refrescar no suma nuevas (sumarNuevas: false): eso es de la corrida de la mañana", async () => {
+    const velas = new Map<string, Candle[]>([["SK", cae]]);
+    const { store, d } = deps({ history: conVelas(velas) });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const peor = [...(await store.latestCandidates()).filter((c) => c.kind === "stock")].sort((a, b) => a.score! - b.score!)[0]!;
+    velas.set("SK", sube);
+    velas.set(peor.symbol, cae);
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000, sumarNuevas: false });
+    expect((await store.latestCandidates()).map((c) => c.symbol)).not.toContain("SK");
+  });
+
   it("el refresco parcial (tras verificar) no suma filas: eso es del refresco completo", async () => {
     const velas = new Map<string, Candle[]>([["SK", cae]]);
     const { store, d } = deps({ history: conVelas(velas) });

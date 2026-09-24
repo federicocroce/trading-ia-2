@@ -254,7 +254,7 @@ export async function scanUniverse(deps: RadarDeps, opts: { scanDate: string; to
         continue;
       }
       const peers = await deps.fundamentals.peers(sym);
-      await store.saveFundamentals({ symbol: sym, asOf: opts.today, metrics, peers, industry: profile.industry, mcapUsd: qb.mcapUsd, dollarVolumeUsd: qb.dollarVolumeUsd!, priceUsd, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null, currency: profile.currency ?? null });
+      await store.saveFundamentals({ symbol: sym, asOf: opts.today, metrics, peers, industry: profile.industry, mcapUsd: qb.mcapUsd, dollarVolumeUsd: qb.dollarVolumeUsd!, priceUsd, nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null, earningsSurprises: null, ...(profile.currency ? { currency: profile.currency } : {}) });
       await tagSymbol(deps, sym, { industry: profile.industry, country: profile.country });
       await store.scanUpsert([{ scanDate: opts.scanDate, symbol: sym, stage: "finnhub_ok", reason: null }]);
       fundamentalsOk++;
@@ -604,7 +604,7 @@ export async function pruneFamilias(store: Pick<RadarStore, "pruneCandidates">, 
 }
 
 /** Refresco diario: velas nuevas → cierre, stop, objetivo, filtros y verdict. Conserva score, ficha y aparición. */
-export async function refreshRadar(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null; only?: string[] }): Promise<{ refreshed: number; errors: Array<{ symbol: string; error: string }> }> {
+export async function refreshRadar(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null; only?: string[]; sumarNuevas?: boolean }): Promise<{ refreshed: number; errors: Array<{ symbol: string; error: string }> }> {
   const { store, policy } = deps;
   const todas = await store.latestCandidates();
   // Refresco parcial (15/9): solo los símbolos recién verificados. Nunca cambia la fecha de la familia: el Radar es
@@ -714,11 +714,28 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     deps.log?.(`[radar] formularios de oferta: ${filingsFallidos} de ${filingsTotal} consultas fallaron: esas filas se evaluaron sin la regla de oferta`);
     errors.push({ symbol: "*", error: `formularios de oferta: ${filingsFallidos} de ${filingsTotal} consultas fallaron` });
   }
-  // El refresco parcial (tras verificar) no suma filas: si lo hiciera, cambiaría el Radar a mitad de la mañana.
-  const salen = soloEstos ? [] : await sumarNuevasDelDia(deps, { today: opts.today, portfolioUsd: opts.portfolioUsd, held, spyClose, verifyBudget, errors, skipped: [] }, latest, rows);
+  // El refresco parcial (tras verificar) no suma filas: si lo hiciera, cambiaría el Radar a mitad de la mañana. El botón
+  // de la web tampoco (`sumarNuevas: false`): evaluar ~250 acciones más tarda minutos y ese pedido espera la respuesta.
+  // Si sumar falla, las filas ya refrescadas se guardan igual: la función nueva no puede tirar abajo la que ya andaba.
+  let salen: string[] = [];
+  if (!soloEstos && opts.sumarNuevas !== false) {
+    const t0 = Date.now();
+    try {
+      salen = await sumarNuevasDelDia(deps, { today: opts.today, portfolioUsd: opts.portfolioUsd, held, spyClose, verifyBudget, errors, skipped: [] }, latest, rows);
+    } catch (e) {
+      errors.push({ symbol: "*", error: `nuevas del día: ${String(e).slice(0, 160)}` });
+    }
+    deps.log?.(`[radar] nuevas del día: ${Math.round((Date.now() - t0) / 1000)} s${salen.length ? `, salen ${salen.join(" ")}` : ""}`);
+  }
   const quedan = rows.filter((r) => !(r.kind === "stock" && salen.includes(r.symbol)));
   await store.upsertCandidates(quedan);
-  if (salen.length) await store.pruneCandidates(opts.today, "stock", quedan.filter((r) => r.kind === "stock").map((r) => r.symbol));
+  // Se borra SOLO lo que cedió su lugar. Una fila de hoy que esta corrida no pudo rehacer (velas que fallaron en un
+  // segundo refresco) se conserva: la poda por "lo que no se reescribió" la hacía desaparecer (revisión del 24/9).
+  if (salen.length) {
+    const deHoy = new Set([...latest.filter((c) => c.kind === "stock" && c.candidateDate === opts.today).map((c) => c.symbol), ...quedan.filter((r) => r.kind === "stock").map((r) => r.symbol)]);
+    for (const x of salen) deHoy.delete(x);
+    await store.pruneCandidates(opts.today, "stock", [...deHoy]);
+  }
   return { refreshed: quedan.length, errors };
 }
 
@@ -755,17 +772,19 @@ export async function medirPares(deps: Pick<RadarDeps, "store" | "history">): Pr
  */
 export async function porQueNoEsta(deps: Pick<RadarDeps, "store" | "policy">, symbol: string, today: string): Promise<string[]> {
   const sym = symbol.toUpperCase();
-  const fila = (await deps.store.latestCandidates()).find((c) => c.symbol.toUpperCase() === sym);
-  if (fila) return [`${sym} está en el Radar: ${fila.kind}, ${fila.verdict}, fila del ${fila.candidateDate}`];
+  const filas = (await deps.store.latestCandidates()).filter((c) => c.symbol.toUpperCase() === sym);
+  const fila = filas.find((c) => c.kind === "stock") ?? filas[0];
+  if (fila?.kind === "stock") return [`${sym} está en el Radar: ${fila.kind}, ${fila.verdict}, fila del ${fila.candidateDate}`];
+  const otra = fila ? [`${sym} está en otra familia (${fila.kind}, ${fila.verdict}), no entre las acciones del Radar`] : [];
   const ev = await deps.store.evaluadas(sym, addDays(today, -14));
-  if (ev.length) return ev.map((e) => `${e.fecha} · ${e.origen} · puesto ${e.posicion ?? "—"} · ${e.veredicto ?? "excluida"} · ${e.motivo}`);
+  if (ev.length) return [...otra, ...ev.map((e) => `${e.fecha} · ${e.origen} · puesto ${e.posicion ?? "—"} · ${e.veredicto ?? "excluida"} · ${e.motivo}`)];
   const { all } = await universoDelRanking(deps, today);
-  if (!all.has(sym)) return [`${sym} no está en el universo del barrido (sin fundamentales frescas, o no pasó el filtro de calidad)`];
+  if (!all.has(sym)) return [...otra, `${sym} no está en el universo del barrido (sin fundamentales frescas, o no pasó el filtro de calidad)`];
   const ranked = rankStocks(all, deps.policy.weights);
   const i = ranked.ranked.findIndex((r) => r.symbol === sym);
-  if (i < 0) return [`${sym} no rankea: ${ranked.skipped.find((x) => x.symbol === sym)?.reason ?? "sin puntaje"}`];
-  if (i < deps.policy.candidates.preselect) return [`${sym} está en el puesto ${i + 1} de ${ranked.ranked.length}, dentro de la preselección de ${deps.policy.candidates.preselect}, pero no hay registro de su evaluación en dos semanas: la próxima corrida del Radar lo escribe`];
-  return [`${sym} está en el puesto ${i + 1} de ${ranked.ranked.length} por puntaje: fuera de la preselección de ${deps.policy.candidates.preselect}, así que no se evalúa`];
+  if (i < 0) return [...otra, `${sym} no rankea: ${ranked.skipped.find((x) => x.symbol === sym)?.reason ?? "sin puntaje"}`];
+  if (i < deps.policy.candidates.preselect) return [...otra, `${sym} está en el puesto ${i + 1} de ${ranked.ranked.length}, dentro de la preselección de ${deps.policy.candidates.preselect}, pero no hay registro de su evaluación en dos semanas: la próxima corrida del Radar lo escribe`];
+  return [...otra, `${sym} está en el puesto ${i + 1} de ${ranked.ranked.length} por puntaje: fuera de la preselección de ${deps.policy.candidates.preselect}, así que no se evalúa`];
 }
 
 /**
@@ -777,6 +796,10 @@ export async function porQueNoEsta(deps: Pick<RadarDeps, "store" | "policy">, sy
  *
  * Agrega las filas a `rows` y devuelve los símbolos que salen. Cada evaluada que no entra, y cada fila que cede su
  * lugar, queda en `radar_evaluadas` con su motivo.
+ *
+ * El puntaje es el de las fundamentales guardadas, sin la segunda pasada con la ganancia núcleo del domingo: para lo
+ * que el domingo pasó por `withStatements` es el mismo; para una acción que recién ahora entra a la preselección puede
+ * diferir un poco. Las filas del Radar conservan su puntaje del domingo.
  */
 async function sumarNuevasDelDia(deps: RadarDeps, ctx: ContextoFila, latest: CandidateRow[], rows: CandidateRow[]): Promise<string[]> {
   const log = deps.log ?? (() => {});
@@ -785,7 +808,8 @@ async function sumarNuevasDelDia(deps: RadarDeps, ctx: ContextoFila, latest: Can
   if (!all.size || (scanOk > 0 && all.size < scanOk * UNIVERSO_MINIMO)) return [];
   const ranked = rankStocks(all, policy.weights).ranked;
   const posicion = new Map(ranked.map((r, i) => [r.symbol, i + 1]));
-  const yaEstan = new Set(latest.map((c) => c.symbol.toUpperCase()));
+  // Solo las filas de acciones: una de seguimiento o de Argentina no le quita a nadie la entrada (el domingo tampoco).
+  const yaEstan = new Set(latest.filter((c) => c.kind === "stock").map((c) => c.symbol.toUpperCase()));
   const nuevas = ranked.slice(0, policy.candidates.preselect).filter((r) => !yaEstan.has(r.symbol.toUpperCase()));
   if (!nuevas.length) return [];
   const { candles } = await candlesFor(deps, nuevas.map((r) => r.symbol));
@@ -812,6 +836,16 @@ async function sumarNuevasDelDia(deps: RadarDeps, ctx: ContextoFila, latest: Can
   const actuales = rows.filter((x) => x.kind === "stock").map((x) => ({ symbol: x.symbol, score: x.score, verdict: x.verdict as "COMPRAR" | "OBSERVAR" }));
   const salen: string[] = [];
   for (const { r, core, filings, hechos } of comprables) {
+    // Completar la fila gasta la ficha del modelo y la verificación. Si en la semana ya quedó OBSERVAR al completarse,
+    // no se vuelve a pedir hasta el domingo: la cuota ya se agotó por descartes propios (15/9), y el narrador no es
+    // determinista, así que repetir sería tirar una moneda por día.
+    // Solo el rechazo original de esta semana: el ranking del domingo la vuelve a mirar de cero.
+    const domingo = addDays(ctx.today, -new Date(`${ctx.today}T12:00:00Z`).getUTCDay());
+    const yaRechazada = (await store.evaluadas(r.symbol, addDays(domingo, 1)).catch(() => [] as EvaluadaRadar[])).find((e) => e.origen === "refresco" && e.fecha < ctx.today && /^al completar la fila quedó OBSERVAR/.test(e.motivo));
+    if (yaRechazada) {
+      afuera.push(evaluada(r.symbol, "OBSERVAR", `ya quedó OBSERVAR el ${yaRechazada.fecha} al completar la fila: no se vuelve a pedir la ficha hasta el ranking del domingo`));
+      continue;
+    }
     const lugar = lugarParaNueva(actuales, ctx.held, { top: policy.candidates.top, maxRows: policy.candidates.maxRows });
     if (!lugar) {
       afuera.push(evaluada(r.symbol, "COMPRAR", `COMPRAR sin lugar: el tope de ${Math.max(policy.candidates.maxRows ?? policy.candidates.top * 2, policy.candidates.top)} filas no tiene ninguna OBSERVAR que pueda ceder su lugar`));

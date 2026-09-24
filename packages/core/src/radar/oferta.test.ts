@@ -96,6 +96,10 @@ describe("anuncioDeFusion", () => {
   it("con un día de diferencia también (el 8-K a veces sale la noche anterior)", () => {
     expect(anuncioDeFusion([{ form: "DEFA14A", fecha: "2026-09-15", items: "", ref: "d" }, { form: "8-K", fecha: "2026-09-14", items: "1.01,7.01,9.01", ref: "k" }], "2026-09-24")?.ref).toBe("k");
   });
+  it("un 8-K del viernes con el DEFA14A del lunes también (revisión del 24/9)", () => {
+    expect(anuncioDeFusion([{ form: "DEFA14A", fecha: "2026-09-21", items: "", ref: "d" }, { form: "8-K", fecha: "2026-09-18", items: "1.01,8.01,9.01", ref: "k" }], "2026-09-24")?.ref).toBe("k");
+    expect(anuncioDeFusion([{ form: "DEFA14A", fecha: "2026-09-22", items: "", ref: "d" }, { form: "8-K", fecha: "2026-09-18", items: "1.01,8.01,9.01", ref: "k" }], "2026-09-24")).toBeNull();
+  });
   it("una asamblea anual (DEFA14A sin 8-K 1.01 cerca) no es un anuncio", () => {
     expect(anuncioDeFusion([{ form: "DEFA14A", fecha: "2026-04-07", items: "", ref: "d" }, { form: "8-K", fecha: "2026-05-05", items: "2.02,9.01", ref: "k" }], "2026-05-10")).toBeNull();
   });
@@ -120,6 +124,12 @@ describe("textoDeFusion", () => {
    */
   it("VCTR (31/8): el 8-K de la compradora no es el anuncio de su venta", () => {
     expect(textoDeFusion("Item 1.01. Entry into a Material Definitive Agreement. Merger Agreement On August 25, 2026, Victory Capital Holdings, Inc., a Delaware corporation (the “Company”), Fortify Holdings 1, Inc., a Delaware corporation (“Merger Sub 1”), Fortify Holdings 2, LLC, a Delaware limited liability company (“Merger Sub 2”), GC Ferry Parent, L.P., a Delaware limited partnership (“Seller”), and GC Ferry Holdings, Inc., a Delaware corporation (“First Eagle”), entered into an Agreement and Plan of Merger (the “Merger Agreement”). At the closing of the transactions contemplated by the Merger Agreement (the “Closing”), the Company will acquire First Eagle by means of a two-step merger")).toBe(false);
+  });
+  it("otras formas en que la compradora dice que compra tampoco cuentan", () => {
+    const base = "entered into an Agreement and Plan of Merger with Merger Sub, a wholly owned subsidiary of Parent, ";
+    expect(textoDeFusion(`${base}pursuant to which the Company agreed to acquire Target`)).toBe(false);
+    expect(textoDeFusion(`${base}pursuant to which the Company acquired all of the outstanding shares`)).toBe(false);
+    expect(textoDeFusion(`${base}pursuant to which the Company will be acquired by Parent`)).toBe(true);
   });
   it("ITGR (12/3): un acuerdo de cooperación con un activista no es una fusión", () => {
     expect(textoDeFusion("Item 1.01. Entry into a Material Definitive Agreement. On March 9, 2026 (the “Effective Date”), Integer Holdings Corporation (the “Company”) entered into a Cooperation Agreement (the “Cooperation Agreement”) by and among the Company, Irenic Capital Management LP")).toBe(false);
