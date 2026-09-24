@@ -37,6 +37,20 @@ describe("medirFrenos", () => {
   it("la verificación web se mide aparte: es un aviso, no un freno", () => {
     expect(de("verificacion_reservas")).toMatchObject({ n: 1, alfa: 5 });
   });
+  it("24/9: el veredicto del agente se mide aparte del de Gemini, que sigue pegado a filas de hoy con fecha del 12/9", () => {
+    const v = medirFrenos([
+      { ...fila("GFI", "2026-09-23", ["verificacion_reservas"], 3), verification: { promptVersion: "agente-v1-67b2302fae8f" } },
+      { ...fila("LNC", "2026-09-23", ["verificacion_reservas"], -2), verification: { promptVersion: "v1-e265b5230bea-gemini" } },
+      { ...fila("AII", "2026-09-23", ["verificacion_evitar"], 4), verification: { promptVersion: "agente-v1-67b2302fae8f" } },
+      fila("V", "2026-09-23", ["verificacion_apta"], 1),
+    ], 7);
+    const g = (clave: string) => v.grupos.find((x) => x.clave === clave)!;
+    expect(g("verificacion_reservas")).toMatchObject({ n: 2, lista: ["GFI", "LNC"] });
+    expect(g("verificacion_reservas_agente")).toMatchObject({ n: 1, alfa: 3, lista: ["GFI"], titulo: "verificación web con reservas, solo del agente" });
+    expect(g("verificacion_evitar_agente")).toMatchObject({ n: 1, alfa: 4, lista: ["AII"] });
+    // Sin promptVersion no se sabe quién la hizo: no cuenta como del agente.
+    expect(g("verificacion_apta_agente")).toMatchObject({ n: 0, alfa: null });
+  });
   it("dice qué costó cada freno: la diferencia contra lo que no tocó ninguno; y con pocas filas lo advierte", () => {
     expect(de("subio_mucho_12m").contraSinFreno).toBe(1.33);
     expect(de("sin_freno").contraSinFreno).toBeNull();
