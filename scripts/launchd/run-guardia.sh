@@ -1,7 +1,10 @@
 #!/bin/zsh
 # La guardia de la mañana (23/9): mira si la corrida de hoy salió bien y, solo si algo anda mal, lo grita con una
 # notificación del sistema. Calla cuando todo está en orden: una guardia que avisa todos los días se ignora.
-# Corre 10:00 de lunes a viernes, después del refresco (07:50) y del agente de verificación (08:15, espera hasta 3 h).
+# Corre 09:00 de lunes a viernes: después del refresco (07:50, termina ~08:00) y del agente de verificación
+# (08:15, terminó 08:26 el 24/9 y 08:34 el 23/9), y hora y media ANTES de que abra el mercado (10:30).
+# Estaba a las 10:00 y el 24/9 quedó claro que no servía: rehacer una corrida caída lleva 30 minutos entre el
+# paso `radar` y el agente, así que avisar a las 10:00 era avisar de un problema ya sin tiempo de arreglar.
 export PATH="$HOME/.nvm/versions/node/v24.15.0/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
 cd "$(dirname "$0")/../.." || exit 1
 for i in $(seq 1 60); do docker info >/dev/null 2>&1 && break; sleep 5; done
