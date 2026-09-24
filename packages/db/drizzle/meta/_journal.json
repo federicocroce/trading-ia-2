@@ -183,6 +183,13 @@
       "when": 1790264734715,
       "tag": "0025_moneda_de_reporte",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790265000000,
+      "tag": "0026_radar_evaluadas",
+      "breakpoints": true
     }
   ]
 }

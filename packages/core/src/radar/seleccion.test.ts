@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seleccionarCandidatas } from "./seleccion.js";
+import { lugarParaNueva, seleccionarCandidatas } from "./seleccion.js";
 
 const fila = (symbol: string, verdict: "COMPRAR" | "OBSERVAR") => ({ item: symbol, verdict });
 
@@ -49,5 +49,36 @@ describe("seleccionarCandidatas", () => {
   it("sin tope declarado, el doble de `top`", () => {
     const evaluadas = Array.from({ length: 200 }, (_, i) => fila(`C${i}`, "COMPRAR" as const));
     expect(seleccionarCandidatas(evaluadas, { top: 40 })).toHaveLength(80);
+  });
+});
+
+/**
+ * 24/9: el Radar elegía sus filas una vez por semana (ranking del domingo). Entre el domingo 20/9 y el jueves 24/9 sus
+ * COMPRAR bajaron de 52 a 31 sin que entrara ninguna, mientras 13 acciones de la preselección pasaban a COMPRAR con
+ * estados de la SEC (GLXY cruzó su media de 200 a mitad de semana). Cada día, una COMPRAR nueva ocupa un lugar libre o
+ * el de la OBSERVAR de peor puntaje que no esté entre las `top` por puntaje ni en cartera: es la misma regla del domingo
+ * (las `top` entran igual; el resto del tope es para lo comprable), aplicada con los veredictos del día.
+ */
+describe("lugarParaNueva", () => {
+  const act = (symbol: string, score: number, verdict: "COMPRAR" | "OBSERVAR") => ({ symbol, score, verdict });
+  const p = { top: 2, maxRows: 4 };
+  it("si hay lugar libre hasta el tope, entra sin sacar a nadie", () => {
+    expect(lugarParaNueva([act("A", 3, "OBSERVAR"), act("B", 2, "OBSERVAR")], new Set(), p)).toEqual({ libre: true });
+  });
+  it("sin lugar, reemplaza a la OBSERVAR de peor puntaje fuera de las `top`", () => {
+    const actuales = [act("A", 3, "OBSERVAR"), act("B", 2, "OBSERVAR"), act("C", 1.5, "OBSERVAR"), act("D", 1, "OBSERVAR")];
+    expect(lugarParaNueva(actuales, new Set(), p)).toEqual({ libre: false, sale: "D" });
+  });
+  it("las `top` por puntaje no salen aunque estén en OBSERVAR", () => {
+    const actuales = [act("A", 3, "OBSERVAR"), act("B", 2, "OBSERVAR"), act("C", 1.5, "COMPRAR"), act("D", 1, "COMPRAR")];
+    expect(lugarParaNueva(actuales, new Set(), p)).toBeNull();
+  });
+  it("lo que está en cartera no sale", () => {
+    const actuales = [act("A", 3, "OBSERVAR"), act("B", 2, "OBSERVAR"), act("C", 1.5, "OBSERVAR"), act("VIST", 1, "OBSERVAR")];
+    expect(lugarParaNueva(actuales, new Set(["VIST"]), p)).toEqual({ libre: false, sale: "C" });
+  });
+  it("una COMPRAR no le cede el lugar a otra COMPRAR", () => {
+    const actuales = [act("A", 3, "OBSERVAR"), act("B", 2, "OBSERVAR"), act("C", 1.5, "COMPRAR"), act("D", 1, "COMPRAR")];
+    expect(lugarParaNueva(actuales, new Set(), { top: 2, maxRows: 4 })).toBeNull();
   });
 });

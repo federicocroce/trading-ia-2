@@ -27,6 +27,7 @@ d("Repo (Postgres real)", () => {
     await db.delete(schema.universeScan).where(eq(schema.universeScan.symbol, rsym));
     await db.delete(schema.fundamentals).where(eq(schema.fundamentals.symbol, rsym));
     await db.delete(schema.statements).where(eq(schema.statements.symbol, rsym));
+    await db.delete(schema.radarEvaluadas).where(eq(schema.radarEvaluadas.symbol, rsym));
     await db.delete(schema.radarEvents).where(eq(schema.radarEvents.symbol, rsym));
     await db.delete(schema.analystActions).where(eq(schema.analystActions.symbol, rsym));
     await db.delete(schema.radarNewsScans).where(eq(schema.radarNewsScans.symbol, rsym));
@@ -229,6 +230,16 @@ d("Repo (Postgres real)", () => {
     expect((await repo.fundamentals(sym))?.currency).toBe("BRL");
     await repo.saveFundamentals(base);
     expect((await repo.fundamentals(sym))?.currency).toBe("BRL");
+  });
+
+  it("radar_evaluadas (24/9): una por fecha y símbolo, la última escritura manda, más recientes primero", async () => {
+    const sym = `R${ticker}`;
+    await repo.guardarEvaluadas([{ fecha: "2099-01-04", symbol: sym, posicion: 25, veredicto: null, motivo: "bajo_sma200", origen: "ranking" }]);
+    await repo.guardarEvaluadas([{ fecha: "2099-01-05", symbol: sym.toLowerCase(), posicion: 25, veredicto: "OBSERVAR", motivo: "OBSERVAR fuera de las 40 por puntaje", origen: "refresco" }]);
+    await repo.guardarEvaluadas([{ fecha: "2099-01-05", symbol: sym, posicion: 24, veredicto: "COMPRAR", motivo: "COMPRAR sin lugar: el tope de 80 filas está lleno de COMPRAR", origen: "refresco" }]);
+    const ev = await repo.evaluadas(sym, "2099-01-01");
+    expect(ev.map((e) => [e.fecha, e.veredicto, e.posicion])).toEqual([["2099-01-05", "COMPRAR", 24], ["2099-01-04", null, 25]]);
+    expect(await repo.evaluadas(sym, "2099-01-05")).toHaveLength(1);
   });
 
   it("ticker: descripción, velas diarias y noticias", async () => {

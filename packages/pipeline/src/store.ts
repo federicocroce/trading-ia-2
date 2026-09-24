@@ -1,4 +1,4 @@
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, EvaluadaRadar, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { computeEdge, familyOf } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -103,6 +103,9 @@ export interface RadarStore {
   scanSymbols(scanDate: string, stage: ScanStage): Promise<string[]>;
   latestScanDate(): Promise<string | null>;
   upsertCandidates(rows: CandidateRow[]): Promise<void>;
+  /** Evaluadas que no quedaron en el Radar, con su motivo (24/9). Una por fecha y símbolo; `evaluadas` = más recientes primero. */
+  guardarEvaluadas(rows: EvaluadaRadar[]): Promise<number>;
+  evaluadas(symbol: string, desde: string): Promise<EvaluadaRadar[]>;
   /**
    * Borra las filas de esa fecha y esa familia que la corrida NO volvió a escribir. Existe porque un símbolo
    * que pasa a estar excluido deja de escribirse y su fila vieja del mismo día sobrevive: MIRG.BA el 13/9
@@ -181,6 +184,7 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   jobs = new Map<string, JobRun>();
   watch = new Map<string, WatchItem>();
   hechosMap = new Map<string, HechoExterno>();
+  evaluadasMap = new Map<string, EvaluadaRadar>();
   events = new Map<string, RawEvent & { filterPassed: boolean | null; filterReason: string | null }>();
   theses = new Map<string, Thesis>();
   orders = new Map<string, Order>();
@@ -412,6 +416,13 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async verification(symbol: string) {
     return this.verifications.get(symbol.toUpperCase()) ?? null;
+  }
+  async guardarEvaluadas(rows: EvaluadaRadar[]) {
+    for (const e of rows) this.evaluadasMap.set(`${e.fecha}|${e.symbol.toUpperCase()}`, { ...e, symbol: e.symbol.toUpperCase() });
+    return rows.length;
+  }
+  async evaluadas(symbol: string, desde: string) {
+    return [...this.evaluadasMap.values()].filter((e) => e.symbol === symbol.toUpperCase() && e.fecha >= desde).sort((a, b) => b.fecha.localeCompare(a.fecha));
   }
   async saveHechos(rows: HechoExterno[]) {
     for (const h of rows) this.hechosMap.set(`${h.symbol.toUpperCase()}|${h.tipo}|${h.fecha}|${h.fuente.url}`, { ...h, symbol: h.symbol.toUpperCase() });

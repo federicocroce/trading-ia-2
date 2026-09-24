@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { clasificarHecho, computeTrailingStop, coreEarnings, entryStop, verificationOrder, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
-import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, withStatements, type RadarDeps } from "../src/index.js";
+import { clasificarHecho, computeTrailingStop, coreEarnings, entryStop, verificationOrder, rankStocks, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
+import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, porQueNoEsta, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, universoDelRanking, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
   weights: { valuation: 0.35, quality: 0.3, growth: 0.25, balance: 0.1 },
@@ -409,6 +409,90 @@ describe("plan: revisión antes de comprar (15/9)", () => {
     // Sin revisor, no se exige (y nada queda pendiente).
     const sinRevisor = await buildContributionPlan(d, { month: "2026-05", portfolioUsd: 100_000, today: TODAY });
     expect(sinRevisor.reviewsPending ?? []).toEqual([]);
+  });
+});
+
+/**
+ * 24/9: las COMPRAR del Radar bajaron de 52 (domingo 20/9) a 31 (jueves 24/9) sin que entrara ninguna, porque el refresco
+ * diario solo rehacía las filas del domingo. GLXY (puesto 25) estaba bajo su media de 200 al cierre del 18/9, la cruzó
+ * en la semana y quedó COMPRAR con estados de la SEC, y el Radar no la mostró. Y no había forma de saber por qué faltaban
+ * otras nueve: el Radar no guardaba las evaluadas que no entraban.
+ */
+describe("el Radar suma COMPRAR nuevas todos los días (24/9)", () => {
+  const cae = series(ramp(120, 80));
+  const sube = series(ramp(80, 100));
+  const conVelas = (porSimbolo: Map<string, Candle[]>) => ({ candles: async (s: string) => (s === "^TNX" ? [] : porSimbolo.get(s) ?? series(s === "XLE" ? ramp(80, 125) : ramp(80, 100).map((c) => (s === "SPY" ? c * 5 : c)))) });
+
+  it("GLXY: excluida el domingo por su media de 200, la cruza a mitad de semana y entra en el lugar de la OBSERVAR de peor puntaje", async () => {
+    const velas = new Map<string, Candle[]>([["SK", cae]]);
+    const { store, d } = deps({ history: conVelas(velas) });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const domingo = (await store.latestCandidates()).filter((c) => c.kind === "stock");
+    expect(domingo.map((c) => c.symbol)).not.toContain("SK");
+    // Por qué no entró queda escrito.
+    expect((await store.evaluadas("SK", TODAY))[0]).toMatchObject({ veredicto: null, origen: "ranking" });
+    expect((await store.evaluadas("SK", TODAY))[0]!.motivo).toMatch(/bajo_sma200/);
+    expect(domingo).toHaveLength(10); // el tope (sin maxRows, el doble de `top`)
+
+    // El martes: SK sube y la fila de peor puntaje fuera de las `top` cae bajo su media de 200 (queda OBSERVAR).
+    const peor = [...domingo].sort((a, b) => a.score! - b.score!)[0]!;
+    velas.set("SK", sube);
+    velas.set(peor.symbol, cae);
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000 });
+    const martes = (await store.latestCandidates()).filter((c) => c.kind === "stock");
+    expect(martes).toHaveLength(10);
+    expect(martes.find((c) => c.symbol === "SK")?.verdict).toBe("COMPRAR");
+    expect(martes.find((c) => c.symbol === "SK")?.candidateDate).toBe("2026-05-20");
+    expect(martes.map((c) => c.symbol)).not.toContain(peor.symbol);
+    const salio = await store.evaluadas(peor.symbol, "2026-05-20");
+    expect(salio[0]).toMatchObject({ veredicto: "OBSERVAR", origen: "refresco" });
+    expect(salio[0]!.motivo).toMatch(/SK/);
+  });
+
+  it("las `top` por puntaje no ceden su lugar aunque caigan a OBSERVAR, y la que no entra lo dice", async () => {
+    const velas = new Map<string, Candle[]>([["SK", cae]]);
+    const { store, d } = deps({ history: conVelas(velas) });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const domingo = (await store.latestCandidates()).filter((c) => c.kind === "stock");
+    const top = [...domingo].sort((a, b) => b.score! - a.score!).slice(0, 5);
+    velas.set("SK", sube);
+    for (const t of top) velas.set(t.symbol, cae);
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000 });
+    const martes = (await store.latestCandidates()).filter((c) => c.kind === "stock");
+    for (const t of top) expect(martes.map((c) => c.symbol)).toContain(t.symbol);
+    expect(martes.map((c) => c.symbol)).not.toContain("SK");
+    expect((await store.evaluadas("SK", "2026-05-20"))[0]).toMatchObject({ veredicto: "COMPRAR", origen: "refresco" });
+    expect((await store.evaluadas("SK", "2026-05-20"))[0]!.motivo).toMatch(/sin lugar/);
+  });
+
+  it("porQueNoEsta: está en el Radar, quedó afuera con su motivo, o no llegó a la preselección", async () => {
+    const velas = new Map<string, Candle[]>([["SK", cae]]);
+    const { store, d } = deps({ history: conVelas(velas), policy: { ...policy, candidates: { ...policy.candidates, preselect: 11 } } });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const dentro = (await store.latestCandidates()).find((c) => c.kind === "stock")!.symbol;
+    expect((await porQueNoEsta(d, dentro, TODAY))[0]).toMatch(/está en el Radar/);
+    expect((await porQueNoEsta(d, "SK", TODAY)).join(" ")).toMatch(/bajo_sma200/);
+    const fuera = rankStocks(await universoDelRanking(d, TODAY).then((u) => u.all), policy.weights).ranked[11]!.symbol;
+    expect((await porQueNoEsta(d, fuera, TODAY))[0]).toMatch(/puesto 12 .*preselección de 11/);
+    expect((await porQueNoEsta(d, "NOPE", TODAY))[0]).toMatch(/no está en el universo/);
+    // Dentro de la preselección pero sin registro (24/9: GLXY, puesto 25, antes de la primera corrida que los escribe).
+    const sinRegistro = new MemoryStore();
+    for (const f of await store.freshFundamentals(30, TODAY)) await sinRegistro.saveFundamentals(f);
+    expect((await porQueNoEsta({ ...d, store: sinRegistro }, "SK", TODAY))[0]).toMatch(/dentro de la preselección .*no hay registro/);
+  });
+
+  it("el refresco parcial (tras verificar) no suma filas: eso es del refresco completo", async () => {
+    const velas = new Map<string, Candle[]>([["SK", cae]]);
+    const { store, d } = deps({ history: conVelas(velas) });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    velas.set("SK", sube);
+    const uno = (await store.latestCandidates()).find((c) => c.kind === "stock")!.symbol;
+    await refreshRadar(d, { today: TODAY, portfolioUsd: 100_000, only: [uno] });
+    expect((await store.latestCandidates()).map((c) => c.symbol)).not.toContain("SK");
   });
 });
 

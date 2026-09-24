@@ -518,6 +518,21 @@ export const watchlist = pgTable("watchlist", {
  * primaria; sólo lo verificado produce banderas. Único por (símbolo, tipo, fecha, url): el mismo hecho cargado dos
  * veces se actualiza, no se duplica.
  */
+/** Evaluadas de la preselección que no quedaron en el Radar, con su motivo (24/9). Una fila por fecha y símbolo. */
+export const radarEvaluadas = pgTable(
+  "radar_evaluadas",
+  {
+    fecha: date("fecha").notNull(),
+    symbol: text("symbol").notNull(),
+    posicion: integer("posicion"),
+    veredicto: text("veredicto"),
+    motivo: text("motivo").notNull(),
+    origen: text("origen").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.fecha, t.symbol] }), index("radar_evaluadas_symbol").on(t.symbol)],
+);
+
 export const hechosExternos = pgTable(
   "hechos_externos",
   {
