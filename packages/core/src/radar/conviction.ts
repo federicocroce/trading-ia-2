@@ -14,7 +14,8 @@ import type { CandidateRow, Tags } from "./types.js";
  *             −0.15 insiders venden (suele ser rutina); −0.3 sorpresa negativa / consenso de venta;
  *             −0.3 evento moderado reciente (se cita fecha y titular); −0.3 hay titulares sin clasificar;
  *             −0.3 cada salvedad de calidad de la ganancia (socios minoritarios, cobranza lenta, ganancia sin ventas);
- *             −0.3 verificación web con reservas (se cita el motivo); apta suma a las razones sin bonificar;
+ *             −0.3 verificación web con reservas (se cita el motivo); −0.15 si la reserva es "falta verificar" (25/9);
+ *             apta suma a las razones sin bonificar;
  *             −0.3 consenso a menos de 10% del precio; −0.3 subió más de 100% en 12 meses;
  *             −0.3 sensible a tasas (REIT, servicios públicos, minera de oro) con régimen restrictivo.
  *             −0.3 guía recortada / ganancia sostenida por reservas o por extraordinarios (hechos externos verificados);
@@ -84,6 +85,13 @@ const INFO: Record<string, string> = {
   lider_en_retroceso: "líder en retroceso: la frena solo haber subido y hoy está en zona de entrada (lista que se mide, no entra al plan)",
   lider_esperando: "líder esperando su retroceso: la frena solo haber subido (lista que se mide, no entra al plan)",
 };
+/**
+ * Lo que el verificador no pudo mirar resta la mitad que un hallazgo (25/9, aprobado por el dueño). LLY salió del plan
+ * por "falta verificar: No encontré ofertas de acciones en 90 días" y restaba lo mismo que DAR con un hallazgo concreto.
+ * Sigue siendo una salvedad: el verificador no falla abierto (15/9).
+ */
+export const FALTA_VERIFICAR_PENALTY = 0.15;
+export const esFaltaVerificar = (reason: string | null | undefined): boolean => /^falta verificar\b/i.test((reason ?? "").trim());
 const SMALL_GROUP = 10;
 const MIN_GAIN_PCT = 5;
 const CALM_RISK = 5;
@@ -126,7 +134,7 @@ export function convictionFor(row: CandidateRow, tags: Tags | null, overweight: 
       conviction += 0.2;
       reasons.push(POSITIVE[f]);
     } else if (NEGATIVE[f]) {
-      conviction -= NEGATIVE[f].penalty;
+      conviction -= f === "verificacion_reservas" && esFaltaVerificar(row.verification?.reason) ? FALTA_VERIFICAR_PENALTY : NEGATIVE[f].penalty;
       const ev = f === "evento_moderado" ? [...(row.events ?? [])].filter((e) => e.severity === "moderado").sort((a, b) => b.date.localeCompare(a.date))[0] : undefined;
       const vr = f === "verificacion_reservas" && row.verification?.reason ? `verificación web con reservas (${row.verification.date}): ${row.verification.reason}` : null;
       cautions.push(ev ? `evento moderado ${ev.date}: ${ev.headline}` : vr ?? NEGATIVE[f].text);
