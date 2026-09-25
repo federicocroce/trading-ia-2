@@ -1,0 +1,25 @@
+{
+  "hechos": [
+    {
+      "tipo": "guia",
+      "symbol": "LLY",
+      "fecha": "2026-08-05",
+      "valor": { "direccion": "sube", "metrica": "ingresos", "periodo": "FY2026", "antes": "US$82.000-85.000 M", "despues": "US$85.000-87.000 M" },
+      "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000077/q226lillysalesandearningsp.htm", "titulo": "Eli Lilly 8-K del 5/8/2026: resultados del 2T y guía 2026 (el techo de la guía de ganancia baja de 37,00 a 36,50 solo por 3,03 de I+D adquirida)" }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HST",
+      "fecha": "2026-08-05",
+      "valor": { "direccion": "sube", "metrica": "FFO ajustado por acción diluida", "periodo": "FY2026", "antes": "US$2,10-2,16", "despues": "US$2,15-2,18" },
+      "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1070750/000107075026000122/hst-ex991.htm", "titulo": "Host Hotels 8-K del 5/8/2026, exhibit 99.1: resultados del 2T y suba de la guía 2026" }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CTS",
+      "fecha": "2026-07-28",
+      "valor": { "direccion": "sube", "metrica": "ganancia ajustada por acción diluida", "periodo": "FY2026", "antes": "US$2,35-2,45", "despues": "US$2,55-2,70" },
+      "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/26058/000119312526318911/cts-ex99_1.htm", "titulo": "CTS Corp 8-K del 28/7/2026, exhibit 99.1: resultados del 2T y perspectiva 2026 en suba" }
+    }
+  ]
+}
