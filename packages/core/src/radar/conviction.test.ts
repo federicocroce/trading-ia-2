@@ -159,4 +159,19 @@ describe("convicción con hechos externos (17/9)", () => {
     expect(nvda.conviction).toBeCloseTo(base - 0.3, 4);
     expect(nvda.cautions.join(" ")).toMatch(/pares no se mueven como ella/);
   });
+  /**
+   * 25/9, aprobado por el dueño: LLY salió del plan por una reserva que no es un hallazgo ("falta verificar: No encontré
+   * ofertas de acciones en 90 días; la búsqueda en EDGAR no fue exhaustiva") y restaba lo mismo que un hallazgo real
+   * (DAR: "el 50% de DGD aportó 389,2 M de los 741,7 M de EBITDA combinado"). Lo que el verificador no pudo mirar resta la
+   * mitad: sigue siendo una salvedad (15/9: el verificador no falla abierto) pero no pesa como algo encontrado.
+   */
+  it("25/9: una reserva por 'falta verificar' resta 0,15; una con hallazgo, 0,3", () => {
+    const con = (reason: string) => convictionFor({ ...fila(["verificacion_reservas"]), verification: { date: "2026-09-25", verdict: "con_reservas", reason, promptVersion: "p", consensusTarget: null } }, null, {})!;
+    const base = convictionFor(fila([]), null, {})!.conviction;
+    const lly = con("falta verificar: No encontré ofertas de acciones en 90 días; la búsqueda en EDGAR no fue exhaustiva.");
+    const dar = con("El EBITDA de Diamond Green Diesel fue 2,23 USD por galón en el 2T contra 1,74 en el semestre");
+    expect(lly.conviction).toBeCloseTo(base - 0.15, 4);
+    expect(dar.conviction).toBeCloseTo(base - 0.3, 4);
+    expect(lly.cautions.join(" ")).toMatch(/falta verificar/);
+  });
 });
