@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MemoryStore } from "@thesis/pipeline";
 import { cronPlan, scheduleJobs } from "./jobs.js";
+import { runStep } from "./catchup.js";
 import type { Container } from "./container.js";
 import type { Runners } from "./catchup.js";
 
@@ -67,5 +68,50 @@ describe("dos crons que se pisan", () => {
     await Promise.all([cartera, radar]);
     expect(corridos).toEqual(["cartera", "radar", "argentina"]);
     expect((await store.jobRuns())["radar"]?.detail).toBe("radar ok");
+  });
+});
+
+/**
+ * 1/10/2026: la Mac durmió sobre los tres crons de la mañana (tesis 07:30, cartera 07:45, radar 07:50) y el
+ * chequeo de catch-up disparó a las 08:02, en pleno DarkWake de 45 segundos, con la red todavía abajo. Cada
+ * pedido saliente falló (`TypeError: fetch failed`), pero ningún paso tiró excepción —el adaptador se traga el
+ * error, cae al respaldo y el respaldo también falla—, así que `radar` volvió con "0 candidatos refrescados,
+ * seguimiento 0/20" y se registró en job_runs con la fecha de hoy.
+ *
+ * Para el catch-up el día ya estaba cubierto: no reintentó nunca. El Radar se quedó con velas del 29/9 y el
+ * plan de la mañana salió de datos viejos. Lo agarró la guardia de las 09:00 con 51 graves, pero la guardia
+ * avisa, no arregla: hubo que rehacer la corrida a mano a las 11:12.
+ *
+ * La regla: un paso que intentó trabajo y no trajo nada no es una corrida, es una falla. `markJobError` ya
+ * tiene la semántica exacta —deja la última corrida buena intacta y el paso sigue pendiente—, así que el
+ * siguiente tick lo reintenta solo.
+ */
+describe("una corrida que volvió vacía", () => {
+  const vacio = { scan: async () => "scan ok", cartera: async () => "cartera ok", radar: async () => "radar ok", argentina: async () => "argentina ok", plan: async () => "plan ok", tesis: async () => "tesis ok" } satisfies Runners;
+
+  it("no se registra como hecha: el paso sigue pendiente y el catch-up lo reintenta", async () => {
+    const store = new MemoryStore();
+    await store.markJobRun("radar", "2026-09-30", "112 candidatos refrescados");
+    const runners = { ...vacio, radar: async () => ({ detail: "0 candidatos refrescados, seguimiento 0/20", vacia: "ningún candidato refrescado: todos los pedidos fallaron" }) } satisfies Runners;
+    const c = { store, catchupRunners: runners } as unknown as Container;
+
+    const r = await runStep(c, "radar", { now: new Date("2026-10-01T11:02:00-03:00") });
+
+    expect(r.ran[0]).toMatchObject({ id: "radar", ok: false, detail: "0 candidatos refrescados, seguimiento 0/20" });
+    const job = (await store.jobRuns())["radar"];
+    expect(job?.lastDate).toBe("2026-09-30"); // la última corrida buena queda intacta, no la pisa el 1/10
+    expect(job?.lastError).toBe("ningún candidato refrescado: todos los pedidos fallaron");
+  });
+
+  it("un día sin novedades sí se registra: 0 propuestas no es una corrida vacía", async () => {
+    // `tesis: 0 propuestas, 0 rechazadas, 0 errores` es lo normal cuando no hubo eventos nuevos. Si la regla
+    // mirara el cero y no el fracaso, bloquearía días sanos y el catch-up reintentaría para siempre.
+    const store = new MemoryStore();
+    const c = { store, catchupRunners: { ...vacio, tesis: async () => "0 propuestas, 0 rechazadas, 0 errores" } } as unknown as Container;
+
+    const r = await runStep(c, "tesis", { now: new Date("2026-10-01T11:02:00-03:00") });
+
+    expect(r.ran[0]).toMatchObject({ id: "tesis", ok: true });
+    expect((await store.jobRuns())["tesis"]?.lastDate).toBe("2026-10-01");
   });
 });

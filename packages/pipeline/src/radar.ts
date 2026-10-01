@@ -616,16 +616,23 @@ export async function pruneFamilias(store: Pick<RadarStore, "pruneCandidates">, 
 }
 
 /** Refresco diario: velas nuevas → cierre, stop, objetivo, filtros y verdict. Conserva score, ficha y aparición. */
-export async function refreshRadar(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null; only?: string[]; sumarNuevas?: boolean }): Promise<{ refreshed: number; errors: Array<{ symbol: string; error: string }> }> {
+/**
+ * Refresca las filas del Radar. `intentados` son las filas que la corrida se propuso rehacer (acciones y ETFs):
+ * sin ese número, quien llama no distingue "no había candidatas" de "había 112 y no salió ninguna", porque un
+ * símbolo sin velas se saltea en silencio y no deja error (1/10/2026, ver `corridaVacia` en la API).
+ */
+export async function refreshRadar(deps: RadarDeps, opts: { today: string; portfolioUsd: number | null; only?: string[]; sumarNuevas?: boolean }): Promise<{ refreshed: number; intentados: number; errors: Array<{ symbol: string; error: string }> }> {
   const { store, policy } = deps;
   const todas = await store.latestCandidates();
   // Refresco parcial (15/9): solo los símbolos recién verificados. Nunca cambia la fecha de la familia: el Radar es
   // "las filas de la última fecha", y una sola fila con fecha nueva dejaría sola a esa. Si la corrida del día no
   // pasó todavía, no se toca nada (la corrida completa las va a traer).
   const soloEstos = opts.only ? new Set(opts.only.map((s) => s.toUpperCase())) : null;
-  if (soloEstos && todas.some((c) => (c.kind === "stock" || c.kind === "etf") && c.candidateDate !== opts.today)) return { refreshed: 0, errors: [] };
+  if (soloEstos && todas.some((c) => (c.kind === "stock" || c.kind === "etf") && c.candidateDate !== opts.today)) return { refreshed: 0, intentados: 0, errors: [] };
   const latest = soloEstos ? todas.filter((c) => soloEstos.has(c.symbol.toUpperCase())) : todas;
-  if (!latest.length) return { refreshed: 0, errors: [] };
+  if (!latest.length) return { refreshed: 0, intentados: 0, errors: [] };
+  // Lo que esta corrida se propone rehacer: el bucle de abajo sólo toca acciones y ETFs.
+  const intentados = latest.filter((c) => c.kind === "stock" || c.kind === "etf").length;
   const held = await heldSymbols(store);
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
   const spyClose = spy[spy.length - 1]?.close ?? null;
@@ -752,7 +759,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     for (const x of salen) deHoy.delete(x);
     await store.pruneCandidates(opts.today, "stock", [...deHoy]);
   }
-  return { refreshed: quedan.length, errors };
+  return { refreshed: quedan.length, intentados, errors };
 }
 
 /** Cuánto se parece cada fila de acciones a sus pares y al mercado. Las velas que ya hay se reusan; el resto se pide en vivo y no se guarda. */
