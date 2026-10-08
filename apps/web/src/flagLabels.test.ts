@@ -18,6 +18,10 @@ describe("flagLabel", () => {
   it("traduce las banderas simples", () => {
     expect(flagLabel("consenso_compra")).toBe("consenso de compra");
     expect(flagLabel("bajo_sma200")).toBe("bajo la SMA200");
+    // 6/10/2026: la tabla local no medía liquidez. LEDE.BA mueve US$ 7.600 por día y BOLT.BA US$ 8.900, y los
+    // dos salían como candidatos sin advertencia. Es salvedad, no limitación: manda la fila a OBSERVAR.
+    expect(flagLabel("poco_volumen")).toBe("poco volumen: no soporta una posición del plan (< US$ 50.000 por rueda)");
+    expect(flagTone("poco_volumen")).toBe("salvedad");
     expect(flagLabel("nucleo_por_calendario")).toContain("núcleo");
   });
 

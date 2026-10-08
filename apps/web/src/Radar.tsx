@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { filasDeLideres } from "./lideres";
+import { riesgoPaisFechas } from "./macroAr";
 import { controlesBloquean, instruccionRadar, planLoCompra, planStatusFor } from "./instruccion";
 import { baseCandidata, baseLinea, pctDesde, qtyLinea, riesgoLinea, tramoLinea, type Base } from "./orden";
 import { InstruccionChip, RadarVerdict, invalidatePlan } from "./plan";
@@ -34,7 +35,7 @@ function PctDesde({ valor, base }: { valor: number | null | undefined; base: Bas
 /** Lo que ya tenés, para medir desde la posición y no como una compra nueva (15/9). */
 interface Tenencias { tiene: (s: string) => boolean; objetivo: (s: string) => number | null; peso: (s: string) => number | null }
 const SIN_TENENCIAS: Tenencias = { tiene: () => false, objetivo: () => null, peso: () => null };
-const AXIS_LABEL: Record<string, string> = { valuation: "valuación", quality: "calidad", growth: "crecimiento", balance: "balance", rs3m: "FR 3m", rs6m: "FR 6m", rs12m: "FR 12m", distSma200Pct: "vs SMA200", atrPct: "ATR%" };
+const AXIS_LABEL: Record<string, string> = { valuation: "valuación", quality: "calidad", growth: "crecimiento", balance: "balance", rs3m: "FR 3m", rs6m: "FR 6m", rs12m: "FR 12m", ret3m: "ret 3m", ret6m: "ret 6m", volUsd: "vol US$/día", distSma200Pct: "vs SMA200", atrPct: "ATR%" };
 
 /** Sub-pestañas del Radar, cada una con su URL (`?tab=radar&sub=etfs`). */
 const SUBS = [["resumen", "Resumen"], ["acciones", "Acciones US"], ["seguimiento", "Seguimiento"], ["etfs", "ETFs"], ["argentina", "Argentina"], ["medicion", "Medición"]] as const;
@@ -193,7 +194,11 @@ export function Radar() {
               <tr key={c.symbol}>
                 <td><SymbolLink symbol={c.symbol} /></td>
                 <td><RadarVerdict symbol={c.symbol} verdict={c.verdict} plan={plan} /> {c.flags.length > 0 && <Flags flags={c.flags} inline />}</td>
-                <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
+                {/* El retorno absoluto va PEGADO a la fuerza relativa (6/10/2026): una FR de +45,9% con un
+                  movimiento real de +16,33% es el índice cayendo, no el papel subiendo. Y el volumen en
+                  dólares, porque un CANDIDATA en un papel de US$ 7.600 por día es inservible. */}
+              <td className="mono">{pct(c.axes["rs3m"])}</td><td className="mono">{pct(c.axes["rs6m"])}</td><td className="mono">{pct(c.axes["ret6m"])}</td><td className="mono">{pct(c.axes["rs12m"])}</td><td className="mono">{pct(c.axes["distSma200Pct"])}</td>
+              <td className="mono">{c.axes["volUsd"] === null || c.axes["volUsd"] === undefined ? "—" : <span className={c.axes["volUsd"]! < 50_000 ? "bad" : undefined}>{Math.round(c.axes["volUsd"]!).toLocaleString("es-AR")}</span>}</td>
                 <td className="mono">{f2(c.close)}</td>
                 {/* La columna "cuándo entrar" faltaba y sin ella la fila era ilegible: EWT el 12/9 salía
                     COMPRAR con precio 110,91 y objetivo 110,69, o sea un objetivo DEBAJO del precio. No
@@ -369,6 +374,11 @@ function ArgentinaCard({ d, plan, ten, editing, setEditing, reload }: { d: Argen
   const acciones = [...d.acciones].sort((a, b) => (a.verdict === b.verdict ? (b.axes["rs6m"] ?? -Infinity) - (a.axes["rs6m"] ?? -Infinity) : a.verdict === "COMPRAR" ? -1 : 1));
   const dCcl = delta(m?.ccl ?? null, prev?.ccl);
   const dRp = delta(m?.riesgoPais ?? null, prev?.riesgoPais);
+  // El riesgo país se guardaba con la fecha de la corrida (6/10/2026): la serie estaba corrida un día hábil
+  // entera y el encabezado decía "655 al 5/10" cuando 655 era del viernes 2/10, con un delta "vs 2026-10-02"
+  // que en realidad era del 1/10. Ahora se afirma sólo lo que está guardado; las filas anteriores al arreglo
+  // no tienen la fecha del dato y no se inventa.
+  const fRp = m ? riesgoPaisFechas(m, prev) : null;
   // Tres fechas distintas que la pantalla presentaba como una sola (12/9): el macro se pide en vivo y es de
   // hoy; las filas de acciones y CEDEARs son de la última corrida de Argentina (ese día, del 10); y el
   // precio de BYMA dentro de cada fila es el de su última rueda cerrada. El encabezado decía "macro del 11"
@@ -392,7 +402,7 @@ function ArgentinaCard({ d, plan, ten, editing, setEditing, reload }: { d: Argen
           <div className="kpi"><b>{ars(m.oficial)}</b><span>oficial</span></div>
           <div className="kpi"><b>{pct(m.brechaPct)}</b><span>brecha CCL / oficial</span></div>
           <div className="kpi"><b>{ars(m.blue)}</b><span>blue</span></div>
-          <div className="kpi"><b>{m.riesgoPais ?? "—"}</b><span>riesgo país{dRp !== null && prev && <> · <span className={dRp > 0 ? "bad" : "ok"}>{pct(dRp)}</span> vs {prev.date}</>}</span></div>
+          <div className="kpi"><b>{m.riesgoPais ?? "—"}</b><span>riesgo país{fRp?.delDato && <> · <span className="warn">dato del {fRp.delDato}</span></>}{dRp !== null && fRp?.contra && <> · <span className={dRp > 0 ? "bad" : "ok"}>{pct(dRp)}</span> vs {fRp.contra}</>}</span></div>
           <div className="kpi"><b>{m.mervalUsd !== null ? `US$ ${m.mervalUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—"}</b><span>Merval en dólares{m.mervalDate && m.mervalDate !== m.date ? <> · <span className="warn">índice del {m.mervalDate}, CCL del {m.date}</span></> : ""}</span></div>
         </div>
       )}
@@ -432,7 +442,7 @@ function ArgentinaCard({ d, plan, ten, editing, setEditing, reload }: { d: Argen
         <summary style={{ cursor: "pointer" }}><b>Solo en pesos</b> <span className="muted">({acciones.length} acciones de BYMA sin ADR y {d.cedears.length} CEDEARs): para comprarlas necesitás pesos y un broker argentino</span></summary>
       <div style={{ marginTop: 12 }}><b>Acciones de BYMA sin ADR</b> <span className="muted">({acciones.length}) contra el Merval, en pesos: no tienen versión en Nueva York</span></div>
       <table style={{ marginTop: 6 }}>
-        <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3mMerval">FR 3m</Th><Th k="frMerval">FR 6m</Th><Th k="fr12mMerval">FR 12m</Th><Th k="sma200" /><Th k="precioArs" /><Th k="precioUsd" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
+        <thead><tr><Th k="simbolo" /><Th k="veredicto" /><Th k="fr3mMerval">FR 3m</Th><Th k="frMerval">FR 6m</Th><Th k="ret6mAbs" /><Th k="fr12mMerval">FR 12m</Th><Th k="sma200" /><Th k="volUsd" /><Th k="precioArs" /><Th k="precioUsd" /><Th k="stop" /><Th k="objetivo" /><Th k="etiquetas" /><th></th></tr></thead>
         <tbody>
           {acciones.map((c) => (
             <tr key={c.symbol}>

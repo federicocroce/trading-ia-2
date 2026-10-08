@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { api, isHistorical, type CurveMetrics, type CurveResponse, type Measurement, type Position, type Quote, type RiskReport, type Tags, type Verdict } from "./api";
 import { CurveChart } from "./CurveChart";
+import { CarteraDiaria } from "./CarteraDiaria";
 import { TagChips, TagEditor } from "./Tags";
 import { SymbolLink } from "./SymbolLink";
 import { usePrices } from "./prices";
@@ -19,8 +20,28 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("es-AR", { hour: 
 
 const EMPTY: Position = { symbol: "", quantity: 0, avgCost: 0, currency: "USD", market: "us", layer: "riesgo", notes: null };
 
+/** Sub-pestañas de Cartera, cada una con su URL (`?tab=cartera&sub=dia-a-dia`), igual que el Radar. */
+const SUBS = [["resumen", "Resumen"], ["dia-a-dia", "Día a día"]] as const;
+type Sub = (typeof SUBS)[number][0];
+const readSub = (): Sub => {
+  const v = new URLSearchParams(window.location.search).get("sub");
+  return SUBS.some(([k]) => k === v) ? (v as Sub) : "resumen";
+};
+
 /** Pestaña Cartera (spec etapa 1 §8): posiciones con veredicto, riesgo calculado y medición contra SPY. */
 export function Cartera() {
+  const [sub, setSub] = useState<Sub>(readSub);
+  useEffect(() => {
+    const onPop = () => setSub(readSub());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  const goSub = (k: Sub) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("sub", k);
+    if (url.href !== window.location.href) window.history.pushState({}, "", url);
+    setSub(k);
+  };
   const [positions, setPositions] = useState<Position[]>([]);
   const [verdicts, setVerdicts] = useState<Verdict[]>([]);
   const [risk, setRisk] = useState<{ date: string; report: RiskReport } | null>(null);
@@ -106,10 +127,18 @@ export function Cartera() {
         <b>Cartera real</b>
         <span className="muted">{date ? `veredictos del ${date}${cierres && cierres !== date ? `, con los cierres del ${cierres}` : ""}` : "sin veredictos todavía"}</span>
         <div className="spacer" style={{ flex: 1 }} />
-        <button className="ghost" onClick={() => setForm({ ...EMPTY })} disabled={busy}>Agregar posición</button>
+        <button className="ghost" onClick={() => { goSub("resumen"); setForm({ ...EMPTY }); }} disabled={busy}>Agregar posición</button>
         {!isHistorical() && <button className="primary" onClick={run} disabled={busy}>{busy ? "Corriendo…" : "Actualizar veredictos"}</button>}
       </div>
       {msg && <div className="card">{msg}</div>}
+      <div className="card row" style={{ gap: 8 }}>
+        <div className="seg">
+          {SUBS.map(([k, label]) => <button key={k} className={sub === k ? "active" : ""} onClick={() => goSub(k)}>{label}</button>)}
+        </div>
+      </div>
+      {/* El día a día sale de los mismos puntos de la curva: no hay una segunda cuenta de la ganancia (1/10). */}
+      {sub === "dia-a-dia" && <CarteraDiaria r={curve} costUsd={positions.length && !tot.noPrice ? tot.cost : null} />}
+      {sub === "resumen" && <>
       {positions.length > 0 && (
         <div className="card">
           <div className="kpis">
@@ -156,8 +185,9 @@ export function Cartera() {
         </table>
       </div>
       {risk && <Risk r={risk.report} date={risk.date} />}
-      {curve && <CurveCard r={curve} riskSessions={risk?.report.risk?.sessions ?? null} />}
+      {curve && <CurveCard r={curve} riskSessions={risk?.report.risk?.sessions ?? null} onVerDiaADia={() => goSub("dia-a-dia")} />}
       {measurement && <MeasurementCard m={measurement} />}
+      </>}
     </>
   );
 }
@@ -279,7 +309,7 @@ function Risk({ r, date }: { r: RiskReport; date: string }) {
 }
 
 /** Curva de la cartera real desde las operaciones: TWR, XIRR, volatilidad y drawdown contra SPY, con la lectura por regla. */
-function CurveCard({ r, riskSessions }: { r: CurveResponse; riskSessions: number | null }) {
+function CurveCard({ r, riskSessions, onVerDiaADia }: { r: CurveResponse; riskSessions: number | null; onVerDiaADia: () => void }) {
   if (r.error) return <div className="card"><b>Curva de la cartera</b> <span className="warn">no se pudo calcular: {r.error}</span></div>;
   const c = r.curve;
   if (!c) return null;
@@ -313,6 +343,8 @@ function CurveCard({ r, riskSessions }: { r: CurveResponse; riskSessions: number
       )}
       {c.sameMoneyInSpy && <div style={{ marginTop: 6 }}>La misma plata puesta en SPY en las mismas fechas valdría al cierre del {c.to} <b>{usd(c.sameMoneyInSpy.valueUsd)}</b>; tu cartera, al mismo cierre, <b>{usd(c.valueUsd)}</b>.</div>}
       <CurveChart points={c.points} />
+      {/* La curva dice el rendimiento; el día a día dice la plata de cada rueda y el máximo histórico contra hoy. */}
+      <div style={{ marginTop: 8 }}><button className="ghost" onClick={onVerDiaADia}>Ver el día a día (ganancia de cada rueda y máximo histórico)</button></div>
       {c.warnings.map((w) => <div key={w} className="warn" style={{ marginTop: 6 }}>⚠ {w}</div>)}
       <div className="muted" style={{ marginTop: 6 }}>TWR: retorno ponderado por tiempo, un aporte no cuenta como ganancia; anualizado solo con 60 ruedas o más. XIRR: retorno de tu plata con las fechas reales; el de SPY es la misma plata en las mismas fechas. Caída máxima sobre el índice, no sobre el valor: vender no es caer. Un traspaso entre plataformas es la foto del saldo, no una compra; los dividendos reinvertidos son acciones que quedan en la tenencia. SPY sin dividendos.</div>
     </div>

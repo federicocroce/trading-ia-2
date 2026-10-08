@@ -23,6 +23,9 @@ const FLAG_LABEL: Record<string, string> = {
   residente_cronico: "residente crónico",
   bajo_stop: "bajo el stop dinámico",
   bajo_sma200: "bajo la SMA200",
+  // 6/10/2026: la tabla de BYMA no medía liquidez y los ADRs sí (`avgDollarVolume30d` en /cartera/risk).
+  // LEDE.BA mueve US$ 7.600 por rueda y BOLT.BA US$ 8.900: una posición del plan es un tercio del día.
+  poco_volumen: "poco volumen: no soporta una posición del plan (< US$ 50.000 por rueda)",
   sin_historial: "sin 200 velas de historial",
   resultado_extraordinario: "ganancia con extraordinarios (ranking con núcleo)",
   sin_estados: "sin estados de la SEC",
