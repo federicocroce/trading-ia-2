@@ -1,6 +1,8 @@
 ---
 name: mercado
-description: Propone tickers recorriendo TODO el mercado, no las 40 filas del Radar. Embudo con las reglas de la app sobre el universo entero, más búsqueda en internet para lo que la app no ve (temas, resultados, riesgos), y análisis profundo de los finalistas. NO modifica nada: es un informe en paralelo, y cada diferencia con la app se vuelve un cambio propuesto para que la app llegue sola al mismo resultado. Usar cuando el dueño escribe /mercado o pide ideas más allá del Radar.
+description: Propone tickers recorriendo TODO el mercado, no las 40 filas del Radar. Embudo con las reglas de la app sobre el universo entero, más búsqueda en internet para lo que la app no ve (temas, resultados, riesgos), y análisis profundo de los finalistas. NO modifica nada: es un informe en paralelo, y cada diferencia con la app se vuelve un cambio propuesto para que la app llegue sola al mismo resultado. Se corre solo cuando el dueño escribe /mercado.
+argument-hint: "[rápida|profunda] [SÍMBOLOS...]"
+disable-model-invocation: true
 ---
 
 # /mercado — el embudo del mercado entero
@@ -13,6 +15,16 @@ a favor, qué reportó ayer, qué juicio se viene, qué empresa acaba de listar.
 
 Este comando recorre todo eso con un embudo: **barato y ancho al principio, caro y angosto al final**. La app hace la
 parte de los números; la búsqueda, la parte de los hechos.
+
+## Argumentos
+
+Recibidos: `$ARGUMENTS` (vacío = profunda).
+
+- **profunda** (o sin argumentos): todos los pasos. Entre 60 y 120 búsquedas, alrededor de una hora.
+- **rápida**: pasos 0, 1, 4, 6 y 7 con la pasada ancha sola, sin agentes por frente ni por finalista. Menos de 20
+  búsquedas. El informe dice arriba que es una corrida rápida.
+- **SÍMBOLOS** (`/mercado THC DAR MCY`): se saltea la pasada ancha; van directo al paso 3 y siguen por 5, 6 y 7.
+  Todo lo que no sea `rápida` ni `profunda` se toma como símbolo.
 
 ## Reglas duras
 

@@ -56,18 +56,39 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export const localDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const portfolioUsd = async (c: Container) => (await c.store.latestRisk())?.report.totalValue ?? null;
 
-/** Barrido + ranking. Tarda ~1 h: se dispara en segundo plano y el paso se registra cuando termina el ranking. */
+/**
+ * Qué barrido corresponde correr. Si el más reciente quedó con símbolos sin procesar SE REANUDA ESE, aunque sea de
+ * otro día.
+ *
+ * El 5/10/2026 la condición era `scanDate >= today`: el barrido del domingo 4/10 quedó con 1.375 símbolos pendientes
+ * y el lunes 2026-10-04 no es >= 2026-10-05, así que en vez de seguir donde iba abría uno nuevo desde cero y volvía a
+ * pedir las ~2.800 fundamentales que son justo lo que no termina a tiempo.
+ */
+export function barridoAReanudar(scanDate: string | null, pendientes: number, today: string): { scanDate: string; reanuda: boolean } {
+  if (scanDate && pendientes > 0) return { scanDate, reanuda: true };
+  return { scanDate: today, reanuda: false };
+}
+
+/** Barrido + ranking. Tarda varias horas: se dispara en segundo plano y el paso se registra cuando termina el ranking. */
 async function scanAndRank(c: Container, today: string): Promise<string> {
   if (state.scan.running) return "el barrido ya está corriendo";
   const store = c.store;
   const scanDate = await store.latestScanDate();
   const pending = scanDate ? await store.scanPending(scanDate) : [];
   const needScan = !scanDate || scanDate < today || pending.length > 0;
+  const aCorrer = barridoAReanudar(scanDate, pending.length, today);
   const job = (async () => {
     state.scan = { running: true, stopRequested: false, startedAt: new Date().toISOString(), progress: null, last: null };
     try {
-      if (needScan) state.scan.last = await scanUniverse(c.radarDeps, { scanDate: scanDate && pending.length > 0 && scanDate >= today ? scanDate : today, today });
+      if (needScan) state.scan.last = await scanUniverse(c.radarDeps, { scanDate: aCorrer.scanDate, today });
       const r = await rankRadar(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
+      // (5/10) Si el ranking se negó —barrido a medio hacer o universo roto, las dos puertas usan el símbolo "*"— no
+      // se rearma el plan NI se registra el paso: registrarlo lo daría por hecho y nadie volvería a mirarlo.
+      const seNego = r.errors.find((e) => e.symbol === "*");
+      if (seNego) {
+        console.error(`[catchup] el ranking no corrió: ${seNego.error}`);
+        return;
+      }
       // El plan es la única fuente de COMPRAR en las pantallas: se rearma con lo que el ranking acaba de cambiar (14/9).
       await replan(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
       await store.markJobRun("scan", today, `${r.candidates.length} candidatos, ${r.errors.length} errores`);
@@ -79,7 +100,10 @@ async function scanAndRank(c: Container, today: string): Promise<string> {
     }
   })();
   void job;
-  return needScan ? "barrido iniciado en segundo plano (≈1 h); el ranking corre al terminar" : "ranking iniciado en segundo plano";
+  if (!needScan) return "ranking iniciado en segundo plano";
+  return aCorrer.reanuda
+    ? `barrido del ${aCorrer.scanDate} reanudado en segundo plano (${pending.length} pendientes); el ranking corre al terminar`
+    : "barrido iniciado en segundo plano; el ranking corre al terminar";
 }
 
 export function defaultRunners(): Runners {

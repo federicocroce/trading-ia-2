@@ -28,7 +28,7 @@ async function pedir<T>(ruta: string, porDefecto: T): Promise<T> {
   }
 }
 
-const [candidatos, plan, veredictos, novedades, posiciones, movimientos, top] = await Promise.all([
+const [candidatos, plan, veredictos, novedades, posiciones, movimientos, top, curva] = await Promise.all([
   pedir<Pantallas["candidatos"]>("/radar/candidates", []),
   pedir<Pantallas["plan"]>("/radar/plan", null),
   pedir<Pantallas["veredictos"]>("/cartera/verdicts", []),
@@ -37,6 +37,8 @@ const [candidatos, plan, veredictos, novedades, posiciones, movimientos, top] = 
   pedir<NonNullable<Pantallas["movimientos"]>>("/cartera/transactions", []),
   // "Lo que más recomienda hoy": el "2 a 1" que dice la tarjeta tiene que salir de los % que muestra al lado.
   pedir<{ picks: NonNullable<Pantallas["top"]> } | null>("/radar/top?n=20", null),
+  // Cartera → "Día a día": la ganancia de cada rueda se recalcula desde el valor y el aporte (chequeo 10).
+  pedir<{ curve: NonNullable<Pantallas["curva"]> | null } | null>("/cartera/curve", null),
 ]);
 
 // Gráfico de la ficha de cada símbolo del plan: la última vela del diario contra la última sesión del intradiario.
@@ -57,11 +59,12 @@ const pantallas: Pantallas = {
   posiciones: posiciones ?? [],
   movimientos: movimientos ?? [],
   top: top?.picks ?? [],
+  curva: curva?.curve ?? null,
   graficos,
   ...(novedades ? { novedades } : {}),
 };
 
-console.log(`[auditar] Radar ${pantallas.candidatos.length} candidatos · plan ${pantallas.plan?.lines.length ?? 0} líneas · Cartera ${pantallas.veredictos.length} posiciones · ${pantallas.movimientos?.length ?? 0} movimientos · ${pantallas.top?.length ?? 0} recomendadas · ${graficos.filter((g) => g.ultimaDiaria && g.ultimaIntradiaria).length} gráficos comparables`);
+console.log(`[auditar] Radar ${pantallas.candidatos.length} candidatos · plan ${pantallas.plan?.lines.length ?? 0} líneas · Cartera ${pantallas.veredictos.length} posiciones · ${pantallas.movimientos?.length ?? 0} movimientos · ${pantallas.top?.length ?? 0} recomendadas · ${graficos.filter((g) => g.ultimaDiaria && g.ultimaIntradiaria).length} gráficos comparables · curva ${pantallas.curva?.points.length ?? 0} ruedas`);
 
 const findings = checkPantallas(pantallas);
 const { graves, avisos } = summarizeFindings(findings);
