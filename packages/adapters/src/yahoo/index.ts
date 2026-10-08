@@ -57,6 +57,30 @@ export function parseYahooChart(json: unknown): Candle[] {
 
 const rangeFor = (days: number) => (days <= 60 ? "3mo" : days <= 120 ? "6mo" : days <= 250 ? "1y" : "2y");
 
+/** Sufijos de plaza: Yahoo los quiere con el punto, así que no se tocan (`GGAL.BA` responde, `GGAL-BA` no). */
+const PLAZAS = new Set(["BA", "T", "TO", "V", "L", "F", "DE", "PA", "MI", "AS", "SA", "MX", "HK", "KS", "AX", "NZ", "SI", "SW", "ST", "OL", "HE", "CO", "IS", "VI", "TW", "KL", "JK", "BO", "NS", "PR"]);
+
+/**
+ * El símbolo como lo pide Yahoo. NYSE y Nasdaq separan con punto lo que Yahoo separa con guion, y encima le
+ * cambian la letra: sin traducir, `MOG.A` da HTTP 404, el adaptador cae al respaldo y la fila sale sin decir por
+ * qué (30/9/2026, mirando Moog). En el universo hay 22 símbolos de clase, BRK.B entre ellos.
+ *
+ * Sólo se traduce lo comprobado contra la API el 30/9/2026 —clase, unidad y preferida, cada una con su 404 y su
+ * 200—. Los warrants (`.WS`) se dejan intactos: ninguna forma probada respondió, así que no hay qué traducir.
+ */
+export function simboloYahoo(symbol: string): string {
+  const s = symbol.toUpperCase();
+  const i = s.indexOf(".");
+  if (i < 0) return s;
+  const raiz = s.slice(0, i);
+  const sufijo = s.slice(i + 1);
+  if (PLAZAS.has(sufijo)) return s;
+  if (sufijo === "U") return `${raiz}-UN`;
+  if (/^PR[A-Z]$/.test(sufijo)) return `${raiz}-P${sufijo[2]}`;
+  if (/^[A-Z]$/.test(sufijo)) return `${raiz}-${sufijo}`;
+  return s;
+}
+
 /** Velas diarias de Yahoo (API no oficial; gratis; cubre .BA para la etapa 3). */
 export class YahooPriceHistory implements PriceHistory {
   constructor(private readonly http: HttpClient) {}
@@ -64,7 +88,7 @@ export class YahooPriceHistory implements PriceHistory {
     return (await this.candlesWithGaps(symbol, days)).candles;
   }
   async candlesWithGaps(symbol: string, days: number): Promise<{ candles: Candle[]; gaps: string[] }> {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol.toUpperCase())}?range=${rangeFor(days)}&interval=1d`;
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(simboloYahoo(symbol))}?range=${rangeFor(days)}&interval=1d`;
     return parseYahooChartWithGaps(await this.http.getJson(url));
   }
 }
@@ -118,11 +142,11 @@ export function parseYahooQuote(symbol: string, json: unknown): LiveQuote | null
 export class YahooChart {
   constructor(private readonly http: HttpClient) {}
   async bars(symbol: string, range: YahooRange, interval: YahooInterval): Promise<ChartBar[]> {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol.toUpperCase())}?range=${range}&interval=${interval}`;
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(simboloYahoo(symbol))}?range=${range}&interval=${interval}`;
     return parseYahooBars(await this.http.getJson(url));
   }
   async quote(symbol: string): Promise<LiveQuote | null> {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol.toUpperCase())}?range=5d&interval=1d`;
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(simboloYahoo(symbol))}?range=5d&interval=1d`;
     return parseYahooQuote(symbol, await this.http.getJson(url));
   }
 }
@@ -193,11 +217,12 @@ export class YahooDescriptions {
   }
   async description(symbol: string): Promise<SymbolDescription | null> {
     const sym = symbol.toUpperCase();
+    const y = simboloYahoo(symbol);
     const auth = await this.ensureCrumb();
     const modules = "assetProfile,quoteType";
     const attempt = async (base: string, headers: Record<string, string>, crumb: string | null) => {
       try {
-        const res = await this.fetchFn(`${base}/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=${modules}${crumb ? `&crumb=${encodeURIComponent(crumb)}` : ""}`, { headers });
+        const res = await this.fetchFn(`${base}/v10/finance/quoteSummary/${encodeURIComponent(y)}?modules=${modules}${crumb ? `&crumb=${encodeURIComponent(crumb)}` : ""}`, { headers });
         return res.ok ? await res.json() : null;
       } catch {
         return null;
@@ -208,7 +233,7 @@ export class YahooDescriptions {
     if (!qs) return null;
     let meta: unknown = null;
     try {
-      const res = await this.fetchFn(`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d`, { headers: YAHOO_UA });
+      const res = await this.fetchFn(`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(y)}?range=1d&interval=1d`, { headers: YAHOO_UA });
       meta = res.ok ? await res.json() : null;
     } catch {
       meta = null;

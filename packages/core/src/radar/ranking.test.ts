@@ -159,3 +159,41 @@ describe("rankStocks: una pasada por grupo (alta a la lista de seguimiento, 18/9
   });
 });
 
+
+/**
+ * Hacían falta solo 2 de 4 ejes para rankear, y con eso una biotech sin ingresos salía primera de su grupo
+ * (6/10/2026). Caso real, ORIC: COMPRAR con el segundo puntaje más alto de las 13 candidatas nuevas y
+ * **1 de 8 pares por fundamentales**, puntuando en exactamente dos ejes — calidad con un solo ROE de −35,35 y
+ * balance con deuda 0 y ratio corriente 14,13. Su balance se ve perfecto PRECISAMENTE porque acaba de emitir
+ * acciones y no tiene operación: no hay ni precio ni crecimiento medidos en ninguna parte.
+ *
+ * El umbral de 3 ejes se eligió midiendo contra el caso que NO hay que romper: GGAL puntúa en los cuatro
+ * (P/E 90,08, ROE 1,16, crecimiento de EPS −95,28, deuda/patrimonio 0,8563), así que los bancos argentinos
+ * —que no reportan "revenue" y por eso parecían "sin ingresos"— siguen rankeando igual. Por eso la puerta NO
+ * es "sin ingresos": sería borrar GGAL, BMA y BBAR del Radar.
+ */
+describe("mínimo de ejes para rankear", () => {
+  // Pares mutuos, como el resto de los tests de este archivo: cada miembro lista a los otros.
+  const grupo = (metricsPor: Record<string, Record<string, number | null>>) => {
+    const syms = Object.keys(metricsPor);
+    return new Map(syms.map((s) => [s, mk(s, "Biotechnology", metricsPor[s]!, syms.filter((x) => x !== s))] as [string, Fundamentals]));
+  };
+  // Solo calidad (ROE) y balance (deuda + ratio corriente): ni valuación ni crecimiento.
+  const soloCalidadYBalance = (roe: number, cr: number) => ({ roeTTM: roe, "totalDebt/totalEquityAnnual": 0, currentRatioAnnual: cr });
+  // Los cuatro ejes, como GGAL.
+  const cuatroEjes = (i: number) => ({ peTTM: 90 + 30 * i, roeTTM: 1.16 - i, epsGrowthTTMYoy: -95.28 - 2 * i, "totalDebt/totalEquityAnnual": 0.8563 + 0.1 * i });
+
+  it("dos ejes no alcanzan: queda en ejes_insuficientes (caso ORIC)", () => {
+    const { ranked, skipped } = rankStocks(grupo({
+      ORIC: soloCalidadYBalance(-35.35, 14.13), P1: soloCalidadYBalance(-60, 4),
+      P2: soloCalidadYBalance(-70, 3), P3: soloCalidadYBalance(-80, 2), P4: soloCalidadYBalance(-90, 1.5),
+    }), weights);
+    expect(ranked.map((r) => r.symbol)).not.toContain("ORIC");
+    expect(skipped).toContainEqual({ symbol: "ORIC", reason: "ejes_insuficientes" });
+  });
+  it("cuatro ejes siguen rankeando primero: los bancos no se rompen (caso GGAL)", () => {
+    const { ranked } = rankStocks(grupo({ GGAL: cuatroEjes(0), P1: cuatroEjes(1), P2: cuatroEjes(2), P3: cuatroEjes(3), P4: cuatroEjes(4) }), weights);
+    expect(ranked.map((r) => r.symbol)).toContain("GGAL");
+    expect(ranked.find((r) => r.symbol === "GGAL")!.rankInGroup).toBe(1);
+  });
+});

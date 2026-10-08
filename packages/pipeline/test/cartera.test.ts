@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, Note, PositionNarrator, PriceHistory, Profiles } from "@thesis/core";
 import { MemoryStore, carteraCurve, measureVerdicts, runCartera } from "../src/index.js";
+import { computeTrailingStop } from "@thesis/core";
 
 const mk = (closes: number[], start = "2026-06-01", volume = 1_000_000): Candle[] =>
   closes.map((c, i) => ({ date: new Date(Date.parse(start) + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c + 1, low: c - 1, close: c, volume }));
@@ -121,6 +122,37 @@ describe("runCartera", () => {
     await runCartera(deps, { today });
     await runCartera(deps, { today });
     expect(await store.allVerdicts()).toHaveLength(1);
+  });
+
+  /*
+   * 6/10/2026. El stop de una posición no baja. `computeTrailingStop` es una ventana móvil de 22 velas, así
+   * que cuando un máximo sale de la ventana el stop baja sin que el precio haga nada: medido sobre las 8
+   * posiciones del dueño y 64 ruedas, bajaba en 236 de 512 transiciones (46,1%). Con GGAL el 6/10 pasó de
+   * 41,75 a 41,53, y con el precio congelado en 38,25 el VENDER se daba vuelta solo en diez ruedas.
+   *
+   * El trinquete vive en `ratchetStop` y se alimenta del último veredicto guardado, así que lo que se prueba
+   * acá es el cableado: que runCartera lea el stop anterior y lo pase.
+   */
+  it("el stop de una posición no baja entre corridas, aunque el chandelier caiga", async () => {
+    const siguiente = (c: Candle[]) => new Date(Date.parse(c[c.length - 1]!.date) + 86_400_000).toISOString().slice(0, 10);
+    // Pico de 120 dentro de las últimas 22 ruedas: el chandelier queda alto.
+    const conPico = mk([...days(80, 100), ...days(4, 120), ...days(15, 100)]);
+    // Diez ruedas más de 100: el pico sale de la ventana y el chandelier cae, con el precio igual.
+    const picoAfuera = mk([...days(80, 100), ...days(4, 120), ...days(25, 100)]);
+
+    const store = new MemoryStore();
+    const base = { store, profiles, narrator: null, spot: async () => null };
+    await store.upsertPosition(pos("YPF", 100, 30, "adr"));
+
+    const r1 = await runCartera({ ...base, history: history({ SPY: mk(days(99, 500)), YPF: conPico }) }, { today: siguiente(conPico) });
+    const stop1 = r1.verdicts.find((v) => v.symbol === "YPF")!.stop!;
+
+    const r2 = await runCartera({ ...base, history: history({ SPY: mk(days(109, 500)), YPF: picoAfuera }) }, { today: siguiente(picoAfuera) });
+    const stop2 = r2.verdicts.find((v) => v.symbol === "YPF")!.stop!;
+
+    // El test vale solo si el chandelier de verdad bajó: si no, no estaría probando el trinquete.
+    expect(computeTrailingStop(picoAfuera)!).toBeLessThan(stop1);
+    expect(stop2).toBe(stop1);
   });
 });
 

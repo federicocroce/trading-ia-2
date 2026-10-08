@@ -224,3 +224,49 @@ describe("hasExtraordinary / applyCoreMetrics sin one-offs operativos (NOPAT)", 
     expect(hasExtraordinary(zvraCore)).toBe(true);
   });
 });
+
+/**
+ * El eje de valuación es el de mayor peso y se estaba alimentando con un P/E que la app sabía que estaba mal
+ * (6/10/2026). Caso real, TGTX: la ganancia reportada de 12 meses incluye la liberación de ~339,8 M de
+ * previsión del activo por impuesto diferido (3T 2025), que vive en la PROVISIÓN IMPOSITIVA y no en la lista
+ * de etiquetas de extraordinarios, así que `extraordinaryTTM` quedaba en 0 y `applyCoreMetrics` salía temprano
+ * dejando el P/E del proveedor en 18,82. Guardado en la base: `netIncomeTTM` 441,5 M contra
+ * `coreNetIncomeTTM` 136,3 M y `deviationPct` 0,6912.
+ *
+ * La salida temprana existe por un motivo bueno: el núcleo es NOPAT e ignora intereses, así que reemplazar el
+ * P/E siempre sesgaría a favor de las apalancadas. Pero esas tienen deviación NEGATIVA (su operativo es mayor
+ * que su neto). La deviación POSITIVA es la firma contraria: el neto SUPERA al operativo, o sea la ganancia
+ * viene de abajo de la línea. Medido sobre la base: 168 símbolos con deviación > +0,25 contra 316 apalancadas
+ * con deviación < −0,25.
+ *
+ * Qué se hace entonces: ni el del proveedor (inflado) ni el del núcleo (sesgo de apalancamiento) → `null`.
+ * El eje no puntúa esa métrica en vez de premiarla por barata.
+ */
+describe("P/E con ganancia de abajo de la línea operativa", () => {
+  const fund = (peTTM: number): Fundamentals => ({ symbol: "TGTX", asOf: "2026-06-30", metrics: { peTTM, epsTTM: 2.746, psTTM: 9.56 }, peers: [], industry: "Biotechnology", mcapUsd: 7.65e9, dollarVolumeUsd: 50e6, priceUsd: 53.91, nextEarnings: null, insiderBuys90d: 0, insiderSells90d: 0, analyst: null, earningsSurprises: null });
+  const core = (over: Partial<Parameters<typeof applyCoreMetrics>[1] & object>) => ({
+    asOf: "2026-06-30", revenueTTM: 799_536_000, operatingIncomeTTM: 136_328_000, coreOperatingIncomeTTM: 136_328_000,
+    netIncomeTTM: 441_490_000, coreNetIncomeTTM: 136_328_000, coreEpsTTM: 0.8668, operatingCashFlowTTM: 17_876_000,
+    freeCashFlowTTM: 17_385_000, equity: 604_083_000, taxRate: 0, extraordinaryTTM: 0, extraordinaryItems: [],
+    deviationPct: 0.6912, receivablesPctRevenue: 0.5022, noncontrollingTTM: null,
+    lastQuarterYoy: { end: "2026-06-30", revenuePct: 70.27, operatingPct: -37.8 }, ...over,
+  });
+
+  it("neto muy por encima del operativo sin extraordinarios identificados → P/E en null (caso TGTX)", () => {
+    const out = applyCoreMetrics(fund(18.8229), core({}), 53.91);
+    expect(out.metrics["peTTM"]).toBeNull();
+  });
+  it("una apalancada normal (deviación negativa) no se toca", () => {
+    const out = applyCoreMetrics(fund(14.2), core({ netIncomeTTM: 80_000_000, deviationPct: -0.4068 }), 53.91);
+    expect(out.metrics["peTTM"]).toBe(14.2);
+  });
+  it("deviación positiva pero chica no se toca", () => {
+    const out = applyCoreMetrics(fund(14.2), core({ netIncomeTTM: 150_000_000, deviationPct: 0.09 }), 53.91);
+    expect(out.metrics["peTTM"]).toBe(14.2);
+  });
+  it("los otros ejes siguen saliendo del núcleo, como antes", () => {
+    const out = applyCoreMetrics(fund(18.8229), core({}), 53.91);
+    expect(out.metrics["psTTM"]).toBe(9.56);
+    expect(out.statementsAsOf).toBe("2026-06-30");
+  });
+});

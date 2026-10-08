@@ -20,8 +20,8 @@ describe("buildCurve", () => {
     expect(r.to).toBe(day(9));
     expect(r.sessions).toBe(10);
     expect(r.points).toHaveLength(10);
-    expect(r.points[0]).toEqual({ date: day(0), value: 1000, index: 100, spyIndex: 100 });
-    expect(r.points[9]).toEqual({ date: day(9), value: 1100, index: 110, spyIndex: 100 });
+    expect(r.points[0]).toEqual({ date: day(0), value: 1000, index: 100, spyIndex: 100, flowUsd: 1000, gainUsd: 0, returnPct: 0, investedUsd: 1000 });
+    expect(r.points[9]).toEqual({ date: day(9), value: 1100, index: 110, spyIndex: 100, flowUsd: 0, gainUsd: 0, returnPct: 0, investedUsd: 1000 });
     expect(r.portfolio.totalPct).toBe(10);
     expect(r.spy.totalPct).toBe(0);
     expect(r.valueUsd).toBe(1100);
@@ -235,5 +235,55 @@ describe("buildCurve", () => {
     const r = buildCurve({ transactions: txs, candles: { AAA: series(flat(10)), EEE: series(flat(10)), FFF: series(flat(10)) }, spy: series(flat(10)), positions: [pos("AAA", 10)] })!;
     expect(r.complete).toBe(false);
     expect(r.warnings).toEqual(["FFF: las operaciones dejan 3 pero no hay posición cargada; la curva usa las operaciones"]);
+  });
+});
+
+/**
+ * Lo que necesita la pantalla "Día a día": cuánto ganaste CADA día en plata, sin que un aporte se vea como
+ * ganancia. El aporte y la ganancia del día ya se calculaban adentro del loop; sin exponerlos, el día que
+ * aportás 6.500 la pantalla tendría que restar a ojo y diría "ganaste 6.500".
+ */
+describe("ganancia de cada día", () => {
+  it("el día del aporte no gana nada: el aporte va en flowUsd y la ganancia del día queda en cero", () => {
+    const aaa = series([...flat(5), ...flat(5, 110)]);
+    const txs = [tx({ symbol: "AAA", type: "BUY", quantity: 10, price: 100, date: day(0) }), tx({ symbol: "AAA", type: "BUY", quantity: 10, price: 110, date: day(6) })];
+    const r = buildCurve({ transactions: txs, candles: { AAA: aaa }, spy: series(flat(10)), positions: [pos("AAA", 20)] })!;
+    expect(r.points[0]).toEqual({ date: day(0), value: 1000, index: 100, spyIndex: 100, flowUsd: 1000, gainUsd: 0, returnPct: 0, investedUsd: 1000 });
+    // El salto de 100 a 110 es ganancia de verdad: 100 dólares sobre las 10 acciones que ya tenías.
+    expect(r.points[5]).toMatchObject({ value: 1100, flowUsd: 0, gainUsd: 100, returnPct: 10, investedUsd: 1000 });
+    // El día del segundo aporte el valor pasa de 1100 a 2200 y no ganaste un peso.
+    expect(r.points[6]).toMatchObject({ value: 2200, flowUsd: 1100, gainUsd: 0, returnPct: 0, investedUsd: 2100 });
+    expect(r.points[9]).toMatchObject({ value: 2200, flowUsd: 0, gainUsd: 0, investedUsd: 2100 });
+    // La suma de las ganancias diarias es la ganancia acumulada: valor menos aportado.
+    expect(r.points.reduce((a, p) => a + p.gainUsd, 0)).toBe(r.valueUsd - r.investedUsd);
+  });
+
+  it("vender no es perder: el día de la venta la ganancia del día es cero y la baja de precio sí resta", () => {
+    const aaa = series([...flat(7), ...flat(3, 96)]);
+    const txs = [tx({ symbol: "AAA", type: "BUY", quantity: 100, price: 100, date: day(0) }), tx({ symbol: "AAA", type: "SELL", quantity: 50, price: 100, date: day(5) })];
+    const r = buildCurve({ transactions: txs, candles: { AAA: aaa }, spy: series(flat(10)), positions: [pos("AAA", 50)] })!;
+    expect(r.points[5]).toMatchObject({ value: 5000, flowUsd: -5000, gainUsd: 0, returnPct: 0, investedUsd: 5000 });
+    expect(r.points[7]).toMatchObject({ value: 4800, flowUsd: 0, gainUsd: -200, returnPct: -4, investedUsd: 5000 });
+    expect(r.points.reduce((a, p) => a + p.gainUsd, 0)).toBe(r.valueUsd - r.investedUsd);
+  });
+
+  it("un dividendo reinvertido sí es ganancia del día: no entró plata y la tenencia vale más", () => {
+    const txs = [
+      tx({ symbol: "AAA", type: "BUY", quantity: 10, price: 100, date: day(0) }),
+      tx({ symbol: "AAA", type: "DIVIDEND", quantity: 0.1, price: 100, date: day(3) }),
+    ];
+    const r = buildCurve({ transactions: txs, candles: { AAA: series(flat(10)) }, spy: series(flat(10)), positions: [pos("AAA", 10.1)] })!;
+    expect(r.points[3]).toMatchObject({ value: 1010, flowUsd: 0, gainUsd: 10, returnPct: 1 });
+    expect(r.points.reduce((a, p) => a + p.gainUsd, 0)).toBe(r.valueUsd - r.investedUsd);
+  });
+
+  it("lo que un traspaso trae sin operación que lo explique es aporte del día, no ganancia", () => {
+    const txs = [
+      tx({ symbol: "AAA", type: "BUY", quantity: 10, price: 100, date: day(0) }),
+      tx({ symbol: "AAA", type: "TRANSFER", quantity: 15, price: 100, date: day(4) }),
+    ];
+    const r = buildCurve({ transactions: txs, candles: { AAA: series(flat(10)) }, spy: series(flat(10)), positions: [pos("AAA", 15)] })!;
+    expect(r.points[4]).toMatchObject({ value: 1500, flowUsd: 500, gainUsd: 0, returnPct: 0, investedUsd: 1500 });
+    expect(r.points.reduce((a, p) => a + p.gainUsd, 0)).toBe(r.valueUsd - r.investedUsd);
   });
 });

@@ -172,7 +172,15 @@ function scoresWithin(set: Fundamentals[], weights: RadarPolicy["weights"]): Arr
       axes[axis] = zs.length ? round4(zs.reduce((a, b) => a + b, 0) / zs.length) : null;
     }
     const available = AXES.filter((a) => axes[a] !== null);
-    if (available.length <= 1) return null;
+    // Hacen falta 3 de 4 ejes (6/10/2026). Con 2 alcanzaba, y ORIC —una biotech sin ingresos— salía
+    // **1 de 8 pares por fundamentales** puntuando solo en calidad (un ROE de −35,35 solo) y balance (deuda 0
+    // y ratio corriente 14,13): su balance se ve perfecto PRECISAMENTE porque acaba de emitir acciones y no
+    // tiene operación, y ni el precio ni el crecimiento se midieron en ninguna parte.
+    //
+    // La puerta NO es "sin ingresos": los bancos no reportan `revenue` al proveedor, así que eso habría
+    // borrado GGAL, BMA y BBAR del Radar. GGAL puntúa en los cuatro ejes (P/E 90,08, ROE 1,16, crecimiento de
+    // EPS −95,28, deuda/patrimonio 0,8563) y sigue rankeando igual.
+    if (available.length <= 2) return null;
     const wsum = available.reduce((s, a) => s + weights[a], 0);
     const score = round4(available.reduce((s, a) => s + weights[a] * axes[a]!, 0) / wsum);
     return { score, axes };

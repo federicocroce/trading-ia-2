@@ -28,6 +28,20 @@ export interface CurvePoint {
   index: number;
   /** Índice base 100 de comprar SPY el primer día y no tocarlo. */
   spyIndex: number;
+  /**
+   * Aportes netos del día en USD: compras (con comisiones) menos ventas, más lo que un traspaso trae sin
+   * operación que lo explique. Negativo si ese día sacaste plata. No es ganancia ni pérdida.
+   */
+  flowUsd: number;
+  /**
+   * Lo que ganaste (o perdiste) ESE día en plata: `valor − valor de ayer − flowUsd`. Un aporte de 6.500 no
+   * cuenta; un dividendo reinvertido sí, porque no entró plata y la tenencia vale más.
+   */
+  gainUsd: number;
+  /** El mismo retorno del día que encadena el índice (TWR), en %. */
+  returnPct: number;
+  /** Aportes netos acumulados hasta ese día (el `investedUsd` del informe, pero a esa fecha). */
+  investedUsd: number;
 }
 export interface CurveMetrics {
   totalPct: number;
@@ -73,6 +87,7 @@ const MIN_SESSIONS_ANNUAL = 60;
 const MIN_SESSIONS_VOL = 20;
 const DAY_MS = 86_400_000;
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
 const qty = (n: number) => Number(n.toFixed(4)).toString();
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
@@ -262,7 +277,9 @@ export function buildCurve(i: CurveInput): CurveReport | null {
     if (prevValue > 0) returns.push(r);
     if (prevSpy !== null) spyReturns.push(day.close / prevSpy - 1);
     prevSpy = day.close;
-    points.push({ date: day.date, value: round2(value), index: round2(index), spyIndex: round2((100 * day.close) / spy0) });
+    // El aporte y la ganancia del día salen acá y no se recalculan después: el día que aportás, `value` sube
+    // sin que hayas ganado nada, y restarlo a ojo en la pantalla sería inventar la ganancia (pantalla "Día a día").
+    points.push({ date: day.date, value: round2(value), index: round2(index), spyIndex: round2((100 * day.close) / spy0), flowUsd: round2(flow), gainUsd: round2(value - prevValue - flow), returnPct: round4(r * 100), investedUsd: round2(invested) });
     prevValue = value;
   }
 

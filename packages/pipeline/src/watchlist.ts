@@ -130,8 +130,19 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
         riskScore: riskScore({ beta: f.metrics["beta"] ?? null, atrPct: null, debtToEquity: f.metrics["totalDebt/totalEquityAnnual"] ?? null, dollarVolumeUsd: f.dollarVolumeUsd, mcapUsd: f.mcapUsd }),
       };
       if ("excluded" in d) {
-        // Tendencia de fondo bajista: se sigue igual, con el stop dinámico como referencia y sin objetivo.
-        rows.push({ ...row, verdict: "OBSERVAR", flags: d.reasons, stop: computeTrailingStop(candles) });
+        /**
+         * Tendencia de fondo bajista: se sigue igual, con el stop dinámico como referencia y sin objetivo.
+         *
+         * El stop dinámico puede quedar ARRIBA del cierre (viene bajando desde un máximo anterior), y eso es
+         * justamente el motivo por el que no se compra: la fila tiene que decirlo. Cuando el filtro técnico la
+         * excluye, `decideCandidate` corta antes de mirar el stop y nunca enciende `bajo_stop`, así que VRT el
+         * 25/9 guardaba cierre 245,30 y stop 257,00 con `bajo_sma200` como única bandera y la pantalla mostraba
+         * los dos números sin nada que los explicara (igual CCJ, CEG, MP, SQM, USAR y VST). Se enciende acá,
+         * que es donde se conoce el stop. El `Set` además saca las repetidas: BEAM traía `bajo_sma200` once veces.
+         */
+        const trailing = computeTrailingStop(candles);
+        const bajoStop = trailing !== null && close <= trailing;
+        rows.push({ ...row, verdict: "OBSERVAR", flags: [...new Set(bajoStop ? [...d.reasons, "bajo_stop"] : d.reasons)], stop: trailing });
       } else {
         rows.push({ ...row, verification: verification ?? null, analystTargets: ev?.analystTargets ?? null, entry: d.entry, verdict: d.verdict, flags: d.flags, entryLow: d.entryLow, entryHigh: round2(d.entryHigh), stop: d.stop, target: d.target, sizeUsd: d.size?.sizeUsd ?? null, sizeQty: d.size?.qty ?? null, riskScore: d.riskScore });
       }

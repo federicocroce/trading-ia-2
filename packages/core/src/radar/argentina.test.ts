@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle } from "../cartera/types.js";
-import { cedearCheck, decideArStock, macroAr } from "./argentina.js";
+import { cedearCheck, decideArStock, macroAr, VOL_MINIMO_USD } from "./argentina.js";
 
 const series = (n: number, from: number, to: number): Candle[] =>
   Array.from({ length: n }, (_, i) => {
@@ -16,11 +16,82 @@ describe("macroAr", () => {
     expect(m.mervalUsd).toBeCloseTo(1916.7, 0);
     expect(m.riesgoPais).toBe(490);
   });
+  /*
+   * 6/10/2026. El riesgo país se guardaba con la fecha de la CORRIDA y se descartaba la que trae la fuente.
+   * Comparado contra argentinadatos, la serie de la app coincidía con el día hábil ANTERIOR en 20 de 20 fechas:
+   * decía "655 al 5/10" cuando 655 es del viernes 2/10, y "636 al 2/10" cuando 636 es del 1/10. La pantalla lo
+   * empeoraba mostrando un delta "vs {fecha anterior}": las dos fechas mal.
+   *
+   * Es el mismo arreglo que ya tenía el Merval con `mervalDate`, en esta misma función, para el campo de al lado.
+   */
+  it("guarda la fecha del dato de riesgo país, no la de la corrida", () => {
+    const m = macroAr({ date: "2026-10-05", dolares: { oficial: 1540, ccl: 1623.8 }, riesgoPais: 655, riesgoPaisDate: "2026-10-02", merval: 2_767_663, mervalDate: "2026-10-02" });
+    expect(m.date).toBe("2026-10-05");
+    expect(m.riesgoPais).toBe(655);
+    expect(m.riesgoPaisDate).toBe("2026-10-02");
+  });
+  it("sin fecha de la fuente no la inventa: queda null y la pantalla no afirma de cuándo es", () => {
+    const m = macroAr({ date: "2026-10-05", dolares: { oficial: 1540 }, riesgoPais: 655, merval: null });
+    expect(m.riesgoPaisDate).toBeNull();
+  });
   it("sin CCL no inventa brecha ni Merval en dólares", () => {
     const m = macroAr({ date: "2026-09-07", dolares: { oficial: 1530 }, riesgoPais: null, merval: null });
     expect(m.ccl).toBeNull();
     expect(m.brechaPct).toBeNull();
     expect(m.mervalUsd).toBeNull();
+  });
+});
+
+describe("decideArStock: retorno absoluto y liquidez (2026-10-06)", () => {
+  /*
+   * Dos huecos que el informe de /mercado del 5/10 dejó escritos.
+   *
+   * 1) La fila mostraba fuerza relativa SIN el retorno absoluto al lado. METR.BA salía con fuerza relativa a
+   *    3 meses de +45,9% y su movimiento absoluto era +16,33%: dos tercios de ese número eran el Merval
+   *    cayendo ~20% en el trimestre, no METR subiendo. En el último mes METR estaba en rojo (−4,19%) y en el
+   *    año −10,23%. Un +45,9% en una columna sin contexto se lee como una tendencia potente.
+   *
+   * 2) No se medía liquidez. `/cartera/risk` trae `avgDollarVolume30d` y `daysToLiquidate` para cada ADR, y la
+   *    fila de BYMA no tenía ninguna de las dos. LEDE.BA mueve USD 7.600 por día y BOLT.BA USD 13-15 mil:
+   *    los dos aparecían como candidatos sin una advertencia. Una posición de USD 5.000 en BOLT es un tercio
+   *    del volumen diario del papel.
+   */
+  it("devuelve el retorno absoluto además de la fuerza relativa", () => {
+    /*
+     * La forma del caso METR: el papel sube poco y el ÍNDICE CAE. Ahí la fuerza relativa queda muy por encima
+     * del movimiento real del papel, que es exactamente lo que la fila no mostraba. Con el Merval en baja, la
+     * fuerza relativa de todo el panel se infla a la vez.
+     */
+    const d = decideArStock(series(260, 1000, 1200), series(260, 1400, 1000), 1583.2, technical);
+    if ("excluded" in d) throw new Error("excluida");
+    expect(d.ret6mPct).not.toBeNull();
+    expect(d.rs6m!).toBeGreaterThan(d.ret6mPct!);
+    // Y el absoluto sigue siendo el movimiento del papel, no el relativo.
+    expect(d.ret3mPct).not.toBeNull();
+    expect(d.ret6mPct!).toBeLessThan(d.rs6m!);
+  });
+  it("mide el volumen diario en dólares y marca el papel que no lo soporta", () => {
+    // 10.000 nominales/día a ~$700 con CCL 1.550: unos USD 4.500 por día. Es LEDE.BA.
+    const ilíquido = series(260, 500, 700).map((c) => ({ ...c, volume: 10_000 }));
+    const d = decideArStock(ilíquido, series(260, 1000, 1200), 1550, technical);
+    if ("excluded" in d) throw new Error("excluida");
+    expect(d.volUsd).not.toBeNull();
+    expect(d.volUsd!).toBeLessThan(VOL_MINIMO_USD);
+    expect(d.reasons).toContain("poco_volumen");
+  });
+  it("un papel con volumen de sobra no queda marcado", () => {
+    // 300.000 nominales/día a ~$2.300 con CCL 1.550: unos USD 445.000 por día. Es METR.BA.
+    const líquido = series(260, 1500, 2300).map((c) => ({ ...c, volume: 300_000 }));
+    const d = decideArStock(líquido, series(260, 1000, 1200), 1550, technical);
+    if ("excluded" in d) throw new Error("excluida");
+    expect(d.volUsd!).toBeGreaterThan(VOL_MINIMO_USD);
+    expect(d.reasons).not.toContain("poco_volumen");
+  });
+  it("sin CCL no inventa el volumen en dólares", () => {
+    const d = decideArStock(series(260, 1000, 2000).map((c) => ({ ...c, volume: 10_000 })), series(260, 1000, 1500), null, technical);
+    if ("excluded" in d) throw new Error("excluida");
+    expect(d.volUsd).toBeNull();
+    expect(d.reasons).not.toContain("poco_volumen");
   });
 });
 

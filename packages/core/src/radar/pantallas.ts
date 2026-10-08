@@ -38,6 +38,11 @@ export interface Pantallas {
    * `null` si esa vista no devolvió nada.
    */
   graficos?: Array<{ symbol: string; ultimaDiaria: string | null; ultimaIntradiaria: string | null }>;
+  /**
+   * Cartera → "Día a día" (`/cartera/curve`): la ganancia de cada rueda, el aporte de ese día y el aportado
+   * acumulado, tal como los muestra la pantalla.
+   */
+  curva?: { valueUsd: number; investedUsd: number; points: Array<{ date: string; value: number; flowUsd: number; gainUsd: number; investedUsd: number }> } | null;
 }
 
 /** Diferencia tolerada de precio entre dos pantallas del mismo día, en dólares. */
@@ -45,6 +50,9 @@ export const PRECIO_EPSILON = 0.01;
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
+
+/** Centavos tolerados al recalcular la ganancia de un día (redondeo a dos decimales en cada punto). */
+export const GANANCIA_EPSILON = 0.02;
 
 /** Diferencia de cantidad tolerada entre la posición y sus movimientos, en acciones y en proporción. */
 export const CANTIDAD_EPSILON = 0.01;
@@ -210,6 +218,31 @@ export function checkPantallas(p: Pantallas): Finding[] {
         const base = foto ? ` (desde el traspaso del ${foto.date}, de ${r4(foto.quantity)})` : "";
         add("cantidad_sin_respaldo", pos.symbol, "aviso", `Cartera muestra ${r4(pos.quantity)} y los movimientos dan ${r4(saldo)}${base}: sobran o faltan ${r4(dif)} sin explicación`);
       }
+    }
+  }
+
+  // 10. La pantalla "Día a día" afirma plata: cuánto ganaste CADA rueda. La ganancia del día se recalcula acá
+  //     desde el valor y el aporte, sin la cuenta del núcleo, y la suma tiene que cerrar contra lo que el
+  //     informe dice que ganaste. Antes del 15/9 la curva trataba los dividendos reinvertidos como efectivo y
+  //     no veía los traspasos: con esta pantalla, un error así se lee como "ganaste 6.500" el día que aportás.
+  if (p.curva && p.curva.points.length) {
+    const pts = p.curva.points;
+    for (let i = 0; i < pts.length; i++) {
+      const hoy = pts[i]!;
+      const ayer = i > 0 ? pts[i - 1]!.value : 0;
+      const propia = r2(hoy.value - ayer - hoy.flowUsd);
+      if (Math.abs(propia - hoy.gainUsd) > GANANCIA_EPSILON) {
+        add("ganancia_del_dia", null, "grave", `${hoy.date}: la curva dice que ganaste ${r2(hoy.gainUsd)} y el valor (${r2(ayer)} → ${r2(hoy.value)}) con un aporte de ${r2(hoy.flowUsd)} da ${propia}`);
+      }
+    }
+    const suma = r2(pts.reduce((a, x) => a + x.gainUsd, 0));
+    const informe = r2(p.curva.valueUsd - p.curva.investedUsd);
+    if (Math.abs(suma - informe) > GANANCIA_EPSILON * pts.length) {
+      add("ganancia_acumulada", null, "grave", `las ganancias diarias suman ${suma} y el informe dice ${informe} (${r2(p.curva.valueUsd)} de valor menos ${r2(p.curva.investedUsd)} aportados)`);
+    }
+    const ultimo = pts[pts.length - 1]!;
+    if (Math.abs(ultimo.investedUsd - p.curva.investedUsd) > GANANCIA_EPSILON) {
+      add("aportado_distinto", null, "grave", `el último día de la curva dice ${r2(ultimo.investedUsd)} aportados y el informe ${r2(p.curva.investedUsd)}`);
     }
   }
 

@@ -262,7 +262,23 @@ export const CORE_EPS_BAND = { min: 1 / 3, max: 3 };
 export function applyCoreMetrics(f: Fundamentals, core: CoreEarnings | null, priceUsd: number): Fundamentals {
   const raw = f.metricsRaw ?? f.metrics;
   if (!core || core.revenueTTM === null || core.revenueTTM <= 0 || core.coreOperatingIncomeTTM === null) return { ...f, metrics: raw, metricsRaw: raw, statementsAsOf: null };
-  if (core.extraordinaryTTM === 0) return { ...f, metrics: raw, metricsRaw: raw, statementsAsOf: core.asOf };
+  // Sin extraordinarios operativos identificados no se reemplaza el P/E (el núcleo es NOPAT e ignora intereses:
+  // reemplazarlo sesgaría a favor de las apalancadas), PERO hay un caso en que el del proveedor tampoco sirve.
+  //
+  // TGTX el 6/10/2026: su ganancia de 12 meses incluye la liberación de ~339,8 M de previsión del activo por
+  // impuesto diferido, que vive en la provisión impositiva y no en `EXTRAORDINARY_TAGS`, así que
+  // `extraordinaryTTM` quedó en 0 y el eje de valuación —el de mayor peso— puntuó con un P/E de 18,82 cuando el
+  // núcleo daba 62x. La app ya tenía los dos números guardados y tiraba el bueno.
+  //
+  // La firma es el SIGNO de la deviación: positiva = el neto SUPERA al operativo, o sea la ganancia viene de
+  // abajo de la línea; negativa = apalancada normal, que es justo lo que la salida temprana protege. Medido
+  // sobre la base: 168 símbolos con deviación > +0,25 contra 316 apalancadas con deviación < −0,25.
+  // Ahí no vale ni el del proveedor ni el del núcleo: va `null` y el eje no puntúa esa métrica.
+  if (core.extraordinaryTTM === 0) {
+    const porDebajoDeLaLinea = core.deviationPct !== null && core.deviationPct > DEVIATION_FLAG;
+    const metrics: FinnhubMetrics = porDebajoDeLaLinea ? { ...raw, peTTM: null } : raw;
+    return { ...f, metrics, metricsRaw: raw, statementsAsOf: core.asOf };
+  }
   const metrics: FinnhubMetrics = { ...raw };
   /*
    * El P/E núcleo solo reemplaza al de la fuente si la ganancia por acción del núcleo es CREÍBLE contra la

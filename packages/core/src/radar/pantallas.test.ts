@@ -236,3 +236,38 @@ describe("Hoy no se contradice (auditoría del 15/9)", () => {
     expect(f[0]!.severity).toBe("grave");
   });
 });
+
+/**
+ * Pantalla "Día a día" de Cartera (1/10): sus números son plata, y salen de los puntos de la curva. Este
+ * chequeo recalcula la ganancia de cada día desde el valor y el aporte, sin usar la cuenta del núcleo, y
+ * verifica que la suma de todas cierre contra lo que el informe dice que ganaste. Si la curva vuelve a tratar
+ * un aporte como ganancia (lo que pasaba antes del 15/9 con los traspasos y los dividendos), esto lo agarra.
+ */
+describe("curva día a día", () => {
+  const punto = (date: string, value: number, flowUsd: number, gainUsd: number, investedUsd: number) => ({ date, value, flowUsd, gainUsd, investedUsd });
+  it("una curva coherente no reporta nada", () => {
+    const curva = { valueUsd: 2200, investedUsd: 2100, points: [punto("2026-01-01", 1000, 1000, 0, 1000), punto("2026-01-02", 1100, 0, 100, 1000), punto("2026-01-03", 2200, 1100, 0, 2100)] };
+    expect(checkPantallas({ ...base, curva })).toEqual([]);
+  });
+
+  it("un aporte contado como ganancia es grave", () => {
+    const curva = { valueUsd: 2200, investedUsd: 2100, points: [punto("2026-01-01", 1000, 1000, 0, 1000), punto("2026-01-02", 1100, 0, 100, 1000), punto("2026-01-03", 2200, 1100, 1100, 2100)] };
+    const f = solo("ganancia_del_dia", checkPantallas({ ...base, curva }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("2026-01-03");
+  });
+
+  it("si las ganancias diarias no suman lo que el informe dice que ganaste, es grave", () => {
+    const curva = { valueUsd: 2200, investedUsd: 2000, points: [punto("2026-01-01", 1000, 1000, 0, 1000), punto("2026-01-02", 1100, 0, 100, 1000), punto("2026-01-03", 2200, 1100, 0, 2100)] };
+    const f = solo("ganancia_acumulada", checkPantallas({ ...base, curva }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+  });
+
+  it("el aportado del último día es el del informe", () => {
+    const curva = { valueUsd: 2200, investedUsd: 2100, points: [punto("2026-01-01", 1000, 1000, 0, 1000), punto("2026-01-02", 1100, 0, 100, 1000), punto("2026-01-03", 2200, 1100, 0, 1500)] };
+    const f = checkPantallas({ ...base, curva });
+    expect(solo("aportado_distinto", f)).toHaveLength(1);
+  });
+});
