@@ -9,7 +9,23 @@ export const USAGE_RETENTION_DAYS = 90;
  * Ponerse al día: corre solo los pasos programados que quedaron sin correr (máquina apagada o dormida),
  * en orden, y registra cada uno en `job_runs` para no repetirlo. Lo llama el botón, la ruta y un chequeo automático.
  */
-export type StepRunner = (c: Container, today: string) => Promise<string>;
+/**
+ * Lo que devuelve un paso: el detalle para el registro, o `{ detail, vacia }` cuando intentó el trabajo y no
+ * trajo nada. `vacia` dice por qué, y evita que el paso se registre como corrido (1/10/2026, ver `runSteps`).
+ */
+export type StepResult = string | { detail: string; vacia: string };
+
+/**
+ * El motivo si la corrida fue vacía, o null. Vacía = pidió trabajo y no salió nada. Mira lo logrado contra lo
+ * intentado, NO la lista de errores: el 1/10 el adaptador de precios se tragó cada `fetch failed`, cayó al
+ * respaldo, el respaldo también falló y devolvió `[]`, y `refreshRadar` salteó los 112 símbolos en silencio
+ * (`if (!c || !c.length) continue`) sin anotar un solo error. Con `intentados` en 0 no hay nada que juzgar:
+ * un domingo sin candidatas o Cartera sin posiciones son corridas legítimas.
+ */
+export function corridaVacia(intentados: number, logrados: number): string | null {
+  return intentados > 0 && logrados === 0 ? `0 de ${intentados}` : null;
+}
+export type StepRunner = (c: Container, today: string) => Promise<StepResult>;
 export type Runners = Record<StepId, StepRunner>;
 export interface CatchUpResult {
   at: string;
@@ -114,7 +130,9 @@ export function defaultRunners(): Runners {
       const m = await measureVerdicts(c.carteraDeps, { today });
       // Un SUMAR de Cartera cambia lo que el plan suma: se rearma para que Cartera y el plan digan lo mismo (14/9).
       await replan(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
-      return `${s.verdicts.length} veredictos, ${s.errors.length} errores, medidos ${m.measured7}/${m.measured30}`;
+      const detail = `${s.verdicts.length} veredictos, ${s.errors.length} errores, medidos ${m.measured7}/${m.measured30}`;
+      const vacia = corridaVacia(s.verdicts.length + s.errors.length, s.verdicts.length);
+      return vacia ? { detail, vacia: `veredictos: ${vacia}` } : detail;
     },
     radar: async (c, today) => {
       const r = await refreshRadar(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) });
@@ -122,11 +140,16 @@ export function defaultRunners(): Runners {
       // En su turno (18/9): un alta a la lista puede estar refrescándola en este mismo momento.
       const w = await enTurno(c, async () => refreshWatchlist(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }));
       await replan(c.radarDeps, { today, portfolioUsd: await portfolioUsd(c) }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
-      return `${r.refreshed} candidatos refrescados, seguimiento ${w.rows}/${w.symbols}, medidos 7d ${m.candidates["7"]} · 30d ${m.candidates["30"]} · 90d ${m.candidates["90"]}`;
+      const detail = `${r.refreshed} candidatos refrescados, seguimiento ${w.rows}/${w.symbols}, medidos 7d ${m.candidates["7"]} · 30d ${m.candidates["30"]} · 90d ${m.candidates["90"]}`;
+      const vacia = corridaVacia(r.intentados, r.refreshed);
+      return vacia ? { detail, vacia: `candidatos refrescados: ${vacia}` } : detail;
     },
     argentina: async (c, today) => {
       const r = await refreshArgentina(c.argentinaDeps, { today });
-      return `${r.adrs} ADRs en dólares, ${r.acciones} acciones en pesos, ${r.cedears} CEDEARs, ${r.errors.length} errores`;
+      const detail = `${r.adrs} ADRs en dólares, ${r.acciones} acciones en pesos, ${r.cedears} CEDEARs, ${r.errors.length} errores`;
+      const traidos = r.adrs + r.acciones + r.cedears;
+      const vacia = corridaVacia(traidos + r.errors.length, traidos);
+      return vacia ? { detail, vacia: `símbolos traídos: ${vacia}` } : detail;
     },
     plan: async (c, today) => {
       // Con el último monto que pidió el dueño; sin plan previo, el aporte mensual. Antes armaba siempre el mensual y
@@ -202,7 +225,23 @@ async function runSteps(c: Container, ids: StepId[], runners: Runners, now: Date
     state.catchup.current = id;
     try {
       // Cada pedido saliente del paso queda atribuido a él en el registro de uso.
-      const detail = await withUsageStep({ step: id }, () => runners[id](c, today));
+      const r = await withUsageStep({ step: id }, () => runners[id](c, today));
+      const detail = typeof r === "string" ? r : r.detail;
+      /**
+       * Una corrida que no trajo nada no es una corrida (1/10/2026). Ese día la Mac durmió sobre los crons de
+       * la mañana y el catch-up disparó a las 08:02 en un DarkWake de 45 segundos, sin red: todos los pedidos
+       * fallaron, pero ningún paso tiró excepción —el adaptador se traga el error y cae al respaldo—, así que
+       * `radar` volvió con "0 candidatos refrescados" y se registró con la fecha de hoy. El catch-up dio el día
+       * por cubierto y no reintentó: el Radar quedó con velas del 29/9 hasta que se rehizo a mano.
+       * `markJobError` deja la última corrida buena intacta, así que el paso sigue pendiente y el tick de 30
+       * minutos lo reintenta solo.
+       */
+      if (typeof r !== "string") {
+        await c.store.markJobError(id, r.vacia).catch(() => {});
+        result.ran.push({ id, label, ok: false, detail });
+        console.error(`[catchup] ${label} volvió vacía, sigue pendiente: ${r.vacia} (${detail})`);
+        continue;
+      }
       // El barrido se registra solo cuando termina (corre en segundo plano).
       if (id !== "scan") await c.store.markJobRun(id, today, detail);
       // El paso pudo rearmar el plan: sus controles corren ya, no al minuto siguiente (15/9).

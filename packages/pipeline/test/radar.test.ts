@@ -188,6 +188,33 @@ describe("stop de cada fila (13/9)", () => {
 });
 
 describe("refreshRadar", () => {
+  /**
+   * 1/10/2026: la Mac durmió sobre los crons de la mañana y el catch-up disparó en un DarkWake de 45 segundos,
+   * sin red. Cada pedido de velas falló, pero el adaptador se traga el `fetch failed`, cae al respaldo, el
+   * respaldo también falla y devuelve `[]`; acá eso se saltea en silencio (`if (!c || !c.length) continue`).
+   * Resultado: 112 candidatas para refrescar, 0 refrescadas y la lista de errores casi vacía. El paso volvió
+   * "ok", se registró en job_runs con la fecha del día y el catch-up nunca reintentó.
+   *
+   * Por eso el refresco informa cuántas INTENTÓ: quien lo llama no puede distinguir "no había candidatas" de
+   * "había 112 y no salió ninguna" mirando sólo `refreshed`, y los errores no alcanzan porque nadie los anotó.
+   */
+  it("sin velas para nadie: dice cuántas intentó, no sólo que refrescó 0", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: null });
+    const sinRed = { ...d, history: { candles: async () => [] } };
+
+    const r = await refreshRadar(sinRed, { today: "2026-05-20", portfolioUsd: null });
+
+    expect(r.refreshed).toBe(0);
+    expect(r.intentados).toBeGreaterThan(0);
+    expect((await store.latestCandidates()).length).toBeGreaterThan(0); // las filas viejas siguen, no se borran
+  });
+  it("un domingo sin candidatas no intentó nada", async () => {
+    const { d } = deps();
+    const r = await refreshRadar(d, { today: "2026-05-20", portfolioUsd: null });
+    expect(r).toMatchObject({ refreshed: 0, intentados: 0 });
+  });
   it("completa las fichas que faltan (cuota agotada en el ranking)", async () => {
     const { store, d } = deps({ cardWriter: null });
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
