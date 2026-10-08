@@ -1,0 +1,109 @@
+{
+  "hechos": [
+    {
+      "tipo": "sector",
+      "symbol": "AGRO.BA",
+      "fecha": "2026-09-03",
+      "fuente": {
+        "url": "https://ers.usda.gov/topics/farm-economy/farm-sector-income-finances/farm-sector-income-forecast",
+        "titulo": "USDA ERS, Farm Sector Income Forecast (3/9/2026)"
+      },
+      "valor": {
+        "ambito": "agro: insumos contra granos",
+        "titulo": "fertilizante +15,3% con ingreso neto agropecuario cayendo 5,5% real",
+        "detalle": "USDA ERS, 3/9/2026: el gasto en fertilizante, cal y acondicionadores sube 5.300 millones (+15,3%) a 39.600 millones, y el ingreso neto agropecuario 2026 se proyecta en 158.400 millones, 4.300 millones (−2,6%) menos que 2025 en nominal y 9.100 millones (−5,5%) menos ajustado por inflacion. Insumo arriba contra producto abajo estrangula el margen del productor.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "CRESY",
+      "fecha": "2026-09-03",
+      "fuente": {
+        "url": "https://ers.usda.gov/topics/farm-economy/farm-sector-income-finances/farm-sector-income-forecast",
+        "titulo": "USDA ERS, Farm Sector Income Forecast (3/9/2026)"
+      },
+      "valor": {
+        "ambito": "agro: insumos contra granos",
+        "titulo": "fertilizante +15,3% con ingreso neto agropecuario cayendo 5,5% real",
+        "detalle": "USDA ERS, 3/9/2026: el gasto en fertilizante, cal y acondicionadores sube 5.300 millones (+15,3%) a 39.600 millones, y el ingreso neto agropecuario 2026 se proyecta en 158.400 millones, 4.300 millones (−2,6%) menos que 2025 en nominal y 9.100 millones (−5,5%) menos ajustado por inflacion. Insumo arriba contra producto abajo estrangula el margen del productor.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "CF",
+      "fecha": "2026-09-03",
+      "fuente": {
+        "url": "https://ers.usda.gov/topics/farm-economy/farm-sector-income-finances/farm-sector-income-forecast",
+        "titulo": "USDA ERS, Farm Sector Income Forecast (3/9/2026)"
+      },
+      "valor": {
+        "ambito": "agro: insumos contra granos",
+        "titulo": "el gasto en fertilizante sube 15,3%, y esto lo vende",
+        "detalle": "USDA ERS, 3/9/2026: el gasto en fertilizante, cal y acondicionadores sube 5.300 millones (+15,3%) a 39.600 millones. Es el mismo hecho que estrangula al productor agropecuario, con el signo invertido: del lado del que produce el nitrogeno es ingreso. Contrapeso: el productor con margen estrangulado es su cliente y puede reducir dosis.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "VST",
+      "fecha": "2026-10-07",
+      "fuente": {
+        "url": "https://www.eia.gov/outlooks/steo/report/natgas.php",
+        "titulo": "EIA, Short-Term Energy Outlook de octubre 2026, capitulo de gas natural"
+      },
+      "valor": {
+        "ambito": "gas natural: exceso a 2027",
+        "titulo": "Henry Hub proyectado en 3,16 para 2027, con la produccion creciendo mas que las exportaciones",
+        "detalle": "EIA STEO de octubre 2026: Henry Hub promedia 3,48 por MMBtu en 2026 y 3,16 en 2027. La produccion seca pasa de 112,20 a 116,13 Bcf/d mientras las exportaciones de GNL van de 17,6 a 18,6 Bcf/d, asi que la oferta crece mas rapido que la demanda de exportacion y los inventarios amplios limitan la presion al alza. Combustible mas barato para una generadora que quema gas.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "HAS",
+      "fecha": "2026-02-20",
+      "fuente": {
+        "url": "https://www.govinfo.gov/content/pkg/DCPD-202600131/html/DCPD-202600131.htm",
+        "titulo": "Orden Ejecutiva 14389, Ending Certain Tariff Actions (20/2/2026), GPO"
+      },
+      "valor": {
+        "ambito": "aranceles: IEEPA terminados",
+        "titulo": "terminan los aranceles IEEPA; la seccion 232 y la 301 siguen en pie",
+        "detalle": "Orden Ejecutiva 14389, firmada el 20/2/2026: termina los derechos ad valorem adicionales impuestos bajo IEEPA por nueve ordenes previas (14193, 14194, 14195, 14245, 14257, 14323, 14329, 14380 y 14382). El texto dice que no afecta otros derechos, incluidos los de la seccion 232 y la seccion 301, que siguen vigentes. Menos costo arancelario para un importador.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "CROX",
+      "fecha": "2026-02-20",
+      "fuente": {
+        "url": "https://www.govinfo.gov/content/pkg/DCPD-202600131/html/DCPD-202600131.htm",
+        "titulo": "Orden Ejecutiva 14389, Ending Certain Tariff Actions (20/2/2026), GPO"
+      },
+      "valor": {
+        "ambito": "aranceles: IEEPA terminados",
+        "titulo": "terminan los aranceles IEEPA; la seccion 232 y la 301 siguen en pie",
+        "detalle": "Orden Ejecutiva 14389, firmada el 20/2/2026: termina los derechos ad valorem adicionales impuestos bajo IEEPA por nueve ordenes previas (14193, 14194, 14195, 14245, 14257, 14323, 14329, 14380 y 14382). El texto dice que no afecta otros derechos, incluidos los de la seccion 232 y la seccion 301, que siguen vigentes. Menos costo arancelario para un importador.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "FIVE",
+      "fecha": "2026-02-20",
+      "fuente": {
+        "url": "https://www.govinfo.gov/content/pkg/DCPD-202600131/html/DCPD-202600131.htm",
+        "titulo": "Orden Ejecutiva 14389, Ending Certain Tariff Actions (20/2/2026), GPO"
+      },
+      "valor": {
+        "ambito": "aranceles: IEEPA terminados",
+        "titulo": "terminan los aranceles IEEPA; la seccion 232 y la 301 siguen en pie",
+        "detalle": "Orden Ejecutiva 14389, firmada el 20/2/2026: termina los derechos ad valorem adicionales impuestos bajo IEEPA por nueve ordenes previas (14193, 14194, 14195, 14245, 14257, 14323, 14329, 14380 y 14382). El texto dice que no afecta otros derechos, incluidos los de la seccion 232 y la seccion 301, que siguen vigentes. Menos costo arancelario para un importador.",
+        "sesgo": "a_favor"
+      }
+    }
+  ]
+}

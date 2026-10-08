@@ -30,3 +30,5 @@ export * from "./split.js";
 export * from "./frenos.js";
 export * from "./lider.js";
 export * from "./guardia.js";
+export * from "./simulacion.js";
+export * from "./medir-conviccion.js";

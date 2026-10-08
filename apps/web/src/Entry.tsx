@@ -40,6 +40,36 @@ export function EntryLine({ e, enPlan = false }: { e?: EntryTiming | null; enPla
         media de 20 {f2(e.sma20)} · media de 50 {f2(e.sma50)} · ATR 14 {f2(e.atr14)} · extensión {e.extensionAtr} ATR
         {e.rangePct60 !== null && <> · {e.rangePct60}% del rango de 60 ruedas</>}
       </div>
+      {/*
+        8/10: la media de 200 es la que la app usa como compuerta y era la única que NO se mostraba. Acá se dice
+        dónde está el precio contra ella y, sobre todo, si esa media SUBE o está muerta: estar 11% arriba de una
+        media plana es un rebote sobre una base sin dirección, no una tendencia. Medido, la pendiente no predice el
+        alfa (ver `pendSma200Pct`), así que se informa y no frena.
+      */}
+      {/*
+        Apagado y sin negritas a propósito (auditoría del 8/10, regla dura de la skill `auditar-pantalla`): la
+        PENDIENTE de la media de 200 no decide nada. Se midió con `pnpm simular` sobre 47.796 observaciones y no
+        predice el alfa a 30 días (media plana +0,93% contra media subiendo −0,12%; en régimen restrictivo −0,38%
+        contra −0,73%), así que no se volvió freno. Destacarla en negrita, como estaba diez minutos antes de esta
+        auditoría, invitaba a la conclusión falsa de que la app la castiga. Lo que sí decide es el NIVEL: cerrar
+        por debajo de la media excluye a la candidata, y eso ya lo dice la bandera `bajo_sma200`.
+      */}
+      <div className="muted mono" style={{ fontSize: 12 }}>
+        {e.sma200 === null ? (
+          <>media de 200: sin 200 ruedas de historia todavía</>
+        ) : (
+          <>
+            media de 200 {f2(e.sma200)}
+            {e.distSma200Pct !== null && <> · el precio está {e.distSma200Pct > 0 ? "+" : ""}{e.distSma200Pct}% {e.distSma200Pct >= 0 ? "arriba" : "abajo"}</>}
+            {e.pendSma200Pct !== null && (
+              <> · esa media {Math.abs(e.pendSma200Pct) <= 2 ? "está plana" : e.pendSma200Pct > 0 ? "sube" : "baja"}{" "}
+                ({e.pendSma200Pct > 0 ? "+" : ""}{e.pendSma200Pct}% en 3 meses)
+              </>
+            )}
+            {" "}· informativo: el nivel decide (bandera bajo_sma200), la pendiente no frena
+          </>
+        )}
+      </div>
     </div>
   );
 }

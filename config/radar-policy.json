@@ -25,9 +25,9 @@
   },
   "candidates": {
     "top": 40,
-    "preselect": 300,
+    "preselect": 600,
     "chronicWeeks": 4,
-    "maxRows": 80
+    "maxRows": 110
   },
   "contribution": {
     "monthlyUsd": 6500,

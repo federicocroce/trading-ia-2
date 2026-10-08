@@ -92,7 +92,9 @@ export async function checkRun(deps: Pick<RadarDeps, "store" | "log"> & { livePr
     const symbols = actedOnSymbols({ rows, plan, held: held ?? null });
     livePrices = { at: at.toISOString(), samples: await sampleLivePrices(deps.livePrices, symbols, at) };
   }
-  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, industries, currencies, newsScannedTo, verifications, lastSession, livePrices, today: opts.today, ...(held ? { held } : {}) });
+  // 7/10: los stops que muestra Cartera, para que `stop_en_desacuerdo` pueda comparar las dos pantallas.
+  const stopsDeCartera = Object.fromEntries((await (deps.store.latestVerdicts?.() ?? Promise.resolve([])).catch(() => [])).map((v) => [v.symbol.toUpperCase(), v.stop]));
+  const findings = checkConsistency({ rows, candles, plan, metrics, mcaps, industries, currencies, newsScannedTo, verifications, stopsDeCartera, lastSession, livePrices, today: opts.today, ...(held ? { held } : {}) });
   const { graves, avisos } = summarizeFindings(findings);
   if (livePrices) {
     const n = livePrices.samples.length;

@@ -15,7 +15,7 @@ const base: PlanInput = {
 
 describe("planContribution", () => {
   it("una línea que hay que esperar no cuenta como plata ejecutable hoy, y la nota lo dice", () => {
-    const esperando = { state: "esperar_retroceso" as const, level: 150, levelLabel: "media de 20 ruedas", low: 148.5, high: 150, validSessions: 15, sma20: 150, sma50: 140, atr14: 4, extensionAtr: 2.5, rangePct60: 90, why: "está 2.5 ATR arriba de su media de 20" };
+    const esperando = { state: "esperar_retroceso" as const, level: 150, levelLabel: "media de 20 ruedas", low: 148.5, high: 150, validSessions: 15, sma20: 150, sma50: 140, sma200: null, distSma200Pct: null, pendSma200Pct: null, atr14: 4, extensionAtr: 2.5, rangePct60: 90, why: "está 2.5 ATR arriba de su media de 20" };
     const p = planContribution({
       ...base,
       buyCandidates: [
@@ -32,7 +32,7 @@ describe("planContribution", () => {
   });
 
   it("esperar confirmación NO es una orden limitada: el nivel está arriba del precio y se compra si cierra arriba (15/9)", () => {
-    const confirma = { state: "esperar_confirmacion" as const, level: 58.6, levelLabel: "máximo de 20 ruedas", low: 58.6, high: 59.77, validSessions: 10, sma20: 57, sma50: 56, atr14: 0.65, extensionAtr: 0, rangePct60: 40, why: "bajo su máximo" };
+    const confirma = { state: "esperar_confirmacion" as const, level: 58.6, levelLabel: "máximo de 20 ruedas", low: 58.6, high: 59.77, validSessions: 10, sma20: 57, sma50: 56, sma200: null, distSma200Pct: null, pendSma200Pct: null, atr14: 0.65, extensionAtr: 0, rangePct60: 40, why: "bajo su máximo" };
     const p = planContribution({ ...base, buyCandidates: [{ symbol: "NVDA", kind: "stock", priority: 1.5, score: 1.5, sizeUsd: 9_000, close: 180, stop: 170, entry: { ...confirma, level: 185, low: 185, high: 187 } }] }, c);
     const nota = p.notes.find((n) => n.startsWith("Hoy se ejecutan"))!;
     expect(nota).toContain("NVDA: comprar si cierra arriba de 185");
@@ -149,8 +149,22 @@ describe("planContribution", () => {
       const vacio = cuarenta([stock("NBN", 1.63, { verdict: "evitar", reason: "sorpresa por impuestos", current: true }), stock("APH", 1.58, apta), stock("NVDA", 1.44, apta), stock("LNC", 1.33, apta), stock("GFI", 0.9, { verdict: "evitar", reason: "licencia de Tarkwa", current: true })]);
       expect(vacio.lines.some((l) => l.symbol === "XLF")).toBe(false);
       expect(vacio.lines.some((l) => l.symbol === "GFI")).toBe(false);
-      // Las que entraron reciben lo mismo que con el lugar lleno: la parte de NBN no se reparte entre ellas.
-      for (const s of ["APH", "NVDA", "LNC"]) expect(vacio.lines.find((l) => l.symbol === s)!.amountUsd).toBeCloseTo(lleno.lines.find((l) => l.symbol === s)!.amountUsd, -1);
+      /*
+       * 8/10: acá había una igualdad exacta de montos por línea entre `lleno` y `vacio`, y no probaba lo que decía.
+       * Los dos planes tienen FORMA distinta: en `vacio` desaparece además la línea del ETF (es la otra mitad de esta
+       * misma regla, "el lugar no lo toma un ETF"), así que se libera también el peso del ETF. La igualdad se cumplía
+       * por una coincidencia aritmética del tope viejo (4) y se rompió al subirlo a 7, que es lo que corresponde:
+       * `vacantes = min(caídas, cupos libres)`, con 4 cupos y 3 tomados solo UNA de las dos caídas reservaba su parte
+       * para el núcleo y la otra se ignoraba.
+       * Lo que se comprueba ahora es la regla, con el número que el propio plan declara: la parte de los lugares
+       * vacíos se nombra en la nota y va al núcleo.
+       */
+      const nota = vacio.notes.find((n) => /lugares? de posiciones nuevas/.test(n))!;
+      expect(nota).toMatch(/va al núcleo; no se reparte entre las demás ni la toma un ETF/);
+      const vacanteUsd = Number(nota.match(/USD ([\d.]+)/)![1]!.replace(/\./g, ""));
+      expect(vacanteUsd).toBeGreaterThan(0);
+      // El núcleo crece al menos lo que la nota dice que va para allá.
+      expect(nucleo(vacio) - nucleo(lleno)).toBeGreaterThanOrEqual(vacanteUsd - 5);
       expect(nucleo(vacio)).toBeGreaterThan(nucleo(lleno));
       expect(vacio.notes.join(" ")).toMatch(/lugar.*núcleo/i);
       expect(vacio.lines.reduce((s, l) => s + l.amountUsd, 0)).toBe(40_000);
@@ -459,7 +473,7 @@ describe("auditoría del 15/9: una orden, una base, y el motivo definitivo prime
     expect(p.lines.find((l) => l.symbol === "SEZL")!.rationale).toMatch(/⚠ verificación hecha con el cuestionario anterior/);
   });
   it("PAM: esperando un retroceso, el stop se mide contra el piso de la franja (81,96), no contra el cierre (86,65)", () => {
-    const retroceso = { state: "esperar_retroceso" as const, level: 82.79, levelLabel: "media de 20 ruedas", low: 81.96, high: 82.79, validSessions: 15, sma20: 82.79, sma50: 80, atr14: 2.33, extensionAtr: 2, rangePct60: 80, why: "estirada" };
+    const retroceso = { state: "esperar_retroceso" as const, level: 82.79, levelLabel: "media de 20 ruedas", low: 81.96, high: 82.79, validSessions: 15, sma20: 82.79, sma50: 80, sma200: null, distSma200Pct: null, pendSma200Pct: null, atr14: 2.33, extensionAtr: 2, rangePct60: 80, why: "estirada" };
     const p = cuarenta([compra("PAM", 0.4, { close: 86.65, entryLow: 81.96, entryHigh: 82.79, stop: 81.88, target: 84.61, atr: 2.33, entry: retroceso })]);
     expect(p.lines.some((l) => l.symbol === "PAM")).toBe(false);
     expect(p.leftOut!.find((x) => x.symbol === "PAM")!.reason).toMatch(/piso de la franja \(81,96\) está a 0,0 ATR del stop \(81,88\)/);
@@ -491,8 +505,94 @@ describe("auditoría del 15/9: una orden, una base, y el motivo definitivo prime
     const vti = p.lines.find((l) => l.symbol === "VTI")!;
     expect(vti.rationale).toMatch(/USD 40\.000 de 40\.000 \(100%\)/);
     expect(vti.rationale).toMatch(/lugares vacíos/);
-    expect(p.notes.join(" ")).toMatch(/4 lugares de posiciones nuevas quedaron vacíos/);
+    expect(p.notes.join(" ")).toMatch(/5 lugares de posiciones nuevas quedaron vacíos/);
     expect(p.lines.filter((l) => l.kind === "nucleo").reduce((t, l) => t + l.amountUsd, 0)).toBe(40_000);
   });
 });
 
+
+/*
+ * 7/10, medido con `pnpm simular` (38.710 observaciones, 745 símbolos, 256 fechas, alfa a 30 ruedas contra el S&P):
+ *
+ *   retorno 12 meses         | restrictivo | neutral
+ *   0% a 100% (se permitía)  |   −0,20%    |  +0,74%
+ *   más de 100% (se frenaba) |   −1,77%    |  +2,66%
+ *
+ * Con tasas altas o subiendo el freno acierta y se queda. En neutral costaba 1,9 puntos: ahí avisa pero no deja
+ * la candidata afuera. Sin régimen conocido se aplican todos los frenos: no se afloja por no saber.
+ */
+describe("subio_mucho_12m solo frena con tasas altas o subiendo (7/10)", () => {
+  type Buy = PlanInput["buyCandidates"][number];
+  const apta = { verdict: "apto" as const, reason: "ok", current: true };
+  const compra = (symbol: string, priority: number, extra: Partial<Buy> = {}): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close: 100, entryLow: 100, entryHigh: 102, stop: 90, target: 126, verification: apta, atr: 2, ...extra });
+  const conRegimen = (state: "restrictivo" | "neutral" | null) => planContribution({
+    ...base,
+    closes: { ...base.closes, SNDK: 100 },
+    buyCandidates: [compra("SNDK", 1.45, { flags: ["subio_mucho_12m"] })],
+    ...(state ? { regime: { state, asOf: "2026-10-07", tenYearPct: state === "restrictivo" ? 5.3 : 3.8, change3mBp: 0, why: "test" } } : {}),
+  }, c, { amountUsd: 40_000 });
+
+  it("restrictivo: queda afuera del plan y el motivo lo dice", () => {
+    const p = conRegimen("restrictivo");
+    expect(p.lines.some((l) => l.symbol === "SNDK")).toBe(false);
+    expect(p.leftOut!.find((x) => x.symbol === "SNDK")!.reason).toMatch(/subió más de 100%/);
+  });
+
+  it("neutral: entra al plan con monto", () => {
+    const p = conRegimen("neutral");
+    const l = p.lines.find((x) => x.symbol === "SNDK");
+    expect(l).toBeTruthy();
+    expect(l!.amountUsd).toBeGreaterThan(0);
+  });
+
+  it("sin régimen conocido se aplica el freno: no se afloja por no saber", () => {
+    const p = conRegimen(null);
+    expect(p.lines.some((l) => l.symbol === "SNDK")).toBe(false);
+  });
+});
+
+/*
+ * 8/10: al repartir el mismo aporte en 7 posiciones en vez de 4, cada línea se hizo más chica y las acciones CARAS
+ * dejaron de alcanzar para un lote por tramo. En el plan real LLY quedó con USD 1.949 y la acción en 1.212:
+ * `trancheQty` daba 0, o sea la línea era inejecutable en los 3 tramos que el propio plan sugería. Y el plan decía
+ * "40.000" cuando la matemática de acciones enteras desplegaba ~38.300.
+ */
+describe("tramos reales por línea y resto por lotes enteros (8/10)", () => {
+  type Buy = PlanInput["buyCandidates"][number];
+  const apta = { verdict: "apto" as const, reason: "ok", current: true };
+  const compra = (symbol: string, priority: number, close: number): Buy => ({ symbol, kind: "stock", priority, score: priority, sizeUsd: 20_000, close, entryLow: close, entryHigh: close, stop: close * 0.9, target: close * 1.26, verification: apta, atr: close * 0.02 });
+  // CARA vale 1.200: con una línea de ~2.000 no alcanza para un lote en cada uno de los 3 tramos.
+  const p = planContribution({
+    ...base,
+    closes: { ...base.closes, CARA: 1200, BARATA: 50 },
+    buyCandidates: [compra("CARA", 1.4, 1200), compra("BARATA", 1.3, 50)],
+  }, c, { amountUsd: 40_000 });
+
+  it("una acción cara declara los tramos que de verdad puede, nunca 0 ni más que el plan", () => {
+    const cara = p.lines.find((l) => l.symbol === "CARA")!;
+    expect(cara.tranchesLinea).toBeGreaterThanOrEqual(1);
+    expect(cara.tranchesLinea!).toBeLessThanOrEqual(p.tranches!);
+    expect(cara.trancheQty).toBeGreaterThanOrEqual(1); // antes daba 0
+  });
+
+  it("una acción barata se parte en todos los tramos del plan", () => {
+    const barata = p.lines.find((l) => l.symbol === "BARATA")!;
+    expect(barata.tranchesLinea).toBe(p.tranches);
+    expect(barata.trancheQty).toBeGreaterThan(0);
+  });
+
+  it("el plan dice cuánto despliega de verdad con lotes enteros, no el monto nominal", () => {
+    const desplegable = p.lines.reduce((s, l) => s + (l.qty ?? 0) * (l.orderPrice ?? 0), 0);
+    expect(desplegable).toBeLessThanOrEqual(40_000);
+    // Si el resto es material, tiene que estar dicho en una nota con el número.
+    if (40_000 - desplegable >= 400) expect(p.notes.join(" ")).toMatch(/sin usar por el redondeo a acciones enteras/);
+  });
+
+  it("y avisa cuáles no se pueden partir en todos los tramos", () => {
+    const cara = p.lines.find((l) => l.symbol === "CARA")!;
+    if ((cara.tranchesLinea ?? 0) < (p.tranches ?? 1)) {
+      expect(p.notes.join(" ")).toMatch(/No todas las líneas se pueden partir/);
+      expect(p.notes.join(" ")).toMatch(/CARA/);
+    }
+  });
+});

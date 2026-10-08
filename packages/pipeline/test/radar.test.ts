@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { clasificarHecho, computeTrailingStop, coreEarnings, entryStop, verificationOrder, rankStocks, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
+import { clasificarHecho, computeTrailingStop, coreEarnings, entryStop, verificationOrder, rankStocks, type AssetInfo, type Candle, type Card, type CardInput, type CardWriter, type ClassifiedEvent, type EtfConfig, type EventClassifier, type FinnhubMetrics, type NewsItem, type QuarterStatement, type RadarPolicy, type ScanStage, type SnapshotLite, type Statements, type SymbolProfile, type TaxonomyConfig } from "@thesis/core";
 import { MemoryStore, applyTaxonomy, buildContributionPlan, explorarMercado, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshRadar, replan, reviewPending, scanUniverse, statementsFor, universoDelRanking, withStatements, type RadarDeps } from "../src/index.js";
 
 const policy: RadarPolicy = {
@@ -153,7 +153,13 @@ describe("rankRadar solo con el último barrido", () => {
     const { store, d } = deps();
     await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
     // Segundo barrido: SA queda excluida (p. ej. por el filtro de fondos) aunque sus fundamentals sigan frescos.
-    await store.scanUpsert(symbols.map((s) => ({ scanDate: "2026-05-18", symbol: s, stage: s === "SA" ? "excluded" : "finnhub_ok", reason: s === "SA" ? "fondo" : null })));
+    // Incluye BADW y PENNY como excluidas porque un barrido real deja UNA FILA POR SÍMBOLO LISTADO: sin ellas, la
+    // puerta de cobertura (7/10) frena la corrida con razón, y lo que se quiere probar acá es otra cosa.
+    await store.scanUpsert([
+      ...symbols.map((s) => ({ scanDate: "2026-05-18", symbol: s, stage: (s === "SA" ? "excluded" : "finnhub_ok") as ScanStage, reason: s === "SA" ? "fondo" : null })),
+      { scanDate: "2026-05-18", symbol: "BADW", stage: "excluded" as ScanStage, reason: "no elegible" },
+      { scanDate: "2026-05-18", symbol: "PENNY", stage: "excluded" as ScanStage, reason: "precio" },
+    ]);
     const r = await rankRadar(d, { today: TODAY, portfolioUsd: null });
     expect(r.candidates.some((c) => c.symbol === "SA")).toBe(false);
     expect(r.candidates.filter((c) => c.kind === "stock").length).toBeGreaterThan(0);
@@ -654,6 +660,56 @@ describe("universo del ranking (15/9)", () => {
   });
 });
 
+describe("barrido a medio hacer (5/10)", () => {
+  /*
+   * El barrido del domingo 4/10/2026 arrancó 3 h 40 tarde y el lunes al mediodía seguía corriendo: 1.439 símbolos
+   * procesados de 2.842 prefiltrados, y los que faltaban eran los de la L a la Z, porque la fase B va en orden
+   * alfabético. Dos agujeros:
+   *   1. La puerta del 15/9 dividía por `finnhub_ok`, o sea por lo que el barrido YA había procesado: numerador y
+   *      denominador crecían juntos, la cuenta era "1.439 de 1.439" y nunca podía frenar un barrido incompleto.
+   *   2. `scanUniverse` retorna normal cuando se corta por `shouldStop`, así que `rankRadar` y `replan` corrían
+   *      igual con medio abecedario. Es el daño del 15/9 (Radar de 38 filas a 5, plan todo núcleo) por otra causa.
+   */
+  it("el ranking no pisa el Radar mientras el barrido no termine, y dice cuántos faltan", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const antes = (await store.latestCandidates()).filter((c) => c.kind === "stock").map((c) => c.symbol).sort();
+    // El barrido siguiente queda a mitad de camino: 6 de 12 procesados, 6 esperando fundamentales.
+    let seen = 0;
+    const parcial = await scanUniverse({ ...d, shouldStop: () => ++seen > 6 }, { scanDate: "2026-05-18", today: TODAY });
+    expect(parcial.stopped).toBe(true);
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    expect(r.candidates).toEqual([]);
+    expect(r.errors[0]?.error).toMatch(/el barrido del 2026-05-18 no terminó: faltan 6 de 12/);
+    expect((await store.latestCandidates()).filter((c) => c.kind === "stock").map((c) => c.symbol).sort()).toEqual(antes);
+  });
+  it("la puerta del universo roto cuenta contra el universo prefiltrado, no contra lo que el barrido alcanzó a procesar", async () => {
+    const { d } = deps();
+    let seen = 0;
+    await scanUniverse({ ...d, shouldStop: () => ++seen > 5 }, { scanDate: "2026-05-18", today: TODAY });
+    const u = await universoDelRanking(d, TODAY);
+    expect(u.all.size).toBe(5);
+    expect(u.pendientes).toBe(7);
+    expect(u.prefiltrado).toBe(12);
+    // La cuenta vieja: 5 de 5 es el 100% del barrido, así que la puerta de la mitad no podía dispararse nunca.
+    expect(u.scanOk).toBe(5);
+    expect(u.all.size / u.scanOk).toBe(1);
+    // La cuenta nueva mide contra lo que el pre-filtro dejó para procesar: 5 de 12, abajo de la mitad.
+    expect(u.all.size / u.prefiltrado).toBeLessThan(0.5);
+  });
+  it("con el barrido terminado el ranking corre como siempre", async () => {
+    const { d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    const u = await universoDelRanking(d, TODAY);
+    expect(u.pendientes).toBe(0);
+    expect(u.prefiltrado).toBe(12);
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    expect(r.errors.some((e) => e.symbol === "*")).toBe(false);
+    expect(r.candidates.filter((c) => c.kind === "stock").length).toBeGreaterThan(0);
+  });
+});
+
 describe("plan: la línea SUMAR de algo que el Radar también tiene", () => {
   it("TSM del 13/9: stop y objetivo salen de la misma fila del Radar, no el stop de un lado y el objetivo del otro", async () => {
     const { store, d } = deps();
@@ -1085,3 +1141,84 @@ describe("rankRadar con ofertas y hechos externos (17/9)", () => {
   });
 });
 
+
+describe("scanUniverse: fase A completa el universo (7/10)", () => {
+  it("un elegible sin snapshot del pre-filtro deja fila explícita en vez de desaparecer del barrido", async () => {
+    // Antes: `snapshots` que devuelve menos símbolos que los elegibles los dejaba SIN fila. El símbolo
+    // desaparecía del barrido y nadie lo notaba, porque `prefiltrado` se cuenta de las filas escritas.
+    const { store, d } = deps();
+    const sinSnapshot = async (syms: string[]): Promise<SnapshotLite[]> =>
+      syms.filter((s) => s !== "SC").map((s) => ({ symbol: s, price: s === "PENNY" ? 2 : 100, iexVolume: 100_000 }));
+    await scanUniverse({ ...d, assets: { ...d.assets, snapshots: sinSnapshot } }, { scanDate: "2026-10-07", today: TODAY });
+    const st = await store.scanStatus("2026-10-07");
+    expect(st.alpaca_ok + st.finnhub_ok + st.excluded + st.error).toBe(14); // los 14 listados, ninguno perdido
+    expect(await store.scanSymbols("2026-10-07", "excluded")).toContain("SC");
+  });
+
+  it("una fase A cortada a medio escribir se completa en la corrida siguiente y no pisa lo ya hecho", async () => {
+    // Antes: la fase A corría solo si el barrido estaba vacío. Con filas a medias quedaba truncado para siempre,
+    // y cuando la fase B drenaba `alpaca_ok` a 0 el barrido parecía completo.
+    const { store, d } = deps();
+    await store.scanUpsert([
+      { scanDate: "2026-10-07", symbol: "SA", stage: "finnhub_ok", reason: null },
+      { scanDate: "2026-10-07", symbol: "SB", stage: "excluded", reason: "quality bar" },
+    ]);
+    await scanUniverse(d, { scanDate: "2026-10-07", today: TODAY });
+    const st = await store.scanStatus("2026-10-07");
+    expect(st.alpaca_ok + st.finnhub_ok + st.excluded + st.error).toBe(14); // completó los 12 que faltaban
+    expect(await store.scanSymbols("2026-10-07", "excluded")).toContain("SB"); // no revirtió lo ya decidido
+  });
+});
+
+describe("rankRadar: puerta de cobertura del barrido (7/10)", () => {
+  it("un barrido que no cubre el listado no rearma el Radar, aunque no queden pendientes", async () => {
+    // El agujero que tapaba `pendientes`: una fase A truncada deja `alpaca_ok` en 0 cuando la fase B termina la lista
+    // parcial, y entonces el barrido PARECE completo. `prefiltrado` no sirve para detectarlo porque se cuenta de las
+    // filas escritas: el denominador se achica junto con el numerador. Hay que medir contra el listado.
+    // Barrido COMPLETO pero de una lista truncada: fundamentales frescas, cero pendientes, cociente de
+    // `prefiltrado` perfecto. Ninguna puerta vieja lo ve; solo medir contra el listado lo agarra.
+    const { d } = deps();
+    const dosNomas = { ...d, assets: { ...d.assets, list: async () => [{ symbol: "SA", name: "SA Corp", exchange: "NASDAQ", tradable: true }, { symbol: "SB", name: "SB Corp", exchange: "NASDAQ", tradable: true }] } };
+    await scanUniverse(dosNomas, { scanDate: "2026-10-07", today: TODAY });
+    expect((await dosNomas.store.scanStatus("2026-10-07")).alpaca_ok).toBe(0); // "terminado"
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 }); // el listado real son 14
+    expect(r.candidates).toEqual([]);
+    expect(r.errors[0]!.error).toContain("no cubre el listado");
+  });
+
+  it("un barrido completo rearma el Radar normalmente", async () => {
+    const { d } = deps();
+    await scanUniverse(d, { scanDate: "2026-10-07", today: TODAY });
+    const r = await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    expect(r.candidates.length).toBeGreaterThan(0);
+    expect(r.errors).toEqual([]);
+  });
+});
+
+describe("refreshRadar: un símbolo que sale del universo no conserva su fila (7/10)", () => {
+  it("se le quita la fila en vez de dejarla envejecer con el veredicto viejo", async () => {
+    // BSTZ el 7/10: "BlackRock Science and Technology Term Trust", un fondo cerrado que entró al Radar con score
+    // 1,304 (1° de un grupo de 15 símbolos SIN industria) y llegó al plan con USD 3.132. Cuando la barra de calidad
+    // lo dejó afuera, `refreshRadar` solo anotaba "sin fundamentals" y la fila COMPRAR seguía ahí.
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    const antes = (await store.latestCandidates()).filter((c) => c.kind === "stock");
+    const victima = antes[0]!.symbol;
+    store.fundamentalsMap.delete(victima); // sale del universo rankeable
+    const r = await refreshRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    const despues = await store.latestCandidates();
+    expect(despues.some((c) => c.symbol === victima && c.kind === "stock")).toBe(false);
+    expect(r.errors.some((e) => e.symbol === victima && /salió del universo/.test(e.error))).toBe(true);
+  });
+
+  it("si solo faltan las VELAS la fila se conserva: una caída del proveedor no borra el Radar", async () => {
+    const { store, d } = deps();
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 150_000 });
+    const antes = (await store.latestCandidates()).filter((c) => c.kind === "stock").length;
+    const sinVelas = { ...d, history: { candles: async () => [] as Candle[] } };
+    await refreshRadar(sinVelas, { today: TODAY, portfolioUsd: 150_000 });
+    expect((await store.latestCandidates()).filter((c) => c.kind === "stock").length).toBe(antes);
+  });
+});

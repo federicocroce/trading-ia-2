@@ -11,7 +11,7 @@ import { z } from "zod";
  * cables de comunicados). Lo demás se muestra con su estado y no cambia banderas, veredictos ni convicción (13/9: un
  * dato inventado dentro de un recordatorio no puede mover un plan).
  */
-export const HECHO_TIPOS = ["guia", "ganancia_por_reservas", "ganancia_extraordinaria", "oferta_de_compra", "investigacion_regulatoria", "evento_de_capital"] as const;
+export const HECHO_TIPOS = ["guia", "ganancia_por_reservas", "ganancia_extraordinaria", "oferta_de_compra", "investigacion_regulatoria", "evento_de_capital", "sector"] as const;
 export type HechoTipo = (typeof HECHO_TIPOS)[number];
 
 const fechaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "fecha AAAA-MM-DD");
@@ -40,6 +40,31 @@ export const OfertaValorSchema = z.object({ comprador: z.string().min(1), efecti
  */
 export const InvestigacionValorSchema = z.object({ organismos: z.array(z.string().min(1)).min(1), asunto: z.string().min(1), estado: z.enum(["abierta", "cerrada"]), empresaAcusada: z.boolean() });
 
+/**
+ * Hecho DE SECTOR (7/10). Hasta hoy todos los tipos eran eventos de UNA empresa, así que había cosas que mueven el
+ * precio de una cartera entera y no tenían por dónde entrar a la app: las tarifas de reaseguro de catástrofe cayendo
+ * 14,7% en enero y otro 16% hasta julio (pega en RNR), la Corte Suprema tumbando los aranceles IEEPA el 20/2 con
+ * hasta 175.000 M en reintegros (pega en importadores: HAS, CROX, FIVE), el exceso de gas a 2027 con el Henry Hub
+ * recortado a 3,25 (castiga productores), fertilizante +35% contra granos −15% (pega en AGRO.BA y CRESY).
+ *
+ * Se carga UNA FILA POR SÍMBOLO AFECTADO, con el mismo texto y la misma fuente. Es repetitivo a propósito: así
+ * reusa el importador, la vigencia, la verificación por fuente primaria y la auditoría que ya existen, sin tabla
+ * nueva ni ruta de decisión nueva.
+ *
+ * `sesgo` dice para qué lado empuja el hecho en ESE símbolo, porque el mismo hecho puede ser a favor de uno y en
+ * contra de otro: el exceso de gas castiga a un productor y favorece a una generadora que lo quema.
+ *
+ * Y NO FRENA. Produce una salvedad que resta convicción, igual que la forma que aprobó el dueño el 18/9 para la IA:
+ * avisar en vez de bloquear. Un hecho de sector es contexto, no un veredicto sobre la empresa.
+ */
+export const SectorValorSchema = z.object({
+  titulo: z.string().min(1).max(120),
+  detalle: z.string().min(1).max(400),
+  sesgo: z.enum(["a_favor", "en_contra"]),
+  /** Nombre corto del sector o tema, para poder agrupar y auditar (p. ej. "reaseguro", "aranceles", "gas natural"). */
+  ambito: z.string().min(1).max(60),
+});
+
 const comun = { symbol: simbolo, fecha: fechaIso, fuente: FuenteSchema };
 export const HechoEntradaSchema = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("guia"), ...comun, valor: GuiaValorSchema }),
@@ -48,12 +73,13 @@ export const HechoEntradaSchema = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("oferta_de_compra"), ...comun, valor: OfertaValorSchema }),
   z.object({ tipo: z.literal("investigacion_regulatoria"), ...comun, valor: InvestigacionValorSchema }),
   z.object({ tipo: z.literal("evento_de_capital"), ...comun, valor: EventoDeCapitalValorSchema }),
+  z.object({ tipo: z.literal("sector"), ...comun, valor: SectorValorSchema }),
 ]);
 export type HechoEntrada = z.infer<typeof HechoEntradaSchema>;
 export type HechoExterno = HechoEntrada & { primaria: boolean; estado: "verificado" | "no_verificado"; origen: "agente" | "manual"; detectadoAt: string; vigenteHasta: string | null };
 
 /** Cuánto dura cada tipo de hecho. Una oferta firmada hace meses sigue fijando el precio (AES: 400 días, como EDGAR). */
-export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, ganancia_extraordinaria: 120, oferta_de_compra: 400, investigacion_regulatoria: 365, evento_de_capital: 400 };
+export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, ganancia_extraordinaria: 120, oferta_de_compra: 400, investigacion_regulatoria: 365, evento_de_capital: 400, sector: 180 };
 export const VENTANA_MAXIMA_DIAS = 400;
 /** La puerta de entrada al ranking: como mucho estos símbolos, los más recientes. */
 export const PUERTA_TOPE = 20;
@@ -110,6 +136,9 @@ export function textoDeHecho(h: HechoExterno): string {
     const quienes = h.valor.organismos.length > 1 ? `${h.valor.organismos.slice(0, -1).join(", ")} y ${h.valor.organismos[h.valor.organismos.length - 1]}` : h.valor.organismos[0]!;
     return `investigación ${h.valor.estado} de ${quienes} (${h.valor.asunto}); la empresa ${h.valor.empresaAcusada ? "está acusada" : "no está acusada"}`;
   }
+  if (h.tipo === "sector") {
+    return `${h.valor.ambito}: ${h.valor.titulo} (${h.valor.sesgo === "en_contra" ? "en contra" : "a favor"})`;
+  }
   const v = h.valor;
   if (v.ratio) return `vale ${coma(v.ratio.acciones)} acciones de ${v.ratio.de} (${v.comprador}, ${v.etapa})`;
   return `vendida a ${v.efectivoUsd === null ? "—" : coma(v.efectivoUsd)} en efectivo (${v.comprador}, ${v.etapa})`;
@@ -136,6 +165,7 @@ export function banderasDeHechos(hechos: readonly HechoExterno[], today: string)
     else if (h.tipo === "investigacion_regulatoria" && h.valor.estado === "abierta") add("investigacion_abierta");
     // Hasta 3 días después del evento: el precio ya se acomodó y las velas nuevas lo muestran.
     else if (h.tipo === "evento_de_capital" && today <= addDaysIso(h.valor.fechaEvento, EVENTO_DIAS_DESPUES)) add("evento_de_capital_pendiente");
+    else if (h.tipo === "sector") add(h.valor.sesgo === "en_contra" ? "sector_en_contra" : "sector_a_favor");
   }
   return out;
 }

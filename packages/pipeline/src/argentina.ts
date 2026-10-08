@@ -1,6 +1,6 @@
 import type { ArgentinaConfig, Candle, CandidateRow, MacroAr, PriceHistory, RadarPolicy, Tags } from "@thesis/core";
 import { cedearCheck, decideAdr, decideArStock, macroAr } from "@thesis/core";
-import { pruneFamilias } from "./radar.js";
+import { pruneFamilias, stopsPrevios } from "./radar.js";
 import type { CarteraStore, RadarStore } from "./store.js";
 
 /**
@@ -67,12 +67,17 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
     errors.push({ symbol: "macro", error: `dólares: ${errText(e)}` });
   }
   let riesgoPais: number | null = null;
+  // La fuente devuelve `{ value, date }` y hasta el 6/10/2026 se tomaba sólo el valor: el dato del viernes se
+  // guardaba como si fuera del lunes. La serie quedaba corrida un día hábil entera (20 de 20 fechas).
+  let riesgoPaisDate: string | null = null;
   try {
-    riesgoPais = (await deps.macro.riesgoPais())?.value ?? null;
+    const rp = await deps.macro.riesgoPais();
+    riesgoPais = rp?.value ?? null;
+    riesgoPaisDate = rp?.date ?? null;
   } catch (e) {
     errors.push({ symbol: "macro", error: `riesgo país: ${errText(e)}` });
   }
-  const macro = macroAr({ date: opts.today, dolares, riesgoPais, merval: mervalClose, mervalDate });
+  const macro = macroAr({ date: opts.today, dolares, riesgoPais, riesgoPaisDate, merval: mervalClose, mervalDate });
   await store.saveMacroAr(macro);
 
   // 3. Acciones de BYMA contra el Merval.
@@ -97,7 +102,10 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
         // `ccl` y `velaDias` van en los ejes para que la columna "precio USD" pueda decir a qué dólar se
         // convirtió y de qué rueda es el precio de BYMA. Antes la pantalla mostraba el CCL del encabezado,
         // que es el de hoy, al lado de un precio convertido con el CCL de la corrida que lo calculó.
-        axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct, closeUsd: d.closeUsd, ccl: macro.ccl, velaDias: diasEntre(candles[candles.length - 1]?.date ?? null, opts.today) },
+        // `ret3m`/`ret6m` van al lado de la fuerza relativa (6/10/2026): un +45,9% relativo en METR.BA era +16,33%
+        // absoluto, el resto era el Merval cayendo. `volUsd` es el monto operado por rueda en dólares: LEDE.BA
+        // mueve USD 7.600 por día y salía como candidata sin decirlo.
+        axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, ret3m: d.ret3mPct, ret6m: d.ret6mPct, volUsd: d.volUsd, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct, closeUsd: d.closeUsd, ccl: macro.ccl, velaDias: diasEntre(candles[candles.length - 1]?.date ?? null, opts.today) },
         peerGroup: a.adr ? [a.adr] : [],
         entryLow: d.close, entryHigh: round2(d.close * 1.02), stop: d.stop, target: d.target,
         flags: d.reasons, nthAppearance: nth, spyClose: mervalClose,
@@ -120,6 +128,9 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
     const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch((e) => { errors.push({ symbol: "SPY", error: errText(e) }); return [] as Candle[]; });
     const spyClose = spy[spy.length - 1]?.close ?? null;
     const ocupados = new Set(previous.filter((r) => r.candidateDate === opts.today && r.kind !== "adr").map((r) => r.symbol));
+    // Mismas dos fuentes que usa Cartera para el trinquete del stop (7/10): las posiciones y el stop del último veredicto.
+    const enCartera = new Set((await store.positions().catch(() => [])).map((x) => x.symbol.toUpperCase()));
+    const stopPrevio = await stopsPrevios(store);
     if (spy.length) {
       for (const a of conAdr) {
         const adr = a.adr!;
@@ -128,7 +139,8 @@ export async function refreshArgentina(deps: ArgentinaDeps, opts: { today: strin
           const candles = await deps.history.candles(adr, HISTORY_DAYS);
           if (!candles.length) throw new Error("sin velas");
           await store.upsertCandles(adr, candles);
-          const d = decideAdr(adr, candles, spy, deps.policy.technical);
+          // 7/10: una ADR que es posición lleva el trinquete del stop, igual que en Cartera. GGAL, YPF y PAM son posiciones.
+          const d = decideAdr(adr, candles, spy, deps.policy.technical, { newEntry: !enCartera.has(adr), prevStop: stopPrevio.get(adr) ?? null });
           if ("excluded" in d) {
             deps.log?.(`[argentina] ${adr} excluida: ${d.reasons.join(", ")}`);
             continue;

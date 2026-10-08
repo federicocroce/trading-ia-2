@@ -138,3 +138,32 @@ describe("motivos de un ETF en palabras (auditoría del 15/9)", () => {
     expect(etfReasonText("algo_nuevo")).toBe("algo_nuevo");
   });
 });
+
+/*
+ * 7/10: el trinquete del stop se arregló para las acciones y el defecto SIGUIÓ VIVO en la base, porque las ADR y los
+ * ETF pasan por `decideEtf`, que calculaba la ventana cruda. GGAL (kind=adr, posición, en VENDER) siguió mostrando
+ * 41,34 en el Radar contra 41,53 en Cartera después del refresco. Los tests pasaban y la salida mentía igual.
+ */
+describe("decideEtf: una posición lleva el trinquete del stop (7/10)", () => {
+  const bajando = series([...ramp(100, 140, 255), 136, 134, 132, 130, 129]);
+  it("lo que ya tenés (newEntry false) no baja el stop por debajo del guardado", () => {
+    const ventana = computeTrailingStop(bajando)!;
+    const guardado = ventana + 2;
+    const d = decideEtf(cfg("satelite"), bajando, spy, tech, { newEntry: false, prevStop: guardado });
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.stop).toBe(guardado);
+  });
+  it("una compra nueva usa la ventana de hoy y nunca hereda el trinquete de nadie", () => {
+    const d = decideEtf(cfg("satelite"), bajando, spy, tech, { newEntry: true, prevStop: 9999 });
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.stop).toBe(computeTrailingStop(bajando));
+  });
+  it("sin stop guardado usa la ventana, y el núcleo sigue sin stop", () => {
+    const d = decideEtf(cfg("satelite"), bajando, spy, tech, { newEntry: false });
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.stop).toBe(computeTrailingStop(bajando));
+    const n = decideEtf(cfg("nucleo"), bajando, spy, tech, { newEntry: false, prevStop: 9999 });
+    if ("excluded" in n) throw new Error("no debía excluir");
+    expect(n.stop).toBeNull();
+  });
+});

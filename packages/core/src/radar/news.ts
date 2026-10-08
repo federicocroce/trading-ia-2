@@ -16,7 +16,11 @@ export const EVENT_PATTERNS: Array<{ kind: EventKind; re: RegExp }> = [
   { kind: "guidance", re: /(?:cuts?|lowers?|slashes|trims|withdraws?|reduces?) (?:its |full[- ]year |fy ?\d* |annual )?(?:guidance|outlook|forecast)|guidance cut|recorta (?:la )?(?:gu[ií]a|previsiones)/i },
   { kind: "dilucion", re: /public offering|registered direct|at-the-market|convertible (?:senior )?notes|private placement|priced (?:its |an? )?(?:public |underwritten )?offering|shelf registration|ampliaci[oó]n de capital/i },
   { kind: "litigio", re: /class action|securities fraud|investigat(?:es|ion|ing) (?:claims|on behalf|potential)|shareholder alert|investor alert|lawsuit|demanda colectiva/i },
-  { kind: "gestion", re: /\b(?:CEO|CFO|chief executive|chief financial)\b.*\b(?:resigns|steps down|departs|departure|to step down|exits)\b|auditor resign/i },
+  // 7/10: antes solo agarraba SALIDAS, así que una sucesión anunciada como nombramiento —la forma normal de una
+  // transición planificada— no producía bandera: DHR y AAPL salían con riesgo 2/10 "sin banderas" teniendo CEO nuevo.
+  // Un cambio de mando invalida una tesis construida sobre la gestión anterior, se vaya o llegue el ejecutivo.
+  // El cargo tiene que estar en el titular Y el verbo de cambio también, para no marcar "el CEO dice que la demanda…".
+  { kind: "gestion", re: /(?:\b(?:CEO|CFO|chief executive|chief financial)\b[\s\S]*\b(?:resigns?|resignation|steps? down|departs?|departure|to step down|exits?|succession|named|appoint(?:s|ed|ment)?|succeeds?|to succeed|takes over|interim)\b|\b(?:names?|appoint(?:s|ed)|promotes?|succeeds?|to succeed|elevates?|takes over as)\b[\s\S]*\b(?:CEO|CFO|chief executive|chief financial)\b|auditor resign|nombra[\s\S]*\b(?:director ejecutivo|CEO|CFO)\b|renuncia[\s\S]*\b(?:director ejecutivo|CEO|CFO)\b)/i },
   { kind: "analista", re: /price target|\b(?:maintains|reiterates|downgrades?|upgrades?|initiates coverage)\b/i },
 ];
 

@@ -14,7 +14,7 @@ const fila = (over: Partial<CandidateRow> & { symbol: string }): CandidateRow =>
   close: 100, entryLow: 100, entryHigh: 102, stop: 92, target: 118, sizeUsd: null, sizeQty: null, riskScore: 3, flags: [], nthAppearance: 1,
   summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null,
   close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null,
-  entry: { state: "en_zona", level: 102, levelLabel: "hasta 2% sobre el precio", low: 100, high: 102, validSessions: 15, sma20: 99, sma50: 95, atr14: 2, extensionAtr: 0.5, rangePct60: 60, why: "ni extendida ni floja" },
+  entry: { state: "en_zona", level: 102, levelLabel: "hasta 2% sobre el precio", low: 100, high: 102, validSessions: 15, sma20: 99, sma50: 95, sma200: null, distSma200Pct: null, pendSma200Pct: null, atr14: 2, extensionAtr: 0.5, rangePct60: 60, why: "ni extendida ni floja" },
   ...over,
 });
 
@@ -205,6 +205,38 @@ describe("checkConsistency", () => {
     expect(f[0]!.severity).toBe("grave");
   });
 
+  /**
+   * VRT el 25/9: fila de seguimiento con cierre 245,30 y stop 257,00, y `bajo_sma200` como única bandera. El stop
+   * estaba bien calculado (es el de seguimiento, que viene de un máximo anterior), pero la pantalla mostraba los dos
+   * números sin decir que el papel ya está debajo de su stop. Pasaba en 14 filas, 7 de ellas del día.
+   */
+  it("VRT del 25/9: stop por encima del precio sin la bandera que lo explique", () => {
+    const sinBandera = solo("stop_sobre_el_precio_sin_bandera", checkConsistency({
+      rows: [fila({ symbol: "VRT", kind: "watch", verdict: "OBSERVAR", close: 245.3, stop: 257, target: null, entryLow: null, entryHigh: null, entry: null, flags: ["bajo_sma200"] })],
+      candles: {},
+      plan: null,
+    }));
+    expect(sinBandera).toHaveLength(1);
+    expect(sinBandera[0]!.severity).toBe("grave");
+
+    // Con `bajo_stop` la fila se explica sola y el chequeo calla: el stop arriba del precio no es el error.
+    const conBandera = solo("stop_sobre_el_precio_sin_bandera", checkConsistency({
+      rows: [fila({ symbol: "VRT", kind: "watch", verdict: "OBSERVAR", close: 245.3, stop: 257, target: null, entryLow: null, entryHigh: null, entry: null, flags: ["bajo_sma200", "bajo_stop"] })],
+      candles: {},
+      plan: null,
+    }));
+    expect(conBandera).toEqual([]);
+  });
+
+  it("el redondeo del stop no dispara el chequeo: la tolerancia es de dos centavos", () => {
+    const f = solo("stop_sobre_el_precio_sin_bandera", checkConsistency({
+      rows: [fila({ symbol: "X", verdict: "OBSERVAR", close: 100, stop: 100.02, target: null, flags: [] })],
+      candles: {},
+      plan: null,
+    }));
+    expect(f).toEqual([]);
+  });
+
   it("APH del 10/9: objetivos de analistas de antes del split 2:1 dan un potencial inventado", () => {
     const f = solo("objetivo_fuera_de_escala", checkConsistency({
       rows: [fila({ symbol: "APH", close: 81, analystTargets: { n: 12, median: 196, min: 175, max: 215, latestDate: "2026-08-20" } })],
@@ -390,7 +422,7 @@ describe("checkConsistency", () => {
     const f = solo("objetivo_bajo_el_precio", checkConsistency({
       rows: [fila({
         symbol: "EWT", kind: "etf", close: 110.91, entryLow: 106.75, entryHigh: 107.83, stop: 106.4, target: 110.69,
-        entry: { state: "esperar_retroceso", level: 106.75, levelLabel: "su media de 20", low: 106.75, high: 107.83, validSessions: 15, sma20: 106.75, sma50: 104, atr14: 1.5, extensionAtr: 2.8, rangePct60: 92, why: "está 2,8 ATR sobre su media de 20" },
+        entry: { state: "esperar_retroceso", level: 106.75, levelLabel: "su media de 20", low: 106.75, high: 107.83, validSessions: 15, sma20: 106.75, sma50: 104, sma200: null, distSma200Pct: null, pendSma200Pct: null, atr14: 1.5, extensionAtr: 2.8, rangePct60: 92, why: "está 2,8 ATR sobre su media de 20" },
       })],
       candles: { EWT: [vela("2026-09-11", 110.91)] },
       plan: null,
@@ -422,7 +454,7 @@ describe("checkConsistency", () => {
   it("YPF del 13/9: un COMPRAR con el stop dentro de la franja de compra no se puede ejecutar", () => {
     const f = solo("compra_sin_boleto", checkConsistency({
       rows: [fila({ symbol: "YPF", kind: "adr", close: 55.55, entryLow: 51.49, entryHigh: 52.01, stop: 51.51, target: null,
-        entry: { state: "esperar_retroceso", level: 51.49, levelLabel: "su media de 20", low: 51.49, high: 52.01, validSessions: 15, sma20: 51.49, sma50: 48, atr14: 1.2, extensionAtr: 3.4, rangePct60: 95, why: "está 3,4 ATR sobre su media de 20" } })],
+        entry: { state: "esperar_retroceso", level: 51.49, levelLabel: "su media de 20", low: 51.49, high: 52.01, validSessions: 15, sma20: 51.49, sma50: 48, sma200: null, distSma200Pct: null, pendSma200Pct: null, atr14: 1.2, extensionAtr: 3.4, rangePct60: 95, why: "está 3,4 ATR sobre su media de 20" } })],
       candles: { YPF: [vela("2026-09-11", 55.55)] },
       plan: null,
     }));
@@ -623,5 +655,66 @@ describe("actedOnSymbols", () => {
       held: ["GFI", "APH"],
     });
     expect(s).toEqual(["APH", "GFI", "VTI"]);
+  });
+});
+
+/*
+ * 7/10: `verificacion_desfasada` avisaba de lo normal. FIVE tenía una verificación guardada "con_reservas" del 23/9 y
+ * la fila mostraba "ninguna": correcto, porque una verificación vale 7 días y esa tenía 14. El chequeo comparaba contra
+ * la ÚLTIMA guardada sin mirar vencimiento, así que toda fila cuya verificación venció salía como contradicción.
+ * Un chequeo que avisa de lo normal se vuelve ruido y se ignora, y entonces tapa a los que sí importan.
+ */
+describe("verificacion_desfasada mira el vencimiento (7/10)", () => {
+  it("una verificación guardada vencida que la fila ya no muestra no es una contradicción", () => {
+    const vencida = { date: "2026-09-23", verdict: "con_reservas" as const };
+    const f = solo("verificacion_desfasada", checkConsistency({
+      rows: [fila({ symbol: "FIVE", verdict: "OBSERVAR", flags: [], verification: null })],
+      candles: {}, plan: null, today: "2026-10-07", verifications: { FIVE: vencida },
+    }));
+    expect(f).toEqual([]);
+  });
+  it("si todavía está vigente y la fila no la muestra, sigue siendo contradicción", () => {
+    const vigente = { date: "2026-10-05", verdict: "con_reservas" as const };
+    const f = solo("verificacion_desfasada", checkConsistency({
+      rows: [fila({ symbol: "FIVE", verdict: "OBSERVAR", flags: [], verification: null })],
+      candles: {}, plan: null, today: "2026-10-07", verifications: { FIVE: vigente },
+    }));
+    expect(f).toHaveLength(1);
+  });
+});
+
+/*
+ * 7/10: el trinquete del stop se puso en Cartera el 6/10 y no en la fila del Radar. En la base real, GGAL mostraba
+ * stop 41,34 en el Radar y 41,53 en Cartera, estando en VENDER. Ningún chequeo lo veía. Esta regla existe para que
+ * esa clase de desacuerdo no pueda volver callada.
+ */
+describe("stop_en_desacuerdo: una posición tiene un solo stop (7/10)", () => {
+  it("el Radar POR DEBAJO de Cartera es grave: muestra una salida más baja que la real", () => {
+    const f = solo("stop_en_desacuerdo", checkConsistency({
+      rows: [fila({ symbol: "GGAL", verdict: "OBSERVAR", stop: 41.34 })],
+      candles: {}, plan: null, held: ["GGAL"], stopsDeCartera: { GGAL: 41.53 },
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("41.34");
+    expect(f[0]!.detail).toContain("41.53");
+  });
+  it("el Radar POR ENCIMA es aviso: el trinquete subió y Cartera todavía no corrió (TSM, 7/10)", () => {
+    const f = solo("stop_en_desacuerdo", checkConsistency({
+      rows: [fila({ symbol: "TSM", verdict: "OBSERVAR", stop: 456.51 })],
+      candles: {}, plan: null, held: ["TSM"], stopsDeCartera: { TSM: 456.27 },
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("aviso");
+  });
+  it("con el mismo stop no reporta nada, y lo que no está en cartera no se compara", () => {
+    expect(solo("stop_en_desacuerdo", checkConsistency({
+      rows: [fila({ symbol: "GGAL", verdict: "OBSERVAR", stop: 41.53 })],
+      candles: {}, plan: null, held: ["GGAL"], stopsDeCartera: { GGAL: 41.53 },
+    }))).toEqual([]);
+    expect(solo("stop_en_desacuerdo", checkConsistency({
+      rows: [fila({ symbol: "NVDA", verdict: "COMPRAR", stop: 10 })],
+      candles: {}, plan: null, held: [], stopsDeCartera: { NVDA: 99 },
+    }))).toEqual([]);
   });
 });

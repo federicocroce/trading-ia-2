@@ -1,0 +1,49 @@
+{
+  "hechos": [
+    {
+      "tipo": "sector",
+      "symbol": "EME",
+      "fecha": "2026-07-22",
+      "fuente": {
+        "url": "https://www.governor.ny.gov/news/long-island-governor-hochul-highlights-first-statewide-moratorium-new-hyperscale-data-centers",
+        "titulo": "Oficina del Gobernador de Nueva York, moratoria estatal a datacenters de hiperescala (Orden Ejecutiva 62)"
+      },
+      "valor": {
+        "ambito": "datacenters: freno regulatorio",
+        "titulo": "Nueva York pausa hasta un ano los permisos ambientales a datacenters de hiperescala",
+        "detalle": "Orden Ejecutiva 62 del estado de Nueva York: durante la moratoria el Departamento de Conservacion Ambiental no emite permisos discrecionales que no esten ya completos, mientras se prepara una Declaracion Generica de Impacto Ambiental para datacenters. Dura hasta un ano. EME construye instalaciones electricas y mecanicas para datacenters y su cartera de pedidos record viene de ahi.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "VRT",
+      "fecha": "2026-07-22",
+      "fuente": {
+        "url": "https://www.governor.ny.gov/news/long-island-governor-hochul-highlights-first-statewide-moratorium-new-hyperscale-data-centers",
+        "titulo": "Oficina del Gobernador de Nueva York, moratoria estatal a datacenters de hiperescala (Orden Ejecutiva 62)"
+      },
+      "valor": {
+        "ambito": "datacenters: freno regulatorio",
+        "titulo": "Nueva York pausa hasta un ano los permisos ambientales a datacenters de hiperescala",
+        "detalle": "Orden Ejecutiva 62 del estado de Nueva York: durante la moratoria el Departamento de Conservacion Ambiental no emite permisos discrecionales que no esten ya completos, mientras se prepara una Declaracion Generica de Impacto Ambiental para datacenters. Dura hasta un ano. VRT vende refrigeracion y energia para datacenters.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "CRWV",
+      "fecha": "2026-07-22",
+      "fuente": {
+        "url": "https://www.governor.ny.gov/news/long-island-governor-hochul-highlights-first-statewide-moratorium-new-hyperscale-data-centers",
+        "titulo": "Oficina del Gobernador de Nueva York, moratoria estatal a datacenters de hiperescala (Orden Ejecutiva 62)"
+      },
+      "valor": {
+        "ambito": "datacenters: freno regulatorio",
+        "titulo": "Nueva York pausa hasta un ano los permisos ambientales a datacenters de hiperescala",
+        "detalle": "Orden Ejecutiva 62 del estado de Nueva York: durante la moratoria el Departamento de Conservacion Ambiental no emite permisos discrecionales que no esten ya completos, mientras se prepara una Declaracion Generica de Impacto Ambiental para datacenters. Dura hasta un ano. CRWV opera capacidad de computo en datacenters.",
+        "sesgo": "en_contra"
+      }
+    }
+  ]
+}

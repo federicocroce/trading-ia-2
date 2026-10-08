@@ -1,0 +1,43 @@
+{
+  "verificaciones": [],
+  "revisiones": [
+    {
+      "symbol": "LLY",
+      "fecha": "2026-10-08",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        { "tipo": "resultados", "detalle": "Fase 2b de EloraTZP: abandonos por efectos adversos de 10,8% a 27,0% en los brazos de la combinacion contra 2,9% con tirzepatida sola, en 48 semanas y 367 participantes", "fecha": "2026-09-30", "fuente": { "url": "https://qz.com/eli-lilly-eloratzp-weight-loss-combination-trial-093026", "titulo": "La combinacion de Lilly supera a tirzepatida en el ensayo" } }
+      ],
+      "fuentes": [
+        { "url": "https://qz.com/eli-lilly-eloratzp-weight-loss-combination-trial-093026", "titulo": "La combinacion de Lilly supera a tirzepatida en el ensayo" },
+        { "url": "https://investor.lilly.com/news-releases/news-release-details/lilly-present-new-data-foundayo-retatrutide-and-eloratzp-easd", "titulo": "Lilly presenta datos nuevos de Foundayo, retatrutide y eloraTZP en EASD 2026" }
+      ],
+      "resumen": "En los ultimos 30 dias hubo mas a favor que en contra, pero la objecion tiene dato y fecha. A favor: el 2/10 la FDA amplio la indicacion de Jaypirca a pacientes con CLL/SLL no tratados previamente, el 5/10 recibio designacion de huerfano en cancer de pancreas, y el 7/10 Morgan Stanley subio el objetivo a 1.430 desde 1.419. En contra, y es lo que se anota: el 30/9 la fase 2b de EloraTZP (combinacion de eloralintida y tirzepatida, 367 participantes, 48 semanas) cumplio sus objetivos con 23,3% de perdida de peso contra 14,8% de tirzepatida 15 mg y A1c -2,9% contra -2,4%, pero los abandonos por efectos adversos fueron de 10,8% a 27,0% en los brazos de la combinacion contra 2,9% con tirzepatida sola. La accion cayo 2,33% ese dia. Es el activo central de su cartera de obesidad y la tolerancia es el riesgo que decide cuanto de esa eficacia se convierte en ventas. Reporta el 29/10."
+    },
+    {
+      "symbol": "BLX",
+      "fecha": "2026-10-08",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/banco-latinoamericano-comercio-exterior-q2-170414275.html", "titulo": "Bladex: puntos salientes de la llamada del segundo trimestre de 2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/890541/000162828026041363/a6knamechancebladexinc.htm", "titulo": "Form 6-K: cambio de nombre a Bladex, Inc. desde el 4/6/2026" }
+      ],
+      "resumen": "Sin objeciones dentro de la ventana, y lo que hay es a favor. S&P Global Ratings le subio la calificacion a BBB+ con perspectiva estable, incluidas las notas senior y las hibridas AT1. El 2T26 fue de ganancia neta record de 66,5 M, 18% arriba del trimestre previo, con ROE ajustado de 16,4% y cartera comercial record de 13.000 M, 8% arriba del trimestre y 20% interanual. En septiembre coloco notas de largo plazo en el mercado mexicano (Cebures) y estructuro un prestamo de 1.000 M para la Republica de Panama, el mayor que haya estructurado. Lo unico a tener presente, y no es de los ultimos 30 dias sino del 2T: el margen de intermediacion sigue bajo presion y el crecimiento vino del ingreso no financiero, que salto 86% a 25,1 M. La colocacion de Cebures es deuda, no acciones: no es dilucion. El cambio de nombre a Bladex, Inc. del 4/6/2026 es formal."
+    },
+    {
+      "symbol": "MUSA",
+      "fecha": "2026-10-08",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        { "url": "https://www.businesswire.com/news/home/20260805134461/en/Murphy-USA-Inc.-Reports-Second-Quarter-2026-Results", "titulo": "Murphy USA informa resultados del segundo trimestre de 2026" },
+        { "url": "https://www.nasdaq.com/press-release/murphy-usa-schedules-third-quarter-2026-results-conference-call-2026-09-17", "titulo": "Murphy USA agenda la llamada del tercer trimestre de 2026" }
+      ],
+      "resumen": "Sin objeciones que cumplan la vara dentro de los 30 dias. Lo que aparece: en octubre Wall Street Zen la bajo de compra fuerte a compra, que es un servicio cuantitativo y un cambio dentro del mismo lado, sin dato nuevo detras, asi que no se anota como objecion; y Zacks subio su estimacion del 3T de 8,27 a 8,28, un centavo. Lo que si hay que mirar ya esta en su verificacion y es del 2T, fuera de la ventana: el margen total de combustible del 2T26 fue 40,6 centavos por galon contra 32,0 un anio antes, y la propia guia de la empresa supone unos 35 centavos para el segundo semestre, o sea la empresa misma espera normalizacion. Mantuvo la guia de volumen de combustible en tiendas comparables en baja de 1% a 3%. Reporta el 28/10 despues del cierre."
+    }
+  ]
+}

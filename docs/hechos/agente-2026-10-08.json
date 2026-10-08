@@ -1,0 +1,156 @@
+{
+  "verificaciones": [
+    {
+      "symbol": "MMSI",
+      "fecha": "2026-10-08",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-30",
+        "ventasVsConsenso": "ventas 418,8 M, por encima del consenso",
+        "gananciaVsConsenso": "EPS ajustada 1,19 contra consenso 0,96: +23,96%",
+        "extraordinarios": [{ "detalle": "reintegro de aranceles reconocido dentro del costo de ventas del 2T26", "montoUsd": 6900000 }],
+        "epsLimpia": 1.1,
+        "epsConsenso": 0.96,
+        "guia": "subida: EPS ajustada 2026 a 4,25-4,35 desde 4,01-4,15 y ventas a 1.631-1.643 M desde 1.612-1.634 M"
+      },
+      "analistas": [
+        { "fecha": "2026-07-31", "firma": "Piper Sandler", "accion": "sube objetivo, sobreponderar", "objetivo": 106 },
+        { "fecha": "2026-07-31", "firma": "Needham", "accion": "sube objetivo, comprar", "objetivo": 101 },
+        { "fecha": "2026-08-25", "firma": "Zacks Research", "accion": "mejora de mantener a compra fuerte", "objetivo": null },
+        { "fecha": "2026-09-29", "firma": "Needham", "accion": "reafirma comprar", "objetivo": null }
+      ],
+      "consensoObjetivo": 100,
+      "eventos": [
+        { "fecha": "2026-07-30", "tipo": "resultados", "titular": "2T26 con guia subida y un reintegro de aranceles de 6,9 M dentro del costo de ventas" },
+        { "fecha": "2026-08-04", "tipo": "insiders", "titular": "Form 4: el COO Neil W. Peterson vendio 21.449 acciones a 85,00" },
+        { "fecha": "2026-08-24", "tipo": "insiders", "titular": "Form 4: el COO Neil W. Peterson vendio 7.500 acciones por 678.360" }
+      ],
+      "valuacion": { "texto": null, "metric": null, "current": null, "min5y": null, "max5y": null, "growthAccelerating": null },
+      "proximosResultados": "2026-10-29",
+      "reservas": [],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "no pude determinar si las ventas del COO de agosto fueron de acciones ya tenidas o ejercicio de opciones" },
+        { "dato": "otro", "detalle": "P/E adelantado contra su rango de 5 anios: no encontre los tres numeros (actual, minimo, maximo)" }
+      ],
+      "fuentes": [
+        { "url": "https://data.sec.gov/submissions/CIK0000856982.json", "titulo": "EDGAR, listado de presentaciones de MMSI: sin S-1, S-3 ni 424B desde el 1/7/2026" },
+        { "url": "https://www.globenewswire.com/news-release/2026/10/06/3376046/0/en/merit-medical-systems-to-announce-third-quarter-2026-results-on-october-29-2026.html", "titulo": "Merit Medical anuncia resultados del 3T26 para el 29/10/2026" },
+        { "url": "https://finance.yahoo.com/healthcare/articles/mmsi-q2-earnings-revenues-beat-150800349.html", "titulo": "MMSI 2T26: supera estimaciones y sube la guia 2026" },
+        { "url": "https://www.investing.com/news/company-news/merit-medical-q2-2026-slides-organic-growth-accelerates-to-9-93CH-4826427", "titulo": "Presentacion del 2T26 de Merit Medical: reintegro de aranceles de 6,9 M y EPS de 1,10 sin ese efecto" },
+        { "url": "https://www.stocktitan.net/sec-filings/MMSI/form-4-merit-medical-systems-inc-insider-trading-activity-f9c08de6895e.html", "titulo": "Form 4: el COO vende 21.449 acciones a 85,00" },
+        { "url": "https://www.marketbeat.com/instant-alerts/consensus-merit-medical-systems-inc-nasdaq-mmsi-stock-has-average-target-price-of-10000-2026-09-27/", "titulo": "Consenso de objetivo de MMSI: 100,00 con 12 casas cubriendo" },
+        { "url": "https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfRES/res.cfm?id=217769", "titulo": "FDA: retiro clase 2 del Custom Inflation Kit, publicado el 16/1/2026" }
+      ],
+      "resumen": "2T26 reportado el 30/7/2026: ventas 418,8 M y EPS ajustada 1,19 contra consenso 0,96. Dentro del costo de ventas hay un reintegro de aranceles de 6,9 M, con un efecto despues de impuestos de unos 0,09 por accion: sin eso la EPS es 1,10, que sigue por encima del consenso de 0,96 y por encima del techo de su propia guia. Ese reintegro se conecta con la Orden Ejecutiva 14389 del 20/2/2026, que termino los aranceles IEEPA. La guia 2026 se subio en las dos puntas. En EDGAR no hay S-1, S-3 ni 424B desde el 1/7/2026, asi que no hubo emision de acciones en la ventana de 90 dias. Lo regulatorio que encontre son retiros clase 2 de la FDA publicados el 16/1/2026 (el mango del inflador puede desprenderse de la jeringa), fuera de la ventana de 90 dias, y no encontre carta de advertencia en 2026. Cuatro movimientos de analistas en 90 dias, todos al alza o reafirmando, con consenso de objetivo en 100,00. El COO vendio 28.949 acciones en agosto por unos 2,5 M, pero no pude establecer si eran acciones ya tenidas o ejercicio de opciones, asi que va a faltantes y no como reserva. Proximos resultados el 29/10/2026."
+    },
+    {
+      "symbol": "EME",
+      "fecha": "2026-10-08",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-30",
+        "ventasVsConsenso": "ventas record 5.150 M, +19,8% interanual, por encima del consenso",
+        "gananciaVsConsenso": "EPS diluida 9,06 contra consenso Zacks 7,23: +1,83",
+        "extraordinarios": [],
+        "epsLimpia": 9.06,
+        "epsConsenso": 7.23,
+        "guia": "subida: ventas 2026 a 20.000-20.500 M desde 18.500-19.250 M y EPS diluida a 32,00-33,25 desde 28,25-29,75"
+      },
+      "analistas": [],
+      "consensoObjetivo": 965.86,
+      "eventos": [
+        { "fecha": "2026-07-30", "tipo": "resultados", "titular": "2T26 record con guia subida y obligaciones de desempenio pendientes de 17.140 M, +43,9% interanual" },
+        { "fecha": "2026-07-22", "tipo": "regulatorio", "titular": "Nueva York pausa hasta un anio los permisos ambientales a datacenters de hiperescala (Orden Ejecutiva 62)" },
+        { "fecha": "2026-06-17", "tipo": "insiders", "titular": "Form 4: la directora Carol P. Lowe vendio 950 acciones a 844,50" }
+      ],
+      "valuacion": { "texto": null, "metric": null, "current": null, "min5y": null, "max5y": null, "growthAccelerating": null },
+      "proximosResultados": null,
+      "reservas": [
+        { "tipo": "otra", "detalle": "Nueva York pausa hasta un anio los permisos ambientales a datacenters de hiperescala y su cartera record viene de ese mercado", "fuente": { "url": "https://www.governor.ny.gov/news/long-island-governor-hochul-highlights-first-statewide-moratorium-new-hyperscale-data-centers", "titulo": "Oficina del Gobernador de Nueva York: moratoria estatal (Orden Ejecutiva 62)" } }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "fecha de los proximos resultados: una fuente da 22/10 y otra 29/10, no pude confirmar cual" },
+        { "dato": "otro", "detalle": "subas de objetivo de Baird a 918, Oppenheimer a 1.200 y UBS a 1.065 sin fecha verificable, asi que no las cargue" },
+        { "dato": "otro", "detalle": "P/E adelantado contra su rango de 5 anios: no encontre los tres numeros" }
+      ],
+      "fuentes": [
+        { "url": "https://data.sec.gov/submissions/CIK0000105634.json", "titulo": "EDGAR, listado de presentaciones de EME: sin S-1, S-3 ni 424B desde el 1/7/2026" },
+        { "url": "https://www.nasdaq.com/press-release/emcor-group-inc-reports-second-quarter-2026-results-2026-07-30", "titulo": "EMCOR informa resultados del segundo trimestre de 2026" },
+        { "url": "https://seekingalpha.com/news/4621724-emcor-soars-after-blowout-quarter-raises-2026-outlook", "titulo": "EMCOR sube fuerte tras el trimestre y sube la guia 2026" },
+        { "url": "https://www.governor.ny.gov/news/long-island-governor-hochul-highlights-first-statewide-moratorium-new-hyperscale-data-centers", "titulo": "Nueva York: moratoria estatal a datacenters de hiperescala (Orden Ejecutiva 62)" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/105634/000010563426000025/eme-20251231.htm", "titulo": "EMCOR 10-K del ejercicio 2025: procedimientos legales" },
+        { "url": "https://www.thecerbatgem.com/2026/10/04/emcor-group-inc-nyseeme-stock-has-consensus-price-target-of-965-86.html", "titulo": "Consenso de objetivo de EME: 965,86" }
+      ],
+      "resumen": "2T26 reportado el 30/7/2026: ventas record de 5.150 M (+19,8%), resultado operativo record de 547,3 M con margen 10,6% y EPS diluida de 9,06 contra consenso Zacks de 7,23. No encontre extraordinarios en el trimestre. La guia 2026 se subio fuerte en las dos puntas y las obligaciones de desempenio pendientes quedaron en 17.140 M, +43,9% interanual, con la demanda de datacenters como motor. La accion subio cerca de 20% con el reporte. En EDGAR no hay S-1, S-3 ni 424B desde el 1/7/2026: sin emision de acciones en la ventana. En lo legal, el 10-K del ejercicio 2025 trae el lenguaje estandar de procedimientos y auditorias como contratista del gobierno, sin nada material. La salvedad que si corresponde es regulatoria y tiene fuente oficial: el 22/7/2026 Nueva York pauso hasta un anio los permisos ambientales a datacenters de hiperescala por la Orden Ejecutiva 62, y el Departamento de Conservacion Ambiental no emite permisos discrecionales que no esten ya completos. Es exactamente el mercado del que viene su cartera record."
+    }
+  ],
+  "revisiones": [
+    {
+      "symbol": "MMSI",
+      "fecha": "2026-10-08",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        { "url": "https://www.globenewswire.com/news-release/2026/10/06/3376046/0/en/merit-medical-systems-to-announce-third-quarter-2026-results-on-october-29-2026.html", "titulo": "Merit Medical: resultados del 3T26 el 29/10/2026" },
+        { "url": "https://www.marketbeat.com/instant-alerts/analyst-needham-company-llc-reaffirms-buy-rating-for-merit-medical-systems-nasdaq-mmsi-2026-09-29/", "titulo": "Needham reafirma comprar el 29/9/2026" },
+        { "url": "https://data.sec.gov/submissions/CIK0000856982.json", "titulo": "EDGAR: presentaciones de MMSI, sin emision de acciones desde el 1/7/2026" }
+      ],
+      "resumen": "En los ultimos 30 dias no encontre nada que cambie la compra: el 6/10 anuncio que reporta el 3T26 el 29/10, y el 29/9 Needham reafirmo comprar. Sin rebajas de analistas, sin emisiones en EDGAR, sin accion regulatoria nueva. Lo unico a tener en cuenta es el calendario: reporta en tres semanas."
+    },
+    {
+      "symbol": "HCI",
+      "fecha": "2026-10-08",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        { "tipo": "regulacion", "detalle": "El 22/9/2026 la OIR de Florida aprobo bajas de tarifa de hogar sobre mas de 62.000 polizas y el comisionado anticipo recortes mas agresivos hacia 2027", "fecha": "2026-09-22", "fuente": { "url": "https://www.insurancejournal.com/news/southeast/2026/09/23/886558.htm", "titulo": "La OIR de Florida aprueba cuatro bajas mas de tarifa de hogar" } }
+      ],
+      "fuentes": [
+        { "url": "https://www.insurancejournal.com/news/southeast/2026/09/23/886558.htm", "titulo": "La OIR de Florida aprueba cuatro bajas mas de tarifa de hogar" },
+        { "url": "https://content.govdelivery.com/accounts/FLOIR/bulletins/42bd577", "titulo": "Boletin de la OIR de Florida: el comisionado Yaworsky aprueba bajas significativas de tarifa" }
+      ],
+      "resumen": "Objecion regulatoria con fecha dentro de la ventana: el 22/9/2026 el comisionado de seguros de Florida aprobo bajas de tarifa de hogar sobre mas de 62.000 polizas, y dijo que espera recortes mas agresivos en el corto plazo y hacia 2027. Las companias nombradas en esa tanda no son de HCI, pero el movimiento es del mercado en el que HCI suscribe: desde enero de 2024, 48 companias pidieron baja de tarifa y 53 pidieron no cambiarla. Para una aseguradora de hogar de Florida es presion de precio sobre la prima, justo cuando su propia verificacion ya habia marcado la prima media por poliza en baja."
+    },
+    {
+      "symbol": "MCY",
+      "fecha": "2026-10-08",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        { "tipo": "regulacion", "detalle": "El 15/9/2026 California promulgo la AB 1795: presume que el danio por humo en zona de incendio viene del incendio, obliga a pagar testeos y prohibe cortar los gastos de vivienda temporal hasta que la casa sea habitable", "fecha": "2026-09-15", "fuente": { "url": "https://www.insurance.ca.gov/0400-news/0100-press-releases/release031-2026.cfm", "titulo": "Departamento de Seguros de California: proteccion por danio de humo tras incendios" } }
+      ],
+      "fuentes": [
+        { "url": "https://www.insurance.ca.gov/0400-news/0100-press-releases/release031-2026.cfm", "titulo": "Departamento de Seguros de California: proteccion por danio de humo" },
+        { "url": "https://www.insurancejournal.com/news/west/2026/09/15/885209.htm", "titulo": "El gobernador de California firma la ley de presuncion de danio por humo" }
+      ],
+      "resumen": "Objecion regulatoria con fecha dentro de la ventana: el 15/9/2026 se promulgo en California la AB 1795, la Smoke Damage Recovery Act. Crea una presuncion de que el danio por humo dentro de una zona afectada por un incendio proviene del incendio, obliga al asegurador a pagar testeos y muestreos, le prohibe terminar los gastos de vivienda temporal hasta que la casa sea segura para habitar, y fija plazos de inspeccion y manejo del siniestro mas requisitos de capacitacion para los liquidadores. Es costo de siniestros mas alto y mas largo para una aseguradora de hogar de California, y se suma a lo que su propia verificacion ya habia marcado: 75 M de catastrofes netas en el 2T26 contra 13 M un anio antes y unos 80 M de desarrollo adverso."
+    },
+    {
+      "symbol": "CTS",
+      "fecha": "2026-10-08",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000026058/000119312526282712/cts-20260625.htm", "titulo": "CTS 8-K: promocion de Pratik Trivedi a presidente y CEO desde el 6/7/2026" },
+        { "url": "https://www.nasdaq.com/press-release/cts-announces-second-quarter-2026-results-2026-07-28", "titulo": "CTS informa resultados del segundo trimestre de 2026" }
+      ],
+      "resumen": "Sin objeciones dentro de la ventana de 30 dias. Lo que aparece es anterior o no es material: el cambio de CEO fue el 6/7/2026 y es una promocion interna (Pratik Trivedi, hasta entonces COO, sucede a Kieran O'Sullivan, que queda como presidente ejecutivo del directorio), fuera de los 30 dias; el 28/7 subio la guia 2026 de ventas a 565-585 M desde 560-580 M y de EPS ajustada a 2,55-2,70 desde 2,35-2,45, con margen bruto ajustado de 41,5% contra 38,7%. En septiembre Barrington inicio cobertura con superar al mercado y objetivo 80, y Sidoti recorto su estimacion del 3T de 0,68 a 0,67, un centavo, que no cambia la compra. Dejo anotado que el cambio de mando es reciente aunque quede fuera de la ventana: la tesis se armo con la gestion anterior."
+    },
+    {
+      "symbol": "EME",
+      "fecha": "2026-10-08",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        { "tipo": "regulacion", "detalle": "Nueva York pausa hasta un anio los permisos ambientales a datacenters de hiperescala por la Orden Ejecutiva 62 y la DEC no emite permisos discrecionales que no esten ya completos", "fecha": "2026-07-22", "fuente": { "url": "https://www.governor.ny.gov/news/long-island-governor-hochul-highlights-first-statewide-moratorium-new-hyperscale-data-centers", "titulo": "Oficina del Gobernador de Nueva York: moratoria estatal (Orden Ejecutiva 62)" } }
+      ],
+      "fuentes": [
+        { "url": "https://www.governor.ny.gov/news/long-island-governor-hochul-highlights-first-statewide-moratorium-new-hyperscale-data-centers", "titulo": "Nueva York: moratoria estatal a datacenters de hiperescala" },
+        { "url": "https://www.nasdaq.com/press-release/emcor-group-inc-reports-second-quarter-2026-results-2026-07-30", "titulo": "EMCOR informa resultados del segundo trimestre de 2026" }
+      ],
+      "resumen": "La objecion no es de los ultimos 30 dias sino algo vigente que vence dentro de los proximos meses, que es lo otro que esta revision tiene que mirar: la moratoria de Nueva York a los datacenters de hiperescala esta activa y dura hasta un anio desde julio de 2026, con el Departamento de Conservacion Ambiental sin emitir permisos discrecionales que no esten ya completos mientras se prepara una Declaracion Generica de Impacto Ambiental. La cartera record de EME (17.140 M, +43,9%) viene en buena parte de ese mercado. En los ultimos 30 dias lo que hubo fue a favor: subas de objetivo de Baird, Oppenheimer y UBS. No hay emisiones de acciones en EDGAR desde el 1/7/2026 ni litigios materiales mas alla del lenguaje estandar de su 10-K."
+    }
+  ]
+}

@@ -62,8 +62,8 @@ describe("buildFlags", () => {
   it("cada bandera con su caso", () => {
     expect(buildFlags(f({ insiderBuys90d: 2 }), gate, 1, 4)).toContain("insiders_compran");
     expect(buildFlags(f({ insiderSells90d: 3 }), gate, 1, 4)).toContain("insiders_venden");
-    expect(buildFlags(f({ analyst: { strongBuy: 5, buy: 5, hold: 2, sell: 0, strongSell: 0, period: "p" } }), gate, 1, 4)).toContain("consenso_compra");
-    expect(buildFlags(f({ analyst: { strongBuy: 0, buy: 1, hold: 2, sell: 3, strongSell: 2, period: "p" } }), gate, 1, 4)).toContain("consenso_venta");
+    expect(buildFlags(f({ analyst: { strongBuy: 5, buy: 5, hold: 2, sell: 0, strongSell: 0, period: today } }), gate, 1, 4, { today })).toContain("consenso_compra");
+    expect(buildFlags(f({ analyst: { strongBuy: 0, buy: 1, hold: 2, sell: 3, strongSell: 2, period: today } }), gate, 1, 4, { today })).toContain("consenso_venta");
     expect(buildFlags(f({ earningsSurprises: [{ period: "q", surprisePercent: 8 }] }), gate, 1, 4)).toContain("sorpresa_positiva");
     expect(buildFlags(f({ earningsSurprises: [{ period: "q", surprisePercent: -8 }] }), gate, 1, 4)).toContain("sorpresa_negativa");
     expect(buildFlags(f({ priceUsd: 100, metrics: { dividendPerShareTTM: 3 } }), gate, 1, 4)).toContain("dividendo:3");
@@ -365,5 +365,175 @@ describe("decideCandidate con eventos", () => {
     const d = decideCandidate({ ...base, eventsUnclassified: true }, policy);
     expect(d).toMatchObject({ verdict: "COMPRAR" });
     if (!("excluded" in d)) expect(d.flags).toContain("eventos_sin_clasificar");
+  });
+});
+
+/**
+ * El consenso de analistas no tenía chequeo de frescura (6/10/2026). Cuatro símbolos de la base real traían el
+ * consenso de `2021-12-01` y dos estaban en COMPRAR: JOE perdía 0,3 de convicción por `consenso_venta` y OPY
+ * la ganaba por `consenso_compra`, los dos por una opinión de hace casi cinco años. Los objetivos de precio sí
+ * tenían guardas (es lo que salva a APH del 195 pre-split); las recomendaciones no.
+ */
+describe("frescura del consenso de analistas", () => {
+  const viejo = { strongBuy: 0, buy: 0, hold: 3, sell: 3, strongSell: 3, period: "2021-12-01" };
+  const reciente = { ...viejo, period: "2026-09-01" };
+  const flags = (analyst: Fundamentals["analyst"]) => buildFlags(f({ analyst }), technicalGate(up, tech, null, today), 1, 4, { today });
+
+  it("consenso de 2021 no enciende consenso_venta (caso JOE)", () => {
+    expect(flags(viejo)).not.toContain("consenso_venta");
+  });
+  it("el mismo consenso con fecha reciente sí lo enciende", () => {
+    expect(flags(reciente)).toContain("consenso_venta");
+  });
+  // Decisión explícita: si no se puede probar que está fresco, no se usa. En la base real los 95 registros con
+  // consenso traen fecha ISO, así que esta rama no se toca en producción; queda escrita para que no se vuelva
+  // a elegir sin pensarlo.
+  it("un período ilegible o ausente se trata como viejo", () => {
+    expect(flags({ ...reciente, period: "p" })).not.toContain("consenso_venta");
+    expect(flags({ ...reciente, period: "" })).not.toContain("consenso_venta");
+  });
+  it("consenso de compra viejo tampoco suma (caso OPY)", () => {
+    const compraVieja = { strongBuy: 6, buy: 2, hold: 1, sell: 0, strongSell: 0, period: "2021-12-01" };
+    expect(flags(compraVieja)).not.toContain("consenso_compra");
+    expect(flags({ ...compraVieja, period: "2026-09-01" })).toContain("consenso_compra");
+  });
+});
+
+/**
+ * `sorpresa_negativa` era una bandera falsa en todo de-SPAC con warrants vivos (6/10/2026). Caso real, DAVE:
+ * la serie del proveedor traía los tres trimestres previos en base AJUSTADA (4,45 / 4,57 / 4,02) y el último en
+ * GAAP (0,49) contra un estimado de 3,74 armado sobre la serie ajustada → "falló 86,9%". El ajustado fue 4,12,
+ * un beat de ~10%, y cuatro firmas subieron el objetivo al día siguiente. El GAAP se derrumbó por 36,9 M de
+ * remedición no monetaria de warrants y earnout: la acción sube, el pasivo sube, la ganancia GAAP baja.
+ * La app ya tenía la refutación guardada: `lastQuarterYoy.operatingPct` del mismo trimestre era +27,16%.
+ */
+describe("sorpresa_negativa contra el resultado operativo", () => {
+  const core = (operatingPct: number | null) => ({
+    asOf: "2026-06-30", revenueTTM: 1, operatingIncomeTTM: 1, coreOperatingIncomeTTM: 1, netIncomeTTM: 1, coreNetIncomeTTM: 1,
+    coreEpsTTM: 1, operatingCashFlowTTM: 1, freeCashFlowTTM: 1, equity: 1, taxRate: 0.25, extraordinaryTTM: 0, extraordinaryItems: [],
+    deviationPct: 0, noncontrollingTTM: null, receivablesPctRevenue: null,
+    lastQuarterYoy: { end: "2026-06-30", revenuePct: 29.63, operatingPct },
+  });
+  const flags = (surprisePercent: number, operatingPct: number | null) =>
+    buildFlags(f({ earningsSurprises: [{ period: "2026-06-30", surprisePercent }] }), technicalGate(up, tech, null, today), 1, 4, { today, core: core(operatingPct) });
+
+  it("sorpresa de -86,9% con resultado operativo +27,2% no enciende la bandera (caso DAVE)", () => {
+    expect(flags(-86.9036, 27.1627)).not.toContain("sorpresa_negativa");
+  });
+  it("sorpresa negativa con resultado operativo también negativo sí la enciende", () => {
+    expect(flags(-86.9036, -12.5)).toContain("sorpresa_negativa");
+  });
+  it("sin resultado operativo del trimestre se confía en el proveedor, como antes", () => {
+    expect(flags(-86.9036, null)).toContain("sorpresa_negativa");
+  });
+  it("una sorpresa positiva no se toca", () => {
+    expect(flags(37.16, 27.16)).toContain("sorpresa_positiva");
+  });
+  // Lo que NO se puede perder: un fallo normal contra el consenso, con el operativo creciendo poco, sigue siendo
+  // un fallo. La puerta solo tapa el desajuste de ORDEN DE MAGNITUD, que es la firma del cambio de base.
+  it("un fallo chico con el operativo creciendo poco sigue encendiendo la bandera", () => {
+    expect(flags(-12, 5)).toContain("sorpresa_negativa");
+  });
+});
+
+/**
+ * `bajo_sma200` no tenía piso de amplitud (6/10/2026). Caso real, SGOV (letras del Tesoro a 0-3 meses):
+ * cerró en 100,50 con media de 200 en 100,5246 — 2,5 centavos, 0,025% — y el filtro lo descartó. Su rango
+ * COMPLETO de 200 ruedas es 0,43%: un fondo de letras hace dientes de sierra de medio punto entre
+ * distribuciones mensuales y la media cae justo en el medio, así que no hay tendencia que se pueda perforar.
+ *
+ * El umbral de 2% se eligió midiendo: de los 747 símbolos con 200 ruedas en la base, SGOV es el ÚNICO con
+ * rango menor al 4% (0,429%); el siguiente ya pasa 4%. Para comparar, XLU sí está roto de verdad (39,97
+ * contra 44,37, −10%) y tiene que seguir cayendo.
+ */
+describe("piso de amplitud de bajo_sma200", () => {
+  // SGOV: oscila entre 100,28 y 100,71 y cierra apenas debajo de su media.
+  const sgov = series([...Array.from({ length: 259 }, (_, i) => (i % 2 === 0 ? 100.71 : 100.35)), 100.5]);
+  // XLU: cae de 48 a 39,97, con la media muy arriba del cierre.
+  const xlu = series([...Array.from({ length: 259 }, (_, i) => 48 - (8 * i) / 259), 39.97]);
+
+  it("un fondo de letras no se descarta por 2,5 centavos (caso SGOV)", () => {
+    const g = technicalGate(sgov, tech, null, today);
+    expect(g.sma200).toBeGreaterThan(g.close);
+    expect(g.reasons).not.toContain("bajo_sma200");
+    expect(g.status).not.toBe("excluido");
+  });
+  it("un papel realmente roto sigue cayendo (caso XLU)", () => {
+    expect(technicalGate(xlu, tech, null, today)).toMatchObject({ status: "excluido", reasons: ["bajo_sma200"] });
+  });
+});
+
+/*
+ * 7/10: el trinquete del stop se puso en Cartera el 6/10 y NO en la fila del Radar, así que las dos pantallas
+ * mostraban niveles de salida distintos para la misma posición. En la base real del 7/10: GGAL con stop 41,34 en el
+ * Radar y 41,53 en Cartera, estando en VENDER. Una posición tiene UN stop, y el nivel al que se vende no puede
+ * depender de en qué pantalla lo mires.
+ */
+describe("el stop de una posición es el mismo en el Radar que en Cartera (7/10)", () => {
+  const policy = { technical: tech, sizing, candidates: { top: 40, preselect: 150, chronicWeeks: 4 } };
+  const bajando = series([...Array.from({ length: 255 }, (_, i) => 80 + (40 * i) / 254), 118, 116, 114, 112, 111]);
+  it("lo que ya tenés lleva el trinquete contra el stop guardado, no la ventana cruda", () => {
+    const ventana = computeTrailingStop(bajando)!;
+    const guardado = ventana + 1.5; // el trinquete de ayer quedó más arriba
+    const d = decideCandidate({ f: f(), candles: bajando, nthAppearance: 1, portfolioUsd: 150_000, today, held: true, prevStop: guardado }, policy);
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.stop).toBe(guardado);
+  });
+  it("sin stop guardado usa la ventana, y lo que no tenés no se toca", () => {
+    const sinPrevio = decideCandidate({ f: f(), candles: bajando, nthAppearance: 1, portfolioUsd: 150_000, today, held: true }, policy);
+    if ("excluded" in sinPrevio) throw new Error("no debía excluir");
+    expect(sinPrevio.stop).toBe(computeTrailingStop(bajando));
+    const nueva = decideCandidate({ f: f(), candles: bajando, nthAppearance: 1, portfolioUsd: 150_000, today, prevStop: 9999 }, policy);
+    if ("excluded" in nueva) throw new Error("no debía excluir");
+    expect(nueva.stop).not.toBe(9999); // una compra nueva nunca hereda el trinquete de nadie
+  });
+});
+
+/*
+ * 7/10, medido con `pnpm simular` sobre 38.710 observaciones de 745 símbolos y 256 fechas (solo precios, que es lo
+ * único punto-en-el-tiempo que hay en la base):
+ *
+ *   retorno de 21 ruedas     | restrictivo | neutral
+ *   0% a 15% (se permite)    |   −1,09%    |  +0,31%
+ *   más de 15% (se frena)    |   −0,95%    |  +2,94%
+ *   15% a 40%                |   −0,84%    |  +2,22%
+ *
+ * O sea: con tasas altas o subiendo, frenar el momento no cuesta nada (−0,95 contra −1,09 es ruido) y conviene por
+ * prudencia. En régimen neutral cuesta 2,6 puntos. El umbral tiene que depender del régimen, no ser fijo.
+ */
+describe("no_perseguir depende del régimen de tasas (7/10)", () => {
+  const policy = { technical: tech, sizing, candidates: { top: 40, preselect: 150, chronicWeeks: 4 } };
+  // Sube 25% en las últimas 21 ruedas: por encima del 15% y por debajo del 40%.
+  const corriendo = series([...Array.from({ length: 239 }, (_, i) => 80 + (20 * i) / 238), ...Array.from({ length: 21 }, (_, i) => 100 * (1 + (0.25 * (i + 1)) / 21))]);
+  const reg = (state: "restrictivo" | "neutral") => ({ state, asOf: today, tenYearPct: state === "restrictivo" ? 5.3 : 3.8, change3mBp: 0, why: "test" });
+
+  it("con tasas subiendo sigue frenando: el momento no paga y la prudencia no cuesta", () => {
+    const d = decideCandidate({ f: f(), candles: corriendo, nthAppearance: 1, portfolioUsd: 150_000, today, regime: reg("restrictivo") }, policy);
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.flags).toContain("no_perseguir");
+    expect(d.verdict).toBe("OBSERVAR");
+  });
+
+  it("en régimen neutral no aplica el freno de momento: lo que quede es de otras reglas", () => {
+    const d = decideCandidate({ f: f(), candles: corriendo, nthAppearance: 1, portfolioUsd: 150_000, today, regime: reg("neutral") }, policy);
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.flags).not.toContain("no_perseguir");
+    // Esta serie queda en OBSERVAR por `stop_dentro_de_la_entrada`, que es OTRA regla y está bien: tras correr 25%
+    // en 21 ruedas el stop de seguimiento cae dentro de la franja de compra y la operación no tiene aire (14/9).
+    // Aflojar el momento no pisa esa guarda, y eso es exactamente lo que se quiere.
+    expect(d.flags).toContain("stop_dentro_de_la_entrada");
+  });
+
+  it("sin régimen conocido se comporta como el restrictivo: no se afloja por no saber", () => {
+    const d = decideCandidate({ f: f(), candles: corriendo, nthAppearance: 1, portfolioUsd: 150_000, today }, policy);
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.flags).toContain("no_perseguir");
+  });
+
+  it("ni en neutral se deja pasar lo parabólico: por encima del umbral ancho sigue frenando", () => {
+    const parabolica = series([...Array.from({ length: 239 }, (_, i) => 80 + (20 * i) / 238), ...Array.from({ length: 21 }, (_, i) => 100 * (1 + (0.9 * (i + 1)) / 21))]);
+    const d = decideCandidate({ f: f(), candles: parabolica, nthAppearance: 1, portfolioUsd: 150_000, today, regime: reg("neutral") }, policy);
+    if ("excluded" in d) throw new Error("no debía excluir");
+    expect(d.flags).toContain("no_perseguir");
   });
 });

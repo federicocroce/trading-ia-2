@@ -1,7 +1,7 @@
 import type { Candle } from "../cartera/types.js";
 import { inRegularSession, lastCompletedSession, localDateTime, marketOf, tradeSession } from "../pricing/sessions.js";
 import { atr, computeTrailingStop, ENTRY_STOP_ATR, entryStop } from "../cartera/stop.js";
-import { CONSENSUS_SCALE, DIVIDEND_FLAG_MIN_PCT, dividendoNoComprobable } from "./candidate.js";
+import { CONSENSUS_SCALE, DIVIDEND_FLAG_MIN_PCT, VERIFY_FRESH_DAYS, dividendoNoComprobable } from "./candidate.js";
 import { PLAN_BLOCKERS, STOP_NOISE_ATR, lineHasExit, type ContributionPlan } from "./plan.js";
 import { UNRELIABLE_GROWTH_INDUSTRY } from "./ranking.js";
 import type { FinnhubMetrics } from "./universe.js";
@@ -57,6 +57,12 @@ export interface ConsistencyInput {
   /** Última verificación guardada por símbolo (la que muestra la ficha). Sin esto no corre `verificacion_desfasada`. */
   verifications?: Record<string, { date: string; verdict: string } | null>;
   /**
+   * Stop del veredicto de Cartera por símbolo (7/10). Una posición tiene UN stop: el nivel al que se vende no puede
+   * depender de qué pantalla mires. El 7/10 GGAL mostraba 41,34 en el Radar y 41,53 en Cartera, en VENDER, porque el
+   * trinquete se había puesto en Cartera y no en la fila. Sin esto no corre `stop_en_desacuerdo`.
+   */
+  stopsDeCartera?: Record<string, number | null>;
+  /**
    * La última rueda que ya cerró (`lastCompletedSession`). Es el único dato de este chequeo que NO sale de lo
    * guardado: sin un testigo de afuera, unas velas viejas coinciden perfecto consigo mismas. Sin esto se saltea.
    */
@@ -84,6 +90,9 @@ export interface LivePriceSample {
   /** El testigo: precio de mercado regular de Yahoo y su hora. null = Yahoo no respondió o no trajo precio. */
   witness: TimedPrice | null;
 }
+
+/** Días enteros entre dos fechas ISO (para juzgar el vencimiento de la verificación guardada). */
+const diasEntre = (desde: string, hasta: string) => Math.floor((Date.parse(hasta) - Date.parse(desde)) / 86_400_000);
 
 export const CONSISTENCY_THRESHOLDS = {
   /** Diferencia tolerada entre el precio guardado y el cierre de la última vela, en dólares. */
@@ -206,13 +215,32 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     // 2b. La fila usa la última verificación guardada, la misma de la ficha (15/9: BLBD "con reservas" en la tabla y
     //     "pendiente" en la fila). En COMPRAR es grave: el plan decide con la de la fila.
     const tabla = i.verifications?.[row.symbol];
-    if (tabla && (row.kind === "stock" || row.kind === "watch") && (!row.verification || row.verification.date !== tabla.date || row.verification.verdict !== tabla.verdict)) {
+    // Solo cuenta si la guardada TODAVÍA VALE (7/10): una verificación vence a los `VERIFY_FRESH_DAYS` días y la fila
+    // deja de mostrarla con razón. Sin esto, toda fila con la verificación vencida salía como contradicción (FIVE el
+    // 7/10: guardada del 23/9 contra una fila sin verificación) y el chequeo avisaba de lo normal. Sin `today` no se
+    // puede juzgar el vencimiento, así que se reporta igual: el ruido es preferible a callar una contradicción real.
+    const tablaVigente = !tabla || !i.today || diasEntre(tabla.date, i.today) < VERIFY_FRESH_DAYS;
+    if (tabla && tablaVigente && (row.kind === "stock" || row.kind === "watch") && (!row.verification || row.verification.date !== tabla.date || row.verification.verdict !== tabla.verdict)) {
       add("verificacion_desfasada", row.symbol, row.verdict === "COMPRAR" ? "grave" : "aviso", `la verificación guardada es "${tabla.verdict}" del ${tabla.date} y la fila muestra ${row.verification ? `"${row.verification.verdict}" del ${row.verification.date}` : "ninguna"}: la ficha y el Radar dicen cosas distintas`);
     }
     const puestas = row.flags.filter((f) => VERIFICATION_FLAGS.has(f));
     if (puestas.length > 1) add("verificacion_duplicada", row.symbol, "grave", `dos banderas de verificación a la vez: ${puestas.join(", ")}`);
     if (!row.verification && puestas.some((f) => f !== "verificacion_pendiente")) {
       add("bandera_sin_verificacion", row.symbol, "aviso", `la bandera ${puestas.join(", ")} está puesta pero no hay verificación guardada`);
+    }
+
+    // 2c. El stop de una posición, en el Radar y en Cartera, tiene que ser el MISMO número (7/10).
+    const stopCartera = i.stopsDeCartera?.[row.symbol];
+    if (stopCartera !== undefined && stopCartera !== null && row.stop !== null && held?.has(row.symbol) === true && Math.abs(row.stop - stopCartera) > CONSISTENCY_THRESHOLDS.stopEpsilon) {
+      // La dirección importa (7/10). El trinquete solo sube, así que:
+      //  - Radar POR DEBAJO de Cartera es grave: la pantalla muestra una salida más baja que la real y te hace
+      //    aguantar una posición más de lo que corresponde. Bajo un trinquete correcto no puede pasar.
+      //  - Radar POR ENCIMA es Cartera atrasada: su veredicto es de antes de que la ventana subiera. Se avisa, para
+      //    que no queden dos números a la vista, pero no es un error de regla.
+      const porDebajo = row.stop < stopCartera;
+      add("stop_en_desacuerdo", row.symbol, porDebajo ? "grave" : "aviso", porDebajo
+        ? `el Radar muestra un stop de ${r2(row.stop)} y Cartera ${r2(stopCartera)} para la misma posición: el Radar está POR DEBAJO, o sea muestra una salida más baja que la real`
+        : `el Radar muestra un stop de ${r2(row.stop)} y Cartera ${r2(stopCartera)}: el trinquete del Radar subió y el veredicto de Cartera es anterior; se iguala cuando corra Cartera`);
     }
 
     // 3. La franja de compra nunca puede salir al revés.
@@ -306,6 +334,15 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
       if (techo === null || techo >= row.close) {
         add("objetivo_bajo_el_precio", row.symbol, "grave", `objetivo ${r2(row.target)} por debajo del precio ${r2(row.close)} sin una entrada más abajo que lo explique`);
       }
+    }
+
+    // 8b. Un stop por encima del precio es un número correcto (el de seguimiento viene de un máximo anterior, y por
+    //     eso mismo no se compra), pero la fila tiene que decir por qué. El 25/9, 14 de las 92 filas con el stop
+    //     arriba del precio no llevaban `bajo_stop`: VRT mostraba "precio 245,30 · stop 257,00" con `bajo_sma200`
+    //     como única bandera, y las siete de seguimiento (CCJ, CEG, MP, SQM, USAR, VRT, VST) eran del día. El
+    //     número no estaba mal; la pantalla no se podía leer.
+    if (row.stop !== null && row.close > 0 && row.stop > row.close + CONSISTENCY_THRESHOLDS.stopEpsilon && !row.flags.includes("bajo_stop")) {
+      add("stop_sobre_el_precio_sin_bandera", row.symbol, "grave", `stop ${r2(row.stop)} por encima del precio ${r2(row.close)} y la fila no lleva bajo_stop: la pantalla muestra los dos números sin decir que ya está debajo de su stop`);
     }
 
     // 9. La app no puede afirmar que no hubo eventos en un símbolo cuyas noticias nunca leyó. El 12/9 esto

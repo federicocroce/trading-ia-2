@@ -101,3 +101,42 @@ describe("entryTiming", () => {
     expect(e.level).toBeLessThan(644.38); // el nivel a esperar está por debajo del precio de hoy
   });
 });
+
+/*
+ * 8/10: la fila guardaba `sma20` y `sma50` y TIRABA la media de 200, que es justamente la que la app usa como
+ * compuerta (`technicalGate` la calculaba, devolvía `sma200`, y `decideCandidate` la descartaba). La fila de un ETF
+ * sí guarda su `distSma200Pct`; la de una acción no guardaba nada técnico. Para saber si el precio estaba lejos de
+ * una media PLANA había que pedir las velas y calcularlo a mano: no era un dato que ninguna pantalla pudiera decir.
+ */
+describe("la media de 200 viaja en la fila (8/10)", () => {
+  const serie = (closes: number[]): Candle[] =>
+    closes.map((c, i) => ({ date: new Date(Date.parse("2024-01-01") + i * 86_400_000).toISOString().slice(0, 10), open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1_000_000 }));
+
+  it("con historia suficiente trae la media, la distancia y la pendiente", () => {
+    // 300 ruedas planas en 100 y después sube a 110: media de 200 cerca de 100, precio 10% arriba, pendiente chica.
+    const e = entryTiming(serie([...Array.from({ length: 290 }, () => 100), ...Array.from({ length: 10 }, (_, i) => 100 + i + 1)]))!;
+    expect(e.sma200).not.toBeNull();
+    expect(e.distSma200Pct).not.toBeNull();
+    expect(e.distSma200Pct!).toBeGreaterThan(5);
+    expect(e.pendSma200Pct).not.toBeNull();
+    expect(Math.abs(e.pendSma200Pct!)).toBeLessThan(2); // media PLANA: el precio subió, la media casi no
+  });
+
+  it("una media que SUBE se distingue de una plana", () => {
+    const sube = entryTiming(serie(Array.from({ length: 330 }, (_, i) => 60 + i * 0.2)))!;
+    expect(sube.pendSma200Pct!).toBeGreaterThan(2);
+  });
+
+  it("sin 200 ruedas la media es null y no se inventa", () => {
+    const corta = entryTiming(serie(Array.from({ length: 120 }, () => 100)))!;
+    expect(corta.sma200).toBeNull();
+    expect(corta.distSma200Pct).toBeNull();
+    expect(corta.pendSma200Pct).toBeNull();
+  });
+
+  it("la pendiente se calcula con la serie RECORTADA: nunca mira hacia adelante", () => {
+    // Si mirara el futuro, una serie que recién al final se dispara daría pendiente alta. Tiene que dar baja.
+    const e = entryTiming(serie([...Array.from({ length: 320 }, () => 100), ...Array.from({ length: 10 }, () => 200)]))!;
+    expect(e.pendSma200Pct!).toBeLessThan(6);
+  });
+});

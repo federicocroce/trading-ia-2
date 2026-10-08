@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
-import { medirFrenos, revisarCorrida, todayLocal } from "@thesis/core";
+import { SIM_CALENTAMIENTO, medirConviccion, medirFrenos, revisarCorrida, simular, todayLocal } from "@thesis/core";
 import { buildContributionPlan, checkRun, explorarMercado, importarDelAgente, importarHechos, pendientesDelAgente, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
 import { loadConfig, findRoot } from "./config.js";
 import { buildContainer } from "./container.js";
@@ -16,7 +16,7 @@ process.on("SIGINT", () => { stop = true; console.log("\n[radar] deteniendo al t
 const deps = { ...c.radarDeps, shouldStop: () => stop, onProgress: (p: { done: number; total: number; stage: string }) => console.log(`[radar] ${p.stage}: ${p.done}/${p.total}`) };
 
 // El registro de uso atribuye cada pedido al mismo paso que en "ponerme al día" (scan/rank → scan; refresh/measure → radar).
-const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", porque: "radar", pares: "radar", frenos: "radar", guardia: "radar", reverificar: "radar", verificar: "agente" };
+const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", porque: "radar", pares: "radar", frenos: "radar", simular: "radar", conviccion: "radar", guardia: "radar", reverificar: "radar", verificar: "agente" };
 let code = 0;
 await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   if (cmd === "scan") console.log(await scanUniverse(deps, { scanDate: today, today }));
@@ -27,6 +27,41 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   // plan [monto]: sin monto usa el aporte mensual de la política; con monto arma el plan para esa plata.
   else if (cmd === "plan") { const amountUsd = Number(process.argv[3]); console.log(JSON.stringify(await buildContributionPlan(deps, { month: today.slice(0, 7), portfolioUsd, ...(Number.isFinite(amountUsd) && amountUsd > 0 ? { amountUsd } : {}) }), null, 2)); }
   else if (cmd === "measure") console.log(await measureRadar(deps, { today }));
+  else if (cmd === "conviccion") {
+    // Solo lectura (8/10): ¿el orden por convicción que usa el plan separa ganadores de perdedores?
+    const h = Number(process.argv[3] ?? 7);
+    const horizonte = h === 30 ? 30 : h === 90 ? 90 : 7;
+    const r = medirConviccion(await c.store.allCandidates(), await c.store.allTags(), horizonte);
+    console.log(`[conviccion] alfa contra el S&P a ${r.horizonte} días · ${r.fechas} fechas del ${r.desde ?? "—"} al ${r.hasta ?? "—"} · ${r.sinMedir} filas sin medir`);
+    console.log("[conviccion] la convicción se recalcula sin concentración por tema, sin solapamiento y sin régimen por fecha: es la parte que sale del puntaje, los pares, el riesgo y las banderas.");
+    for (const t of r.tramos) {
+      if (!t.filas) { console.log(`[conviccion] tramo ${t.tramo}: sin filas`); continue; }
+      console.log(`[conviccion] tramo ${t.tramo} (puestos ${t.desdePuesto}-${t.hastaPuesto}): ${t.filas} filas de ${t.simbolos} símbolos · convicción ${t.convProm} · alfa ${t.alfaProm! > 0 ? "+" : ""}${t.alfaProm}% · le gana al S&P ${t.acierto}%${t.pocosSimbolos ? " · POCOS SÍMBOLOS: es ruido" : ""}`);
+    }
+  }
+  else if (cmd === "simular") {
+    // Solo lectura (7/10): mide si las condiciones de PRECIO del motor separan ganadores de perdedores.
+    // Las fundamentales de la base son "de hoy" (sin versión por fecha), así que el ranking no se puede backtestear
+    // sin mirar el futuro; las velas sí son punto en el tiempo. Ver `simulacion.ts`.
+    const h = Number(process.argv[3] ?? 30);
+    const horizonte = Number.isFinite(h) && h > 0 ? Math.floor(h) : 30;
+    const spy = await c.store.candles("SPY", "2000-01-01");
+    const tnx = await c.store.candles("^TNX", "2000-01-01");
+    const simbolos = await c.store.symbolsConVelas(SIM_CALENTAMIENTO + horizonte);
+    const mcaps = await c.store.mcapsPorSimbolo();
+    const entradas = [];
+    for (const sym of simbolos) {
+      if (sym === "SPY" || sym.startsWith("^")) continue;
+      entradas.push({ symbol: sym, candles: await c.store.candles(sym, "2000-01-01"), mcapUsd: mcaps[sym] ?? null });
+    }
+    const r = simular(entradas, spy, tnx, { horizonte });
+    console.log(`[simular] horizonte ${r.horizonte} ruedas · ${entradas.length} símbolos · ${r.fechas} fechas del ${r.desde ?? "—"} al ${r.hasta ?? "—"} · ${r.observaciones} observaciones`);
+    console.log("[simular] el ranking NO se puede backtestear: las fundamentales guardadas son de hoy. Esto mide solo precio.");
+    for (const g of r.grupos) {
+      if (g.n === 0) { console.log(`[simular] ${g.titulo}: sin observaciones`); continue; }
+      console.log(`[simular] ${g.titulo}: ${g.n} obs de ${g.simbolos} símbolos · alfa ${g.alfaProm! > 0 ? "+" : ""}${g.alfaProm}% · le gana al S&P ${g.acierto}%${g.pocosSimbolos ? " · POCOS SÍMBOLOS: es ruido" : ""}`);
+    }
+  }
   else if (cmd === "frenos") {
     // Solo lectura (18/9): qué pasó con lo que cada freno dejó afuera, contra lo que ningún freno tocó.
     const h = Number(process.argv[3] ?? 7);
@@ -35,7 +70,9 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
     console.log(`[frenos] alfa contra el S&P a ${m.horizonte} días · filas medidas del ${m.desde ?? "—"} al ${m.hasta ?? "—"} · ${m.sinMedir} filas todavía sin medir`);
     for (const g of m.grupos) {
       const alfa = g.alfa === null ? "sin datos" : `${g.alfa > 0 ? "+" : ""}${g.alfa}% · le gana al S&P ${g.acierto}%`;
-      const contra = g.contraSinFreno === null ? "" : ` · ${g.contraSinFreno > 0 ? "+" : ""}${g.contraSinFreno} puntos contra lo que ningún freno tocó`;
+      // 7/10: se dice contra QUÉ base, porque los grupos con base distinta no son comparables entre sí.
+      const cual = g.base === "todas" ? "todas las filas sin freno" : "las COMPRAR sin freno";
+      const contra = g.contraSinFreno === null ? "" : ` · ${g.contraSinFreno > 0 ? "+" : ""}${g.contraSinFreno} puntos contra ${cual} (base ${g.alfaBase}%)`;
       console.log(`[frenos] ${g.titulo}: ${g.n} filas de ${g.simbolos} símbolos · ${alfa}${contra}${g.n > 0 && g.pocasFilas ? " · POCOS SÍMBOLOS: es ruido" : ""}${g.lista.length ? ` · ${g.lista.slice(0, 12).join(" ")}${g.lista.length > 12 ? " …" : ""}` : ""}`);
     }
   }
@@ -161,7 +198,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       if (r.guardados === 0) code = 1;
     }
   }
-  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | guardia | frenos [7|30|90] | reverificar SÍMBOLO [--buscar] | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...] | hechos --importar archivo.json [--origen agente|manual] | porque SÍMBOLO | pares"); code = 1; }
+  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | guardia | frenos [7|30|90] | simular [ruedas] | conviccion [7|30|90] | reverificar SÍMBOLO [--buscar] | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...] | hechos --importar archivo.json [--origen agente|manual] | porque SÍMBOLO | pares"); code = 1; }
 });
 // Lo encolado por el registro de uso se escribe antes de salir: process.exit no espera al volcado.
 await c.usage?.flush();

@@ -52,6 +52,7 @@ import {
   type CoreEarnings,
   type VerificationSummary,
   assessRegime,
+  type MacroRegime,
   type EtfConfig,
   type EventClassifier,
   type FinnhubMetrics,
@@ -186,26 +187,41 @@ export async function scanUniverse(deps: RadarDeps, opts: { scanDate: string; to
   let listed = Object.values(status).reduce((a, b) => a + b, 0);
   let prefiltered = status.alpaca_ok + status.finnhub_ok + status.error;
 
-  // Fase A: lista + pre-filtro con precios de Alpaca. Solo si este barrido no empezó.
-  if (listed === 0) {
-    const assets = await deps.assets.list();
-    listed = assets.length;
+  // Fase A: lista + pre-filtro con precios de Alpaca. Reanudable POR SÍMBOLO FALTANTE (7/10). Antes corría solo si el
+  // barrido estaba vacío (`listed === 0`), y eso dejaba dos formas de truncar el universo sin que nada lo notara:
+  //   1. `scanUpsert` escribe por tandas de 500: si se cortaba a medio escribir, quedaban filas a medias y la fase A
+  //      no volvía a correr nunca para ese `scanDate`.
+  //   2. `assets.snapshots` devolviendo menos símbolos que los elegibles los dejaba SIN fila, o sea afuera del barrido.
+  // En los dos casos la fase B drenaba `alpaca_ok` a 0 y el barrido parecía completo: la puerta de `rankRadar` mira
+  // `pendientes` (los `alpaca_ok`) y no tenía con qué darse cuenta. Ahora la fase A compara la lista contra las filas
+  // ya escritas y completa SOLO lo que falta, así que al terminar hay una fila por símbolo listado, siempre.
+  const assets = await deps.assets.list();
+  const yaTienenFila = new Set(await store.scanAllSymbols(opts.scanDate));
+  const faltan = assets.filter((a) => !yaTienenFila.has(a.symbol.toUpperCase()));
+  listed = Math.max(assets.length, listed);
+  if (faltan.length) {
     const rows: Array<{ scanDate: string; symbol: string; stage: ScanStage; reason: string | null }> = [];
     const eligible: string[] = [];
-    for (const a of assets) {
+    for (const a of faltan) {
       const r = isEligibleAsset(a);
       if (r.ok) eligible.push(a.symbol);
       else rows.push({ scanDate: opts.scanDate, symbol: a.symbol, stage: "excluded", reason: r.reason ?? "no elegible" });
     }
     const snaps = await deps.assets.snapshots(eligible);
-    prefiltered = 0;
+    const conSnapshot = new Set(snaps.map((x) => x.symbol.toUpperCase()));
     for (const s of snaps) {
       const r = passesPreFilter(s, policy.prefilter);
-      if (r.ok) prefiltered++;
       rows.push({ scanDate: opts.scanDate, symbol: s.symbol, stage: r.ok ? "alpaca_ok" : "excluded", reason: r.reason ?? null });
     }
+    // Un elegible sin snapshot queda excluido CON motivo: sin precio no se puede pre-filtrar, y la fila explícita es la
+    // que mantiene la cuenta cerrada (listados = filas) para que la puerta del ranking pueda confiar en el total.
+    for (const sym of eligible.filter((x) => !conSnapshot.has(x.toUpperCase()))) {
+      rows.push({ scanDate: opts.scanDate, symbol: sym, stage: "excluded", reason: "sin snapshot del pre-filtro" });
+    }
     await store.scanUpsert(rows);
-    log(`[radar] barrido ${opts.scanDate}: ${listed} listados, ${prefiltered} pasan el pre-filtro`);
+    const st = await store.scanStatus(opts.scanDate);
+    prefiltered = st.alpaca_ok + st.finnhub_ok + st.error;
+    log(`[radar] barrido ${opts.scanDate}: ${listed} listados, ${faltan.length} filas nuevas, ${prefiltered} pasan el pre-filtro`);
   }
 
   // Fase B: fundamentals de Finnhub para lo pendiente. Reanudable.
@@ -321,18 +337,45 @@ export interface RankSummary {
  * El 15/9 se contaban desde hoy: las del barrido del 7/9 (el del 13/9 no las volvió a pedir porque tenían 6 días)
  * quedaron viejas a mitad de semana, y un ranking tomó 37 empresas en vez de 2.724: el Radar pasó de 38 acciones a 5.
  */
-export async function universoDelRanking(deps: Pick<RadarDeps, "store">, today: string): Promise<{ all: Map<string, Fundamentals>; scanDate: string | null; scanOk: number }> {
+export async function universoDelRanking(deps: Pick<RadarDeps, "store">, today: string): Promise<{ all: Map<string, Fundamentals>; scanDate: string | null; scanOk: number; prefiltrado: number; pendientes: number }> {
   const scanDate = await deps.store.latestScanDate();
   const fresh = await deps.store.freshFundamentals(FRESH_DAYS, scanDate && scanDate < today ? scanDate : today);
   const okList = scanDate ? await deps.store.scanSymbols(scanDate, "finnhub_ok") : null;
   const ok = okList ? new Set(okList) : null;
-  return { all: new Map(fresh.filter((f) => !ok || ok.has(f.symbol)).map((f) => [f.symbol, f])), scanDate, scanOk: okList?.length ?? 0 };
+  // (5/10) `scanOk` cuenta lo que el barrido YA procesó, así que no sirve de denominador: crece junto con el
+  // numerador y la puerta de abajo nunca puede frenar un barrido a medio hacer. El total contra el que hay que
+  // medir es lo que el pre-filtro dejó para pedirle fundamentales: lo procesado (`finnhub_ok`) + lo que todavía
+  // espera (`alpaca_ok`) + lo que falló (`error`). Lo `excluded` no cuenta: nunca iba a rankear.
+  const estado = scanDate ? await deps.store.scanStatus(scanDate) : null;
+  return {
+    all: new Map(fresh.filter((f) => !ok || ok.has(f.symbol)).map((f) => [f.symbol, f])),
+    scanDate,
+    scanOk: okList?.length ?? 0,
+    prefiltrado: estado ? estado.finnhub_ok + estado.alpaca_ok + estado.error : 0,
+    pendientes: estado?.alpaca_ok ?? 0,
+  };
 }
 async function rankableFundamentals(deps: RadarDeps, today: string): Promise<Map<string, Fundamentals>> {
   return (await universoDelRanking(deps, today)).all;
 }
 /** Por debajo de esta fracción del barrido, el universo está roto (fundamentales viejas) y el ranking no pisa el Radar. */
 const UNIVERSO_MINIMO = 0.5;
+/**
+ * Fracción del listado que el barrido tiene que haber tocado para que el ranking confíe en él (7/10).
+ * `pendientes` (los `alpaca_ok`) solo ve una fase B cortada: si la que se trunca es la fase A, la fase B termina la
+ * lista parcial, `alpaca_ok` queda en 0 y el barrido PARECE completo. `prefiltrado` tampoco sirve, porque se cuenta de
+ * las filas escritas y el denominador se achica junto con el numerador. El único testigo de afuera es el listado.
+ * 0,99 deja pasar los listados nuevos de los últimos días (3 sobre 14.391 el 7/10) y agarra cualquier truncamiento real.
+ */
+const COBERTURA_MINIMA = 0.99;
+
+/** Cuántos símbolos del listado tiene fila en ese barrido. `null` en `listados` = no se pudo preguntar, y entonces no se frena. */
+async function coberturaDelBarrido(deps: Pick<RadarDeps, "store" | "assets">, scanDate: string | null): Promise<{ filas: number; listados: number | null; cubre: boolean }> {
+  if (!scanDate) return { filas: 0, listados: null, cubre: true };
+  const filas = (await deps.store.scanAllSymbols(scanDate)).length;
+  const listados = await deps.assets.list().then((a) => a.length).catch(() => null);
+  return { filas, listados, cubre: listados === null || listados === 0 || filas >= listados * COBERTURA_MINIMA };
+}
 
 /** Escribe la ficha de un candidato y aplica sus efectos (degradar, temas). Devuelve null si el modelo falló. */
 async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: { flags: string[]; close: number; stop: number | null; target: number | null; riskScore: number }, ins: { buys: number; sells: number } | null, extra: { core?: CoreEarnings | null; quarters?: QuarterStatement[] | undefined; events?: CandidateEvent[] | undefined } = {}): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
@@ -419,6 +462,35 @@ export async function heldSymbols(store: Pick<CarteraStore, "positions">): Promi
   return new Set((await store.positions()).map((p) => p.symbol.toUpperCase()));
 }
 
+/**
+ * Ancla del trinquete por símbolo (7/10): el MÁXIMO entre el stop del último veredicto de Cartera y el de la última
+ * fila del Radar. Con una sola de las dos fuentes, la pantalla que corre después queda más arriba que la otra y los
+ * dos números siguen sin coincidir (TSM: 456,51 en el Radar contra 456,27 en Cartera, porque el Radar refrescó
+ * después y la ventana había subido). Tomando el máximo de las dos, las dos convergen al mismo nivel sin importar
+ * el orden de las corridas, y el trinquete sigue siendo monótono.
+ */
+/**
+ * Régimen de tasas para la corrida (7/10). Lee ^TNX de lo guardado y solo pide a la fuente si no alcanza: el plan lo
+ * guarda en cada corrida, así que en la práctica no gasta un pedido extra.
+ */
+async function regimenDeLaCorrida(deps: Pick<RadarDeps, "store" | "history">): Promise<MacroRegime | null> {
+  const guardadas = await deps.store.candles(TNX_SYMBOL, "2000-01-01").catch(() => [] as Candle[]);
+  const tnx = guardadas.length >= 64 ? guardadas : await deps.history.candles(TNX_SYMBOL, HISTORY_DAYS).catch(() => [] as Candle[]);
+  return tnx.length ? assessRegime(tnx) : null;
+}
+
+export async function stopsPrevios(store: { latestVerdicts?: () => Promise<Array<{ symbol: string; stop: number | null }>>; latestCandidates?: () => Promise<Array<{ symbol: string; stop: number | null }>> }): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>();
+  const sumar = (sym: string, stop: number | null) => {
+    const k = sym.toUpperCase();
+    const prev = out.get(k) ?? null;
+    out.set(k, stop === null ? prev : prev === null ? stop : Math.max(prev, stop));
+  };
+  for (const v of await (store.latestVerdicts?.() ?? Promise.resolve([])).catch(() => [])) sumar(v.symbol, v.stop);
+  for (const r of await (store.latestCandidates?.() ?? Promise.resolve([])).catch(() => [])) sumar(r.symbol, r.stop);
+  return out;
+}
+
 /** Por qué una evaluada que pasó los filtros no quedó en el Radar (24/9: antes no se guardaba). */
 function motivoFueraDelCorte(verdict: "COMPRAR" | "OBSERVAR", c: RadarPolicy["candidates"]): string {
   const tope = Math.max(c.maxRows ?? c.top * 2, c.top);
@@ -430,6 +502,16 @@ interface ContextoFila {
   today: string;
   portfolioUsd: number | null;
   held: Set<string>;
+  /**
+   * Stop del último veredicto guardado, por símbolo (7/10). Es la MISMA fuente que usa Cartera para el trinquete, así
+   * que la fila del Radar de una posición y la de Cartera no pueden mostrar niveles de salida distintos.
+   */
+  stopPrevio: Map<string, number | null>;
+  /**
+   * Régimen de tasas de la corrida (7/10). Mueve el techo de `no_perseguir`: con tasas altas o subiendo se queda
+   * angosto, en neutral se ensancha. Medido con `pnpm simular`, ver `MAX_RETORNO_21D_NEUTRAL`.
+   */
+  regime: MacroRegime | null;
   spyClose: number | null;
   verifyBudget: VerifyBudget;
   errors: Array<{ symbol: string; error: string }>;
@@ -461,7 +543,7 @@ async function filaDeAccion(deps: RadarDeps, ctx: ContextoFila, r: RankedStock, 
     const ev = await scanCandidateEvents(deps, sym, ctx.today, true);
     // Los filings de oferta y los hechos llegan ya pedidos (se piden para toda la preselección al elegir las filas):
     // un DEFM14A o un SC 14D9 prueban que el precio lo fija un acuerdo (AES, 16/9).
-    const input = { f, candles, nthAppearance: nth, portfolioUsd: ctx.portfolioUsd, today: ctx.today, held: ctx.held.has(sym), filings, hechos, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+    const input = { f, candles, nthAppearance: nth, portfolioUsd: ctx.portfolioUsd, today: ctx.today, held: ctx.held.has(sym), prevStop: ctx.stopPrevio.get(sym) ?? null, regime: ctx.regime, filings, hechos, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(symCore !== undefined ? { core: symCore } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
     let d = decideCandidate(input, policy);
     if ("excluded" in d) {
       ctx.skipped.push({ symbol: sym, reason: d.reasons.join(",") });
@@ -506,10 +588,29 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   const log = deps.log ?? (() => {});
   const { store, policy } = deps;
   const held = await heldSymbols(store);
-  const { all, scanDate, scanOk } = await universoDelRanking(deps, opts.today);
+  const stopPrevio = await stopsPrevios(store);
+  const regime = await regimenDeLaCorrida(deps);
+  const { all, scanDate, prefiltrado, pendientes } = await universoDelRanking(deps, opts.today);
+  // (5/10) El barrido tarda ~20 h y su fase B va en orden alfabético: si quedó a medio hacer, el universo es medio
+  // abecedario. `scanUniverse` retorna normal cuando se corta, así que sin esta puerta el ranking rearmaba el Radar
+  // (y después `replan` el plan) con la mitad del mercado. Es el daño del 15/9 por otra causa: no se toca nada hasta
+  // que el barrido termine.
+  if (pendientes > 0) {
+    const error = `el barrido del ${scanDate} no terminó: faltan ${pendientes} de ${prefiltrado} símbolos, así que no se rearma el Radar`;
+    log(`[radar] ${error}`);
+    return { candidates: [], skipped: [], errors: [{ symbol: "*", error }] };
+  }
+  // Y la puerta que faltaba (7/10): que el barrido haya tocado el listado. Sin esto, un barrido completo DE UNA LISTA
+  // TRUNCADA pasa las dos puertas de abajo con el cociente perfecto y rearma el Radar con medio mercado.
+  const cob = await coberturaDelBarrido(deps, scanDate);
+  if (!cob.cubre) {
+    const error = `el barrido del ${scanDate} no cubre el listado: ${cob.filas} símbolos con fila de ${cob.listados} listados, así que no se rearma el Radar`;
+    log(`[radar] ${error}`);
+    return { candidates: [], skipped: [], errors: [{ symbol: "*", error }] };
+  }
   // Con el universo roto no se rearma nada: una lista chica reemplazaría a la buena (15/9: 37 de 2.724, Radar de 38 a 5).
-  if (scanOk > 0 && all.size < scanOk * UNIVERSO_MINIMO) {
-    const error = `universo rankeable: ${all.size} de ${scanOk} del barrido del ${scanDate}; faltan fundamentales frescas, así que no se rearma el Radar`;
+  if (prefiltrado > 0 && all.size < prefiltrado * UNIVERSO_MINIMO) {
+    const error = `universo rankeable: ${all.size} de ${prefiltrado} del barrido del ${scanDate}; faltan fundamentales frescas, así que no se rearma el Radar`;
     log(`[radar] ${error}`);
     return { candidates: [], skipped: [], errors: [{ symbol: "*", error }] };
   }
@@ -576,7 +677,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   for (const e of evaluadas) if (!kept.includes(e.item)) afuera.push(evaluada(e.item.symbol, e.verdict, motivoFueraDelCorte(e.verdict, policy.candidates)));
 
   const rows: CandidateRow[] = [];
-  const ctx: ContextoFila = { today: opts.today, portfolioUsd: opts.portfolioUsd, held, spyClose, verifyBudget, errors, skipped };
+  const ctx: ContextoFila = { today: opts.today, portfolioUsd: opts.portfolioUsd, held, stopPrevio, regime, spyClose, verifyBudget, errors, skipped };
   for (const r of kept) {
     const fila = await filaDeAccion(deps, ctx, r, all.get(r.symbol)!, candles[r.symbol]!, coreOf(r.symbol), filingsPor.get(r.symbol) ?? [], hechosPor.get(r.symbol) ?? []);
     if (fila) rows.push(fila);
@@ -590,7 +691,7 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   for (const cfg of deps.etfs) {
     const c = etfCandles[cfg.symbol];
     if (!c) continue;
-    const d = decideEtf(cfg, c, spy, policy.technical, { newEntry: !held.has(cfg.symbol) });
+    const d = decideEtf(cfg, c, spy, policy.technical, { newEntry: !held.has(cfg.symbol), prevStop: stopPrevio.get(cfg.symbol.toUpperCase()) ?? null });
     if ("excluded" in d) {
       skipped.push({ symbol: cfg.symbol, reason: d.reasons.join(",") });
       continue;
@@ -627,6 +728,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   const latest = soloEstos ? todas.filter((c) => soloEstos.has(c.symbol.toUpperCase())) : todas;
   if (!latest.length) return { refreshed: 0, errors: [] };
   const held = await heldSymbols(store);
+  const stopPrevio = await stopsPrevios(store);
+  const regime = await regimenDeLaCorrida(deps);
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const { candles, errors } = await candlesFor(deps, latest.map((c) => c.symbol));
@@ -637,6 +740,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   // Igual que en `rankRadar`: la consulta en vivo a EDGAR falla abierta por fila, pero se cuenta para avisar.
   let filingsTotal = 0;
   let filingsFallidos = 0;
+  /** Símbolos cuya fila hay que quitar porque ya no están en el universo rankeable (7/10). */
+  const fueraDelUniverso: string[] = [];
   // Por convicción: el presupuesto de verificación va primero a lo que el plan va a comprar (ver `verificationOrder`).
   for (const prev of verificationOrder(latest, await store.allTags())) {
     // Solo la familia US: Argentina y seguimiento tienen su propio refresco.
@@ -646,14 +751,19 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     if (prev.kind === "etf") {
       const cfg = deps.etfs.find((e) => e.symbol === prev.symbol);
       if (!cfg) continue;
-      const d = decideEtf(cfg, c, spy, policy.technical, { newEntry: !held.has(cfg.symbol) });
+      const d = decideEtf(cfg, c, spy, policy.technical, { newEntry: !held.has(cfg.symbol), prevStop: stopPrevio.get(cfg.symbol.toUpperCase()) ?? null });
       if ("excluded" in d) continue;
       rows.push({ ...prev, candidateDate: opts.today, verdict: d.verdict, close: d.close, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: [...d.reasons, ...d.limitations], axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
       continue;
     }
     const f = await store.fundamentals(prev.symbol);
     if (!f) {
-      errors.push({ symbol: prev.symbol, error: "sin fundamentals" });
+      // Salió del universo (7/10). Antes esto solo se anotaba como error y la fila VIEJA quedaba en el Radar con su
+      // veredicto de la corrida anterior: BSTZ, un fondo cerrado que dejó de ser elegible, seguía como COMPRAR y
+      // llegó al plan con monto. Se borra la fila, no se la deja envejecer. Solo por esta causa: si faltan VELAS la
+      // fila se conserva, porque una caída del proveedor (23/9, Yahoo) borraría el Radar entero.
+      fueraDelUniverso.push(prev.symbol);
+      errors.push({ symbol: prev.symbol, error: "sin fundamentals: salió del universo, se quita del Radar" });
       continue;
     }
     // Solo se aísla lo que puede fallar por I/O externo (lectura de estados, barrido de noticias): un error acá
@@ -681,7 +791,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
     filingsTotal++;
     const filingsPrev = await deps.filingsDeOferta(prev.symbol).catch(() => { filingsFallidos++; return [] as string[]; });
     const hechosPrev = await hechosDe(deps, prev.symbol, opts.today);
-    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), filings: filingsPrev, hechos: hechosPrev, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(guardada ? { verification: guardada } : {}) };
+    const input = { f, candles: c, nthAppearance: prev.nthAppearance, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(prev.symbol.toUpperCase()), prevStop: stopPrevio.get(prev.symbol.toUpperCase()) ?? null, regime, filings: filingsPrev, hechos: hechosPrev, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(core !== undefined ? { core } : {}), events: evEvents, eventsUnclassified, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null, ...(guardada ? { verification: guardada } : {}) };
     let d = decideCandidate(input, policy);
     let verification: VerificationSummary | null | undefined = guardada;
     if (!("excluded" in d)) {
@@ -696,7 +806,17 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       // El stop se recalcula con las velas de hoy. Antes se arrastraba el de `prev` mientras el cierre sí se
       // actualizaba: BEAM quedó con el stop congelado en 27,13 desde el 7/9 mientras el precio caía a 24,37,
       // así que la fila mostraba un nivel de salida que ya no correspondía a ninguna vela.
-      rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: c[c.length - 1]!.close, stop: computeTrailingStop(c), entry: null, flags: [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
+      //
+      // Y ese stop recalculado puede quedar ARRIBA del cierre, que es el motivo por el que la fila no se compra: sin
+      // `bajo_stop` la pantalla muestra los dos números y no explica ninguno (CDLR y USAC el 25/9). `decideCandidate`
+      // no lo enciende porque el filtro técnico la excluye antes de mirar el stop, así que se enciende acá. El `Set`
+      // corta la otra cara del mismo defecto: `d.reasons` se concatenaba a las banderas de ayer todos los días y
+      // BEAM llegó a tener `bajo_sma200` once veces en la misma fila.
+      const cierreHoy = c[c.length - 1]!.close;
+      const trailingHoy = computeTrailingStop(c);
+      const bajoStopHoy = trailingHoy !== null && cierreHoy <= trailingHoy;
+      const banderasHoy = [...prev.flags.filter((x) => !x.startsWith("degradado")), ...d.reasons, ...(bajoStopHoy ? ["bajo_stop"] : [])];
+      rows.push({ ...prev, candidateDate: opts.today, verdict: "OBSERVAR", close: cierreHoy, stop: trailingHoy, entry: null, flags: [...new Set(banderasHoy)], spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null, events: evEvents, analystTargets: ev?.analystTargets ?? prev.analystTargets ?? null });
       continue;
     }
     let degraded = prev.degradedBy === "narrator";
@@ -733,7 +853,7 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   if (!soloEstos && opts.sumarNuevas !== false) {
     const t0 = Date.now();
     try {
-      salen = await sumarNuevasDelDia(deps, { today: opts.today, portfolioUsd: opts.portfolioUsd, held, spyClose, verifyBudget, errors, skipped: [] }, latest, rows);
+      salen = await sumarNuevasDelDia(deps, { today: opts.today, portfolioUsd: opts.portfolioUsd, held, stopPrevio, regime, spyClose, verifyBudget, errors, skipped: [] }, latest, rows);
     } catch (e) {
       errors.push({ symbol: "*", error: `nuevas del día: ${String(e).slice(0, 160)}` });
     }
@@ -745,6 +865,13 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   if (!soloEstos) await marcarPares(deps, quedan, candles);
   else for (const r of quedan) if (latest.find((c) => c.kind === r.kind && c.symbol === r.symbol)?.flags.includes("pares_no_comparables") && !r.flags.includes("pares_no_comparables")) r.flags.push("pares_no_comparables");
   await store.upsertCandidates(quedan);
+  // Y se quitan las filas de los símbolos que salieron del universo (7/10): su fila vieja no puede seguir en el
+  // Radar con el veredicto de la corrida anterior. Es un borrado PUNTUAL, por símbolo nombrado, no una poda por
+  // "lo que no se reescribió": si fallan las velas la fila se conserva.
+  if (fueraDelUniverso.length) {
+    const n = await store.borrarCandidatas(opts.today, fueraDelUniverso).catch(() => 0);
+    deps.log?.(`[radar] fuera del universo: ${fueraDelUniverso.join(" ")} (${n} filas quitadas del Radar)`);
+  }
   // Se borra SOLO lo que cedió su lugar. Una fila de hoy que esta corrida no pudo rehacer (velas que fallaron en un
   // segundo refresco) se conserva: la poda por "lo que no se reescribió" la hacía desaparecer (revisión del 24/9).
   if (salen.length) {
@@ -848,8 +975,19 @@ export async function porQueNoEsta(deps: Pick<RadarDeps, "store" | "policy">, sy
 async function sumarNuevasDelDia(deps: RadarDeps, ctx: ContextoFila, latest: CandidateRow[], rows: CandidateRow[]): Promise<string[]> {
   const log = deps.log ?? (() => {});
   const { policy, store } = deps;
-  const { all, scanOk } = await universoDelRanking(deps, ctx.today);
-  if (!all.size || (scanOk > 0 && all.size < scanOk * UNIVERSO_MINIMO)) return [];
+  const { all, scanDate, prefiltrado, pendientes } = await universoDelRanking(deps, ctx.today);
+  // Mismas dos puertas que el ranking: con el barrido a medio hacer (5/10) o el universo roto (15/9), el refresco
+  // tampoco suma filas nuevas, porque saldrían de medio abecedario.
+  const cobDia = await coberturaDelBarrido(deps, scanDate);
+  if (!cobDia.cubre) {
+    log(`[radar] no se suman filas nuevas: el barrido del ${scanDate} no cubre el listado (${cobDia.filas} de ${cobDia.listados})`);
+    return [];
+  }
+  if (pendientes > 0) {
+    log(`[radar] no se suman filas nuevas: el barrido del ${scanDate} no terminó (faltan ${pendientes} de ${prefiltrado})`);
+    return [];
+  }
+  if (!all.size || (prefiltrado > 0 && all.size < prefiltrado * UNIVERSO_MINIMO)) return [];
   const ranked = rankStocks(all, policy.weights).ranked;
   const posicion = new Map(ranked.map((r, i) => [r.symbol, i + 1]));
   // Solo las filas de acciones: una de seguimiento o de Argentina no le quita a nadie la entrada (el domingo tampoco).

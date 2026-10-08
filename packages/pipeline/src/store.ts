@@ -37,6 +37,12 @@ export interface Store {
 
 /** Lo que la cartera real necesita de la persistencia (spec etapa 1 §3.1). Repo lo implementa junto con Store. */
 export interface CarteraStore {
+  /**
+   * Filas del último Radar (7/10). Opcional a propósito: Cartera no necesita el Radar para nada más, pero el trinquete
+   * del stop se ancla al máximo entre el veredicto guardado y la fila del Radar, y sin esta fuente la pantalla que
+   * corre última queda más arriba que la otra (TSM: 456,51 contra 456,27). `MemoryStore` y el repo real la tienen.
+   */
+  latestCandidates?(): Promise<CandidateRow[]>;
   positions(): Promise<Position[]>;
   upsertPosition(p: Position): Promise<void>;
   deletePosition(symbol: string): Promise<void>;
@@ -101,6 +107,12 @@ export interface RadarStore {
   scanPending(scanDate: string): Promise<string[]>;
   scanStatus(scanDate: string): Promise<Record<ScanStage, number>>;
   scanSymbols(scanDate: string, stage: ScanStage): Promise<string[]>;
+  /** Todos los símbolos con fila en ese barrido, en cualquier etapa (7/10): con esto la fase A sabe qué le falta. */
+  scanAllSymbols(scanDate: string): Promise<string[]>;
+  /** Símbolos con al menos `minVelas` velas guardadas (7/10, para la simulación de precio). */
+  symbolsConVelas(minVelas: number): Promise<string[]>;
+  /** Capitalización guardada por símbolo. Es la de hoy: solo sirve para tramos aproximados de tamaño. */
+  mcapsPorSimbolo(): Promise<Record<string, number | null>>;
   latestScanDate(): Promise<string | null>;
   upsertCandidates(rows: CandidateRow[]): Promise<void>;
   /** Evaluadas que no quedaron en el Radar, con su motivo (24/9). Una por fecha y símbolo; `evaluadas` = más recientes primero. */
@@ -113,6 +125,13 @@ export interface RadarStore {
    * excluirla, y la pantalla la seguía mostrando. Vale para cualquier exclusión, no solo para los splits.
    */
   pruneCandidates(date: string, kind: CandidateRow["kind"], keep: string[]): Promise<number>;
+  /**
+   * Borra filas puntuales de esa fecha (7/10). Distinto de `pruneCandidates`, que borra "todo lo que no está en la
+   * lista": eso sirve al final de un ranking completo, pero en el refresco una caída del proveedor de velas borraría
+   * el Radar entero. Esto borra SOLO los símbolos nombrados, que es lo que hace falta cuando un símbolo sale del
+   * universo (BSTZ el 7/10: un fondo cerrado que dejó de ser elegible y conservaba su fila COMPRAR).
+   */
+  borrarCandidatas(date: string, symbols: string[]): Promise<number>;
   latestCandidates(): Promise<CandidateRow[]>;
   /** Histórico: por familia, las filas de la última fecha ≤ la pedida. Fechas de corrida disponibles (desc). */
   candidatesForDate(date: string): Promise<CandidateRow[]>;
@@ -480,6 +499,15 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   async scanSymbols(scanDate: string, stage: ScanStage) {
     return [...this.scan.values()].filter((r) => r.scanDate === scanDate && r.stage === stage).map((r) => r.symbol).sort();
   }
+  async scanAllSymbols(scanDate: string) {
+    return [...this.scan.values()].filter((r) => r.scanDate === scanDate).map((r) => r.symbol).sort();
+  }
+  async symbolsConVelas(minVelas: number) {
+    return [...this.candlesMap.entries()].filter(([, v]) => v.size >= minVelas).map(([k]) => k).sort();
+  }
+  async mcapsPorSimbolo() {
+    return Object.fromEntries([...this.fundamentalsMap.entries()].map(([k, f]) => [k, f.mcapUsd ?? null]));
+  }
   async latestScanDate() {
     return [...this.scan.values()].map((r) => r.scanDate).sort().at(-1) ?? null;
   }
@@ -538,6 +566,14 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   }
   async jobRuns() {
     return Object.fromEntries(this.jobs);
+  }
+  async borrarCandidatas(date: string, symbols: string[]) {
+    const quitar = new Set(symbols.map((x) => x.toUpperCase()));
+    let n = 0;
+    for (const [k, v] of [...this.candidates.entries()]) {
+      if (v.candidateDate === date && quitar.has(v.symbol.toUpperCase())) { this.candidates.delete(k); n++; }
+    }
+    return n;
   }
   async pruneCandidates(date: string, kind: CandidateRow["kind"], keep: string[]) {
     const vivos = new Set(keep);

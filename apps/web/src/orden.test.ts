@@ -49,7 +49,7 @@ describe("una orden, una base", () => {
 });
 
 describe("cuándo entrar, subordinado al plan", () => {
-  const zona: EntryTiming = { state: "en_zona", level: 102, levelLabel: "hasta 2% sobre el precio", low: 100, high: 102, validSessions: 15, sma20: 98, sma50: 95, atr14: 2, extensionAtr: 0.5, rangePct60: 60, why: "ni extendida ni floja" };
+  const zona: EntryTiming = { state: "en_zona", level: 102, levelLabel: "hasta 2% sobre el precio", low: 100, high: 102, validSessions: 15, sma20: 98, sma50: 95, sma200: null, distSma200Pct: null, pendSma200Pct: null, atr14: 2, extensionAtr: 0.5, rangePct60: 60, why: "ni extendida ni floja" };
 
   it("SNDK el 15/9: en zona, pero el plan no la compra → no dice 'comprar ahora' en verde", () => {
     expect(entryVerb(zona, false)).toEqual({ text: "en zona", tone: "muted" });

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lt, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, notInArray, sql, lte } from "drizzle-orm";
 import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, EvaluadaRadar, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { CANDIDATE_FAMILIES, computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
@@ -327,6 +327,47 @@ export class Repo {
     const v = { symbol: f.symbol.toUpperCase(), asOf: f.asOf, metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: f.mcapUsd === null ? null : str(Math.round(f.mcapUsd)), dollarVolumeUsd: str(Math.round(f.dollarVolumeUsd)), priceUsd: str(f.priceUsd), nextEarnings: f.nextEarnings, insiderBuys90d: f.insiderBuys90d, insiderSells90d: f.insiderSells90d, analyst: f.analyst, earningsSurprises: f.earningsSurprises, metricsRaw: f.metricsRaw ?? null, statementsAsOf: f.statementsAsOf ?? null, ...(f.currency !== undefined ? { currency: f.currency } : {}), updatedAt: new Date() };
     // Sin moneda en el objeto (quien la armó no la conocía) se conserva la guardada: un ranking no la borra.
     await this.db.insert(s.fundamentals).values(v).onConflictDoUpdate({ target: s.fundamentals.symbol, set: v });
+    // Y la copia punto-en-el-tiempo (8/10): sin esto el ranking no se puede backtestear. Falla abierta a propósito:
+    // un problema guardando el histórico no puede hacer caer un barrido de 20 horas.
+    const h = { asOf: f.asOf, symbol: f.symbol.toUpperCase(), metrics: f.metrics, peers: f.peers, industry: f.industry, mcapUsd: v.mcapUsd, dollarVolumeUsd: v.dollarVolumeUsd, priceUsd: v.priceUsd, currency: f.currency ?? null, guardadoAt: new Date() };
+    await this.db.insert(s.fundamentalsHistoria).values(h).onConflictDoUpdate({ target: [s.fundamentalsHistoria.asOf, s.fundamentalsHistoria.symbol], set: h }).catch(() => undefined);
+  }
+  /**
+   * Fundamentales tal como se conocían AL CIERRE de `hasta`: por cada símbolo, la última versión con fecha ≤ `hasta`.
+   *
+   * No es igualdad de fecha, y la diferencia importa (8/10). `as_of` es la fecha en que se PIDIÓ cada símbolo, no un
+   * corte uniforme: las fundamentales solo se repiden si tienen más de 7 días, así que en un mismo barrido conviven
+   * símbolos con fechas distintas. Un backtest que filtrara `as_of = D` tomaría un puñado de símbolos y diría
+   * cualquier cosa; y uno que tomara la fila más nueva sin tope estaría mirando el futuro.
+   */
+  async fundamentalsEnFecha(hasta: string): Promise<Fundamentals[]> {
+    const h = s.fundamentalsHistoria;
+    // El alias NO puede llamarse `as_of`: colisiona con la columna de la tabla y Postgres rechaza el join.
+    const ultima = this.db.$with("ultima").as(
+      this.db.select({ symbol: h.symbol, maxAsOf: sql<string>`max(${h.asOf})`.as("max_as_of") }).from(h).where(lte(h.asOf, hasta)).groupBy(h.symbol),
+    );
+    const rows = await this.db.with(ultima).select().from(h).innerJoin(ultima, and(eq(h.symbol, ultima.symbol), eq(h.asOf, ultima.maxAsOf)));
+    return rows.map(({ fundamentals_historia: r }) => ({
+      symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers ?? []) as string[],
+      industry: r.industry, mcapUsd: r.mcapUsd === null ? null : Number(r.mcapUsd), dollarVolumeUsd: Number(r.dollarVolumeUsd),
+      priceUsd: Number(r.priceUsd), nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null,
+      earningsSurprises: null, ...(r.currency ? { currency: r.currency } : {}),
+    }));
+  }
+  /** @deprecated interna: la versión exacta de una fecha, solo para auditar el histórico. */
+  private async fundamentalsExactas(asOf: string): Promise<Fundamentals[]> {
+    const rows = await this.db.select().from(s.fundamentalsHistoria).where(eq(s.fundamentalsHistoria.asOf, asOf));
+    return rows.map((r) => ({
+      symbol: r.symbol, asOf: r.asOf, metrics: r.metrics as Fundamentals["metrics"], peers: (r.peers ?? []) as string[],
+      industry: r.industry, mcapUsd: r.mcapUsd === null ? null : Number(r.mcapUsd), dollarVolumeUsd: Number(r.dollarVolumeUsd),
+      priceUsd: Number(r.priceUsd), nextEarnings: null, insiderBuys90d: null, insiderSells90d: null, analyst: null,
+      earningsSurprises: null, ...(r.currency ? { currency: r.currency } : {}),
+    }));
+  }
+  /** Qué fechas tienen histórico guardado, de la más vieja a la más nueva. */
+  async fechasConHistoria(): Promise<string[]> {
+    const rows = await this.db.selectDistinct({ d: s.fundamentalsHistoria.asOf }).from(s.fundamentalsHistoria).orderBy(s.fundamentalsHistoria.asOf);
+    return rows.map((r) => r.d);
   }
   async fundamentals(symbol: string): Promise<Fundamentals | null> {
     const r = (await this.db.select().from(s.fundamentals).where(eq(s.fundamentals.symbol, symbol.toUpperCase())))[0];
@@ -435,6 +476,17 @@ export class Repo {
   async scanSymbols(scanDate: string, stage: ScanStage): Promise<string[]> {
     return (await this.db.select({ symbol: s.universeScan.symbol }).from(s.universeScan).where(and(eq(s.universeScan.scanDate, scanDate), eq(s.universeScan.stage, stage))).orderBy(s.universeScan.symbol)).map((r) => r.symbol);
   }
+  async scanAllSymbols(scanDate: string): Promise<string[]> {
+    return (await this.db.select({ symbol: s.universeScan.symbol }).from(s.universeScan).where(eq(s.universeScan.scanDate, scanDate)).orderBy(s.universeScan.symbol)).map((r) => r.symbol);
+  }
+  async symbolsConVelas(minVelas: number): Promise<string[]> {
+    const rows = await this.db.select({ symbol: s.candlesDaily.symbol, n: sql<number>`count(*)::int` }).from(s.candlesDaily).groupBy(s.candlesDaily.symbol).having(sql`count(*) >= ${minVelas}`);
+    return rows.map((r) => r.symbol).sort();
+  }
+  async mcapsPorSimbolo(): Promise<Record<string, number | null>> {
+    const rows = await this.db.select({ symbol: s.fundamentals.symbol, mcap: s.fundamentals.mcapUsd }).from(s.fundamentals);
+    return Object.fromEntries(rows.map((r) => [r.symbol, r.mcap === null ? null : Number(r.mcap)]));
+  }
   async latestScanDate(): Promise<string | null> {
     return (await this.db.select({ d: sql<string | null>`max(${s.universeScan.scanDate})` }).from(s.universeScan))[0]?.d ?? null;
   }
@@ -460,6 +512,11 @@ export class Repo {
    * quedó mostrando la fuerza relativa de −92,68% que venía de su split sin ajustar, después de que el
    * motor ya la excluyera. Vale para cualquier exclusión, no solo para los splits.
    */
+  async borrarCandidatas(date: string, symbols: string[]): Promise<number> {
+    if (!symbols.length) return 0;
+    const borradas = await this.db.delete(s.radarCandidates).where(and(eq(s.radarCandidates.candidateDate, date), inArray(s.radarCandidates.symbol, symbols.map((x) => x.toUpperCase())))).returning({ symbol: s.radarCandidates.symbol });
+    return borradas.length;
+  }
   async pruneCandidates(date: string, kind: CandidateRow["kind"], keep: string[]): Promise<number> {
     const cond = keep.length
       ? and(eq(s.radarCandidates.candidateDate, date), eq(s.radarCandidates.kind, kind), notInArray(s.radarCandidates.symbol, keep))
@@ -595,11 +652,11 @@ export class Repo {
   // ---------- Argentina (etapa 3) ----------
   private macroToRow(m: MacroAr) {
     const n = (v: number | null) => (v === null ? null : str(v));
-    return { date: m.date, oficial: n(m.oficial), mep: n(m.mep), ccl: n(m.ccl), blue: n(m.blue), mayorista: n(m.mayorista), brechaPct: n(m.brechaPct), riesgoPais: m.riesgoPais, merval: n(m.merval), mervalUsd: n(m.mervalUsd), mervalDate: m.mervalDate ?? null };
+    return { date: m.date, oficial: n(m.oficial), mep: n(m.mep), ccl: n(m.ccl), blue: n(m.blue), mayorista: n(m.mayorista), brechaPct: n(m.brechaPct), riesgoPais: m.riesgoPais, merval: n(m.merval), mervalUsd: n(m.mervalUsd), mervalDate: m.mervalDate ?? null, riesgoPaisDate: m.riesgoPaisDate ?? null };
   }
   private rowToMacro(r: typeof s.macroArDaily.$inferSelect): MacroAr {
     const n = (v: string | null) => (v === null ? null : Number(v));
-    return { date: r.date, oficial: n(r.oficial), mep: n(r.mep), ccl: n(r.ccl), blue: n(r.blue), mayorista: n(r.mayorista), brechaPct: n(r.brechaPct), riesgoPais: r.riesgoPais, merval: n(r.merval), mervalUsd: n(r.mervalUsd), mervalDate: r.mervalDate };
+    return { date: r.date, oficial: n(r.oficial), mep: n(r.mep), ccl: n(r.ccl), blue: n(r.blue), mayorista: n(r.mayorista), brechaPct: n(r.brechaPct), riesgoPais: r.riesgoPais, merval: n(r.merval), mervalUsd: n(r.mervalUsd), mervalDate: r.mervalDate, riesgoPaisDate: r.riesgoPaisDate };
   }
   async saveMacroAr(m: MacroAr): Promise<void> {
     const row = this.macroToRow(m);

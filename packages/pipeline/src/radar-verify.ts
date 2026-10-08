@@ -12,7 +12,8 @@ export interface VerifyDeps {
   verifier?: CandidateVerifier | null;
   log?: (msg: string, extra?: unknown) => void;
 }
-export const VERIFY_FRESH_DAYS = 7;
+export { VERIFY_FRESH_DAYS } from "@thesis/core";
+import { VERIFY_FRESH_DAYS } from "@thesis/core";
 /** Tope de llamadas al modelo con búsqueda por corrida: la cuota gratis de búsqueda es de pocas por día y por clave (10/9: se agotó con menos de 10). */
 export const VERIFY_PER_RUN_DEFAULT = 8;
 const DAY = 86_400_000;

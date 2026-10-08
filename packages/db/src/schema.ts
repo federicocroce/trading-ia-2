@@ -216,6 +216,29 @@ export const news = pgTable(
 );
 
 /** Radar (spec etapa 2 §11). */
+/**
+ * Histórico punto-en-el-tiempo de las fundamentales (8/10/2026). `fundamentals` tiene el símbolo como clave y se
+ * SOBREESCRIBE en cada barrido: guarda "lo de hoy". Por eso el ranking no se podía backtestear — rankear septiembre
+ * con los balances de octubre es mirar el futuro. Esta tabla es append-only, una fila por (fecha, símbolo), y no
+ * cambia ninguna lectura existente. Guarda `peers` porque el grupo de pares es parte del puntaje.
+ */
+export const fundamentalsHistoria = pgTable(
+  "fundamentals_historia",
+  {
+    asOf: date("as_of").notNull(),
+    symbol: text("symbol").notNull(),
+    metrics: jsonb("metrics").notNull(),
+    peers: jsonb("peers").notNull().default([]),
+    industry: text("industry"),
+    mcapUsd: numeric("mcap_usd", { precision: 20, scale: 0 }),
+    dollarVolumeUsd: numeric("dollar_volume_usd", { precision: 20, scale: 0 }).notNull(),
+    priceUsd: numeric("price_usd", { precision: 14, scale: 4 }).notNull(),
+    currency: text("currency"),
+    guardadoAt: timestamp("guardado_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.asOf, t.symbol] }), index("fundamentals_historia_symbol").on(t.symbol, t.asOf)],
+);
+
 export const fundamentals = pgTable("fundamentals", {
   symbol: text("symbol").primaryKey(),
   asOf: date("as_of").notNull(),
@@ -451,6 +474,8 @@ export const macroArDaily = pgTable("macro_ar_daily", {
   mervalUsd: numeric("merval_usd", { precision: 14, scale: 4 }),
   /** Rueda del cierre del Merval que se dividió por el CCL: los dólares son de hoy, el índice puede ser de ayer. */
   mervalDate: date("merval_date"),
+  /** Rueda del riesgo país que informa la fuente (6/10/2026): el valor del viernes se guardaba como del lunes. */
+  riesgoPaisDate: date("riesgo_pais_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -94,6 +94,14 @@ export function qualityBar(f: FundamentalsInput, q: RadarPolicy["quality"], o: Q
   // Finnhub puede traer el volumen del listado local (ADR): se usa el mayor entre Finnhub y el consolidado US.
   const vol = finnhubVol === null ? override : override === null ? finnhubVol : Math.max(finnhubVol, override);
   if (f.priceUsd < q.minPrice) return { ok: false, reason: `precio ${f.priceUsd} < ${q.minPrice}`, mcapUsd: mcap, dollarVolumeUsd: vol };
+  // Sin industria usable no hay pares, y sin pares el ranking de esta app no significa nada (7/10). BSTZ
+  // ("BlackRock Science and Technology Term Trust", un fondo cerrado) entró al plan con score 1,304 por quedar
+  // 1° de un grupo de 15 símbolos SIN industria. Es la misma regla que declara el encabezado: sin dato, no pasa.
+  // Y es general: agarra fondos cerrados, cascarones y lo que el proveedor no clasifique, sin heurísticas de nombre.
+  const industria = (f.profile.industry ?? "").trim();
+  if (!industria || /^(n\/a|unknown|none)$/i.test(industria)) {
+    return { ok: false, reason: "sin industria: no se puede comparar contra pares", mcapUsd: mcap, dollarVolumeUsd: vol };
+  }
   if (mcap === null && !o.allowUnknownMcap) {
     const moneda = (f.profile.currency ?? "USD").toUpperCase();
     const motivo = moneda === "USD" ? "sin acciones en circulación" : `capitalización publicada en ${moneda}: no se convierte ni se estima con el precio del ADR`;

@@ -68,3 +68,42 @@ describe("universo", () => {
     expect(qualityBar(adr, q, { volumeOverrideUsd: 1e6, allowUnknownMcap: true }).reason).toMatch(/volumen/);
   });
 });
+
+/*
+ * 7/10. Al ensanchar la preselección a 600, BSTZ entró al plan con USD 3.132 asignados: es
+ * "BlackRock Science and Technology Term Trust", un FONDO CERRADO, y estaba rankeado con métricas de empresa.
+ * Score 1,304 — de los más altos — porque quedó **1° de un grupo de 15 pares donde los 15 no tienen industria**.
+ * Ser primero de un grupo de cosas sin clasificar no significa nada.
+ *
+ * El filtro por nombre no lo agarraba a propósito: el comentario de `FUND_LIKE` dice que los REITs ("… Trust") sí son
+ * empresas, así que "Trust" se dejó pasar. Y meter nombres de patrocinadores es peligroso: "Franklin Electric" y
+ * "Morgan Stanley" son empresas reales.
+ *
+ * La señal correcta es estructural y general: el método de la app es comparar contra PARES de la misma industria.
+ * Sin industria usable no hay comparación posible, así que el símbolo no puede pasar la barra. Es el mismo principio
+ * que ya declara el encabezado del módulo: "Fail-closed: sin dato, no pasa". Agarra fondos cerrados, cascarones y
+ * cualquier cosa que el proveedor no clasifique, sin una sola heurística de nombre.
+ */
+describe("qualityBar: sin industria no hay pares, y sin pares no hay ranking (7/10)", () => {
+  const q = { minMcapUsd: 500e6, minDollarVolumeUsd: 5e6, minPrice: 5 };
+  const base = (industry: string | null) => ({
+    profile: { shareOutstanding: 100, currency: "USD", country: "US", industry, name: "X", marketCap: 3e9 },
+    metrics: { "3MonthAverageTradingVolume": 5 } as Record<string, number | null | undefined>,
+    priceUsd: 30,
+  });
+
+  it("industria 'N/A' no pasa, y el motivo lo dice", () => {
+    const r = qualityBar(base("N/A"), q);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/industria/i);
+  });
+
+  it("industria vacía, nula o 'Unknown' tampoco", () => {
+    for (const i of [null, "", "  ", "Unknown", "unknown"]) expect(qualityBar(base(i), q).ok).toBe(false);
+  });
+
+  it("una industria real sigue pasando", () => {
+    expect(qualityBar(base("Semiconductors"), q).ok).toBe(true);
+    expect(qualityBar(base("REIT—Diversified"), q).ok).toBe(true);
+  });
+});

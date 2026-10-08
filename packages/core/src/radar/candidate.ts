@@ -1,4 +1,5 @@
-import { atr, computeTarget, computeTrailingStop, entryStop } from "../cartera/stop.js";
+import { atr, computeTarget, computeTrailingStop, entryStop, ratchetStop } from "../cartera/stop.js";
+import type { MacroRegime } from "./regime.js";
 import type { Candle } from "../cartera/types.js";
 import { UNRELIABLE_GROWTH_INDUSTRY, unreliableGrowthKeys, type Fundamentals } from "./ranking.js";
 import { bajoOfertaDeCompra } from "./oferta.js";
@@ -30,6 +31,22 @@ export const QUALITY_OBSERVE_AT = 2;
  * con objetivo cercano (LNC a 5x, +8%) no es "en el precio". `subio_mucho_12m`: subida mayor a 100% en 12 meses.
  */
 export const PRICE_THRESHOLDS = { consensusMinUpsidePct: 10, consensusRunupPct: 25, runup12mPct: 100 };
+/**
+ * Umbral ancho de `no_perseguir` cuando las tasas NO están altas ni subiendo (7/10). Medido con `pnpm simular` sobre
+ * 38.710 observaciones de 745 símbolos y 256 fechas, alfa a 30 ruedas contra el S&P:
+ *
+ *   retorno 21 ruedas      | restrictivo | neutral
+ *   0% a 15% (se permitía) |   −1,09%    |  +0,31%
+ *   más de 15% (se frenaba)|   −0,95%    |  +2,94%
+ *   15% a 40%              |   −0,84%    |  +2,22%
+ *
+ * Con tasas subiendo, frenar el momento no cuesta nada (−0,95 contra −1,09 es ruido) y se mantiene por prudencia.
+ * En régimen neutral costaba 2,6 puntos. Se deja un techo igual: arriba de 40% en 21 ruedas la muestra es la más
+ * chica del estudio y el stop queda tan ancho que el tamaño de posición se vuelve irrelevante.
+ *
+ * Sin régimen conocido se usa el umbral angosto: no se afloja una regla por no saber en qué régimen estamos.
+ */
+export const MAX_RETORNO_21D_NEUTRAL = 40;
 /** Desde cuánto por encima del consenso el objetivo de la app se avisa (21/9: SMCI 53,15 contra 42,38, +25%). */
 export const TARGET_OVER_CONSENSUS = 1.15;
 
@@ -44,6 +61,12 @@ export const TARGET_OVER_CONSENSUS = 1.15;
  * y el chequeo de consistencia lo reporta como `objetivo_fuera_de_escala` para que se mire a mano.
  */
 export const CONSENSUS_SCALE = { maxRatio: 2, minRatio: 0.5 };
+/**
+ * Cuántos días vale una verificación web. Vivía solo en el pipeline (`radar-verify.ts`), así que los chequeos de
+ * consistencia —que están en core— no podían saber si una verificación guardada seguía vigente, y reportaban como
+ * contradicción toda fila cuya verificación simplemente había vencido (FIVE el 7/10: guardada del 23/9, 14 días).
+ */
+export const VERIFY_FRESH_DAYS = 7;
 
 /**
  * Objetivo de consenso: mediana de objetivos de titulares (2 o más) o, si no hay, el que trajo la verificación
@@ -119,7 +142,7 @@ export interface TechnicalGate {
   atrPct: number | null;
 }
 
-export function technicalGate(candles: Candle[], p: RadarPolicy["technical"], nextEarnings: string | null, today: string): TechnicalGate {
+export function technicalGate(candles: Candle[], p: RadarPolicy["technical"], nextEarnings: string | null, today: string, regime?: MacroRegime | null): TechnicalGate {
   const close = candles[candles.length - 1]?.close ?? Number.NaN;
   const s200 = sma(candles, 200);
   const r21 = returnPct(candles, 21);
@@ -131,9 +154,11 @@ export function technicalGate(candles: Candle[], p: RadarPolicy["technical"], ne
   // No se adivina el ajuste: se deja de calcular encima y se dice por qué.
   const salto = crossesSplit(candles, 200);
   if (salto !== null) return { status: "excluido", reasons: [`serie_con_salto:${salto.date}`], close, sma200: s200, return21dPct: r21, atrPct: a };
-  if (close < s200) return { status: "excluido", reasons: ["bajo_sma200"], close, sma200: s200, return21dPct: r21, atrPct: a };
+  if (bajoSma200(close, s200, candles)) return { status: "excluido", reasons: ["bajo_sma200"], close, sma200: s200, return21dPct: r21, atrPct: a };
   const reasons: string[] = [];
-  if (r21 !== null && r21 > p.maxReturn21dPct) reasons.push("no_perseguir");
+  // El techo depende del régimen (7/10, ver MAX_RETORNO_21D_NEUTRAL). Sin régimen, el angosto.
+  const techo21 = regime && regime.state !== "restrictivo" ? Math.max(p.maxReturn21dPct, MAX_RETORNO_21D_NEUTRAL) : p.maxReturn21dPct;
+  if (r21 !== null && r21 > techo21) reasons.push("no_perseguir");
   if (nextEarnings) {
     const days = (Date.parse(nextEarnings) - Date.parse(today)) / DAY;
     if (days >= 0 && days <= p.earningsWithinDays) reasons.push("resultados_cerca");
@@ -211,6 +236,73 @@ export function dividendoNoComprobable(f: Pick<Fundamentals, "metrics" | "priceU
   return null;
 }
 
+/**
+ * Rango mínimo de las últimas 200 ruedas, en %, para que la media de 200 signifique algo.
+ *
+ * SGOV (letras a 0-3 meses) cerró el 5/10/2026 en 100,50 con media en 100,5246 — 0,025% — y quedaba
+ * descartado por `bajo_sma200`. Su rango completo de 200 ruedas es 0,43%: hace dientes de sierra entre
+ * distribuciones y la media cae en el medio, así que no hay tendencia que perforar. Medido sobre la base: de
+ * 747 símbolos con 200 ruedas, SGOV es el único con rango menor al 4%; el siguiente ya pasa 4%. 2% aísla el
+ * caso sin tocar ningún papel real.
+ */
+export const RANGO_SMA200_MINIMO_PCT = 2;
+
+/**
+ * `true` si el cierre está debajo de su media de 200 Y el papel tiene amplitud suficiente para que eso
+ * signifique algo. Los instrumentos cuasi-efectivo quedan afuera del filtro, no aprobados por él.
+ */
+export function bajoSma200(close: number, sma200: number | null, candles: readonly Candle[]): boolean {
+  if (sma200 === null || !(close < sma200)) return false;
+  const ventana = candles.slice(-200);
+  if (ventana.length < 200) return true;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const c of ventana) {
+    if (c.close < min) min = c.close;
+    if (c.close > max) max = c.close;
+  }
+  if (!(min > 0)) return true;
+  return ((max - min) / min) * 100 >= RANGO_SMA200_MINIMO_PCT;
+}
+
+/**
+ * Debajo de esto una "sorpresa" negativa no es comparable con el resultado operativo del mismo trimestre:
+ * es un cambio de base del proveedor, no un fallo del negocio.
+ */
+export const SORPRESA_BASE_ROTA_PCT = 50;
+
+/**
+ * `true` si la sorpresa negativa contradice al resultado operativo del MISMO trimestre por un orden de magnitud.
+ *
+ * DAVE el 6/10/2026: el proveedor traía los tres trimestres previos en base ajustada (4,45 / 4,57 / 4,02) y el
+ * último en GAAP (0,49) contra un estimado de 3,74 armado sobre la ajustada → "falló 86,9%", cuando el ajustado
+ * fue 4,12 (beat de ~10%) y cuatro firmas subieron el objetivo al día siguiente. El GAAP se derrumbó por 36,9 M
+ * de remedición no monetaria de warrants y earnout, así que en todo de-SPAC con warrants vivos el EPS GAAP se
+ * mueve AL REVÉS que el precio y la bandera se enciende sola.
+ *
+ * El desajuste de orden de magnitud es la firma del cambio de base: un fallo real contra el consenso puede
+ * convivir con el operativo creciendo poco, no con el operativo creciendo fuerte. Si no hay operativo del
+ * trimestre se confía en el proveedor, como antes.
+ */
+export function sorpresaConBaseRota(surprisePercent: number, core: CoreEarnings | null | undefined): boolean {
+  const op = core?.lastQuarterYoy?.operatingPct;
+  if (op === null || op === undefined) return false;
+  return surprisePercent < -SORPRESA_BASE_ROTA_PCT && op > 0;
+}
+
+/** Días que vale el consenso de analistas. Más viejo que esto no se usa (ver `buildFlags`). */
+export const ANALYST_FRESH_DAYS = 120;
+
+/** `true` si el período del consenso está dentro de la ventana. Sin período o sin fecha legible → no se usa. */
+export function analystFresh(period: string | null | undefined, today?: string): boolean {
+  if (!period) return false;
+  const p = Date.parse(period);
+  if (Number.isNaN(p)) return false;
+  const ref = Date.parse(today ?? new Date().toISOString().slice(0, 10));
+  if (Number.isNaN(ref)) return false;
+  return (ref - p) / DAY <= ANALYST_FRESH_DAYS;
+}
+
 export function buildFlags(
   f: Fundamentals,
   gate: TechnicalGate,
@@ -221,7 +313,11 @@ export function buildFlags(
   const flags: string[] = [];
   if ((f.insiderBuys90d ?? 0) >= 1) flags.push("insiders_compran");
   if ((f.insiderSells90d ?? 0) >= 3) flags.push("insiders_venden");
-  if (f.analyst) {
+  // El consenso se ignora si está viejo (6/10/2026). Cuatro símbolos de la base traían el de `2021-12-01` y dos
+  // estaban en COMPRAR: a JOE le restaba 0,3 por `consenso_venta` y a OPY le sumaba por `consenso_compra`, los
+  // dos por una opinión de hace casi cinco años. Sin consenso es mejor que con el de 2021: los objetivos de
+  // precio ya tenían guardas (`consensusTargetOf`), las recomendaciones no tenían ninguna.
+  if (f.analyst && analystFresh(f.analyst.period, extra.today)) {
     const total = f.analyst.strongBuy + f.analyst.buy + f.analyst.hold + f.analyst.sell + f.analyst.strongSell;
     if (total > 0 && (f.analyst.strongBuy + f.analyst.buy) / total > 0.6) flags.push("consenso_compra");
     if (total > 0 && (f.analyst.sell + f.analyst.strongSell) / total > 0.4) flags.push("consenso_venta");
@@ -229,7 +325,7 @@ export function buildFlags(
   const last = f.earningsSurprises?.[0]?.surprisePercent;
   if (last !== null && last !== undefined) {
     if (last > 5) flags.push("sorpresa_positiva");
-    if (last < -5) flags.push("sorpresa_negativa");
+    if (last < -5 && !sorpresaConBaseRota(last, extra.core)) flags.push("sorpresa_negativa");
   }
   const dy = dividendYieldPct(f);
   if (dy !== null && dy > DIVIDEND_FLAG_MIN_PCT) flags.push(`dividendo:${round2(dy)}`);
@@ -299,6 +395,14 @@ export function decideCandidate(
     analystTargets?: AnalystTargets | null;
     /** Ya está en cartera: el stop es el de la posición (el de seguimiento), porque una posición tiene un solo stop. */
     held?: boolean;
+    /**
+     * Stop del último veredicto guardado de ese símbolo (7/10). Solo se usa si `held`: una posición lleva el trinquete
+     * de `ratchetStop`, el mismo que calcula Cartera con la misma entrada, para que las dos pantallas no puedan
+     * mostrar niveles de salida distintos (GGAL el 7/10: 41,34 en el Radar contra 41,53 en Cartera, estando en VENDER).
+     */
+    prevStop?: number | null;
+    /** Régimen de tasas (7/10): mueve el techo de `no_perseguir`. Sin él se usa el umbral angosto. */
+    regime?: MacroRegime | null;
     /** Títulos de filings recientes de la SEC: de ahí sale si la empresa está bajo una oferta de compra (AES, 16/9). */
     filings?: readonly string[];
     /** Hechos externos vigentes del símbolo (17/9): guía, reservas, oferta. Sólo los verificados producen banderas. */
@@ -306,7 +410,7 @@ export function decideCandidate(
   },
   p: Pick<RadarPolicy, "technical" | "sizing" | "candidates">,
 ): CandidateDecision | { excluded: true; reasons: string[] } {
-  const gate = technicalGate(i.candles, p.technical, i.f.nextEarnings, i.today);
+  const gate = technicalGate(i.candles, p.technical, i.f.nextEarnings, i.today, i.regime ?? null);
   if (gate.status === "excluido") return { excluded: true, reasons: gate.reasons };
   const flags = buildFlags(i.f, gate, i.nthAppearance, p.candidates.chronicWeeks, {
     ...(i.core !== undefined ? { core: i.core } : {}),
@@ -342,7 +446,10 @@ export function decideCandidate(
   const entryLow = entry ? entry.low : close;
   const entryHigh = entry ? entry.high : round2(close * 1.02);
   // El stop de seguimiento es el FILTRO: decide si la tendencia sigue en pie (`bajo_stop`, `stop_dentro_de_la_entrada`).
-  const trailing = computeTrailingStop(i.candles);
+  // Para lo que YA TENÉS lleva el trinquete (7/10): el stop de una posición no baja, así que el nivel que filtra es el
+  // mismo que muestra Cartera. Para una compra nueva es la ventana de hoy, que es justamente lo que se quiere saber.
+  const ventana = computeTrailingStop(i.candles);
+  const trailing = i.held ? ratchetStop(ventana, i.prevStop ?? null) : ventana;
   // Cierre bajo el stop dinámico: viene cayendo desde un máximo reciente. Para un candidato nuevo
   // no es una compra: se observa hasta que el stop vuelva a quedar por debajo del precio.
   const belowStop = trailing !== null && close <= trailing;

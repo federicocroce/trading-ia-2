@@ -150,6 +150,14 @@ export interface PlanLine {
   qty?: number | null;
   trancheUsd?: number | null;
   trancheQty?: number | null;
+  /**
+   * En cuántos tramos se puede partir ESTA línea de verdad (8/10/2026). El plan sugiere N tramos para el aporte
+   * entero, pero una acción cara no se puede partir en N: con la línea de LLY en USD 1.949 y la acción en 1.212,
+   * `trancheQty` daba **0** y la línea era inejecutable en tramos. Apareció al repartir el mismo aporte en 7
+   * posiciones en vez de 4: cada línea se hizo más chica y las caras dejaron de alcanzar para un lote por tramo.
+   * Siempre ≥ 1. Si es menor que los tramos del plan, esa línea se compra de una vez y la línea lo dice.
+   */
+  tranchesLinea?: number | null;
 }
 export interface PlanOptions {
   /** Monto a repartir en vez del aporte mensual (plata líquida de una vez). */
@@ -174,6 +182,27 @@ export const PLAN_BLOCKERS: Record<string, string> = {
   evento_de_capital_pendiente: "tiene un dividendo especial o una escisión pendiente (hecho verificado): ese día el precio baja de forma mecánica y los niveles no valen hasta que pase",
 };
 /**
+ * Frenos que SOLO aplican con tasas altas o subiendo (7/10). Medido con `pnpm simular` sobre 38.710 observaciones de
+ * 745 símbolos y 256 fechas, alfa a 30 ruedas contra el S&P:
+ *
+ *   retorno 12 meses         | restrictivo | neutral
+ *   0% a 100% (se permitía)  |   −0,20%    |  +0,74%
+ *   más de 100% (se frenaba) |   −1,77%    |  +2,66%
+ *
+ * Con tasas subiendo el freno acierta y se queda. En régimen neutral costaba 1,9 puntos: ahí la bandera sigue
+ * puesta y avisa, pero no deja a la candidata afuera del plan. Es la misma forma que el dueño aprobó el 18/9 para
+ * la IA: avisar en vez de bloquear, salvo cuando hay evidencia de que bloquear sirve.
+ *
+ * Sin régimen conocido se aplican TODOS: no se afloja una regla por no saber en qué régimen estamos.
+ */
+export const BLOCKERS_SOLO_RESTRICTIVO = new Set(["subio_mucho_12m"]);
+
+/** Los frenos vigentes para este régimen. `null` = no se sabe → todos. */
+export function blockersVigentes(regime: { state: string } | null | undefined): Record<string, string> {
+  if (!regime || regime.state === "restrictivo") return PLAN_BLOCKERS;
+  return Object.fromEntries(Object.entries(PLAN_BLOCKERS).filter(([k]) => !BLOCKERS_SOLO_RESTRICTIVO.has(k)));
+}
+/**
  * A cuántos ATR del stop tiene que estar el precio para comprar o sumar (14/9). APH cerró en 78,55 con el stop de su
  * orden en 77,81 (0,3 ATR) y TSM en 418 con el de la posición en 413,63 (0,4 ATR): con dos años de velas, un stop a
  * menos de medio ATR se tocaba en cinco ruedas siete de cada diez veces (NVDA y V, 13/9). Comprar ahí es comprar la salida.
@@ -196,7 +225,30 @@ const miles = (n: number) => Math.round(n).toLocaleString("es-AR");
 export const minPriceFor = (stop: number | null | undefined, atr: number | null | undefined): number | null => (stop !== null && stop !== undefined && atr && atr > 0 ? round2(stop + STOP_NOISE_ATR * atr) : null);
 
 /** Posiciones nuevas según el monto: el tope base más una por cada 3 aportes mensuales, hasta 5 (40k con 6.5k mensual → 4). */
-export const maxNewPositions = (aporte: number, monthlyUsd: number, base: number) => Math.min(5, base + Math.floor(aporte / (3 * Math.max(1, monthlyUsd))));
+/**
+ * Cuántas posiciones NUEVAS puede abrir un plan.
+ *
+ * Por qué cambió (8/10/2026). Con un aporte de 40.000 y mensual de 6.500 la vieja fórmula daba 4, y eso explicaba
+ * **46 de las 70 candidatas dejadas afuera**: el tope, no la calidad. Antes me negué a subirlo con el argumento de
+ * que "dar más de una señal con rendimiento medido negativo empeora el resultado". **Ese argumento estaba mal**: el
+ * tope no controla cuánta plata va a la señal —el aporte es el mismo— controla en cuántos nombres se reparte.
+ * Repartir lo mismo en más nombres baja la varianza con la misma media.
+ *
+ * Y medido, el orden no justifica concentrar. `pnpm conviccion` sobre 29 fechas del 7/9 al 8/10, alfa a 7 días:
+ *   tramo 1 (convicción 1,19): −0,24%   acierto 45%   36 símbolos
+ *   tramo 2 (0,90):            −3,07%   acierto 50%   52 símbolos
+ *   tramo 3 (0,70):            +1,46%   acierto 56%   59 símbolos
+ *   tramo 4 (0,48):            −1,29%   acierto 38%   48 símbolos
+ *   tramo 5 (0,15):            −1,86%   acierto 30%   36 símbolos
+ * La convicción SÍ separa lo malo —el último tramo es el peor y con el peor acierto— pero NO separa lo mejor de lo
+ * bueno: el tramo 1 rinde peor que el tramo 3. Así que tomar las 4 primeras no tiene ventaja medida sobre tomar las
+ * 10 primeras, y 10 nombres tienen menos varianza que 4 para la misma plata. El tope se queda igual para un aporte
+ * mensual normal (2) y crece una posición por cada aporte extra, con techo en 10: más abajo empieza el tramo que
+ * sí mide mal.
+ */
+export const MAX_POSICIONES_NUEVAS_TECHO = 10;
+export const maxNewPositions = (aporte: number, monthlyUsd: number, base: number) =>
+  Math.min(MAX_POSICIONES_NUEVAS_TECHO, base + Math.max(0, Math.floor((aporte - Math.max(1, monthlyUsd)) / Math.max(1, monthlyUsd))));
 export interface ContributionPlan {
   month: string;
   totalUsd: number;
@@ -258,6 +310,9 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   const cfg = { ...DEFAULTS, coreSharePctWhileBelowTarget: c.coreSharePctWhileBelowTarget ?? DEFAULTS.coreSharePctWhileBelowTarget, sumarSharePctOfRest: c.sumarSharePctOfRest ?? DEFAULTS.sumarSharePctOfRest, watchLinesMax: c.watchLinesMax ?? DEFAULTS.watchLinesMax, etfLinesMax: c.etfLinesMax ?? DEFAULTS.etfLinesMax };
   const aporte = Math.round(o.amountUsd ?? c.monthlyUsd);
   const total = i.portfolioValueUsd + aporte;
+  // Qué frenos aplican hoy. Con tasas altas o subiendo son todos; en régimen neutral, `subio_mucho_12m` avisa pero
+  // no deja afuera (7/10, medido). Sin régimen conocido, todos.
+  const frenos = blockersVigentes(i.regime);
   const notes: string[] = [];
   const lines: PlanLine[] = [];
   const line = (symbol: string, kind: PlanLine["kind"], amountUsd: number, rationale: string): PlanLine => ({ symbol, kind, amountUsd, rationale, close: i.closes[symbol] ?? null, spyClose: i.spyClose, alpha30dPct: null, alpha90dPct: null });
@@ -413,9 +468,10 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       // (SNDK decía "verificación pendiente" y la frenaba igual haber subido más de 100%), y verificar lo que una regla
       // frena de todos modos era gastar cuota.
       // Salvedades de precio (pieza 3) y banco sin estados legibles (14/9): tampoco entra como nueva, con el motivo.
-      const blocker = (b.flags ?? []).find((f) => PLAN_BLOCKERS[f]);
+      // Los frenos vigentes dependen del régimen (7/10, ver `blockersVigentes`).
+      const blocker = (b.flags ?? []).find((f) => frenos[f]);
       if (blocker) {
-        leftOut.push({ symbol: b.symbol, reason: `${place}: ${PLAN_BLOCKERS[blocker]}` });
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${frenos[blocker]}` });
         return;
       }
       // El stop dentro del ruido (APH, 14/9) o una posición que se mueve como algo que ya tenés (GFI con NEM): no entra,
@@ -562,8 +618,23 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     const base = l.kind === "nucleo" || l.kind === "sumar" ? l.close : (l.entryHigh ?? l.close);
     l.orderPrice = base ?? null;
     l.qty = base ? Math.floor(l.amountUsd / base) : null;
-    l.trancheUsd = Math.floor(l.amountUsd / tranches);
+    // Los tramos REALES de esta línea: nunca más de los que el plan sugiere, nunca menos de 1, y nunca más de los
+    // lotes enteros que su propio monto permite comprar.
+    l.tranchesLinea = base && base > 0 ? Math.max(1, Math.min(tranches, Math.floor(l.amountUsd / base))) : null;
+    const t = l.tranchesLinea ?? tranches;
+    l.trancheUsd = Math.floor(l.amountUsd / t);
     l.trancheQty = base ? Math.floor(l.trancheUsd / base) : null;
+  }
+  // Lo que la matemática de lotes enteros deja sin usar. El plan reparte el aporte al peso, pero se compran acciones
+  // enteras: decir "despliega 40.000" cuando las acciones sólo alcanzan para 38.300 es sobrevender el plan.
+  const desplegable = finales.reduce((sum, l) => sum + (l.qty !== null && l.qty !== undefined && l.orderPrice ? l.qty * l.orderPrice : 0), 0);
+  const sobra = Math.round(aporte - desplegable);
+  if (sobra >= Math.max(MIN_LINE_USD, Math.round(aporte * 0.01))) {
+    notes.push(`Comprando lotes enteros a los precios de orden se despliegan USD ${miles(Math.round(desplegable))} de los USD ${miles(aporte)}: quedan USD ${miles(sobra)} sin usar por el redondeo a acciones enteras. No es una reserva: es el resto que no alcanza para una acción más en ninguna línea.`);
+  }
+  const partidasDeUna = finales.filter((l) => (l.tranchesLinea ?? tranches) < tranches && l.kind !== "nucleo");
+  if (tranches > 1 && partidasDeUna.length) {
+    notes.push(`No todas las líneas se pueden partir en ${tranches} tramos: ${partidasDeUna.map((l) => `${l.symbol} en ${l.tranchesLinea}`).join(", ")}. Son acciones caras y su monto no alcanza para un lote por tramo; se compran de una vez.`);
   }
   return { month: i.month, totalUsd: aporte, lines: finales, notes, leftOut, tranches, reviewsPending: pendientes, verificationsPending: porVerificar };
 }

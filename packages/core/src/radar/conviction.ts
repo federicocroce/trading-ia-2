@@ -73,8 +73,16 @@ const NEGATIVE: Record<string, { text: string; penalty: number }> = {
   // 24/9, P15: NVDA, SMCI, TSM, TAL… se parecían a su grupo menos que al S&P. El puesto contra ellos no dice nada.
   pares_no_comparables: { text: "sus pares no se mueven como ella (se parece más al mercado que a su grupo): el puesto contra ellos vale menos", penalty: 0.3 },
   ganancia_extraordinaria: { text: "la ganancia publicada no viene del negocio (valor razonable, venta de activos…): sin eso no llega al consenso (hecho verificado, con fuente en la ficha)", penalty: 0.3 },
+  /**
+   * Hecho de sector en contra (7/10). Pesa como una salvedad de empresa, no más: es contexto de la industria, no un
+   * hallazgo sobre ESTA empresa, y el precio del sector ya puede estar reflejándolo. NO frena: avisa y resta.
+   */
+  sector_en_contra: { text: "un hecho verificado del sector juega en contra (con fuente en la ficha)", penalty: 0.3 },
 };
+/** Un hecho de sector A FAVOR no suma convicción: informa. Sumar por contexto sería pagar dos veces el mismo relato. */
+const SECTOR_A_FAVOR = "sector_a_favor";
 const INFO: Record<string, string> = {
+  [SECTOR_A_FAVOR]: "un hecho verificado del sector juega a favor (con fuente en la ficha): es contexto, no suma convicción",
   resultado_extraordinario: "la ganancia reportada incluye extraordinarios: el ranking usa la ganancia núcleo",
   sin_estados: "sin estados de la SEC: las métricas son de Finnhub y pueden incluir extraordinarios",
   crecimiento_no_confiable: "en bancos, el crecimiento de ingresos que da Finnhub no es confiable (NBN +124% contra +4% real): el ranking no lo usa",

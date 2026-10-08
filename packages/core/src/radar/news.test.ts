@@ -70,3 +70,27 @@ describe("parseAnalystAction", () => {
     expect(analystTargets(acts as never, "2026-12-01")).toBeNull(); // más de 90 días
   });
 });
+
+/*
+ * 7/10: el patrón de `gestion` solo agarraba SALIDAS (`resigns|steps down|departs|exits`). Una sucesión anunciada como
+ * nombramiento —que es la forma normal de una transición planificada— no producía bandera, y por eso DHR y AAPL
+ * salían con riesgo 2/10 "sin banderas" teniendo CEO nuevo (5/10). Un cambio de mando es justamente lo que invalida
+ * una tesis construida sobre la gestión anterior.
+ */
+describe("gestion: un CEO nuevo también es un cambio de mando (7/10)", () => {
+  const kind = (h: string) => materialHeadlines([item(h)])[0]?.kind ?? null;
+  it("reconoce nombramientos y sucesiones, no solo renuncias", () => {
+    expect(kind("Danaher names Martin Stumpe chief executive officer")).toBe("gestion");
+    expect(kind("Apple appoints new CEO effective January 2027")).toBe("gestion");
+    expect(kind("X board appoints John Doe as CFO")).toBe("gestion");
+    expect(kind("Jane Roe to succeed Tim Cook as CEO")).toBe("gestion");
+    expect(kind("X announces CEO succession plan")).toBe("gestion");
+    expect(kind("X nombra nuevo director ejecutivo")).toBe("gestion");
+  });
+  it("sigue reconociendo las salidas y no se come titulares que no son de gestión", () => {
+    expect(kind("X CEO steps down effective immediately")).toBe("gestion");
+    expect(kind("X CFO departs after three years")).toBe("gestion");
+    expect(kind("CEO says demand remains strong in the fourth quarter")).toBeNull();
+    expect(kind("CEO to present at the Goldman Sachs technology conference")).toBeNull();
+  });
+});

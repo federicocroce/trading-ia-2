@@ -163,3 +163,43 @@ describe("ganancia extraordinaria (24/9, TAL)", () => {
     expect(textoDeHecho(h(tal(0.2)))).toBe("la ganancia del 1T FY27 lleva USD 405 M de valor razonable de inversiones: sin eso 0,2 contra 0,29 esperado");
   });
 });
+
+/*
+ * 7/10: hasta hoy todos los tipos de hecho eran eventos de UNA empresa, así que lo que mueve una cartera entera no
+ * tenía por dónde entrar: tarifas de reaseguro −14,7% en enero y otro −16% hasta julio (RNR), la Corte Suprema
+ * tumbando los aranceles IEEPA el 20/2 con hasta 175.000 M en reintegros (HAS, CROX, FIVE), exceso de gas a 2027 con
+ * el Henry Hub recortado a 3,25, fertilizante +35% contra granos −15% (AGRO.BA, CRESY).
+ */
+describe("hecho de sector (7/10)", () => {
+  const fuente = { url: "https://www.sec.gov/x", titulo: "fuente primaria" };
+  const sector = (symbol: string, sesgo: "a_favor" | "en_contra", fecha = "2026-10-01") => ({
+    tipo: "sector" as const, symbol, fecha, fuente,
+    valor: { ambito: "reaseguro", titulo: "tarifas de catástrofe en baja", detalle: "−14,7% en enero y otro −16% hasta julio", sesgo },
+  });
+
+  it("valida, y con fuente primaria queda verificado", () => {
+    const h = clasificarHecho(HechoEntradaSchema.parse(sector("RNR", "en_contra")), { hostsPrimarios: ["sec.gov"], origen: "manual", detectadoAt: "2026-10-07T00:00:00.000Z" });
+    expect(h.estado).toBe("verificado");
+    expect(h.tipo).toBe("sector");
+  });
+
+  it("produce salvedad según el sesgo, y el mismo hecho puede ir para los dos lados en símbolos distintos", () => {
+    const base = { hostsPrimarios: ["sec.gov"], origen: "manual" as const, detectadoAt: "2026-10-07T00:00:00.000Z" };
+    const contra = clasificarHecho(HechoEntradaSchema.parse(sector("RNR", "en_contra")), base);
+    const favor = clasificarHecho(HechoEntradaSchema.parse(sector("HCI", "a_favor")), base);
+    expect(banderasDeHechos([contra], "2026-10-07")).toEqual(["sector_en_contra"]);
+    expect(banderasDeHechos([favor], "2026-10-07")).toEqual(["sector_a_favor"]);
+  });
+
+  it("vence a los 180 días y deja de producir bandera", () => {
+    const base = { hostsPrimarios: ["sec.gov"], origen: "manual" as const, detectadoAt: "2026-10-07T00:00:00.000Z" };
+    const viejo = clasificarHecho(HechoEntradaSchema.parse(sector("RNR", "en_contra", "2026-01-01")), base);
+    expect(banderasDeHechos([viejo], "2026-10-07")).toEqual([]);
+  });
+
+  it("sin fuente primaria no mueve nada", () => {
+    const h = clasificarHecho(HechoEntradaSchema.parse({ ...sector("RNR", "en_contra"), fuente: { url: "https://blog.x/y", titulo: "un blog" } }), { hostsPrimarios: ["sec.gov"], origen: "manual", detectadoAt: "2026-10-07T00:00:00.000Z" });
+    expect(h.estado).toBe("no_verificado");
+    expect(banderasDeHechos([h], "2026-10-07")).toEqual([]);
+  });
+});

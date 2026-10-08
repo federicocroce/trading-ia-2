@@ -68,3 +68,43 @@ describe("medirFrenos", () => {
     expect(v.grupos.every((g) => g.n === 0 && g.alfa === null)).toBe(true);
   });
 });
+
+/*
+ * 7/10: la base estaba contaminada. `sin_freno` filtra veredicto COMPRAR, pero los grupos de AVISO y de LÍDERES no
+ * filtraban nada, así que se comparaban poblaciones distintas contra una base de solo COMPRAR:
+ *  - un aviso ("verificación apta") arrastraba filas OBSERVAR que nunca fueron comprables, y por eso "apta" aparecía
+ *    PEOR que la base cuando lo que medía era otra cosa;
+ *  - los líderes se miden a propósito sobre todas las filas (incluye `no_perseguir`), y contra la base de COMPRAR eso
+ *    daba una ventaja inventada (+4,99 puntos en la corrida real del 7/10).
+ * Los frenos sí se comparan contra COMPRAR: que el veredicto baje ES el efecto del freno, no un sesgo.
+ */
+describe("medirFrenos: cada grupo contra una base de su misma población (7/10)", () => {
+  const f = (symbol: string, flags: string[], alpha7dPct: number, verdict = "COMPRAR", kind = "stock") => ({ symbol, candidateDate: "2026-09-14", kind, verdict, flags, alpha7dPct, alpha30dPct: null, alpha90dPct: null });
+  const filas = [
+    f("AAA", [], 1), f("BBB", [], 1), f("CCC", [], 1), // COMPRAR sin etiqueta: alfa 1
+    f("DDD", ["verificacion_apta"], 3),                 // COMPRAR con el aviso
+    f("EEE", ["verificacion_apta"], -2, "OBSERVAR"),    // no era comprable: no puede ensuciar el aviso
+    f("FFF", ["lider_esperando", "no_perseguir"], 9, "OBSERVAR"),
+    f("GGG", [], -4, "OBSERVAR"),                       // entra a la base de "todas", no a la de COMPRAR
+  ];
+  const m = medirFrenos(filas, 7);
+  const de = (c: string) => m.grupos.find((g) => g.clave === c)!;
+
+  it("un aviso se mide entre lo que la app dejaba comprar y contra una base que NO lo incluye", () => {
+    // Base del aviso = COMPRAR, sin freno, sin la etiqueta = AAA, BBB, CCC → 1. El grupo = DDD → 3.
+    expect(de("verificacion_apta")).toMatchObject({ n: 1, lista: ["DDD"], alfa: 3, base: "compra", alfaBase: 1 });
+    expect(de("verificacion_apta").contraSinFreno).toBe(2); // ni contra la OBSERVAR de −2, ni contra sí mismo
+  });
+
+  it("los líderes se miden contra todas las filas sin freno, no contra las COMPRAR", () => {
+    // Base = todas sin freno y sin la etiqueta = AAA, BBB, CCC, DDD, EEE, GGG → (1+1+1+3−2−4)/6 = 0.
+    expect(de("lider_esperando")).toMatchObject({ n: 1, alfa: 9, base: "todas", alfaBase: 0 });
+    expect(de("lider_esperando").contraSinFreno).toBe(9);
+  });
+
+  it("cada grupo dice contra qué base se comparó, para que nadie los lea como comparables", () => {
+    expect(de("consenso_en_precio").base).toBe("compra");
+    expect(de("sin_freno").base).toBe("compra");
+    expect(de("lider_en_retroceso").base).toBe("todas");
+  });
+});

@@ -1,6 +1,6 @@
-import { computeTarget, computeTrailingStop, entryStop } from "../cartera/stop.js";
+import { computeTarget, computeTrailingStop, entryStop, ratchetStop } from "../cartera/stop.js";
 import type { Candle } from "../cartera/types.js";
-import { atrPct, returnPct, sma, totalReturnPct } from "./candidate.js";
+import { atrPct, bajoSma200, returnPct, sma, totalReturnPct } from "./candidate.js";
 import { entryTiming, type EntryTiming } from "./entry.js";
 import { crossesSplit } from "./split.js";
 import type { EtfConfig, RadarPolicy } from "./types.js";
@@ -87,7 +87,13 @@ export function etfReasonText(reason: string): string {
   return ETF_REASON_TEXT[reason] ?? reason;
 }
 
-export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: RadarPolicy["technical"], opts: { newEntry?: boolean } = {}): EtfDecision | { excluded: true; reasons: string[] } {
+/**
+ * `prevStop` (7/10): stop del último veredicto guardado. Solo se usa cuando `newEntry` es false, o sea cuando el
+ * símbolo YA ES UNA POSICIÓN: ahí el stop lleva el trinquete de `ratchetStop`, el mismo que calcula Cartera, porque
+ * una posición tiene UN stop. Por acá pasan las ADR (`decideAdr`), y por eso el arreglo del trinquete en las acciones
+ * no alcanzó: GGAL siguió mostrando 41,34 en el Radar contra 41,53 en Cartera, en VENDER, después del refresco.
+ */
+export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: RadarPolicy["technical"], opts: { newEntry?: boolean; prevStop?: number | null } = {}): EtfDecision | { excluded: true; reasons: string[] } {
   if (candles.length < 200) return { excluded: true, reasons: ["sin_historial"] };
   // Un ETF también se divide: el mismo salto de escala rompe la fuerza relativa y la media de 200.
   const salto = crossesSplit(candles, 252);
@@ -101,7 +107,7 @@ export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: R
     distSma200Pct: s200 ? round2((close / s200 - 1) * 100) : null,
     atrPct: atrPct(candles),
     close,
-    stop: computeTrailingStop(candles),
+    stop: opts.newEntry === false ? ratchetStop(computeTrailingStop(candles), opts.prevStop ?? null) : computeTrailingStop(candles),
     target: null as number | null,
     entry: null as EntryTiming | null,
     limitations: [] as string[],
@@ -120,7 +126,7 @@ export function decideEtf(cfg: EtfConfig, candles: Candle[], spy: Candle[], p: R
   // El dato va detrás de los dos puntos, no dentro de una frase: así hay UNA bandera con un valor y no
   // cuarenta cadenas distintas ("fuerza relativa 6m -10.9176% ≤ 0 contra SPY") que nadie puede traducir.
   if (base.rs6m === null || base.rs6m <= 0) reasons.push(`fr6m_negativa:${base.rs6m ?? "—"}`);
-  if (s200 !== null && close < s200) reasons.push("bajo_sma200");
+  if (bajoSma200(close, s200, candles)) reasons.push("bajo_sma200");
   const r21 = returnPct(candles, 21);
   if (r21 !== null && r21 > p.maxReturn21dPct) reasons.push("no_perseguir");
   // Cierre bajo el stop dinámico: viene cayendo desde un máximo reciente. Se observa; nunca un objetivo por debajo del precio.

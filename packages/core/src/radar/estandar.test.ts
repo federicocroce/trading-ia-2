@@ -172,14 +172,22 @@ describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000"
     // Mi cartera del 10/9 era APH, NVDA, LNC y NBN, con HRTG afuera por su reserva. Desde el 18/9 (aprobado por el
     // dueño) una reserva de la verificación web no frena: HRTG, 3° por convicción, entra con la reserva escrita en su
     // línea y decide él; NBN, 7°, ya no tiene lugar entre las cuatro. La diferencia la explica esa regla y ninguna otra.
-    expect(p.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["APH", "NVDA", "HRTG", "LNC"]);
+    /*
+     * 8/10: el tope de posiciones nuevas pasó de 4 a 7 para un aporte de 6 mensuales (ver `maxNewPositions`), así que
+     * SOLV (5°) y NBN (7°) ahora entran en vez de quedar afuera "por tope". Lo que este test cuida sigue intacto: el
+     * reparto del núcleo, que NEM no se suma con el oro en OBSERVAR, que una reserva de la verificación web NO frena
+     * (HRTG entra con el aviso escrito, regla del 18/9), y que las reglas FIJAS siguen frenando a quien les toca —
+     * PAM por el tope del 15% por posición y TER por haber subido más de 100%.
+     */
+    expect(p.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["APH", "NVDA", "HRTG", "LNC", "SOLV", "NBN"]);
     expect(p.lines.find((l) => l.symbol === "HRTG")!.avisos).toEqual(["verificación web con reservas: reservas liberadas en temporada benigna"]);
-    expect(maxNewPositions(40_000, 6500, 2)).toBe(4);
-    expect(maxNewPositions(6_500, 6500, 2)).toBe(2);
+    expect(maxNewPositions(40_000, 6500, 2)).toBe(7);
+    expect(maxNewPositions(6_500, 6500, 2)).toBe(2); // un aporte mensual normal no cambia
+    expect(maxNewPositions(1_000_000, 6500, 2)).toBe(10); // techo: más abajo empieza el tramo que sí mide mal
     const left = Object.fromEntries((p.leftOut ?? []).map((x) => [x.symbol, x.reason]));
     expect(left["HRTG"]).toBeUndefined();
-    expect(left["SOLV"]).toBe("5° por convicción: tope de 4 posiciones nuevas");
-    expect(left["NBN"]).toBe("7° por convicción: tope de 4 posiciones nuevas");
+    expect(left["SOLV"]).toBeUndefined();
+    expect(left["NBN"]).toBeUndefined();
     expect(left["PAM"]).toBe("6° por convicción: ya está en el tope del 15% por posición");
     expect(left["TER"]).toBe(`8° por convicción: ${PLAN_BLOCKERS["subio_mucho_12m"]}`);
     // La regla fija va primero (15/9): GLW subió más de 100% y eso la frena con o sin verificación.

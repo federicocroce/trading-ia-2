@@ -1,5 +1,6 @@
 import { type TesisInput, alphaPct, applyDegrade, buildRiskReport, decideVerb, type Candle, type NarratorInput, type Position, type PositionNarrator, type PositionVerdict, type PriceHistory, type Profiles, type RiskReport, type SymbolProfile, type VerdictRow } from "@thesis/core";
 import type { CarteraStore } from "./store.js";
+import { stopsPrevios } from "./radar.js";
 
 /**
  * Cartera real (spec etapa 1): veredicto diario por posición.
@@ -109,12 +110,23 @@ export async function runCartera(deps: CarteraDeps, opts: { today: string }): Pr
   const risk = buildRiskReport({ positions, candles, spy, profiles, tags });
 
   // 4. Veredicto por posición.
+  /*
+   * El stop de seguimiento de una posición no baja (6/10/2026). `computeTrailingStop` es una ventana móvil de
+   * 22 velas: cuando un máximo sale de la ventana el stop baja sin que el precio haga nada, y el veredicto se
+   * daba vuelta solo. Medido sobre las 8 posiciones del dueño y 64 ruedas, bajaba en 236 de 512 transiciones
+   * (46,1%). El trinquete está en `ratchetStop`; acá se le pasa el stop del último veredicto guardado, que es
+   * lo que ancla el trinquete a cuando la posición entró a la app. Se lee ANTES del bucle: `upsertVerdicts`
+   * escribe los de hoy más abajo.
+   */
+  // 7/10: el ancla es el máximo entre el veredicto guardado y la fila del Radar, igual que en el Radar, así las dos
+  // pantallas convergen al mismo stop sin importar cuál corrió última.
+  const stopPrevio = await stopsPrevios(deps.store);
   const verdicts: VerdictRow[] = [];
   for (const p of positions) {
     const weightPct = risk.weights.find((w) => w.symbol === p.symbol)?.weightPct ?? 0;
     const spot = await deps.spot(p.symbol).catch(() => null);
     const tesis = deps.tesis ? await deps.tesis(p.symbol).catch(() => null) : null;
-    let v = decideVerb({ candles: candles[p.symbol]!, spot, avgCost: p.avgCost, layer: p.layer, weightPct, positionsCount: positions.length, today: opts.today, ...(tesis ? { tesis } : {}) });
+    let v = decideVerb({ candles: candles[p.symbol]!, spot, avgCost: p.avgCost, layer: p.layer, weightPct, positionsCount: positions.length, today: opts.today, prevStop: stopPrevio.get(p.symbol) ?? null, ...(tesis ? { tesis } : {}) });
     let narrative: string | null = null;
     let degradedBy: string | null = null;
     if (deps.narrator && candles[p.symbol]!.length) {

@@ -35,6 +35,25 @@ export interface EntryTiming {
   validSessions: number;
   sma20: number;
   sma50: number | null;
+  /**
+   * La media de 200 y su estado (8/10/2026). Antes la fila guardaba la media de 20 y la de 50 y **tiraba la de 200**,
+   * que es justamente la que la app usa como compuerta: `technicalGate` la calculaba, devolvía `sma200` y
+   * `decideCandidate` la descartaba. La fila de un ETF sí guarda su `distSma200Pct`; la de una acción no guardaba
+   * nada técnico. Resultado: para saber si el precio estaba lejos de una media plana había que pedir las velas y
+   * calcularlo a mano, y eso no es un dato que la pantalla pueda explicar.
+   */
+  sma200: number | null;
+  /** (precio − media de 200) / media de 200, en %. Positivo = arriba. */
+  distSma200Pct: number | null;
+  /**
+   * Cuánto se movió la media de 200 en las últimas 63 ruedas, en %. Es la diferencia entre "arriba de una media que
+   * sube" (tendencia) y "arriba de una media muerta" (rebote sobre una base sin dirección). MMSI el 8/10: precio
+   * 10,9% arriba con la media en +0,25% en tres meses, después de caer de 83,42 a 76,52.
+   * MEDIDO (`pnpm simular`, 47.796 observaciones): la pendiente **no** predice el alfa a 30 días — plana +0,93%
+   * contra subiendo −0,12%, y en régimen restrictivo plana −0,38% contra subiendo −0,73%. Por eso se MUESTRA y no
+   * frena: es contexto que la pantalla tiene que poder decir, no una regla sin evidencia.
+   */
+  pendSma200Pct: number | null;
   atr14: number;
   /** (precio − media de 20) / ATR. Positivo = arriba de su media. */
   extensionAtr: number;
@@ -72,7 +91,15 @@ export function entryTiming(candles: Candle[]): EntryTiming | null {
   const rangePct60 = max60 > min60 ? Math.round(((close - min60) / (max60 - min60)) * 100) : null;
   const extensionAtr = r2((close - s20) / a);
   const t = ENTRY_THRESHOLDS;
-  const base = { sma20: s20, sma50: s50, atr14: r2(a), extensionAtr, rangePct60, validSessions: t.validSessions };
+  const s200 = sma(candles, 200);
+  // La media de 200 de hace 63 ruedas, para la pendiente: se recorta la serie, nunca se mira hacia adelante.
+  const s200Antes = candles.length > 263 ? sma(candles.slice(0, candles.length - 63), 200) : null;
+  const base = {
+    sma20: s20, sma50: s50, atr14: r2(a), extensionAtr, rangePct60, validSessions: t.validSessions,
+    sma200: s200 === null ? null : r2(s200),
+    distSma200Pct: s200 !== null && s200 > 0 ? r2((close / s200 - 1) * 100) : null,
+    pendSma200Pct: s200 !== null && s200Antes !== null && s200Antes > 0 ? r2((s200 / s200Antes - 1) * 100) : null,
+  };
 
   if (stopActual !== null && close <= stopActual) {
     const level = r2(stopActual);
