@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONVICCION_MINIMO_SIMBOLOS, medirConviccion } from "./medir-conviccion.js";
+import { CONVICCION_MINIMO_SIMBOLOS, aciertoDeLasCompras, medirConviccion } from "./medir-conviccion.js";
 import type { CandidateRow, Tags } from "./types.js";
 
 /*
@@ -60,5 +60,34 @@ describe("medirConviccion", () => {
 
   it("la barra de ruido está declarada", () => {
     expect(CONVICCION_MINIMO_SIMBOLOS).toBeGreaterThanOrEqual(10);
+  });
+});
+
+/*
+ * 8/10: el plan presentaba sus líneas como si el criterio que las eligió estuviera validado. No lo está. Esta frase
+ * va a las notas del plan para que la pantalla no invite a una conclusión que sus propios datos no sostienen.
+ */
+describe("aciertoDeLasCompras", () => {
+  const f = (symbol: string, fecha: string, a: number | null): CandidateRow => fila(symbol, fecha, 1, a);
+  it("dice cuántas le ganaron al S&P, sobre cuántas, con cuántos símbolos y el rango de fechas", () => {
+    const filas = [
+      ...Array.from({ length: 30 }, (_, i) => f(`G${i}`, "2026-09-07", 2)),
+      ...Array.from({ length: 30 }, (_, i) => f(`P${i}`, "2026-10-01", -2)),
+    ];
+    const t = aciertoDeLasCompras(filas)!;
+    expect(t).toContain("30 de 60");
+    expect(t).toContain("60 símbolos");
+    expect(t).toContain("2026-09-07");
+    expect(t).toContain("2026-10-01");
+    expect(t).toContain("50%");
+    expect(t).toContain("alfa promedio 0%");
+  });
+  it("sin filas suficientes devuelve null en vez de inventar una estadística", () => {
+    expect(aciertoDeLasCompras([f("A", "2026-09-07", 1)])).toBeNull();
+    expect(aciertoDeLasCompras([])).toBeNull();
+  });
+  it("no cuenta las que todavía no tienen alfa medida", () => {
+    const filas = [...Array.from({ length: 60 }, (_, i) => f(`X${i}`, "2026-09-07", null))];
+    expect(aciertoDeLasCompras(filas)).toBeNull();
   });
 });

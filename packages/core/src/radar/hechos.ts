@@ -177,8 +177,23 @@ export function banderasDeHechos(hechos: readonly HechoExterno[], today: string)
  */
 export function simbolosConPuerta(hechos: readonly HechoExterno[], today: string, tope = PUERTA_TOPE): string[] {
   const out: string[] = [];
+  /*
+   * 8/10: la puerta también se abre con un hecho de SECTOR verificado a favor.
+   *
+   * El motivo, medido. De 35 líderes temáticos mundiales, 34 están en el universo de la app y **21 nunca
+   * aparecieron en el Radar**: ASML, ETN, HUBB, AVGO, LMT, RTX, FCX, SCCO, NEM, FNV, PAAS, WPM, AG, BWXT, LEU,
+   * ALB, NVO, WST, PWR, MUFG. No es cobertura: es que el puntaje los deja fuera de la preselección. Y el puntaje
+   * mide mal — por eje, sobre 13 fechas de filas guardadas: `valuation` (peso 0,35) es plano (−1,02 / −0,88 /
+   * −0,94 por tercil) y `growth` (0,25) está invertido y monótono (+0,43 / −1,01 / −2,36). O sea el 60% del peso
+   * es ruido o va al revés, y por eso el mejor puesto rinde −1,74% con 34% de acierto.
+   *
+   * No se puede re-pesar con 13 días de datos sin sobreajustar. Lo que sí se puede es que el puntaje deje de ser
+   * la ÚNICA puerta: un hecho de sector con fuente primaria es una razón mecánica, verificable y con fecha para
+   * que la app MIRE a una empresa. Mirar no es comprar: la candidata entra a la evaluación y después la deciden
+   * las mismas reglas que todas (compuerta técnica, verificación, geometría del stop).
+   */
   const candidatos = hechosVigentes(hechos, today)
-    .filter((h) => h.estado === "verificado" && h.tipo === "guia" && h.valor.direccion === "sube")
+    .filter((h) => h.estado === "verificado" && ((h.tipo === "guia" && h.valor.direccion === "sube") || (h.tipo === "sector" && h.valor.sesgo === "a_favor")))
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
   for (const h of candidatos) {
     if (out.length >= tope) break;

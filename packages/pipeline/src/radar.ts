@@ -52,6 +52,7 @@ import {
   type CoreEarnings,
   type VerificationSummary,
   assessRegime,
+  aciertoDeLasCompras,
   type MacroRegime,
   type EtfConfig,
   type EventClassifier,
@@ -617,7 +618,13 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   // La puerta de entrada (17/9): símbolos con un hecho verificado de guía subida en 90 días. Se piden sus estados junto
   // con la preselección y se evalúan con las mismas reglas; si quedan COMPRAR, entran a las filas aunque el tope esté
   // lleno (son como mucho PUERTA_TOPE). FIVE en el puesto 412 con la guía subida dos veces es el caso.
-  const puerta = simbolosConPuerta(await store.hechosPorTipo("guia", addDays(opts.today, -VENTANAS_DIAS.guia)).catch(() => [] as HechoExterno[]), opts.today).filter((s) => all.has(s));
+  // 8/10: la puerta también se abre con un hecho de SECTOR a favor, así que hay que pedir los dos tipos. Pedir solo
+  // "guia" era el bug silencioso de este cableado: `simbolosConPuerta` ya los aceptaba y nunca le llegaban.
+  const hechosDePuerta = [
+    ...(await store.hechosPorTipo("guia", addDays(opts.today, -VENTANAS_DIAS.guia)).catch(() => [] as HechoExterno[])),
+    ...(await store.hechosPorTipo("sector", addDays(opts.today, -VENTANAS_DIAS.sector)).catch(() => [] as HechoExterno[])),
+  ];
+  const puerta = simbolosConPuerta(hechosDePuerta, opts.today).filter((s) => all.has(s));
   // Dos pasadas (spec verificación §4): la primera con Finnhub elige a quién pedirle estados; la segunda rankea con la ganancia núcleo.
   const first = rankStocks(all, policy.weights).ranked.slice(0, policy.candidates.preselect);
   const cores = await withStatements(deps, all, [...first.flatMap((r) => [r.symbol, ...r.group]), ...puerta], opts.today);
@@ -1296,6 +1303,9 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,
       closes,
       regime,
+      // 8/10: el plan dice el acierto medido de sus propias COMPRAR pasadas, para no presentar sus líneas con
+      // más confianza que la que sus datos sostienen. Ver `aciertoDeLasCompras`.
+      aciertoMedido: aciertoDeLasCompras(await store.allCandidates().catch(() => [] as CandidateRow[])),
       // Reunión de la Fed a 3 días hábiles o menos: el plan dice que el primer tramo va después (13/9).
       fomc: deps.fomc?.length ? { today: opts.today ?? new Date().toISOString().slice(0, 10), decisions: deps.fomc } : null,
     },

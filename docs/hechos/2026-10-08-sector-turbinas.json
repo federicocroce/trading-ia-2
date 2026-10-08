@@ -1,0 +1,19 @@
+{
+  "hechos": [
+    {
+      "tipo": "sector",
+      "symbol": "GEV",
+      "fecha": "2026-07-22",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1996810/000199681026000147/gevpressrelease2q26.htm",
+        "titulo": "GE Vernova, comunicado del 2T26 presentado en un 8-K (22/7/2026)"
+      },
+      "valor": {
+        "ambito": "turbinas de gas: capacidad vendida",
+        "titulo": "la cartera de equipos de Gas Power mas las reservas de cupo paso de 100 a 116 GW",
+        "detalle": "Comunicado del 2T26 del 22/7/2026, presentado en un 8-K: la cartera de equipos de Gas Power mas los acuerdos de reserva de cupo crecio de 100 a 116 GW, y la empresa anticipa llegar a por lo menos 125 GW a fin de 2026. En el trimestre firmo 20 GW de contratos nuevos, convirtio 10 GW de reservas de cupo en ordenes y despacho 3 GW. Es demanda comprometida por contrato a varios anos, no un pronostico.",
+        "sesgo": "a_favor"
+      }
+    }
+  ]
+}

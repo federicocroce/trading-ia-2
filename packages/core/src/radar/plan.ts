@@ -28,6 +28,11 @@ export interface PlanInput {
   buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined; /** Si ya la tenés, qué dice Cartera hoy: con REVISAR o VENDER el plan no la compra como nueva (18/9). */ cartera?: { verb: string; reason: string } | null }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
+  /**
+   * Una frase con el acierto medido de las COMPRAR pasadas de la app, ya calculada (8/10). Va a las notas del plan
+   * para que la pantalla no presente sus líneas con más confianza que la que sus propios datos sostienen.
+   */
+  aciertoMedido?: string | null;
   /** Fecha del plan y decisiones de la Fed (`config/fomc.json`): con una dentro de 3 días hábiles, el primer tramo va después. */
   fomc?: { today: string; decisions: string[] } | null;
   coreEtfs: EtfConfig[];
@@ -346,6 +351,14 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   };
 
   if (i.regime) notes.push(`Régimen macro al ${i.regime.asOf}: ${i.regime.state} (${i.regime.why}).`);
+  /*
+   * El plan dice el acierto MEDIDO de sus propias COMPRAR (8/10). Antes presentaba las líneas como si el ranking
+   * que las produjo estuviera validado, y no lo está: medido con el puesto guardado en `radar_evaluadas`, el tramo
+   * de MEJOR puesto rindió −1,74% de alfa a 7 días con 34% de acierto, y por eje `valuation` (peso 0,35) es plano
+   * y `growth` (0,25) está invertido. Decirlo acá no es pesimismo: es la regla de que una pantalla no puede invitar
+   * a una conclusión que sus propios datos no sostienen. Lo calcula quien arma el plan y se pasa hecho.
+   */
+  if (i.aciertoMedido) notes.push(`Lo que esta app acierta, medido sobre sus propias COMPRAR pasadas: ${i.aciertoMedido}. No es un pronóstico de estas líneas: es el historial del criterio que las eligió.`);
   // Escalonado: un monto grande entra en tramos para no comprar todo en un solo precio. No es plata en efectivo
   // esperando una corrección (eso es plata muerta), es el mismo plan ejecutado en dos o tres compras.
   const tranches = aporte >= TRANCHE_AT_MONTHS * c.monthlyUsd ? Math.min(3, Math.floor(aporte / (TRANCHE_AT_MONTHS * c.monthlyUsd)) + 1) : 1;

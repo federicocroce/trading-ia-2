@@ -89,3 +89,22 @@ export function medirConviccion(
   const fechas = [...porFecha.keys()].sort();
   return { horizonte, fechas: porFecha.size, desde: fechas[0] ?? null, hasta: fechas[fechas.length - 1] ?? null, sinMedir, tramos: salida };
 }
+
+/**
+ * Una frase con el acierto medido de las COMPRAR pasadas, para que el plan la muestre (8/10).
+ *
+ * Por qué existe. El plan presentaba sus líneas como si el criterio que las eligió estuviera validado. No lo está:
+ * medido con el puesto guardado, el tramo de mejor puesto rindió −1,74% de alfa a 7 días con 34% de acierto. Una
+ * pantalla no puede invitar a una conclusión que sus propios datos no sostienen.
+ *
+ * Mira solo filas COMPRAR de acciones con alfa ya medida. `null` si no hay suficientes para decir algo.
+ */
+export function aciertoDeLasCompras(filas: CandidateRow[], minFilas = 50): string | null {
+  const con = filas.filter((f) => f.kind === "stock" && f.verdict === "COMPRAR" && f.alpha7dPct !== null);
+  if (con.length < minFilas) return null;
+  const simbolos = new Set(con.map((f) => f.symbol)).size;
+  const ganan = con.filter((f) => f.alpha7dPct! > 0).length;
+  const alfa = r2(con.reduce((a, f) => a + f.alpha7dPct!, 0) / con.length);
+  const fechas = [...new Set(con.map((f) => f.candidateDate))].sort();
+  return `${ganan} de ${con.length} filas (${simbolos} símbolos, del ${fechas[0]} al ${fechas[fechas.length - 1]}) le ganaron al S&P a 7 días, o sea ${Math.round((100 * ganan) / con.length)}%, con alfa promedio ${alfa > 0 ? "+" : ""}${alfa}%`;
+}

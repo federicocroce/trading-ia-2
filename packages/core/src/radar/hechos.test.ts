@@ -203,3 +203,36 @@ describe("hecho de sector (7/10)", () => {
     expect(banderasDeHechos([h], "2026-10-07")).toEqual([]);
   });
 });
+
+/*
+ * 8/10: la puerta se abre también con un hecho de sector a favor. Motivo medido: de 35 líderes temáticos
+ * mundiales, 34 están en el universo y 21 NUNCA aparecieron en el Radar, porque el puntaje los deja fuera de la
+ * preselección — y ese puntaje mide mal (`valuation`, peso 0,35, es plano; `growth`, 0,25, está invertido).
+ * Mirar no es comprar: la candidata entra a la evaluación y la deciden las mismas reglas que a todas.
+ */
+describe("la puerta se abre con un hecho de sector a favor (8/10)", () => {
+  const fuente = { url: "https://www.eia.gov/x", titulo: "fuente primaria" };
+  const base = { hostsPrimarios: ["eia.gov", "sec.gov"], origen: "manual" as const, detectadoAt: "2026-10-08T00:00:00.000Z" };
+  const sector = (symbol: string, sesgo: "a_favor" | "en_contra", fecha = "2026-10-01") =>
+    clasificarHecho(HechoEntradaSchema.parse({ tipo: "sector", symbol, fecha, fuente, valor: { ambito: "memoria", titulo: "escasez a 2028", detalle: "la escasez de memoria sigue", sesgo } }), base);
+
+  it("un sector a favor abre la puerta; en contra NO la abre", () => {
+    expect(simbolosConPuerta([sector("MU", "a_favor")], "2026-10-08")).toEqual(["MU"]);
+    expect(simbolosConPuerta([sector("RNR", "en_contra")], "2026-10-08")).toEqual([]);
+  });
+
+  it("sin fuente primaria no abre nada: la puerta es solo para lo verificado", () => {
+    const h = clasificarHecho(HechoEntradaSchema.parse({ tipo: "sector", symbol: "MU", fecha: "2026-10-01", fuente: { url: "https://blog.x/y", titulo: "blog" }, valor: { ambito: "memoria", titulo: "x", detalle: "y", sesgo: "a_favor" } }), base);
+    expect(simbolosConPuerta([h], "2026-10-08")).toEqual([]);
+  });
+
+  it("un hecho de sector vencido tampoco abre la puerta", () => {
+    expect(simbolosConPuerta([sector("MU", "a_favor", "2026-01-01")], "2026-10-08")).toEqual([]);
+  });
+
+  it("sigue abriéndose con la guía subida, y respeta el tope", () => {
+    const guia = (symbol: string) => clasificarHecho(HechoEntradaSchema.parse({ tipo: "guia", symbol, fecha: "2026-10-01", fuente, valor: { direccion: "sube", metrica: "EPS", periodo: "2026", antes: "1", despues: "2" } }), base);
+    expect(simbolosConPuerta([guia("FIVE"), sector("MU", "a_favor")], "2026-10-08").sort()).toEqual(["FIVE", "MU"]);
+    expect(simbolosConPuerta([guia("A"), guia("B"), sector("C", "a_favor")], "2026-10-08", 2)).toHaveLength(2);
+  });
+});
