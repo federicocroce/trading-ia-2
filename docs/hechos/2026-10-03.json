@@ -1,0 +1,334 @@
+{
+  "hechos": [
+    {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "CMBT",
+      "fecha": "2026-08-27",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 127400000,
+        "concepto": "ganancias por venta de buques: VLCC Ilma e Ingrid USD 98,2 M y Suezmax Sienna USD 29,2 M",
+        "epsPublicado": 1.26,
+        "epsSinExtraordinario": 0.82,
+        "epsConsenso": 0.88
+      },
+      "fuente": {
+        "url": "https://www.globenewswire.com/news-release/2026/08/27/3351767/0/en/cmb-tech-announces-q2-2026-results.html",
+        "titulo": "CMB.TECH ANNOUNCES Q2 2026 RESULTS (27/8/2026) — ganancia sin las ventas de buques = CÁLCULO PROPIO ((365.187 − 127.400) × (1 − 0,0022) ÷ 290.169.769 acciones; impuesto del trimestre USD 807 mil sobre USD 365,2 M antes de impuestos)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "AMAT",
+      "fecha": "2026-08-13",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "crecimiento de ingresos de Semiconductor Systems",
+        "periodo": "año calendario 2026",
+        "antes": "más de 20%",
+        "despues": "más de 30%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0000006951/000162828026056699/exhibit991q32026earningsre.htm",
+        "titulo": "Applied Materials, 8-K Ex-99.1 del 13/8/2026 — 3T fiscal 2026: 'further raising our Semiconductor Systems revenue expectations for calendar 2026'; los porcentajes (más de 20% → más de 30%) salen de la presentación y la llamada del mismo día, no del exhibit"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "DAR",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "inversión de capital (capex)",
+        "periodo": "ejercicio 2026",
+        "antes": "aproximadamente 400 M USD",
+        "despues": "aproximadamente 450 M USD"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0000916540/000091654026000019/exh991-pressreleaseq22026.htm",
+        "titulo": "Darling Ingredients, 8-K Ex-99.1 del 30/7/2026 — capex del ejercicio 2026 de ~450 M USD; el rango anterior (~400,0 M USD) está en el 8-K Ex-99.1 del 30/4/2026. Única métrica de guía del ejercicio que cambió: la empresa solo guía el EBITDA ajustado del negocio core ingredients y lo hace por trimestre"
+      }
+    },
+    {
+      "tipo": "investigacion_regulatoria",
+      "symbol": "UBS",
+      "fecha": "2026-07-29",
+      "valor": {
+        "organismos": ["Fiscalía General de Suiza (OAG)", "SEC", "DOJ", "FINMA"],
+        "asunto": "Causa penal de la Fiscalía General suiza contra UBS Group AG y UBS AG como sucesoras de Credit Suisse Group AG y Credit Suisse AG por no haber mantenido controles adecuados para detectar y prevenir el lavado de dinero en pagos de cuentas vinculadas a empresas estatales de Mozambique que Credit Suisse financió entre 2013 y 2016 (cargos presentados en noviembre de 2025; en abril de 2026 el tribunal archivó el proceso por entender que la responsabilidad penal no se transfiere por fusión y la Fiscalía apeló). En el mismo documento, pedidos de documentación e información de la SEC, el DOJ y FINMA sobre las declaraciones acerca de la situación financiera de Credit Suisse, con UBS cooperando.",
+        "estado": "abierta",
+        "empresaAcusada": true
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1114446/000161052026000082/ubs-20260630.htm",
+        "titulo": "UBS Group AG / UBS AG — 6-K del 29/7/2026 (accession 0001610520-26-000082), informe al 30/6/2026, nota 'Provisions and contingent liabilities', puntos 'Credit Suisse anti-money laundering matters' y 'Credit Suisse financial disclosures'"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "LYFT",
+      "fecha": "2026-09-09",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Reservas brutas (Gross Bookings) · EBITDA ajustado · margen de EBITDA ajustado",
+        "periodo": "3T 2026",
+        "antes": "5.500 a 5.670 M USD · 183 a 203 M USD · 3,3% a 3,6%",
+        "despues": "5.500 a 5.670 M USD · 183 a 203 M USD · 3,3% a 3,6%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001759509/000162828026061020/ex991-pressrelease90926.htm",
+        "titulo": "Lyft, 8-K ex. 99.1 del 9/9/2026: reafirma la guía del 3T 2026 dada el 6/8/2026 al anunciar nuevo CFO (no es un comunicado de resultados)"
+      }
+    },
+    {
+      "tipo": "investigacion_regulatoria",
+      "symbol": "LYFT",
+      "fecha": "2026-08-07",
+      "valor": {
+        "organismos": [
+          "California AG",
+          "Los Angeles City Attorney",
+          "San Diego City Attorney",
+          "San Francisco City Attorney",
+          "California Labor Commissioner"
+        ],
+        "asunto": "Acción por clasificar a los conductores como contratistas independientes en violación de la ley AB 5 de California; causa en la Corte Superior de San Francisco con audiencia de adjudicación sumaria el 17/9/2026, coordinada con los reclamos del Comisionado del Trabajo",
+        "estado": "abierta",
+        "empresaAcusada": true
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001759509/000162828026054499/lyft-20260630.htm",
+        "titulo": "Lyft, 10-Q del 30/6/2026 (presentado 7/8/2026), nota de Compromisos y Contingencias"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "MUSA",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Tiendas nuevas · raze-and-rebuilds · volumen de combustible por tienda (miles de galones APSM) · contribución de mercadería · OPEX de tienda sin fees ni alquiler (K APSM) · SG&A · inversión de capital",
+        "periodo": "año 2026",
+        "antes": "45 a 55 · hasta 30 · 233 a 237 · 890 a 900 M USD · 37,0 a 38,0 K · 240 a 250 M USD · 475 a 525 M USD",
+        "despues": "45 a 55 · hasta 30 · 233 a 237 · 890 a 900 M USD · 37,0 a 38,0 K · 240 a 250 M USD · 475 a 525 M USD"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001573516/000157351626000164/exh991_06302026er.htm",
+        "titulo": "Murphy USA, 8-K ex. 99.1 del 5/8/2026: resultados del 2T 2026 con los mismos rangos de la guía 2026 publicada el 4/2/2026 (el comunicado agrega dónde dentro de cada rango espera caer, dato que el esquema no admite)"
+      }
+    },
+    {
+      "tipo": "oferta_de_compra",
+      "symbol": "DBRG",
+      "fecha": "2026-09-30",
+      "valor": {
+        "comprador": "SoftBank Group Corp.",
+        "efectivoUsd": 16.0,
+        "ratio": null,
+        "etapa": "Fusión completada: todas las aprobaciones regulatorias (FERC, CFIUS y antimonopolio e inversión extranjera) recibidas el 22/9/2026 y cierre efectivo el 30/9/2026; las acciones comunes salieron de la NYSE antes de la apertura del 30/9/2026 y la bolsa notificó el retiro definitivo del listado para el 12/10/2026",
+        "cierreEsperado": "2026-09-30 (ya cerrada)",
+        "formulario": "8-K"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001679688/000110465926112148/tm2626145d9_8k.htm",
+        "titulo": "DigitalBridge Group, 8-K del 30/9/2026: consumación de la fusión con subsidiarias de SoftBank Group a 16,00 USD en efectivo por acción y retiro de la NYSE"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "GL",
+      "fecha": "2026-07-22",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "ganancia operativa neta por acción diluida (net operating income per diluted share)",
+        "periodo": "año fiscal 2026",
+        "antes": "USD 15,40 – 15,90",
+        "despues": "USD 15,55 – 15,95"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0000320335/000032033526000203/q2fy2026earningsrelease.htm",
+        "titulo": "Globe Life Inc. Reports Second Quarter 2026 Results (8-K, exhibit 99.1, 22/7/2026) — guía anual subida USD 0,10 en el punto medio; rango anterior del comunicado del 1T 2026 (22/4/2026)"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "GL",
+      "fecha": "2026-07-22",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 24800000,
+        "puntosCombinado": null,
+        "epsPublicado": 3.61,
+        "epsSinReservas": 3.36,
+        "epsConsenso": 3.67
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0000320335/000032033526000203/q2fy2026earningsrelease.htm",
+        "titulo": "Globe Life Inc. Reports Second Quarter 2026 Results (8-K, exhibit 99.1, 22/7/2026) — ganancia por remedición de reservas de USD 23,5 M (vida) + USD 1,3 M (salud) antes de impuestos; ganancia operativa sin la remedición = CÁLCULO PROPIO: 24,8 M × (1 − 0,21) ÷ 78,909 M de acciones diluidas = USD 0,25 por acción restados a los USD 3,61 publicados, misma base que el consenso de USD 3,67. Atención: los USD 3,61 publicados ya quedan POR DEBAJO del consenso de 3,67, así que no hubo beat que explicar"
+      }
+    },
+    {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "TEN",
+      "fecha": "2026-09-10",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 37870000,
+        "concepto": "ganancia de capital por la venta de dos Suezmax construidos en 2006 (USD 100 M de producido neto)",
+        "epsPublicado": 4.4,
+        "epsSinExtraordinario": 3.16,
+        "epsConsenso": 2.93
+      },
+      "fuente": {
+        "url": "https://www.globenewswire.com/news-release/2026/09/10/3359616/0/en/ten-ltd-reports-profits-for-the-first-half-and-second-quarter-of-2026.html",
+        "titulo": "TEN, Ltd. Reports Profits for the First Half and Second Quarter of 2026 (comunicado del 10/9/2026) — ganancia sin la venta de barcos = CÁLCULO PROPIO: (139,3 M − 37,87 M − 6,75 M de dividendos preferentes) ÷ 29.972.103 acciones = USD 3,16 por acción (la sociedad no paga impuesto a las ganancias), misma base que el consenso de USD 2,93"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "PGY",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "volumen de red · ingresos totales y otros ingresos · EBITDA ajustado · ganancia neta GAAP",
+        "periodo": "FY2026",
+        "antes": "11,45-13,00 mil M USD · 1,400-1,575 mil M USD · 420-460 M USD · 110-160 M USD",
+        "despues": "12,50-13,25 mil M USD · 1,425-1,525 mil M USD · 460-490 M USD · 155-180 M USD"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001883085/000188308526000052/earningspressreleasefina.htm",
+        "titulo": "Pagaya Technologies — 8-K exhibit 99.1, resultados 2T 2026 y guía del año 2026 (30/7/2026); rangos anteriores tomados del 8-K exhibit 99.1 del 1T 2026 (7/5/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "MEDP",
+      "fecha": "2026-07-22",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "ingresos · BPA diluido GAAP · EBITDA · ingreso neto GAAP",
+        "periodo": "FY2026",
+        "antes": "USD 2755-2855 M · USD 16,68-17,50 · USD 605,0-635,0 M · USD 487,0-511,0 M",
+        "despues": "USD 2805-2885 M · USD 17,25-17,95 · USD 618,0-642,0 M · USD 494,0-514,0 M"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000166839726000023/medp-2026722exx991.htm",
+        "titulo": "Medpace Holdings, Inc. Reports Second Quarter 2026 Results — 8-K ex-99.1 (22/7/2026); rangos anteriores del 8-K ex-99.1 del 22/4/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CROX",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "ventas consolidadas · ventas marca Crocs · ventas marca HEYDUDE · BPA ajustado diluido",
+        "periodo": "FY2026",
+        "antes": "−1% a +1% · 0% a +2% · −7% a −5% · 13,20-13,75 USD",
+        "despues": "+1% a +2% · +2% a +3% · −4% a −2% · 13,70-14,00 USD"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001334036/000133403626000050/croxq22026-pressrelease.htm",
+        "titulo": "Crocs, 8-K Ex-99.1 del 30/7/2026 — resultados récord del 2T 2026 y suba del panorama 2026, con los rangos anteriores indicados en el mismo comunicado"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "THC",
+      "fecha": "2026-07-23",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "ventas netas · EBITDA ajustado · BPA ajustado diluido · BPA diluido · flujo de caja libre ajustado",
+        "periodo": "FY2026",
+        "antes": "21.500-22.300 M USD · 4.485-4.785 M USD · 16,38-18,68 USD · 29,94-32,64 USD · 2.500-2.800 M USD",
+        "despues": "21.900-22.500 M USD · 4.830-5.030 M USD · 20,30-21,69 USD · 34,57-36,43 USD · 2.725-3.025 M USD"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/70318/000007031826000032/thc-20260630ex991earningsr.htm",
+        "titulo": "Tenet Healthcare, 8-K Ex-99.1 del 23/7/2026 — resultados del 2T 2026 y suba del panorama 2026 (+295 M USD de EBITDA ajustado en el punto medio); los rangos anteriores salen del 8-K Ex-99.1 del 30/4/2026. Agrega el BPA diluido GAAP, que la fila anterior no tenía"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CLS",
+      "fecha": "2026-07-27",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos anuales · BPA ajustado (non-GAAP) · Margen operativo ajustado (non-GAAP) · Flujo de caja libre (non-GAAP)",
+        "periodo": "FY2026",
+        "antes": "USD 19.000 millones · USD 10,15 · 8,1% · USD 500 millones",
+        "despues": "USD 20.500 millones · USD 11,30 · 8,4% · USD 600 millones"
+      },
+      "fuente": {
+        "url": "https://www.globenewswire.com/news-release/2026/07/27/3333904/0/en/Celestica-Announces-Second-Quarter-2026-Financial-Results.html",
+        "titulo": "Celestica Announces Second Quarter 2026 Financial Results (27/7/2026), sección 2026 Annual Outlook: cada métrica trae su 'previous outlook' entre paréntesis"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CTS",
+      "fecha": "2026-07-28",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ventas · BPA diluido ajustado",
+        "periodo": "FY2026",
+        "antes": "USD 560-580 millones · USD 2,35-2,45",
+        "despues": "USD 565-585 millones · USD 2,55-2,70"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/26058/000119312526318911/cts-ex99_1.htm",
+        "titulo": "CTS Corporation — 8-K del 28/7/2026, Exhibit 99.1 'CTS Announces Second Quarter 2026 Results': 'increasing its previous guidance of 2026 sales from a range of $560-$580 million to $565-$585 million and adjusted diluted EPS from a range of $2.35-$2.45 to $2.55-$2.70'"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "BLX",
+      "fecha": "2026-07-27",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Crecimiento de cartera comercial · Crecimiento de depósitos promedio · NIM · Ratio de eficiencia · ROE ajustado · Tier I",
+        "periodo": "FY2026",
+        "antes": "13%-15% · 13%-15% · ~2,30% · ~28% · 14%-15% · 15%-16%",
+        "despues": "13%-15% · 13%-15% · ~2,30% · ~28% · 14%-15% · 15%-16%"
+      },
+      "fuente": {
+        "url": "https://wcpac01.bladex.com/uiodrupalfiles/2026-07/Presentation_2Q2026_4.pdf",
+        "titulo": "Bladex — presentación de resultados del 2T 2026, lámina 13 'Full Year 2026 Guidance Ratified'; en la llamada del 28/7/2026 el CFO: 'we are reaffirming our full year adjusted ROE guidance of 14% to 15%'. El 6-K del 29/7/2026 con el comunicado no contiene la palabra 'guidance': no hay fuente primaria de esta guía"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "SPNT",
+      "fecha": "2026-07-29",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 16700000,
+        "puntosCombinado": 2.6,
+        "epsPublicado": 0.67,
+        "epsSinReservas": 0.56,
+        "epsConsenso": 0.65
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1576018/000157601826000084/exhibit991-earningspressre.htm",
+        "titulo": "SiriusPoint, 8-K Ex-99.1 del 29/7/2026 — CORRIGE la fila cargada el 26/9. El documento dice desarrollo FAVORABLE de años anteriores de USD 16,7 M y '(2.6)%' del ratio combinado (la fila anterior tenía −2,3) y reporta 'operating earnings per share of $0.67' contra 'USD 0,58 per diluted common share' contable; el consenso de 0,65 es operativo, así que la base correcta es 0,67 y no 0,58. Ganancia operativa sin ese desarrollo = CÁLCULO PROPIO (16,7 M × (1 − 0,19) ÷ 119.011.731 acciones diluidas = 0,11)"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "RNR",
+      "fecha": "2026-07-22",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 199400000,
+        "puntosCombinado": 9.1,
+        "epsPublicado": 12.92,
+        "epsSinReservas": 8.72,
+        "epsConsenso": 11.6
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913144/000091314426000081/rnrearningsrelease2026q2.htm",
+        "titulo": "RenaissanceRe, 8-K ex. 99.1 del 22/7/2026 — CORRIGE la fila cargada el 26/9 (tenía 9,50). Desarrollo favorable de años anteriores de USD 199,4 M (257,5 M favorable en Property, 58,0 M adverso en Casualty & Specialty) sobre primas netas devengadas de 2.199,5 M = 9,1 puntos; impuesto del trimestre 139,4 M sobre 1.117,7 M antes de impuestos = 12,5%. Ganancia operativa sin el desarrollo = CÁLCULO PROPIO (12,92 − 199,4 M × (1 − 0,125) ÷ 41.545 mil acciones diluidas = 8,72), misma base operativa del consenso"
+      }
+    }
+  ]
+}

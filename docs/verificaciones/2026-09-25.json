@@ -1,0 +1,546 @@
+{
+  "verificaciones": [
+    {
+      "symbol": "LLY",
+      "fecha": "2026-09-25",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-05",
+        "ventasVsConsenso": "Ventas 2T26 USD 23.000 M (+48% a/a) vs consenso USD 20.260-20.690 M según fuente: superó.",
+        "gananciaVsConsenso": "EPS no GAAP USD 8,38 vs consenso USD 6,58 (+27%); estimaciones previas iban de 6,55 a 7,74.",
+        "extraordinarios": [
+          { "detalle": "I+D en proceso adquirida 2T26 ($3,03/acción) INCLUIDA en el EPS no GAAP 8,38", "montoUsd": 2776000000 },
+          { "detalle": "Deterioro de activos y reestructuración ($0,72/acción) excluido del no GAAP", "montoUsd": 703000000 },
+          { "detalle": "Ganancia neta por inversiones (-$0,39/acción) excluida del no GAAP", "montoUsd": 445000000 },
+          { "detalle": "Amortización de intangibles ($0,11/acción) excluida del no GAAP", "montoUsd": 125000000 }
+        ],
+        "epsLimpia": 8.38,
+        "epsConsenso": 6.58,
+        "guia": "Subida 5/8/26: ventas 2026 USD 85.000-87.000 M (antes 82.000-85.000 M); EPS no GAAP 35,50-36,50 (antes 35,50-37,00): base +2,78 absorbida por I+D de 3,03."
+      },
+      "analistas": [
+        { "fecha": "2026-09-22", "firma": "TD Cowen", "accion": "reitera Buy", "objetivo": 1250 },
+        { "fecha": "2026-09-18", "firma": "Guggenheim", "accion": "sube objetivo, Buy", "objetivo": 1284 },
+        { "fecha": "2026-09-17", "firma": "Goldman Sachs", "accion": "sube objetivo, Buy", "objetivo": 1371 },
+        { "fecha": "2026-09-15", "firma": "Berenberg", "accion": "mejora de Hold a Buy", "objetivo": 1400 },
+        { "fecha": "2026-09-10", "firma": "HSBC", "accion": "sube objetivo, mantiene Reduce", "objetivo": 940 },
+        { "fecha": "2026-08-07", "firma": "Truist", "accion": "sube objetivo, Buy", "objetivo": 1376 },
+        { "fecha": "2026-08-07", "firma": "UBS", "accion": "fija objetivo", "objetivo": 1376 },
+        { "fecha": "2026-08-06", "firma": "Morgan Stanley", "accion": "reitera Overweight", "objetivo": 1419 },
+        { "fecha": "2026-08-06", "firma": "Wells Fargo", "accion": "sube objetivo, Overweight", "objetivo": 1330 },
+        { "fecha": "2026-08-06", "firma": "Cantor Fitzgerald", "accion": "sube objetivo, Overweight", "objetivo": 1410 },
+        { "fecha": "2026-07-15", "firma": "Citigroup", "accion": "sube objetivo, Buy", "objetivo": 1600 },
+        { "fecha": "2026-07-14", "firma": "Bernstein", "accion": "sube objetivo, Outperform", "objetivo": 1385 },
+        { "fecha": "2026-07-10", "firma": "Bank of America", "accion": "sube objetivo, Buy", "objetivo": 1334 },
+        { "fecha": "2026-07-08", "firma": "RBC", "accion": "sube objetivo, Outperform", "objetivo": 1500 },
+        { "fecha": "2026-07-07", "firma": "JPMorgan", "accion": "sube objetivo, Overweight", "objetivo": 1400 }
+      ],
+      "consensoObjetivo": 1308.39,
+      "eventos": [
+        { "fecha": "2026-08-28", "tipo": "regulatorio", "titular": "FDA aprueba Mounjaro para reducción de riesgo cardiovascular" },
+        { "fecha": "2026-09-18", "tipo": "regulatorio", "titular": "FDA aprueba Inluriyo para cáncer de mama ER+" }
+      ],
+      "valuacion": {
+        "texto": "P/E adelantado 31,5 al 22/9/26; no encontré mínimo ni máximo de 5 años (solo promedio 40,8, que no es extremo).",
+        "metric": "P/E adelantado",
+        "current": 31.5,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": null
+      },
+      "proximosResultados": "2026-10-29",
+      "reservas": [],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No encontré mínimo ni máximo de 5 años del P/E adelantado; solo el actual (31,5) y un promedio de 5 años (40,8)." },
+        { "dato": "otro", "detalle": "No confirmé si el crecimiento se acelera (no busqué el crecimiento de ventas del 1T26)." },
+        { "dato": "ofertas_de_acciones", "detalle": "No encontré ofertas de acciones en 90 días; la búsqueda en EDGAR no fue exhaustiva." },
+        { "dato": "otro", "detalle": "Sin fecha exacta: compra de Merida Biosciences (fines de agosto), cierre de AtaiBeckley (septiembre) y MDL GLP-1 con 3.763 demandas (junio)." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000077/q226lillysalesandearningsp.htm", "titulo": "Lilly 8-K ex.99 resultados 2T26" },
+        { "url": "https://247wallst.com/companies/lly/earnings/", "titulo": "Eli Lilly (LLY) Earnings Report Q2 2026 - 24/7 Wall St." },
+        { "url": "https://news.alphastreet.com/eli-lilly-and-company-lly-q2-2026-preview-eps-est-6-55-reports-august-5/amp/", "titulo": "LLY Q2 2026 Preview: EPS Est. $6.55 - Alphastreet" },
+        { "url": "https://www.marketbeat.com/stocks/NYSE/LLY/forecast/", "titulo": "MarketBeat LLY Forecast" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/next-chapter-eli-lilly-could-173017521.html", "titulo": "The Next Chapter of Eli Lilly Could Be Bigger Than Investors Expect" },
+        { "url": "https://www.robertkinglawfirm.com/personal-injury/zepbound-lawsuit/", "titulo": "Zepbound Lawsuit September 2026 Update" },
+        { "url": "https://valueinvesting.io/LLY/metric/forward-pe", "titulo": "LLY Forward P/E" },
+        { "url": "https://www.gurufocus.com/term/forward-pe-ratio/LLY", "titulo": "GuruFocus LLY Forward PE" },
+        { "url": "https://www.investing.com/equities/eli-lilly-and-co-earnings", "titulo": "Eli Lilly Earnings Date - Investing.com" },
+        { "url": "https://www.secform4.com/insider-trading/59478.htm", "titulo": "LLY Insider Trading Form 4 Filings" }
+      ],
+      "resumen": "5/8/26: ventas 23.000 M (+48%), EPS no GAAP 8,38 vs 6,58; guía de ventas subida a 85.000-87.000 M. Consenso de objetivo 1.308. Ventas de directivos ~16 M (7-17/8). Resultados 29/10."
+    },
+    {
+      "symbol": "AER",
+      "fecha": "2026-09-25",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-29",
+        "ventasVsConsenso": "Ingresos 2T26 USD 2.167 M vs consenso 2.070 M (Zacks; otra fuente 2.110 M): superó.",
+        "gananciaVsConsenso": "EPS ajustado USD 5,14 vs consenso 3,94 (Zacks, +30%); otra fuente da 4,14.",
+        "extraordinarios": [
+          { "detalle": "Ganancias por venta de 38 activos (USD 1.400 M vendidos) INCLUIDAS en EPS ajustado", "montoUsd": 223000000 },
+          { "detalle": "Recuperos de seguros por aviones perdidos en Rusia, excluidos del ajustado", "montoUsd": 28000000 },
+          { "detalle": "Deterioro de activos 2T26", "montoUsd": 8700000 }
+        ],
+        "epsLimpia": 5.14,
+        "epsConsenso": 3.94,
+        "guia": "Subida: EPS ajustado 2026 ~USD 16,80 (antes 14,50), sin ganancias por ventas del resto del año."
+      },
+      "analistas": [
+        { "fecha": "2026-07-30", "firma": "Citigroup", "accion": "sube objetivo", "objetivo": 178 },
+        { "fecha": "2026-07-30", "firma": "Deutsche Bank", "accion": "reitera Buy", "objetivo": 190 },
+        { "fecha": "2026-07-30", "firma": "Morgan Stanley", "accion": "sube objetivo", "objetivo": 165 },
+        { "fecha": "2026-07-30", "firma": "Truist", "accion": "sube objetivo", "objetivo": 180 },
+        { "fecha": "2026-07-30", "firma": "Weiss Ratings", "accion": "rebaja", "objetivo": null },
+        { "fecha": "2026-07-20", "firma": "Zacks Research", "accion": "mejora de Hold a Strong Buy", "objetivo": null },
+        { "fecha": "2026-07-16", "firma": "TD Cowen", "accion": "sube objetivo", "objetivo": 180 },
+        { "fecha": "2026-07-07", "firma": "Barclays", "accion": "sube objetivo", "objetivo": 179 },
+        { "fecha": "2026-07-07", "firma": "Susquehanna", "accion": "sube objetivo", "objetivo": 176 }
+      ],
+      "consensoObjetivo": 172.56,
+      "eventos": [
+        { "fecha": "2026-09-16", "tipo": "capital", "titular": "Directorio aprueba recompra de hasta USD 1.000 M hasta 30/6/2027" },
+        { "fecha": "2026-09-23", "tipo": "deuda", "titular": "Coloca USD 1.500 M en bonos senior: 750 M al 5,5% 2030 y 750 M al 5,875% 2033" },
+        { "fecha": "2026-08-06", "tipo": "insider", "titular": "Directora Rita Forst vende 2.000 acciones a USD 155,64; le quedan 7.333" }
+      ],
+      "valuacion": {
+        "texto": "Ninguna fuente publica el P/E adelantado; guía 16,80 y cierre 145,42. P/VL 1,22 (VL 119,21/acción). No encontré mínimo ni máximo de 5 años.",
+        "metric": "P/E adelantado",
+        "current": null,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": null
+      },
+      "proximosResultados": null,
+      "reservas": [
+        { "tipo": "extraordinarios", "detalle": "El EPS ajustado 5,14 incluye USD 223 M de ganancias por venta de activos, ~27% del ingreso neto ajustado de 811 M.", "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1378789/000162828026050456/aercap2026secondquarterear.htm", "titulo": "AerCap 6-K resultados 2T26" } }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No encontré el P/E adelantado publicado ni mínimo y máximo de 5 años del P/E o del P/VL." },
+        { "dato": "otro", "detalle": "No encontré anunciada la fecha de resultados del 3T26." },
+        { "dato": "otro", "detalle": "No confirmé si el crecimiento se acelera." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/1378789/000162828026050456/aercap2026secondquarterear.htm", "titulo": "AerCap 6-K resultados 2T26" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/compared-estimates-aercap-aer-q2-133006925.html", "titulo": "Compared to Estimates, AerCap (AER) Q2 Earnings" },
+        { "url": "https://www.quiverquant.com/news/AERCAP+HOLDINGS+($AER)+Releases+Q2+2026+Earnings", "titulo": "AERCAP HOLDINGS ($AER) Releases Q2 2026 Earnings" },
+        { "url": "https://www.marketbeat.com/stocks/NYSE/AER/forecast/", "titulo": "MarketBeat AER Forecast" },
+        { "url": "https://www.tipranks.com/news/company-announcements/aercap-launches-1-billion-share-buyback-program-through-mid-2027", "titulo": "AerCap Launches $1 Billion Share Buyback Program" },
+        { "url": "https://www.prnewswire.com/news-releases/aercap-holdings-nv-announces-pricing-of-1-5-billion-aggregate-principal-amount-of-senior-notes-302888200.html", "titulo": "AerCap Announces Pricing of $1.5 Billion Senior Notes" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001378789/000095015726000871/ownership.xml", "titulo": "AerCap Form 4 - Rita Forst" }
+      ],
+      "resumen": "29/7/26: EPS ajustado 5,14 vs 3,94 (con 223 M de ganancias por ventas dentro); guía subida a 16,80. Recompra 1.000 M (16/9) y bonos 1.500 M (23/9). Objetivo de consenso 172,56."
+    },
+    {
+      "symbol": "REPX",
+      "fecha": "2026-09-25",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-05",
+        "ventasVsConsenso": "Ventas de petróleo y gas USD 165,9M vs USD 150,1M Zacks (+10,2%) y USD 148,3M StockStory (+11,8%).",
+        "gananciaVsConsenso": "EPS ajustada de la empresa USD 1,54 vs consenso USD 1,63-1,64: algo debajo. GAAP USD 4,11 por ganancia en derivados.",
+        "extraordinarios": [
+          { "detalle": "Ganancia neta en derivados incluida en GAAP (USD 87,4M; ajustada USD 33M)", "montoUsd": 33000000 }
+        ],
+        "epsLimpia": 1.54,
+        "epsConsenso": 1.64,
+        "guia": "Subida: petróleo 2026 22,5-23,5 MBbls/d (~+30% a/a), 3T 25,1-26,1 MBbls/d; inversión subida a USD 230-242M."
+      },
+      "analistas": [
+        { "fecha": "2026-08-06", "firma": "Roth MKM", "accion": "Reitera Buy", "objetivo": 45 },
+        { "fecha": "2026-08-06", "firma": "William Blair", "accion": "Reitera Outperform", "objetivo": null },
+        { "fecha": "2026-08-12", "firma": "Truist Financial", "accion": "Mantiene Buy, baja objetivo de 47 a 41", "objetivo": 41 }
+      ],
+      "consensoObjetivo": 46,
+      "eventos": [
+        { "fecha": "2026-08-05", "tipo": "operativo", "titular": "Cortes de transporte de terceros en New Mexico restaron ~1,9 MBbls/d al 2T; ducto Targa esperado 4T 2026" }
+      ],
+      "valuacion": {
+        "texto": "P/E histórico 7,33 con precio USD 41,88 (21/9); no encontré serie de P/E adelantado a 5 años con mínimo y máximo.",
+        "metric": "P/E adelantado",
+        "current": null,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": true
+      },
+      "proximosResultados": null,
+      "reservas": [
+        {
+          "tipo": "extraordinarios",
+          "detalle": "EPS GAAP USD 4,11 incluye USD 33M de ganancia en derivados; la ajustada es USD 1,54, algo debajo del consenso ~USD 1,64.",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1001614/000100161426000049/q22026earningsrelease.htm", "titulo": "Riley Permian Reports Second Quarter 2026 Results (8-K ex99)" }
+        },
+        {
+          "tipo": "pico_de_ciclo",
+          "detalle": "Petróleo realizado USD 94,28/bbl en 2T 2026, con gas (-4,12/Mcf) y NGL (-4,71/bbl) a precio negativo por restricciones regionales.",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1001614/000100161426000049/q22026earningsrelease.htm", "titulo": "Riley Permian Reports Second Quarter 2026 Results (8-K ex99)" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No encontré el P/E adelantado actual ni su mínimo y máximo de 5 años." },
+        { "dato": "otro", "detalle": "No encontré la fecha confirmada de resultados del 3T 2026." },
+        { "dato": "ofertas_de_acciones", "detalle": "No encontré ofertas de acciones en 90 días; no revisé el índice completo de EDGAR." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/1001614/000100161426000049/q22026earningsrelease.htm", "titulo": "Riley Permian Reports Second Quarter 2026 Results (8-K ex99)" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/riley-exploration-permian-inc-repx-003515585.html", "titulo": "Riley Exploration Permian (REPX) Surpasses Q2 Earnings and Revenue Estimates" },
+        { "url": "https://stockstory.org/us/stocks/nyse/repx/news/earnings/riley-exploration-permian-nyserepx-delivers-strong-q2-cy2026-numbers-stock-soars", "titulo": "Riley Exploration Permian Delivers Strong Q2 CY2026 Numbers, Stock Soars" },
+        { "url": "https://stockanalysis.com/stocks/repx/forecast/", "titulo": "Riley Exploration Permian (REPX) Stock Forecast & Price Targets" },
+        { "url": "https://www.thecerbatgem.com/2026/09/21/riley-exploration-permian-nyserepx-trading-down-4-heres-what-happened.html", "titulo": "Riley Exploration Permian Trading Down 4%" }
+      ],
+      "resumen": "2T 2026 (5/8): ventas USD 165,9M (+10% sobre consenso), EPS ajustada USD 1,54 vs ~1,64 (GAAP 4,11 con USD 33M derivados). Guía de petróleo subida. Objetivo promedio USD 46, precio USD 41,69 (24/9). CEO vendió 12.500 (10/8), CFO 4.000 (18/8)."
+    },
+    {
+      "symbol": "NTCT",
+      "fecha": "2026-09-25",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-06",
+        "ventasVsConsenso": "Ingresos USD 210,4M (+12,7% a/a) vs ~USD 196,2M esperados.",
+        "gananciaVsConsenso": "EPS no-GAAP USD 0,52 vs USD 0,39 Zacks y 0,38 FactSet; GAAP USD 0,29.",
+        "extraordinarios": [],
+        "epsLimpia": 0.52,
+        "epsConsenso": 0.39,
+        "guia": "Confirmada, no subida: ingresos año fiscal 2027 USD 885-915M, EPS no-GAAP USD 2,65-2,80, GAAP USD 1,55-1,70."
+      },
+      "analistas": [
+        { "fecha": "2026-08-07", "firma": "RBC Capital", "accion": "Mantiene Hold", "objetivo": 43 }
+      ],
+      "consensoObjetivo": 43.38,
+      "eventos": [
+        { "fecha": "2026-09-09", "tipo": "junta de accionistas", "titular": "Junta anual: elección de directores y ampliación del plan de acciones 2019 y del plan de compra de empleados 2011" }
+      ],
+      "valuacion": {
+        "texto": "Guía EPS no-GAAP USD 2,65-2,80 con precio USD 39,25 (24/9); ninguna fuente publica el P/E adelantado ni su mínimo y máximo de 5 años.",
+        "metric": "P/E adelantado",
+        "current": null,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-10-29",
+      "reservas": [
+        {
+          "tipo": "guia",
+          "detalle": "Tras superar el consenso, la guía anual solo se confirmó (USD 885-915M): USD 10-15M de pedidos del gobierno se adelantaron al 1T y endurecen el 2T.",
+          "fuente": { "url": "https://seekingalpha.com/news/4628233-netscout-reaffirms-fy2027-outlook-of-885m-915m-revenue-and-2_65-2_80-eps-as-federal-timing", "titulo": "Netscout reaffirms FY2027 outlook as federal timing boosts Q1" }
+        },
+        {
+          "tipo": "un_analista",
+          "detalle": "Solo 3 analistas lo cubren (promedio USD 43,38); la única acción en 90 días es un Hold de RBC con objetivo USD 43 (7/8).",
+          "fuente": { "url": "https://stockanalysis.com/stocks/ntct/forecast/", "titulo": "NetScout Systems (NTCT) Stock Forecast & Analyst Price Targets" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No encontré el P/E adelantado publicado ni su mínimo y máximo de 5 años." },
+        { "dato": "ofertas_de_acciones", "detalle": "No encontré ofertas de acciones ni convertibles en 90 días; no revisé el índice completo de EDGAR." },
+        { "dato": "otro", "detalle": "La fecha del 29/10 es estimada por Investing.com; la empresa no la confirmó." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001078075/000107807526000105/ntct-ex99_1.htm", "titulo": "NETSCOUT Reports First Quarter Fiscal Year 2027 Financial Results (8-K ex99.1)" },
+        { "url": "https://www.nasdaq.com/articles/netscout-systems-ntct-tops-q1-earnings-and-revenue-estimates", "titulo": "NetScout Systems (NTCT) Tops Q1 Earnings and Revenue Estimates" },
+        { "url": "https://www.marketscreener.com/news/earnings-flash-ntct-netscout-systems-inc-posts-q1-adjusted-eps-0-52-per-share-vs-factset-est-ce7f50ddda8df327", "titulo": "NETSCOUT Posts Q1 Adjusted EPS $0.52 vs FactSet Est of $0.38" },
+        { "url": "https://seekingalpha.com/news/4628233-netscout-reaffirms-fy2027-outlook-of-885m-915m-revenue-and-2_65-2_80-eps-as-federal-timing", "titulo": "Netscout reaffirms FY2027 outlook as federal timing boosts Q1" },
+        { "url": "https://stockanalysis.com/stocks/ntct/forecast/", "titulo": "NetScout Systems (NTCT) Stock Forecast & Analyst Price Targets" },
+        { "url": "https://www.stocktitan.net/sec-filings/NTCT/form-4-netscout-systems-inc-insider-trading-activity-ff4b3ec17539.html", "titulo": "NetScout COO sells 2,269 shares at $39.27" },
+        { "url": "https://www.stocktitan.net/sec-filings/NTCT/def-14a-netscout-systems-inc-definitive-proxy-statement-aa25a43ec5b2.html", "titulo": "NetScout details 2026 meeting, board and pay votes" },
+        { "url": "https://www.investing.com/equities/netscout-systems-earnings", "titulo": "NetScout (NTCT) Earnings Date & Report" }
+      ],
+      "resumen": "1T del año fiscal 2027 (6/8): ingresos USD 210,4M (+12,7%), EPS no-GAAP 0,52 vs 0,39. Guía confirmada, no subida, por USD 10-15M de pedidos del gobierno adelantados. Precio USD 39,25 vs objetivo 43,38. Insiders: solo retenciones y una venta chica del COO."
+    },
+    {
+      "symbol": "MYE",
+      "fecha": "2026-09-25",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-30",
+        "ventasVsConsenso": "Ventas continuas 179,2 M USD (+9,8% a/a) vs consenso 208,9 M (Investing.com), que parece incluir Myers Tire Supply, hoy discontinuada.",
+        "gananciaVsConsenso": "EPS ajustada 0,53 vs consenso 0,32 (+0,21); EPS GAAP continua 0,50 vs 0,26 un año antes.",
+        "extraordinarios": [
+          { "detalle": "Liberación de reserva impositiva (no sobre ganancias) de una adquisición: beneficio excluido del ajustado", "montoUsd": 2000000 },
+          { "detalle": "Gastos de reestructuración sumados de vuelta en el ajustado", "montoUsd": 900000 },
+          { "detalle": "Amortización de intangibles sumada de vuelta en el ajustado", "montoUsd": 3300000 }
+        ],
+        "epsLimpia": 0.53,
+        "epsConsenso": 0.32,
+        "guia": "Cualitativa, sin cifras: sube Alimentos y bebidas de 'leve caída' a 'crecimiento moderado'; reafirma el resto de los mercados finales."
+      },
+      "analistas": [
+        { "fecha": "2026-06-30", "firma": "KeyBanc (Steve Barger)", "accion": "Mantiene Overweight, sube objetivo de 26 a 37", "objetivo": 37 },
+        { "fecha": "2026-09-14", "firma": "Weiss Ratings", "accion": "Baja de Buy (B-) a Hold (C+)", "objetivo": null }
+      ],
+      "consensoObjetivo": 37,
+      "eventos": [
+        { "fecha": "2026-08-31", "tipo": "desinversion", "titular": "Myers completa la venta de Myers Tire Supply a Lion Equity Partners por 30 M USD, sujeta a ajustes." },
+        { "fecha": "2026-09-08", "tipo": "dividendo", "titular": "Dividendo trimestral 0,135 USD, registro 18/9, pago 5/10/2026." }
+      ],
+      "valuacion": {
+        "texto": "P/E adelantado ~12,7 (GuruFocus); P/E histórico 35,4 al 7/8/2026 vs promedio 24,7 en 5 años. No encontré mínimo ni máximo de 5 años.",
+        "metric": "P/E adelantado",
+        "current": 12.73,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": true
+      },
+      "proximosResultados": null,
+      "reservas": [
+        { "tipo": "un_analista", "detalle": "El consenso de 37 USD sale de un solo objetivo reciente (KeyBanc, 30/6/2026); 3 analistas lo cubren según MarketBeat.", "fuente": { "url": "https://www.marketbeat.com/stocks/NYSE/MYE/forecast/", "titulo": "MarketBeat - MYE forecast" } },
+        { "tipo": "otra", "detalle": "La empresa anticipó más presión de márgenes en el 3T por resina más cara (conflicto en Medio Oriente) y ruido por aranceles en vehículos.", "fuente": { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-myers-industries-tops-q2-2026-profit-estimates-93CH-4825212?ampMode=1", "titulo": "Earnings call transcript: Myers Industries tops Q2 2026 profit estimates" } }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "Mínimo y máximo de 5 años del P/E adelantado: GuruFocus y YCharts no dejaron leer la página." },
+        { "dato": "otro", "detalle": "Consenso de ventas comparable sin Tire Supply: 208,9 M parece no depurar lo discontinuado." },
+        { "dato": "ofertas_de_acciones", "detalle": "No revisé los 424B/S-3 en EDGAR; las noticias de 90 días no muestran ofertas de acciones." },
+        { "dato": "otro", "detalle": "No leí el 10-Q del 2T 2026; los datos salen del 8-K exhibit 99.1." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000069488/000119312526324868/mye-ex99_1.htm", "titulo": "Myers Industries 8-K Ex 99.1 - resultados del 2T 2026" },
+        { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-myers-industries-tops-q2-2026-profit-estimates-93CH-4825212?ampMode=1", "titulo": "Earnings call transcript: Myers Industries tops Q2 2026 profit estimates" },
+        { "url": "https://rvbusiness.com/myers-industries-announces-2026-second-quarter-results/", "titulo": "Myers Industries Announces 2026 Second Quarter Results - RVBusiness" },
+        { "url": "https://www.marketbeat.com/stocks/NYSE/MYE/forecast/", "titulo": "MarketBeat - MYE forecast" },
+        { "url": "https://www.nasdaq.com/press-release/myers-industries-completes-sale-myers-tire-supply-2026-08-31", "titulo": "Myers Industries Completes Sale of Myers Tire Supply" },
+        { "url": "https://www.nasdaq.com/press-release/myers-industries-announces-quarterly-dividend-2026-09-08", "titulo": "Myers Industries Announces Quarterly Dividend" },
+        { "url": "https://www.secform4.com/insider-trading/69488.htm", "titulo": "SECForm4 - Myers Industries insider trading" },
+        { "url": "https://www.gurufocus.com/term/forward-pe-ratio/MYE", "titulo": "MYE Forward PE Ratio - GuruFocus" },
+        { "url": "https://fullratio.com/stocks/nyse-mye/pe-ratio", "titulo": "MYE PE ratio, current and historical analysis" }
+      ],
+      "resumen": "30/7/2026: EPS ajustada 0,53 vs 0,32 esperado; ventas continuas +9,8%. Ítems chicos (reserva 2 M, reestructuración 0,9 M). Vendió Tire Supply por 30 M (31/8). En 90 días solo retenciones fiscales del CFO (22/9)."
+    },
+    {
+      "symbol": "VRSN",
+      "fecha": "2026-09-25",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-23",
+        "ventasVsConsenso": "Ventas 434,6 M USD (+6,0% a/a) vs consenso 433,8 M; supera por 0,2%.",
+        "gananciaVsConsenso": "EPS GAAP diluida 2,38 vs consenso 2,45; queda 0,07 abajo (-2,9%).",
+        "extraordinarios": [],
+        "epsLimpia": 2.38,
+        "epsConsenso": 2.45,
+        "guia": "Subida 2026: ventas 1.745-1.755 M USD, resultado operativo 1.185-1.195 M, base de dominios +5,2% a +6,0%."
+      },
+      "analistas": [
+        { "fecha": "2026-07-24", "firma": "JPMorgan", "accion": "Sube objetivo de 308 a 316", "objetivo": 316 },
+        { "fecha": "2026-07-27", "firma": "Zacks Research", "accion": "Sube de Hold a Strong-Buy", "objetivo": null },
+        { "fecha": "2026-09-01", "firma": "Wedbush", "accion": "Mantiene Outperform, sube objetivo de 324 a 341", "objetivo": 341 },
+        { "fecha": "2026-09-21", "firma": "Weiss Ratings", "accion": "Reitera calificación", "objetivo": null }
+      ],
+      "consensoObjetivo": 333,
+      "eventos": [
+        { "fecha": "2026-09-04", "tipo": "litigio", "titular": "Demanda colectiva antimonopolio contra Verisign e ICANN por el precio del .com; pide cautelar nacional y daños en California." },
+        { "fecha": "2026-07-23", "tipo": "deuda", "titular": "Emite 550 M USD en notas al 5,10% 2031 y rescata 550 M al 4,75% 2027." },
+        { "fecha": "2026-07-23", "tipo": "otro", "titular": "El .web ya está delegado; Verisign lo ofrecerá por registradores más adelante en 2026." }
+      ],
+      "valuacion": {
+        "texto": "P/E adelantado ~31,2-31,35 (ago-sep 2026) vs promedio 29,6 en 5 años. No encontré mínimo ni máximo de 5 años.",
+        "metric": "P/E adelantado",
+        "current": 31.35,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": null
+      },
+      "proximosResultados": null,
+      "reservas": [
+        { "tipo": "insiders", "detalle": "El CEO Bidzos vendió 3.300 acciones por semana (13 ventas, 30/6 a 22/9): ~42.900, ~10% de sus 426 mil. No hay constancia de plan 10b5-1.", "fuente": { "url": "https://www.secform4.com/insider-trading/1014473.htm", "titulo": "SECForm4 - VeriSign insider trading" } },
+        { "tipo": "otra", "detalle": "Demanda colectiva antimonopolio del 4/9/2026 contra Verisign e ICANN; busca frenar las cláusulas que limitan a ICANN en el precio del .com.", "fuente": { "url": "https://domainnamewire.com/2026/09/04/antitrust-lawsuit-filed-against-verisign-and-icann-over-com-pricing/", "titulo": "Antitrust lawsuit filed against Verisign and ICANN over .com pricing" } }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "Mínimo y máximo de 5 años del P/E adelantado: GuruFocus y YCharts no dejaron leer la página." },
+        { "dato": "regulatorio", "detalle": "Negociación con la NTIA por el precio del .com después del 1/9/2026: no encontré una decisión pendiente con fecha." },
+        { "dato": "ofertas_de_acciones", "detalle": "No revisé los 424B en EDGAR; en 90 días solo aparece la deuda de 550 M, no acciones." },
+        { "dato": "otro", "detalle": "No encontré el consenso de EPS del 3T con fecha fija de reporte; se leyó 2,45 sin confirmar." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/1014473/000101447326000026/q22026earningsrelease.htm", "titulo": "Verisign Reports Second Quarter 2026 Results (8-K)" },
+        { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-verisign-posts-mixed-q2-2026-results-as-growth-stays-firm-93CH-4810136", "titulo": "Earnings call transcript: VeriSign posts mixed Q2 2026 results" },
+        { "url": "https://www.marketbeat.com/stocks/NASDAQ/VRSN/forecast/", "titulo": "MarketBeat - VRSN forecast" },
+        { "url": "https://www.secform4.com/insider-trading/1014473.htm", "titulo": "SECForm4 - VeriSign insider trading" },
+        { "url": "https://www.fool.com/coverage/filings/2026/08/13/verisign-ceo-james-bidzos-sells-3300-shares-for-979000/", "titulo": "VeriSign CEO James Bidzos Sells 3,300 Shares for $979,000" },
+        { "url": "https://domainnamewire.com/2026/09/04/antitrust-lawsuit-filed-against-verisign-and-icann-over-com-pricing/", "titulo": "Antitrust lawsuit filed against Verisign and ICANN over .com pricing" },
+        { "url": "https://domainnamewire.com/2025/11/19/verisign-can-increase-com-prices-in-2026/", "titulo": "Verisign can increase .com prices in 2026" },
+        { "url": "https://ycharts.com/companies/VRSN/forward_pe_ratio", "titulo": "VeriSign PE Ratio (Forward) - YCharts" },
+        { "url": "https://fullratio.com/stocks/nasdaq-vrsn/pe-ratio", "titulo": "VRSN PE ratio, current and historical analysis" }
+      ],
+      "resumen": "23/7/2026: ventas 434,6 M, en línea; EPS 2,38 vs 2,45, abajo. Guía 2026 subida. El .com pasa de 10,26 a 10,97 USD desde 1/11/2026. Demanda antimonopolio 4/9. El CEO vendió ~10% de sus acciones en 90 días."
+    },
+    {
+      "symbol": "GLXY",
+      "fecha": "2026-09-25",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-05",
+        "ventasVsConsenso": "Ingresos $8.710M vs $8.850M estimados (−1,6%) según AllInvestView; el 10-Q informa $8.557M.",
+        "gananciaVsConsenso": "EPS −0,09 vs −0,46 estimado; pérdida neta de $85M por la baja de activos digitales.",
+        "extraordinarios": [
+          { "detalle": "Deterioro de activos digitales 2T26", "montoUsd": -181300000 },
+          { "detalle": "Crédito fiscal de inversión por electricidad limpia ($65M) que dio un beneficio impositivo de $32M en centros de datos", "montoUsd": 32000000 }
+        ],
+        "epsLimpia": -0.09,
+        "epsConsenso": -0.46,
+        "guia": "Helios Fase I (CoreWeave): ~$80M de alquiler por trimestre desde el 3T26, margen EBITDA del proyecto >90%."
+      },
+      "analistas": [
+        { "fecha": "2026-09-18", "firma": "Zacks Research", "accion": "sube de Strong Sell a Hold", "objetivo": null },
+        { "fecha": "2026-09-09", "firma": "Goldman Sachs", "accion": "Hold", "objetivo": null },
+        { "fecha": "2026-09-03", "firma": "Morgan Stanley", "accion": "sube objetivo de 37 a 48", "objetivo": 48 },
+        { "fecha": "2026-08-21", "firma": "Weiss Ratings", "accion": "reitera Sell (D-)", "objetivo": null },
+        { "fecha": "2026-08-19", "firma": "Citigroup", "accion": "baja objetivo de 28 a 26", "objetivo": 26 },
+        { "fecha": "2026-08-05", "firma": "BTIG", "accion": "baja objetivo de 50 a 45, mantiene Buy", "objetivo": 45 },
+        { "fecha": "2026-08-05", "firma": "Chardan Capital", "accion": "reitera Buy", "objetivo": 35 },
+        { "fecha": "2026-08-03", "firma": "Rosenblatt", "accion": "baja objetivo de 39 a 35, mantiene Buy", "objetivo": 35 },
+        { "fecha": "2026-07-17", "firma": "Piper Sandler", "accion": "baja objetivo de 36 a 33", "objetivo": 33 }
+      ],
+      "consensoObjetivo": 39.58,
+      "eventos": [
+        { "fecha": "2026-07-23", "tipo": "oferta de deuda", "titular": "Galaxy Helios Data Centers II coloca $3.507M en notas garantizadas al 9,875% 2031 para Helios Fase II (cierre 28/7)" },
+        { "fecha": "2026-09-11", "tipo": "alianza", "titular": "Galaxy y Sky Protocol anuncian colaboración" },
+        { "fecha": "2026-09-23", "tipo": "tesorería", "titular": "Galaxy suma $100M de sUSDS a su tesorería y lo acepta como garantía en trading" },
+        { "fecha": "2026-09-08", "tipo": "insiders", "titular": "El director legal Friedrich dispone de 35.623 acciones (~$941k); 30.630 son retención de impuestos por RSU" }
+      ],
+      "valuacion": {
+        "texto": "Pierde plata ($86M en 12 meses): no hay P/E ni P/E adelantado; precio 25,19, rango de 52 semanas 16,43-45,92.",
+        "metric": "P/E adelantado",
+        "current": null,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": null
+      },
+      "proximosResultados": "2026-10-20",
+      "reservas": [
+        { "tipo": "otra", "detalle": "Deuda nueva de $3.507M al 9,875% en Helios II para construir 260 MW de IT crítico; capex de $448M en el 2T26.", "fuente": { "url": "https://www.nasdaq.com/press-release/galaxy-digital-inc-announces-pricing-3507-billion-senior-secured-notes-2026-07-23", "titulo": "Galaxy Digital Inc. Announces Pricing of $3.507 Billion of Senior Secured Notes" } },
+        { "tipo": "extraordinarios", "detalle": "El 2T26 incluye un deterioro de activos digitales de $181,3M y un beneficio impositivo de $32M por un crédito fiscal de $65M.", "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/0001859392/000185939226000084/glxy-20260630xpressrelease.htm", "titulo": "Galaxy 8-K Q2 2026 press release" } }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No hay P/E adelantado con historia de 5 años (pérdidas); no encontré mínimo ni máximo de un múltiplo comparable." },
+        { "dato": "regulatorio", "detalle": "No hice una búsqueda específica de investigaciones o licencias en los últimos 90 días." },
+        { "dato": "ofertas_de_acciones", "detalle": "Aparecen prospectos 424B3 de reventa en 2026, pero no confirmé fechas ni tamaños; solo se confirmó la oferta de deuda." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001859392/000185939226000084/glxy-20260630xpressrelease.htm", "titulo": "Galaxy 8-K Q2 2026 press release" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001859392/000185939226000091/glxy-20260630.htm", "titulo": "Galaxy 10-Q Q2 2026" },
+        { "url": "https://www.allinvestview.com/earnings/GLXY/q2-2026/", "titulo": "GLXY Q2 2026 Earnings: EPS Beat & Key Numbers" },
+        { "url": "https://www.marketbeat.com/stocks/NASDAQ/GLXY/price-target", "titulo": "MarketBeat GLXY price target" },
+        { "url": "https://stockanalysis.com/stocks/glxy/", "titulo": "Galaxy Digital (GLXY) Stock Price & Overview" },
+        { "url": "https://www.nasdaq.com/press-release/galaxy-digital-inc-announces-pricing-3507-billion-senior-secured-notes-2026-07-23", "titulo": "Galaxy Digital Inc. Announces Pricing of $3.507 Billion of Senior Secured Notes" },
+        { "url": "https://www.fool.com/coverage/filings/2026/09/11/galaxy-digital-chief-legal-officer-disposes-35623-shares/", "titulo": "Galaxy Digital Chief Legal Officer Sells 35,623 Shares" },
+        { "url": "https://www.ad-hoc-news.de/boerse/news/nebenwerte/galaxy-digital-stock-falls-4-75-percent-as-treasury-expands/70170074", "titulo": "Galaxy Digital stock falls 4.75 percent as treasury expands" }
+      ],
+      "resumen": "2T26 (5/8): pérdida de $85M, EPS −0,09 vs −0,46 estimado; ingresos 1,6% bajo lo esperado. Helios ~$80M por trimestre desde el 3T26. Deuda $3.507M al 9,875% (23/7). Objetivo de consenso 39,58, precio 25,19."
+    },
+    {
+      "symbol": "LPG",
+      "fecha": "2026-09-25",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-05",
+        "ventasVsConsenso": "Ingresos $187,9M vs $169,94M estimados (+123% a/a).",
+        "gananciaVsConsenso": "EPS ajustada 2,52 vs 2,25 estimada; neta $138,3M o 3,24 por acción.",
+        "extraordinarios": [
+          { "detalle": "Ganancia por venta del buque VLGC Cobra", "montoUsd": 30100000 },
+          { "detalle": "Ganancia no realizada en derivados", "montoUsd": 900000 }
+        ],
+        "epsLimpia": 2.52,
+        "epsConsenso": 2.25,
+        "guia": "no da guía; el 4/9 informó que fijó el 99% de los días del 3T calendario 2026 a más de $88.000 por día"
+      },
+      "analistas": [
+        { "fecha": "2026-08-06", "firma": "Freedom Capital", "accion": "sube de Hold a Strong Buy", "objetivo": null },
+        { "fecha": "2026-08-25", "firma": "Weiss Ratings", "accion": "reitera", "objetivo": null }
+      ],
+      "consensoObjetivo": 54.6,
+      "eventos": [
+        { "fecha": "2026-09-04", "tipo": "adquisición de flota", "titular": "Encarga 3 VLGC a Hanwha Ocean por ~$345M, entrega en 2030" },
+        { "fecha": "2026-09-02", "tipo": "financiamiento", "titular": "Crédito nuevo a 7 años por $368,4M (SOFR+140pb) para refinanciar deuda" },
+        { "fecha": "2026-07-01", "tipo": "venta de activos", "titular": "Vende los VLGC Corsair ($80,8M) y Constellation ($85,6M) en julio de 2026" }
+      ],
+      "valuacion": {
+        "texto": "P/E actual 7,17 y adelantado 7,46, P/B 1,87; no encontré mínimo ni máximo de 5 años.",
+        "metric": "P/E adelantado",
+        "current": 7.46,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-11-05",
+      "reservas": [
+        { "tipo": "pico_de_ciclo", "detalle": "TCE récord de $75.926/día y fletes de más de $88.000 por el cierre de Ormuz; hay 155 VLGC nuevos por entregar hasta 2030.", "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1596993/000159699326000038/lpg-20260805xex99d1.htm", "titulo": "Dorian LPG Q1 FY2027 press release (Ex 99.1)" } },
+        { "tipo": "extraordinarios", "detalle": "Ganancia neta de 3,24/acción que incluye $30,1M de venta de buques; en julio vendió dos más por $166M, con ganancias similares por venir.", "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1596993/000159699326000038/lpg-20260805xex99d1.htm", "titulo": "Dorian LPG Q1 FY2027 press release (Ex 99.1)" } }
+      ],
+      "evitar": [
+        { "motivo": "precio_sobre_consenso_tras_suba", "detalle": "Precio 54,05 (24/9) a 1% del objetivo de consenso de 54,60, después de subir 68% en 12 meses.", "fuente": { "url": "https://stockanalysis.com/stocks/lpg/statistics/", "titulo": "Dorian LPG (LPG) Statistics" } }
+      ],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No encontré mínimo ni máximo de 5 años del P/E adelantado." },
+        { "dato": "otro", "detalle": "No revisé los Form 4 de los últimos 90 días." },
+        { "dato": "regulatorio", "detalle": "No hice una búsqueda específica de riesgos regulatorios o de sanciones." },
+        { "dato": "ofertas_de_acciones", "detalle": "No encontré ofertas de acciones en 90 días, pero no las busqué específicamente." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/1596993/000159699326000038/lpg-20260805xex99d1.htm", "titulo": "Dorian LPG Q1 FY2027 press release (Ex 99.1)" },
+        { "url": "https://www.nasdaq.com/press-release/dorian-lpg-ltd-announces-first-quarter-fiscal-year-2027-financial-results-2026-08-05", "titulo": "Dorian LPG Announces First Quarter Fiscal Year 2027 Financial Results" },
+        { "url": "https://www.businesswire.com/news/home/20260904179858/en/Dorian-LPG-Ltd.-Announces-VLGC-Newbuilding-Contracts-Forward-Chartering-Estimates-and-New-Credit-Facility", "titulo": "Dorian LPG Announces VLGC Newbuilding Contracts, Forward Chartering Estimates, and New Credit Facility" },
+        { "url": "https://stockanalysis.com/stocks/lpg/", "titulo": "Dorian LPG (LPG) Stock Price & Overview" },
+        { "url": "https://stockanalysis.com/stocks/lpg/statistics/", "titulo": "Dorian LPG (LPG) Statistics" },
+        { "url": "https://www.marketbeat.com/stocks/NYSE/LPG/forecast/", "titulo": "MarketBeat LPG forecast" }
+      ],
+      "resumen": "1T FY27 (5/8): ingresos $187,9M vs $169,9M esperados, EPS ajustada 2,52 vs 2,25; incluye $30,1M de venta de buques. Dividendo $1. Fletes récord por Ormuz. Precio 54,05 vs objetivo 54,60 tras +68% en 12 meses."
+    }
+  ],
+  "revisiones": [
+    {
+      "symbol": "APH",
+      "fecha": "2026-09-25",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        { "url": "https://investor.amphenol.com/news-and-events/news-details/2026/Amphenol-Announces-Two-for-One-Stock-Split-and-Third-Quarter-2026-Dividend/default.aspx", "titulo": "Amphenol Announces Two-for-One Stock Split and Third Quarter 2026 Dividend" },
+        { "url": "https://www.dailypolitical.com/2026/09/13/amphenol-corporation-nyseaph-receives-95-83-average-price-target-from-analysts.html", "titulo": "Amphenol Corporation (NYSE:APH) Receives $95.83 Average Price Target from Analysts" },
+        { "url": "https://www.ad-hoc-news.de/boerse/news/vorboerse/amphenol-stock-heads-into-the-open-after-a-2-79-percent-gain/70174397", "titulo": "Amphenol stock heads into the open after a 2.79 percent gain" },
+        { "url": "https://www.dailypolitical.com/2026/09/17/amphenol-nyseaph-stock-price-down-1-2-whats-next.html", "titulo": "Amphenol (NYSE:APH) Stock Price Down 1.2% – What's Next?" }
+      ],
+      "resumen": "Sin objeciones a 30 días. El split 2x1 (3/9/2026) explica los recortes aparentes: TD Cowen 175→90 (hold), Barclays 200→100. BNP Paribas subió a 110 (22/9). Consenso ~US$96-99. Sin causas, investigaciones, ofertas ni cambios de guía."
+    },
+    {
+      "symbol": "AII",
+      "fecha": "2026-09-25",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        { "url": "https://www.dailypolitical.com/2026/09/22/american-integrity-insurance-group-inc-nyseaii-receives-26-50-average-price-target-from-analysts.html", "titulo": "American Integrity Insurance Group, Inc. (NYSE:AII) Receives $26.50 Average Price Target from Analysts" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0002007587/000200758726000106/aii-20260908.htm", "titulo": "American Integrity Insurance Group, Inc. - Form 8-K (8/9/2026)" },
+        { "url": "https://www.businesswire.com/news/home/20260902975162/en/American-Integrity-Insurance-Group-Inc.-Announces-Participation-in-the-KBW-Insurance-Conference", "titulo": "American Integrity Insurance Group, Inc. Announces Participation in the KBW Insurance Conference" },
+        { "url": "https://www.investing.com/news/company-news/american-integrity-stockholders-price-secondary-offering-at-20-per-share-93CH-4369110", "titulo": "American Integrity stockholders price secondary offering at $20 per share" },
+        { "url": "https://www.businesswire.com/news/home/20260530463062/en/American-Integrity-Insurance-Group-Inc.-Announces-Full-Placement-of-2026-2027-CAT-XOL-Reinsurance-Program", "titulo": "American Integrity Insurance Group, Inc. Announces Full Placement of 2026-2027 CAT XOL Reinsurance Program" }
+      ],
+      "resumen": "Sin objeciones nuevas a 30 días. El 8-K del 8/9 es solo la presentación para KBW. Analistas solo subieron objetivos (12-20/8); consenso US$26,50 vs 25,33. La venta de Ritchie del 31/8 (9.174) entra en lo ya informado; la secundaria es de nov-2025."
+    },
+    {
+      "symbol": "LLY",
+      "fecha": "2026-09-25",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        { "url": "https://www.marketbeat.com/stocks/NYSE/LLY/forecast/", "titulo": "MarketBeat LLY Forecast" },
+        { "url": "https://www.marketbeat.com/instant-alerts/price-eli-lilly-and-company-nyse-lly-shares-down-14-heres-what-happened-2026-09-23/", "titulo": "Eli Lilly Shares Down 1.4%" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/next-chapter-eli-lilly-could-173017521.html", "titulo": "The Next Chapter of Eli Lilly" }
+      ],
+      "resumen": "En 30 días solo subas de objetivo y la mejora de Berenberg (15/9), sin rebajas; aprobaciones de la FDA 28/8 y 18/9. El 23/9 bajó 1,64% sin noticia material. Resultados el 29/10."
+    },
+    {
+      "symbol": "AER",
+      "fecha": "2026-09-25",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        { "url": "https://www.tipranks.com/news/company-announcements/aercap-launches-1-billion-share-buyback-program-through-mid-2027", "titulo": "AerCap Launches $1 Billion Share Buyback Program" },
+        { "url": "https://www.prnewswire.com/news-releases/aercap-holdings-nv-announces-pricing-of-1-5-billion-aggregate-principal-amount-of-senior-notes-302888200.html", "titulo": "AerCap Senior Notes Pricing" },
+        { "url": "https://www.marketbeat.com/stocks/NYSE/AER/forecast/", "titulo": "MarketBeat AER Forecast" }
+      ],
+      "resumen": "En 30 días: recompra de 1.000 M (16/9) y bonos senior por 1.500 M (23/9), deuda y no acciones ni convertibles. Sin rebajas de analistas ni eventos regulatorios."
+    }
+  ]
+}

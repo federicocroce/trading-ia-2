@@ -1,0 +1,49 @@
+{
+  "hoy": "2026-10-08",
+  "version": "agente-v1-67b2302fae8f",
+  "versionRevision": "agente-r1-b47b544642a2",
+  "cuestionario": "Reglas: escribís HALLAZGOS con dato, fecha y URL. NO escribas veredictos (\"apto\", \"comprar\", \"evitar\" como conclusión): los decide la app con tus hallazgos. Sin URL no se escribe. Lo que no encontraste va a \"faltantes\", nunca se inventa un número.\n\nVERIFICACIÓN. Para cada símbolo, leé el ÚLTIMO comunicado de resultados trimestrales (8-K con exhibit 99 o 6-K en sec.gov, o el comunicado en prnewswire/globenewswire/businesswire), el último 10-Q o 10-K y los Form 4 de los últimos 90 días. Respondé en JSON, sin prosa alrededor, un objeto por símbolo con esta forma exacta:\n{ \"symbol\", \"fecha\": hoy AAAA-MM-DD,\n  \"ultimoTrimestre\": { \"fechaReporte\", \"ventasVsConsenso\", \"gananciaVsConsenso\", \"extraordinarios\": [{ \"detalle\", \"montoUsd\" }], \"epsLimpia\": número (ganancia por acción SIN los ítems no recurrentes, sacada del comunicado), \"epsConsenso\": número, \"guia\": texto (dada, subida, bajada o retirada, con cifras) } o null si no lo encontraste,\n  \"analistas\": [{ \"fecha\", \"firma\", \"accion\", \"objetivo\" }] (últimos 90 días), \"consensoObjetivo\": número o null,\n  \"eventos\": [{ \"fecha\", \"tipo\", \"titular\" }] (últimos 90 días: regulatorios, licencias, litigios, ofertas de acciones, cambios de CEO/CFO, informes de vendedores en corto, ciberataques, adquisiciones grandes),\n  \"valuacion\": { \"texto\", \"metric\" (el múltiplo contra su historia: P/E adelantado; en bancos precio/valor libro tangible), \"current\", \"min5y\", \"max5y\" (números; un promedio o una mediana NO son mínimo ni máximo), \"growthAccelerating\" (true/false/null) },\n  \"proximosResultados\": fecha o null,\n  \"reservas\": [{ \"tipo\": uno de valuacion, extraordinarios, insiders, guia, pico_de_ciclo, banco, un_analista, adquisicion, demanda, dato_faltante, otra, \"detalle\": una oración con el dato, \"fuente\": { \"url\", \"titulo\" } }],\n  \"evitar\": [{ \"motivo\": uno de item_unico, ingresos_cayendo_sin_guia, evento_binario, precio_sobre_consenso_tras_suba, catalizadores_consumidos, \"detalle\", \"fuente\": { \"url\", \"titulo\" } }],\n  \"faltantes\": [{ \"dato\": uno de ganancia_limpia, extraordinarios, guia, regulatorio, ofertas_de_acciones, banco_inmobiliario, otro, \"detalle\" }] (lo que buscaste y no encontraste; los críticos son la ganancia limpia y su consenso, los ítems no recurrentes, la guía, los riesgos regulatorios o de licencias, las ofertas de acciones de 90 días y, en bancos, el inmobiliario comercial sobre capital; cualquier otro dato es \"otro\"),\n  \"fuentes\": [{ \"url\", \"titulo\" }] (todas las que usaste, al menos una),\n  \"resumen\": el informe en texto, en español, con fechas }\nTextos cortos: una oración, hasta 200 caracteres (lo más largo se recorta). Si la empresa no da guía, escribí \"guia\": \"no da guía\" (no es un faltante). Un dato que no encontraste NO es una reserva: va a \"faltantes\".\nQué es cada cosa. RESERVA: una salvedad seria con su dato y su fuente (extraordinarios con su monto; valuación con los tres números; banco con inmobiliario comercial arriba de 300% del capital y fondeo mayorista creciendo; pico de ciclo; guía que no sube con precios presionados; insiders vendiendo fuerte acciones que YA tenían —ejercer opciones y vender el mismo día no es reserva—; un solo analista; adquisición apalancada pendiente; demanda de accionistas con moción pendiente). EVITAR: la ganancia se explica por un ítem único y sin él pierde o apenas gana (item_unico); ingresos cayendo y guía sin sostén; evento binario en menos de 6 semanas (decisión regulatoria, panel, juicio); precio en o sobre el objetivo de consenso tras subir más de 50% en 12 meses; catalizadores ya consumidos con núcleo débil.\n\nREVISIÓN ANTES DE COMPRAR. Para cada símbolo de \"revisar\", buscá lo publicado en los últimos 30 días y lo que vence en los próximos 6 meses que cambie la compra de hoy: resultados (ganancia por ítems únicos, guía recortada o retirada), regulación (licencias o permisos que vencen, investigaciones de un organismo, sanciones, litigios materiales con fecha), capital (ofertas de acciones o convertibles, ventas grandes del accionista de control, rating de deuda), analistas (rebajas de los últimos 30 días), noticias de los últimos 7 días. Respondé en JSON, un objeto por símbolo:\n{ \"symbol\", \"fecha\": hoy, \"busquedaHecha\": true/false, \"motivoSinBusqueda\": texto o null, \"objeciones\": [{ \"tipo\": uno de resultados, regulacion, capital, analistas, noticias, \"detalle\", \"fecha\", \"fuente\": { \"url\", \"titulo\" } }], \"fuentes\": [...], \"resumen\" }\nEl comunicado de un estudio de abogados buscando accionistas demandantes (\"encourages investors\", \"investigation on behalf of\") NO es una objeción: no lo escribas. Una noticia vieja ya conocida o una opinión sin datos tampoco.",
+  "verificar": [
+    {
+      "symbol": "BLX",
+      "nombre": "Banco Latinoamericano de Comercio Exterior SA",
+      "contexto": "banderas del Radar: insiders_compran, consenso_compra, dividendo:5.14, sin_estados, verificacion_reservas"
+    },
+    {
+      "symbol": "PLUS",
+      "nombre": "ePlus inc",
+      "contexto": "banderas del Radar: insiders_venden, consenso_compra, sorpresa_positiva, verificacion_pendiente"
+    },
+    {
+      "symbol": "IOSP",
+      "nombre": "Innospec Inc",
+      "contexto": "banderas del Radar: consenso_compra, sorpresa_positiva, verificacion_reservas"
+    },
+    {
+      "symbol": "AUPH",
+      "nombre": "Aurinia Pharmaceuticals Inc",
+      "contexto": "banderas del Radar: consenso_compra, sorpresa_positiva, verificacion_reservas"
+    },
+    {
+      "symbol": "SIBN",
+      "nombre": "SI-BONE Inc",
+      "contexto": "banderas del Radar: insiders_venden, consenso_compra, sorpresa_positiva, verificacion_pendiente"
+    },
+    {
+      "symbol": "SHO",
+      "nombre": "Sunstone Hotel Investors Inc",
+      "contexto": "banderas del Radar: sorpresa_positiva, dividendo:3.95, verificacion_pendiente"
+    },
+    {
+      "symbol": "WAY",
+      "nombre": "Waystar Holding Corp",
+      "contexto": "banderas del Radar: insiders_venden, consenso_compra, sorpresa_positiva, verificacion_pendiente"
+    },
+    {
+      "symbol": "LTC",
+      "nombre": "LTC Properties Inc",
+      "contexto": "banderas del Radar: insiders_compran, sorpresa_positiva, dividendo:5.25, evento_moderado, verificacion_pendiente, guia_reafirmada"
+    }
+  ],
+  "revisar": []
+}

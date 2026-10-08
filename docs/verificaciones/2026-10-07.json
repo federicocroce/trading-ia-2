@@ -1,0 +1,799 @@
+{
+  "verificaciones": [
+    {
+      "symbol": "SEZL",
+      "fecha": "2026-10-07",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-06",
+        "ventasVsConsenso": "Ingresos US$149,7 M (+51,7% interanual) contra US$136,4 M esperados: 9,8% arriba del consenso.",
+        "gananciaVsConsenso": "EPS ajustada US$1,13 contra US$1,02 esperada (+10,8%); Zacks tenía US$0,95 y MarketBeat US$1,03.",
+        "extraordinarios": [
+          { "detalle": "Beneficio fiscal discreto en el trimestre (suma a la ganancia GAAP, se resta en la ajustada)", "montoUsd": 1928000 },
+          { "detalle": "Costos de proyectos estratégicos corporativos excluidos de la ganancia ajustada", "montoUsd": 443000 }
+        ],
+        "epsLimpia": 1.13,
+        "epsConsenso": 1.02,
+        "guia": "Subida el 6/8/2026: ingresos +35% en 2026 (~US$607,9 M), ganancia ajustada US$185 M y US$5,25 por acción diluida, desde US$180 M y US$5,10."
+      },
+      "analistas": [
+        { "fecha": "2026-10-06", "firma": "TD Cowen", "accion": "mantiene Compra, baja objetivo", "objetivo": 160 },
+        { "fecha": "2026-08-20", "firma": "Needham", "accion": "reitera Compra", "objetivo": 172 },
+        { "fecha": "2026-08-10", "firma": "TD Cowen", "accion": "suba de recomendación", "objetivo": 165 },
+        { "fecha": "2026-08-07", "firma": "B. Riley Securities", "accion": "mantiene", "objetivo": 196 },
+        { "fecha": "2026-08-07", "firma": "Northland Securities", "accion": "mantiene", "objetivo": 170 },
+        { "fecha": "2026-08-07", "firma": "Keefe, Bruyette & Woods", "accion": "mantiene Market Perform, baja objetivo desde US$190", "objetivo": 155 },
+        { "fecha": "2026-08-07", "firma": "Oppenheimer", "accion": "mantiene", "objetivo": null }
+      ],
+      "consensoObjetivo": 168,
+      "eventos": [
+        { "fecha": "2026-08-18", "tipo": "acuerdo_bancario", "titular": "Sezzle amplió sus acuerdos con WebBank para incluir los productos SezzleCash y Sezzle Send (8-K del 18/8/2026)." },
+        { "fecha": "2026-09-14", "tipo": "control", "titular": "13D/A: por la sentencia de divorcio del 2/9/2026 el CEO Youakim dejó de tener voto sobre 1.508.454 acciones del trust; baja al 39,6%." }
+      ],
+      "valuacion": {
+        "texto": "P/E 12 meses 24,81 al 6/10/2026 y P/E adelantado 18,73; el rango por cierre de trimestre arranca en Q3 2023, no cubre 5 años.",
+        "metric": "P/E 12 meses (valor al cierre de cada trimestre)",
+        "current": 24.81,
+        "min5y": 11.07,
+        "max5y": 57.05,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-11-04",
+      "reservas": [
+        {
+          "tipo": "insiders",
+          "detalle": "Paradis vendió 18.977 acciones ya tenidas por ~US$3,63 M el 15-16/7/2026 a US$190-194,67 y el CFO Brading 10.334 a US$185-195,16, bajo plan 10b5-1.",
+          "fuente": { "url": "https://www.investing.com/news/insider-trading-news/sezzle-director--president-paul-paradis-sells-36m-in-shares-93CH-4799352", "titulo": "Sezzle director & president Paul Paradis sells $3.6m in shares" }
+        },
+        {
+          "tipo": "extraordinarios",
+          "detalle": "Un beneficio fiscal discreto de US$1,928 M explica que la EPS GAAP del Q2 2026 sea US$1,17, arriba de la ajustada de US$1,13.",
+          "fuente": { "url": "https://www.globenewswire.com/news-release/2026/08/06/3340662/0/en/Sezzle-Reports-Second-Quarter-2026-Results.html", "titulo": "Sezzle Reports Second Quarter 2026 Results" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "La guía de ~US$607,9 M para 2026 implica ingresos del segundo semestre creciendo ~31%, contra el +51,7% informado en el Q2 2026.",
+          "fuente": { "url": "https://www.globenewswire.com/news-release/2026/08/06/3340662/0/en/Sezzle-Reports-Second-Quarter-2026-Results.html", "titulo": "Sezzle Reports Second Quarter 2026 Results" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "El CEO Youakim tiene 1.540.000 acciones prendadas como garantía de un préstamo de US$20 M con Oppenheimer, ampliado el 1/3/2026.",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1662991/000166299126000034/xslSCHEDULE_13D_X01/primary_doc.xml", "titulo": "Sezzle Inc. Schedule 13D/A (Youakim, Cerro Gordo LLC)" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "regulatorio", "detalle": "No encontré ninguna acción regulatoria, sanción ni licencia en riesgo contra Sezzle entre el 9/7 y el 7/10/2026." },
+        { "dato": "otro", "detalle": "No encontré mínimo y máximo del P/E adelantado a 5 años en fuentes públicas; sólo promedios, que no sirven como extremos." },
+        { "dato": "otro", "detalle": "SEZL cotiza en Nasdaq desde 2023, así que la serie de P/E empieza en Q3 2023 y no cubre cinco años." }
+      ],
+      "fuentes": [
+        { "url": "https://www.globenewswire.com/news-release/2026/08/06/3340662/0/en/Sezzle-Reports-Second-Quarter-2026-Results.html", "titulo": "Sezzle Reports Second Quarter 2026 Results (6/8/2026)" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/sezzle-nasdaq-sezl-delivers-strong-201037673.html", "titulo": "Sezzle Delivers Strong Q2 CY2026 Numbers But Stock Drops 22.1%" },
+        { "url": "https://stockanalysis.com/stocks/sezl/forecast/", "titulo": "Sezzle (SEZL) Stock Forecast & Analyst Price Targets" },
+        { "url": "https://stockanalysis.com/stocks/sezl/statistics/", "titulo": "Sezzle (SEZL) Statistics & Valuation" },
+        { "url": "https://stockanalysis.com/stocks/sezl/financials/ratios/", "titulo": "Sezzle (SEZL) Financial Ratios por trimestre" },
+        { "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001662991&type=&dateb=&owner=include&count=40", "titulo": "EDGAR: presentaciones de Sezzle Inc. (CIK 1662991)" },
+        { "url": "https://www.stocktitan.net/sec-filings/SEZL/", "titulo": "Sezzle SEC filings (Form 4, 8-K, 13D/A)" },
+        { "url": "https://www.investing.com/news/insider-trading-news/sezzle-director--president-paul-paradis-sells-36m-in-shares-93CH-4799352", "titulo": "Sezzle director & president Paul Paradis sells $3.6m in shares" },
+        { "url": "https://www.investing.com/news/insider-trading-news/sezzle-director-bryan-hunt-buys-28965-in-company-stock-93CH-4918904", "titulo": "Sezzle director Bryan Hunt buys $28,965 in company stock (22/9/2026)" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1662991/000166299126000034/xslSCHEDULE_13D_X01/primary_doc.xml", "titulo": "Sezzle Schedule 13D/A — prenda de 1.540.000 acciones" },
+        { "url": "https://www.marketbeat.com/instant-alerts/analyst-sezzle-nasdaq-sezl-price-target-cut-to-16000-by-analysts-at-td-cowen-2026-10-06/", "titulo": "Sezzle price target cut to $160.00 by TD Cowen (6/10/2026)" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/sezzle-inc-sezl-beats-q2-231013245.html", "titulo": "Sezzle Inc. (SEZL) Beats Q2 Earnings and Revenue Estimates" }
+      ],
+      "resumen": "Último trimestre: Q2 2026 reportado el 6/8/2026, ingresos US$149,7 M (+51,7%) contra US$136,4 M esperados y EPS ajustada US$1,13 contra US$1,02; GMV US$1,28 mil M (+37,9%) y suscriptores activos 854.000 (+76,4%). La EPS GAAP fue US$1,17 e incluye un beneficio fiscal discreto de US$1,928 M; la ajustada también excluye US$0,443 M de proyectos estratégicos. La guía 2026 subió a ingresos +35% (~US$607,9 M), ganancia ajustada US$185 M y US$5,25 por acción, lo que implica un segundo semestre creciendo ~31%. Aun así la acción cayó 22,1% el 6/8/2026 hasta US$139,19 y cerró el 6/10/2026 en US$112,84, 32,8% abajo del objetivo de consenso de US$168 (stockanalysis, 6 analistas; MarketBeat publica US$140,98 y TipRanks US$171,60). Insiders: Paradis y el CFO Brading vendieron acciones ya tenidas el 15-16/7/2026 a US$185-195 bajo plan 10b5-1; en contrapartida el GC Khurana compró 129 acciones el 20/8/2026 y el director Hunt 250 acciones a US$115,86 el 22/9/2026. El 14/9/2026 un 13D/A informó que la sentencia de divorcio del 2/9/2026 le quitó al CEO el voto sobre 1.508.454 acciones del trust (baja al 39,6%); además mantiene 1.540.000 acciones prendadas por un préstamo de US$20 M con Oppenheimer desde el 1/3/2026. EDGAR no muestra S-1 ni 424B entre julio y octubre de 2026: no hubo ofertas de acciones. P/E 12 meses 24,81 y adelantado 18,73. Próximos resultados: 4/11/2026 después del cierre."
+    },
+    {
+      "symbol": "DLO",
+      "fecha": "2026-10-07",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-13",
+        "ventasVsConsenso": "Ingresos US$399,7 M (+56% interanual) contra US$364,65 M esperados: 9,6% arriba del consenso.",
+        "gananciaVsConsenso": "EPS diluida US$0,18 contra US$0,19 esperada: US$0,01 abajo del consenso.",
+        "extraordinarios": [
+          { "detalle": "Ganancia financiera neta del Q2 2026 (en el Q2 2025 había sido una pérdida financiera neta de US$3,8 M)", "montoUsd": 2300000 }
+        ],
+        "epsLimpia": 0.18,
+        "epsConsenso": 0.19,
+        "guia": "Subida el 13/8/2026: TPV +60-70% y ganancia bruta +25-30% interanual; la ganancia operativa quedó mantenida en +27,5-32,5%."
+      },
+      "analistas": [
+        { "fecha": "2026-08-31", "firma": "Truist Securities", "accion": "mantiene Compra", "objetivo": 18 },
+        { "fecha": "2026-07-31", "firma": "Goldman Sachs", "accion": "reitera Compra, sube objetivo desde US$17", "objetivo": 19 }
+      ],
+      "consensoObjetivo": 18.8,
+      "eventos": [
+        { "fecha": "2026-08-12", "tipo": "financiamiento", "titular": "dLocal cerró una línea de crédito sénior no garantizada de US$150 M a Term SOFR +2,00%, con vencimiento el 14/8/2029." },
+        { "fecha": "2026-08-17", "tipo": "venta_de_bloque", "titular": "General Atlantic DO B.V. vendió 9.842.559 acciones Clase A a US$13,60 promedio (~US$134 M) y el grupo bajó al 21,4%." },
+        { "fecha": "2026-10-01", "tipo": "comercial", "titular": "dLocal provee pagos locales a los usuarios de LinkedIn en Brasil, México, Colombia y Chile." }
+      ],
+      "valuacion": {
+        "texto": "P/E 12 meses 21,37 al 6/10/2026 y P/E adelantado 14,15; por cierre de trimestre el mínimo de 5 años es 15,94 y el máximo 135,21.",
+        "metric": "P/E 12 meses (valor al cierre de cada trimestre)",
+        "current": 21.37,
+        "min5y": 15.94,
+        "max5y": 135.21,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-11-11",
+      "reservas": [
+        {
+          "tipo": "insiders",
+          "detalle": "El director Sebastián Kanovich convirtió y vendió acciones ya tenidas: 1.000.000 a US$14,63 el 1/7/2026, 25.700 a US$15,50 el 9/7 y 77.453 a ~US$15,54 el 11/8, bajo plan 10b5-1.",
+          "fuente": { "url": "https://www.stocktitan.net/sec-filings/DLO/form-4-d-local-ltd-insider-trading-activity-b17e6c31a3cc.html", "titulo": "dLocal director sells 1M shares via 10b5-1 plan (Form 4)" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "La ganancia bruta del Q2 2026 creció 29% contra ingresos +56%: el margen bruto bajó a 32% desde 39% por un gran cliente de ride-hailing a tarifa menor.",
+          "fuente": { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-dlocal-tops-revenue-in-q2-2026-but-eps-misses-93CH-4859491", "titulo": "Earnings call transcript: DLocal tops revenue in Q2 2026 but EPS misses" }
+        },
+        {
+          "tipo": "guia",
+          "detalle": "La guía de ganancia operativa quedó en +27,5-32,5% pese a que en el Q2 2026 esa línea creció sólo 15% interanual: exige un segundo semestre fuerte.",
+          "fuente": { "url": "https://www.globenewswire.com/news-release/2026/08/13/3344936/0/en/dlocal-reports-second-quarter-2026-financial-results.html", "titulo": "dLocal Reports Second Quarter 2026 Financial Results" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "General Atlantic todavía tiene 36.814.136 acciones (21,4%) después de vender 9,84 M el 17/8/2026, y Kanovich conserva 11.629.474 Clase B con plan 10b5-1 vigente.",
+          "fuente": { "url": "https://www.stocktitan.net/sec-filings/DLO/schedule-13d-a-d-local-ltd-amended-major-shareholder-report-b3294191bdb7.html", "titulo": "General Atlantic sells 9.8M dLocal shares, holds 21% (13D/A)" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "ganancia_limpia", "detalle": "El comunicado del 13/8/2026 no publica EPS ajustada ni consenso de EPS ajustada: sólo EPS diluida US$0,18 y EBITDA ajustado." },
+        { "dato": "regulatorio", "detalle": "No encontré ninguna acción regulatoria, sanción ni licencia en riesgo abierta contra dLocal entre el 9/7 y el 7/10/2026." },
+        { "dato": "otro", "detalle": "dLocal es emisor privado extranjero: no presenta 10-Q; sus estados intermedios van en el 6-K del 13/8/2026 y el anual en 20-F." },
+        { "dato": "otro", "detalle": "No encontré mínimo y máximo del P/E adelantado a 5 años en fuentes públicas; sólo promedios y medianas, que no sirven como extremos." },
+        { "dato": "otro", "detalle": "Las fuentes discrepan sobre la fecha del Q3: stockanalysis indica 11/11/2026 y MarketBeat 18/11/2026; la empresa aún no la anunció." }
+      ],
+      "fuentes": [
+        { "url": "https://www.globenewswire.com/news-release/2026/08/13/3344936/0/en/dlocal-reports-second-quarter-2026-financial-results.html", "titulo": "dLocal Reports Second Quarter 2026 Financial Results (13/8/2026)" },
+        { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-dlocal-tops-revenue-in-q2-2026-but-eps-misses-93CH-4859491", "titulo": "Earnings call transcript: DLocal tops revenue in Q2 2026 but EPS misses" },
+        { "url": "https://seekingalpha.com/news/4632769-dlocal-posts-mixed-q2-results-with-earnings-miss-while-revenue-and-payment-volume-beat", "titulo": "dLocal posts mixed Q2 results with earnings miss, revenue and TPV beat" },
+        { "url": "https://stockanalysis.com/stocks/dlo/forecast/", "titulo": "DLocal (DLO) Stock Forecast & Analyst Price Targets" },
+        { "url": "https://stockanalysis.com/stocks/dlo/statistics/", "titulo": "DLocal (DLO) Statistics & Valuation" },
+        { "url": "https://stockanalysis.com/stocks/dlo/financials/ratios/", "titulo": "DLocal (DLO) Financial Ratios por trimestre" },
+        { "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001846832&type=&dateb=&owner=include&count=40", "titulo": "EDGAR: presentaciones de dLocal Ltd (CIK 1846832)" },
+        { "url": "https://www.stocktitan.net/sec-filings/DLO/", "titulo": "dLocal SEC filings (6-K, Form 4, 144, 13D/A)" },
+        { "url": "https://www.stocktitan.net/sec-filings/DLO/schedule-13d-a-d-local-ltd-amended-major-shareholder-report-b3294191bdb7.html", "titulo": "General Atlantic sells 9.8M dLocal shares, holds 21%" },
+        { "url": "https://www.stocktitan.net/sec-filings/DLO/form-4-d-local-ltd-insider-trading-activity-b17e6c31a3cc.html", "titulo": "dLocal director sells 1M shares via 10b5-1 plan" },
+        { "url": "https://www.globenewswire.com/news-release/2026/04/20/3276970/0/en/dlocal-limited-announces-dismissal-of-new-york-state-securities-class-action.html", "titulo": "dLocal Announces Dismissal of New York State Securities Class Action (20/4/2026)" },
+        { "url": "https://www.marketbeat.com/instant-alerts/price-dlocal-nasdaq-dlo-shares-gap-up-heres-what-happened-2026-10-05/", "titulo": "DLocal (NASDAQ:DLO) Shares Gap Up (5/10/2026)" }
+      ],
+      "resumen": "Último trimestre: Q2 2026 reportado el 13/8/2026, con TPV US$17,7 mil M (+92%), ingresos US$399,7 M (+56%) contra US$364,65 M esperados, ganancia bruta récord US$127,2 M (+29%), ganancia operativa US$64 M (+15%) y ganancia neta US$54,8 M (+28%); la EPS diluida de US$0,18 quedó US$0,01 abajo del consenso de US$0,19. El margen bruto bajó a 32% desde 39%: en la llamada atribuyeron la dilución de tarifa a un cliente grande de ride-hailing y dijeron que sin él la tarifa habría quedado plana. El Q2 incluye una ganancia financiera neta de US$2,3 M (el año anterior había sido pérdida de US$3,8 M); el ítem no recurrente de impuestos de US$4,4 M fue del Q1 2026, no de este trimestre. Guía subida el 13/8/2026 (TPV +60-70%, ganancia bruta +25-30%) pero la de ganancia operativa quedó en +27,5-32,5% y la dirección anticipó desaceleración en el segundo semestre. Capital: línea de crédito sénior no garantizada de US$150 M del 12/8/2026; recompras por US$86,1 M (6,9 M de acciones) dentro del programa de US$300 M de marzo de 2026. Accionistas: General Atlantic vendió 9.842.559 acciones a US$13,60 el 17/8/2026 y conserva 21,4%; el director Kanovich vendió 1.000.000 a US$14,63 el 1/7/2026 más 25.700 el 9/7 y 77.453 el 11/8, todas ya tenidas y bajo plan 10b5-1, y le quedan 11.629.474 Clase B. La demanda colectiva de valores de Nueva York fue desestimada en apelación el 20/4/2026. Cierre del 6/10/2026 US$14,53 contra objetivo de consenso US$18,8 (10 analistas); P/E 12 meses 21,37 y adelantado 14,15. No presenta 10-Q por ser emisor privado extranjero. Próximos resultados estimados: 11/11/2026."
+    },
+    {
+      "symbol": "OUT",
+      "fecha": "2026-10-07",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-05",
+        "ventasVsConsenso": "USD 522,5M, +13,5% a/a (+USD 62,3M), contra un consenso de USD 509,6M: lo superó 2,7%.",
+        "gananciaVsConsenso": "FFO por acción USD 0,68 contra consenso Zacks de USD 0,59 (+15,3%); EPS diluido GAAP USD 0,44 contra USD 0,10 del Q2 2025.",
+        "extraordinarios": [
+          { "detalle": "Ingresos del Mundial FIFA 2026 dentro del trimestre, no recurrentes (6,7% de las ventas del Q2).", "montoUsd": 35000000 },
+          { "detalle": "Pérdida por extinción de deuda al rescatar las notas senior 5,000% con vencimiento 2027 (junio 2026).", "montoUsd": 1400000 },
+          { "detalle": "Pérdida neta por disposiciones de activos del trimestre; sin cargos de reestructuración ni deterioros en 2026.", "montoUsd": 300000 }
+        ],
+        "epsLimpia": 0.68,
+        "epsConsenso": 0.59,
+        "guia": "Subida: AFFO 2026 crece en el rango bajo del 20% sobre los USD 338M de 2025 (en el Q1 era 'mid-teens'); Q3 ventas high single digits, tránsito +20%."
+      },
+      "analistas": [
+        { "fecha": "2026-07-22", "firma": "JPMorgan", "accion": "reitera Overweight", "objetivo": 38.0 },
+        { "fecha": "2026-08-06", "firma": "TD Cowen", "accion": "reitera Buy y sube objetivo de 38 a 40", "objetivo": 40.0 },
+        { "fecha": "2026-08-06", "firma": "Wells Fargo", "accion": "sube objetivo de 35 a 38, Overweight", "objetivo": 38.0 },
+        { "fecha": "2026-09-08", "firma": "Citigroup", "accion": "reitera Buy, sin objetivo publicado", "objetivo": null }
+      ],
+      "consensoObjetivo": 34.0,
+      "eventos": [
+        { "fecha": "2026-06-12", "tipo": "emision_de_deuda", "titular": "Cierra la colocación de USD 500M en notas senior al 6,000% con vencimiento 2034, usadas para rescatar las notas 5,000% a 2027." },
+        { "fecha": "2026-08-05", "tipo": "dividendo", "titular": "El directorio sube el dividendo trimestral 10% a USD 0,33 por acción, pagadero el 30/9/2026." }
+      ],
+      "valuacion": {
+        "texto": "EV/EBITDA 18,69 al 6/10/2026, entre el 15,85 del cierre de 2023 y el 25,01 del cierre de 2021; P/E adelantado 21,83 y rendimiento de dividendo 4,54%.",
+        "metric": "EV/EBITDA (valor al cierre de cada ejercicio 2021-2025 y actual)",
+        "current": 18.69,
+        "min5y": 15.85,
+        "max5y": 25.01,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-11-05",
+      "reservas": [
+        {
+          "tipo": "extraordinarios",
+          "detalle": "El Mundial FIFA aportó más de USD 50M de ingresos en 2026: unos USD 35M en el Q2 (6,7% de USD 522,5M) y unos USD 16M previstos en el Q3; no se repite en 2027.",
+          "fuente": { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-outfront-media-beats-q2-2026-estimates-on-fifa-boost-93CH-4839457", "titulo": "Earnings call transcript: Outfront Media beats Q2 2026 estimates on FIFA boost" }
+        },
+        {
+          "tipo": "insiders",
+          "detalle": "Tres ejecutivos vendieron 38.385 acciones que ya tenían entre el 19/8 y el 1/10/2026 (~USD 1,1M); el CFO Siegel vendió 25.000 a USD 27,84 el 1/10/2026.",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1579877/000164413326000009/0001644133-26-000009-index.htm", "titulo": "Form 4 Matthew Siegel, EVP CFO, OUTFRONT Media, 2026-10-02" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "La licencia de tránsito con la MTA se devenga lineal al mínimo garantizado de USD 161M al año hasta recuperar la inversión digital hecha desde 2018 (deterioro de tránsito de 2023).",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/0001579877/000157987726000043/out-20260630.htm", "titulo": "OUTFRONT Media Inc. Form 10-Q al 30/6/2026" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "Apalancamiento neto total de ~4,0x al cierre del Q2 2026 y relación deuda/patrimonio de 5,74; liquidez comprometida cercana a USD 600M.",
+          "fuente": { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-outfront-media-beats-q2-2026-estimates-on-fifa-boost-93CH-4839457", "titulo": "Earnings call transcript: Outfront Media beats Q2 2026 estimates on FIFA boost" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No encontré mínimo ni máximo de 5 años del P/E adelantado; usé EV/EBITDA al cierre de cada ejercicio 2021-2025." },
+        { "dato": "otro", "detalle": "El comunicado no publica AFFO ni FFO por acción; los USD 0,68 y el consenso de USD 0,59 salen del reporte de Zacks." },
+        { "dato": "otro", "detalle": "El consenso de objetivo difiere por fuente: USD 34,00 con 7 analistas en MarketBeat y USD 38,00 en stockanalysis.com." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001579877/000157987726000035/ex9912q26earningsrelease.htm", "titulo": "OUTFRONT Media 8-K exhibit 99.1, comunicado de resultados del Q2 2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001579877/000157987726000043/out-20260630.htm", "titulo": "OUTFRONT Media Inc. Form 10-Q al 30/6/2026" },
+        { "url": "https://investor.outfront.com/news/news-details/2026/OUTFRONT-Media-Reports-Second-Quarter-2026-Results/default.aspx", "titulo": "OUTFRONT Media Reports Second Quarter 2026 Results" },
+        { "url": "https://finance.yahoo.com/media-advertising/articles/outfront-media-tops-q2-ffo-221013601.html", "titulo": "Outfront Media (OUT) Tops Q2 FFO and Revenue Estimates (Zacks)" },
+        { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-outfront-media-beats-q2-2026-estimates-on-fifa-boost-93CH-4839457", "titulo": "Earnings call transcript: Outfront Media beats Q2 2026 estimates on FIFA boost" },
+        { "url": "https://www.marketbeat.com/stocks/NYSE/OUT/forecast/", "titulo": "OUT Stock Forecast and Price Target 2026 (MarketBeat)" },
+        { "url": "https://stockanalysis.com/stocks/out/statistics/", "titulo": "OUTFRONT Media (OUT) Statistics, stockanalysis.com" },
+        { "url": "https://stockanalysis.com/stocks/out/financials/ratios/", "titulo": "OUTFRONT Media (OUT) Financial Ratios por ejercicio, stockanalysis.com" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1579877/000164413326000009/0001644133-26-000009-index.htm", "titulo": "Form 4 Matthew Siegel (EVP, CFO), 2026-10-02" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1579877/000207525126000006/0002075251-26-000006-index.htm", "titulo": "Form 4 Mark Bonanni (EVP, CRO Commercial), 2026-09-04" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1579877/000183343126000004/0001833431-26-000004-index.htm", "titulo": "Form 4 Patrick Martin (SVP, Controller, CAO), 2026-08-20" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1579877/000208290026000006/0002082900-26-000006-index.htm", "titulo": "Form 4 James Norton (EVP, CRO Enterprise), 2026-08-24" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1579877/000110061226000014/0001100612-26-000014-index.htm", "titulo": "Form 4 Michael Barrett (director), 2026-09-21" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1579877/000208642026000005/0002086420-26-000005-index.htm", "titulo": "Form 4 Nicolle Pangis (directora), 2026-09-21" },
+        { "url": "https://s202.q4cdn.com/787055419/files/doc_financials/2026/q1/2026-Q1-OUT-Earnings-Release.pdf", "titulo": "OUTFRONT Media Reports First Quarter 2026 Results" },
+        { "url": "https://www.stocktitan.net/news/OUT/outfront-media-chief-executive-officer-nick-brien-to-participate-in-jjxetfv539r2.html", "titulo": "OUTFRONT Media CEO Nick Brien to participate in Citi 2026 Global TMT Conference" }
+      ],
+      "resumen": "El último comunicado es del 5/8/2026 (Q2 2026): ventas USD 522,5M, +13,5% a/a, contra un consenso de USD 509,6M; FFO por acción USD 0,68 contra consenso Zacks de USD 0,59; AFFO USD 120,8M contra USD 83,1M del Q2 2025; EPS diluido GAAP USD 0,44 contra USD 0,10. Tránsito +32,3% a USD 140,6M por rendimiento por pantalla y por el Mundial FIFA; vallas +8,0% a USD 379,4M. En la llamada la dirección subió la guía: AFFO 2026 crece en el rango bajo del 20% sobre los USD 338M de 2025 (en el Q1 decía 'mid-teens'), y para el Q3 espera ventas high single digits con un aporte del Mundial de USD 16M. El Mundial aportó más de USD 50M en total, unos USD 35M dentro del Q2: es el dato no recurrente más grande y no se repite en 2027. Otros no recurrentes del trimestre: pérdida de USD 1,4M por extinción de deuda al rescatar las notas 5,000% a 2027 con la colocación de USD 500M al 6,000% a 2034 cerrada el 12/6/2026, y pérdida neta de USD 0,3M por disposiciones; sin reestructuración (había USD 19,8M en el Q2 2025) ni deterioros en 2026. El 10-Q al 30/6/2026 dice que ningún litigio en curso tendría efecto adverso material y que no vendió acciones del programa ATM en el primer semestre (quedan ~USD 232,5M de los USD 300M). La licencia de tránsito con la MTA se devenga lineal al mínimo garantizado de USD 161M al año hasta recuperar la inversión digital desde 2018. Form 4 de los últimos 90 días: ventas de acciones ya tenidas por el CFO Matthew Siegel (25.000 a USD 27,84 el 1/10/2026, plan 10b5-1 del 11/12/2025, quedan 264.925), el controller Patrick Martin (10.000 a USD 30,10 el 19/8/2026, plan del 20/5/2026, quedan 26.405) y el EVP Mark Bonanni (3.385 a USD 29,82 el 3/9/2026, quedan 10.420); el resto son código F por retención impositiva y código M/A por vesting de RSU, que no cuentan. Precio USD 29,07 al 6/10/2026, +60,17% en 52 semanas, abajo del objetivo de consenso de USD 34,00 (7 analistas, MarketBeat). Cuatro acciones de analistas en 90 días, todas positivas: JPMorgan reitera Overweight con USD 38 el 22/7, TD Cowen sube a USD 40 y Wells Fargo a USD 38 el 6/8, Citigroup reitera Buy el 8/9. Dividendo trimestral subido 10% a USD 0,33 (rendimiento 4,54%). Apalancamiento neto ~4,0x. Próximos resultados el 5/11/2026 después del cierre."
+    },
+    {
+      "symbol": "CTS",
+      "fecha": "2026-10-07",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-28",
+        "ventasVsConsenso": "USD 144,8M, +7% a/a, por encima del consenso; mercados diversificados +15% (59% del total) y transporte -2%.",
+        "gananciaVsConsenso": "EPS ajustado USD 0,74 contra consenso de USD 0,60 (USD 0,14 arriba, +30% a/a); EPS diluido GAAP USD 0,66 contra USD 0,62.",
+        "extraordinarios": [
+          { "detalle": "FX favorable y un reembolso grande de I+D de un cliente: ~USD 0,07 por acción del EPS ajustado de USD 0,74 (CFO Agrawal, 28/7/2026).", "montoUsd": 2000000 },
+          { "detalle": "El FX favoreció las ventas del trimestre en ~USD 1,4M y el margen bruto en ~USD 1M.", "montoUsd": 1400000 },
+          { "detalle": "Cargos ambientales excluidos del EPS ajustado del Q2 2026.", "montoUsd": 400000 },
+          { "detalle": "Pérdida por tipo de cambio excluida del EPS ajustado del Q2 2026.", "montoUsd": 400000 },
+          { "detalle": "Cargos de reestructuración y relacionados excluidos del EPS ajustado del Q2 2026.", "montoUsd": 200000 },
+          { "detalle": "Ajustes por adquisiciones excluidos del EPS ajustado del Q2 2026.", "montoUsd": 100000 }
+        ],
+        "epsLimpia": 0.74,
+        "epsConsenso": 0.6,
+        "guia": "Subida: ventas 2026 a USD 565-585M desde USD 560-580M y EPS ajustado diluido a USD 2,55-2,70 desde USD 2,35-2,45, con tasa efectiva de 21-23%."
+      },
+      "analistas": [
+        { "fecha": "2026-09-19", "firma": "Wall Street Zen", "accion": "baja de Buy a Hold", "objetivo": null },
+        { "fecha": "2026-09-10", "firma": "Barrington Research", "accion": "inicia cobertura en Outperform", "objetivo": 80.0 },
+        { "fecha": "2026-09-02", "firma": "Lake Street Capital", "accion": "inicia cobertura en Buy", "objetivo": 67.0 },
+        { "fecha": "2026-08-25", "firma": "Weiss Ratings", "accion": "baja de Buy (B-) a Hold (C+)", "objetivo": null }
+      ],
+      "consensoObjetivo": 73.5,
+      "eventos": [
+        { "fecha": "2026-07-06", "tipo": "cambio_de_ceo", "titular": "Pratik Trivedi asume como presidente y CEO; Kieran O'Sullivan pasa a presidente ejecutivo del directorio (8-K del 25/6/2026)." },
+        { "fecha": "2026-06-30", "tipo": "regulatorio", "titular": "Acuerdo en principio con la EPA por costos pasados del sitio Asheville (lista de prioridades nacionales) por USD 7,61M, parte de CTS USD 6,711M, pendiente de aprobación." },
+        { "fecha": "2026-09-30", "tipo": "producto", "titular": "CTS lanza su primera plataforma de sensor digital de temperatura, ampliando sus capacidades de sensado inteligente." }
+      ],
+      "valuacion": {
+        "texto": "P/E adelantado 22,94 al 6/10/2026, arriba del máximo de los últimos 5 cierres de ejercicio (22,63 en 2024) y lejos del mínimo 16,04 (2022); EV/EBITDA 13,56.",
+        "metric": "P/E adelantado (valor al cierre de cada ejercicio 2021-2025 y actual)",
+        "current": 22.94,
+        "min5y": 16.04,
+        "max5y": 22.63,
+        "growthAccelerating": false
+      },
+      "proximosResultados": "2026-10-27",
+      "reservas": [
+        {
+          "tipo": "valuacion",
+          "detalle": "P/E adelantado 22,94 al 6/10/2026, arriba del máximo de los 5 cierres de ejercicio previos (22,63 en 2024) y del mínimo 16,04 (2022), tras subir 54% en 52 semanas.",
+          "fuente": { "url": "https://stockanalysis.com/stocks/cts/financials/ratios/", "titulo": "CTS Corporation (CTS) Financial Ratios por ejercicio, stockanalysis.com" }
+        },
+        {
+          "tipo": "extraordinarios",
+          "detalle": "Unos USD 0,07 de los USD 0,74 de EPS ajustado del Q2 vinieron de FX favorable y de un reembolso grande de I+D de un cliente, según el CFO Ashish Agrawal el 28/7/2026.",
+          "fuente": { "url": "https://finance.yahoo.com/markets/stocks/articles/cts-q2-earnings-call-highlights-170418934.html", "titulo": "CTS Q2 Earnings Call Highlights" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "Reservas de remediación ambiental de USD 16,468M al 30/6/2026 y acuerdo EPA por Asheville de USD 7,61M (parte CTS USD 6,711M) pendiente de aprobación y comentarios públicos.",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/0000026058/000119312526320492/cts-20260630.htm", "titulo": "CTS Corp Form 10-Q al 30/6/2026" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "Las ventas desaceleran: +11% en el Q1 2026 y +7% en el Q2; transporte cayó 2% y la guía asume la continuidad de las condiciones actuales con riesgo de aranceles.",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/0000026058/000119312526318911/cts-ex99_1.htm", "titulo": "CTS Corp 8-K exhibit 99.1, comunicado de resultados del Q2 2026" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "El consenso de ventas en dólares del Q2 2026: solo encontré que las ventas lo superaron, no la cifra exacta." },
+        { "dato": "otro", "detalle": "Mínimo y máximo diarios del P/E adelantado en 5 años; usé el valor al cierre de cada ejercicio 2021-2025." },
+        { "dato": "otro", "detalle": "El consenso de objetivo difiere por fuente: USD 73,50 con 4 analistas en MarketBeat y USD 70,67 con 2 en stockanalysis.com." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000026058/000119312526318911/cts-ex99_1.htm", "titulo": "CTS Corp 8-K exhibit 99.1, comunicado de resultados del Q2 2026 (28/7/2026)" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000026058/000119312526320492/cts-20260630.htm", "titulo": "CTS Corp Form 10-Q al 30/6/2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000026058/000119312526282712/cts-20260625.htm", "titulo": "CTS Corp 8-K del 25/6/2026, transición de CEO a Pratik Trivedi" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/26058/000119312526067039/cts-20251231.htm", "titulo": "CTS Corp Form 10-K 2025 (programa de recompra de USD 100M, acciones en circulación)" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/26058/000002605826000030/0000026058-26-000030-index.htm", "titulo": "Form 4 Mark Pacioni (VP, Chief Legal/Admin Officer), 2026-07-30" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/26058/000002605826000029/0000026058-26-000029-index.htm", "titulo": "Form 4 Pratik Trivedi (presidente y CEO), 2026-07-07" },
+        { "url": "https://www.investing.com/news/earnings/cts-corp-earnings-beat-by-014-revenue-topped-estimates-4816692", "titulo": "CTS Corp earnings beat by $0.14, revenue topped estimates" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/cts-q2-earnings-call-highlights-170418934.html", "titulo": "CTS Q2 Earnings Call Highlights" },
+        { "url": "https://www.marketbeat.com/stocks/NYSE/CTS/forecast/", "titulo": "CTS (CTS) Stock Forecast and Price Target 2026 (MarketBeat)" },
+        { "url": "https://www.defenseworld.net/2026/09/19/wall-street-zen-downgrades-cts-nysects-to-hold.html", "titulo": "Wall Street Zen Downgrades CTS (NYSE:CTS) to Hold" },
+        { "url": "https://stockanalysis.com/stocks/cts/statistics/", "titulo": "CTS Corporation (CTS) Statistics, stockanalysis.com" },
+        { "url": "https://stockanalysis.com/stocks/cts/financials/ratios/", "titulo": "CTS Corporation (CTS) Financial Ratios por ejercicio, stockanalysis.com" },
+        { "url": "https://www.globenewswire.com/news-release/2026/09/30/3371837/0/en/cts-introduces-its-first-digital-temperature-sensor-platform-expanding-smart-sensing-capabilities.html", "titulo": "CTS Introduces Its First Digital Temperature Sensor Platform (30/9/2026)" },
+        { "url": "https://www.stocktitan.net/sec-filings/CTS/10-q-cts-corp-quarterly-earnings-report-15752a3010fa.html", "titulo": "CTS posts 11% Q1 sales growth, higher profit (10-Q del Q1 2026)" },
+        { "url": "https://markets.financialcontent.com/stocks/article/stockstory-2026-7-28-cts-nysects-posts-better-than-expected-sales-in-q2-cy2026-stock-soars", "titulo": "CTS (NYSE:CTS) Posts Better-Than-Expected Sales In Q2 CY2026, Stock Soars" }
+      ],
+      "resumen": "El último comunicado es el 8-K con exhibit 99.1 del 28/7/2026 (Q2 2026): ventas USD 144,8M, +7% a/a, por encima del consenso; mercados diversificados +15% y ya 59% de los ingresos, transporte -2%. EPS diluido GAAP USD 0,66 contra USD 0,62 del Q2 2025; EPS ajustado USD 0,74 contra un consenso de USD 0,60, USD 0,14 arriba y +30% a/a. Margen bruto ajustado récord de 41,5% (+270 pb) y margen EBITDA ajustado 25,4% (+240 pb); flujo operativo USD 33,4M. En la llamada el CFO Ashish Agrawal dijo que el trimestre incluyó unos USD 0,07 por acción de efectos favorables no habituales: tipo de cambio y un reembolso grande de I+D de un cliente; el FX aportó ~USD 1,4M a las ventas y ~USD 1M al margen bruto. Incluso sin esos USD 0,07 el EPS ajustado (USD 0,67) habría superado el consenso. La guía subió: ventas 2026 a USD 565-585M desde USD 560-580M y EPS ajustado a USD 2,55-2,70 desde USD 2,35-2,45, asumiendo la continuidad de las condiciones actuales y con lenguaje de riesgo por aranceles y relación EEUU/China. El 10-Q al 30/6/2026 informa reservas de remediación ambiental de USD 16,468M y un acuerdo en principio con la EPA por costos pasados del sitio Asheville (Superfund) de USD 7,61M totales, de los que CTS registró USD 6,711M, pendiente de aprobación y período de comentarios; opera bajo decreto de consentimiento federal del 7/3/2017. Cambio de mando: por el 8-K del 25/6/2026, Pratik Trivedi asumió como presidente y CEO el 6/7/2026 y Kieran O'Sullivan pasó a presidente ejecutivo del directorio. El 30/9/2026 lanzó su primera plataforma de sensor digital de temperatura. Form 4 de los últimos 90 días: solo dos, ninguno es venta de mercado: Trivedi recibió 14.253 acciones restringidas el 6/7/2026 (código A, vesting en tres años) y Mark Pacioni entregó 531 acciones el 29/7/2026 a USD 61,53 por retención impositiva (código F). No encontré ofertas de acciones; sigue vigente la recompra de hasta USD 100M aprobada el 7/11/2025. Precio USD 61,10 al 6/10/2026, +54,02% en 52 semanas, abajo del objetivo de consenso de USD 73,50 (4 analistas). Cuatro acciones de analistas en 90 días, dos a favor y dos en contra: Barrington inicia en Outperform con USD 80 el 10/9, Lake Street inicia en Buy con USD 67 el 2/9, Weiss baja a Hold el 25/8 y Wall Street Zen baja a Hold el 19/9; la bandera 'consenso_venta' del Radar no coincide con el 'Moderate Buy' que publican MarketBeat y stockanalysis.com. Las ventas desaceleran de +11% en el Q1 a +7% en el Q2 aunque el EPS ajustado acelera. Próximos resultados el 27/10/2026 antes de la apertura."
+    },
+    {
+      "symbol": "OPY",
+      "fecha": "2026-10-07",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-31",
+        "ventasVsConsenso": "Ingresos 2T26 USD 454,9 M, +21,9% i.a. desde 373,2 M; no hay consenso de ventas publicado para OPY",
+        "gananciaVsConsenso": "EPS diluido GAAP 2,38 (basico 2,55) y ajustado 3,98 (basico 4,27); no hay consenso publicado para comparar",
+        "extraordinarios": [
+          { "detalle": "Gasto por derechos de apreciacion de acciones (SAR) atado al precio de OPY, excluido del resultado ajustado del 2T26", "montoUsd": 24894000 },
+          { "detalle": "Beneficio impositivo sobre los ajustes del 2T26", "montoUsd": 6532000 },
+          { "detalle": "Acuerdo judicial del barrido de efectivo, contabilizado en el 1T26 y excluido del ajustado semestral", "montoUsd": 70000000 }
+        ],
+        "epsLimpia": 3.98,
+        "epsConsenso": null,
+        "guia": "no da guía"
+      },
+      "analistas": [],
+      "consensoObjetivo": null,
+      "eventos": [
+        { "fecha": "2026-09-18", "tipo": "litigio", "titular": "Un juez federal de Nueva York aprobo en forma final el acuerdo de USD 70 M por el programa de barrido de efectivo (ABD Program)" }
+      ],
+      "valuacion": {
+        "texto": "Precio 120,58 al 6/10/26 contra libro 91,84 y libro tangible 75,19 al 30/6/26: P/VL 1,31 y P/VLT 1,60, arriba del 0,54-0,78 de los cierres anuales 2021-2025",
+        "metric": "precio/valor libro (cierres anuales 2021-2025)",
+        "current": 1.31,
+        "min5y": 0.54,
+        "max5y": 0.78,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-10-30",
+      "reservas": [
+        {
+          "tipo": "valuacion",
+          "detalle": "P/VL 1,31 y P/VL tangible 1,60 al 6/10/26 (precio 120,58; libro 91,84; tangible 75,19) contra 0,54-0,78 en los cierres anuales 2021-2025",
+          "fuente": { "url": "https://stockanalysis.com/stocks/opy/financials/ratios/", "titulo": "Oppenheimer Holdings (OPY) ratios anuales - stockanalysis.com" }
+        },
+        {
+          "tipo": "un_analista",
+          "detalle": "TipRanks (15/9/26) y stockanalysis no muestran ningun analista tradicional cubriendo OPY: los unicos objetivos listados son generados por IA",
+          "fuente": { "url": "https://www.tipranks.com/stocks/opy/forecast", "titulo": "OPY Stock Forecast - TipRanks" }
+        },
+        {
+          "tipo": "extraordinarios",
+          "detalle": "El EPS ajustado de 3,98 del 2T26 excluye USD 24,894 M de gasto SAR, compensacion recurrente atada al propio precio de la accion",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/0000791963/000162828026051237/ex991-20268xkq2pressrelease.htm", "titulo": "Oppenheimer Holdings 8-K ex-99.1 resultados 2T26 (31/7/2026)" }
+        },
+        {
+          "tipo": "pico_de_ciclo",
+          "detalle": "Ingresos +21,0% en 1T26 y +21,9% en 2T26 con EPS basico ajustado record de 4,27 vs 2,64, empujados por banca de inversion y comisiones",
+          "fuente": { "url": "https://www.prnewswire.com/news-releases/oppenheimer-holdings-inc-reports-second-quarter-2026-earnings-302839555.html", "titulo": "Oppenheimer Holdings Inc. Reports Second Quarter 2026 Earnings" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "ganancia_limpia", "detalle": "No existe consenso de EPS publicado para OPY (sin cobertura de analistas), asi que el ajustado de 3,98 no se puede medir contra consenso" },
+        { "dato": "otro", "detalle": "No encontre la serie de 5 anos de precio/valor libro tangible; use precio/valor libro de cierres anuales 2021-2025" }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000791963/000162828026051237/ex991-20268xkq2pressrelease.htm", "titulo": "Oppenheimer Holdings 8-K ex-99.1 resultados 2T26 (31/7/2026)" },
+        { "url": "https://www.prnewswire.com/news-releases/oppenheimer-holdings-inc-reports-second-quarter-2026-earnings-302839555.html", "titulo": "Oppenheimer Holdings Inc. Reports Second Quarter 2026 Earnings" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000791963/000162828026029115/ex991-20268xkq1pressrelease.htm", "titulo": "Oppenheimer Holdings 8-K ex-99.1 resultados 1T26" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000791963/000162828026051238/opy-20260630.htm", "titulo": "Oppenheimer Holdings Form 10-Q al 30/6/2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000791963/000162828026027280/ex991pressrelease2026cashs.htm", "titulo": "Oppenheimer 8-K: acuerdo del barrido de efectivo (24/4/2026)" },
+        { "url": "https://www.law360.com/assetmanagement/articles/2527418", "titulo": "Oppenheimer Customers Win Final Approval For $70M Deal - Law360" },
+        { "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000791963&type=4&dateb=&owner=include&count=40", "titulo": "EDGAR: listado de Form 4 de Oppenheimer Holdings" },
+        { "url": "https://stockanalysis.com/stocks/opy/", "titulo": "Oppenheimer Holdings (OPY) precio y datos - stockanalysis.com" },
+        { "url": "https://stockanalysis.com/stocks/opy/financials/ratios/", "titulo": "Oppenheimer Holdings (OPY) ratios anuales - stockanalysis.com" },
+        { "url": "https://www.tipranks.com/stocks/opy/forecast", "titulo": "OPY Stock Forecast - TipRanks" },
+        { "url": "https://finance.yahoo.com/news/oppenheimer-holdings-inc-announces-ceo-133000551.html", "titulo": "Oppenheimer Holdings Inc. anuncia la sucesion del CEO (febrero 2025)" }
+      ],
+      "resumen": "Ultimo trimestre: 2T26 reportado el 31/7/2026. Ingresos USD 454,9 M (+21,9% i.a.), utilidad neta 27,4 M, EPS diluido GAAP 2,38 y ajustado 3,98; el ajustado excluye 24,894 M de gasto SAR atado al precio de la accion mas un beneficio impositivo de 6,532 M. En el semestre el ajustado (8,19 diluido) excluye ademas los USD 70 M del acuerdo del barrido de efectivo, contabilizado en el 1T26. El 1T26 ya habia crecido 21,0% (ingresos 445,1 M) con perdida GAAP de 20,6 M por ese acuerdo. No da guia: el comunicado no trae proyecciones. Valor libro por accion 91,84 y libro tangible 75,19 al 30/6/2026; patrimonio total 996,7 M. Sin recompras de Class A en el semestre y dividendo de 0,20 por accion pagadero el 28/8/2026. Eventos de 90 dias: el 18/9/2026 un juez del Distrito Sur de Nueva York aprobo en forma final el acuerdo de USD 70 M del programa Advantage Bank Deposit (el demandante pedia mas de 440 M; OPY ya habia depositado los 70 M en escrow el 8/6/2026). En EDGAR no hay S-3 ni 424B entre julio y octubre de 2026, es decir no encontre ofertas de acciones, y el ultimo Form 4 es del 11/5/2026, o sea cero operaciones de insiders en los ultimos 90 dias. Analistas: contra la bandera consenso_compra del Radar, TipRanks (ultima actualizacion 15/9/2026) y stockanalysis coinciden en que OPY no tiene cobertura de analistas tradicionales; los objetivos que aparecen son generados por IA. Valuacion: precio 120,58 al 6/10/2026, rango de 52 semanas 63,81-125,88, P/E 13,38, P/VL 1,31 y P/VL tangible 1,60, contra P/VL de cierre anual de 0,61 (2021), 0,57 (2022), 0,54 (2023), 0,78 (2024) y 0,76 (2025). Contexto fuera de la ventana de 90 dias: Robert S. Lowenthal, hijo del presidente del directorio Albert G. Lowenthal, es CEO desde el 5/5/2025. Proximos resultados: 30/10/2026."
+    },
+    {
+      "symbol": "VRSN",
+      "fecha": "2026-10-07",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-23",
+        "ventasVsConsenso": "Ingresos 2T26 USD 434,6 M (+6,0% i.a.) vs consenso Zacks 434,55 M: +0,05%",
+        "gananciaVsConsenso": "EPS diluido 2,38 vs consenso Zacks 2,36: +0,85%; otra fuente citaba un consenso de 2,45, que habria sido fallo de 0,07",
+        "extraordinarios": [],
+        "epsLimpia": 2.38,
+        "epsConsenso": 2.36,
+        "guia": "Subida el 23/7/2026: ingresos 2026 de USD 1.745-1.755 M y resultado operativo de USD 1.185-1.195 M"
+      },
+      "analistas": [
+        { "fecha": "2026-07-24", "firma": "JPMorgan Chase", "accion": "mantiene neutral y sube el objetivo de 308 a 316", "objetivo": 316 },
+        { "fecha": "2026-09-01", "firma": "Wedbush", "accion": "outperform y sube el objetivo de 324 a 341", "objetivo": 341 },
+        { "fecha": "2026-09-21", "firma": "Weiss Ratings", "accion": "reafirma compra (B-)", "objetivo": null },
+        { "fecha": "2026-09-23", "firma": "Zacks Research", "accion": "baja de strong-buy a hold", "objetivo": null }
+      ],
+      "consensoObjetivo": 324.4,
+      "eventos": [
+        { "fecha": "2026-07-23", "tipo": "licencia", "titular": "ICANN firmo el acuerdo de registro de .web el 22/7 e IANA delego el TLD a Verisign el 23/7, tras retirar Altanovo su reclamo" },
+        { "fecha": "2026-08-27", "tipo": "regulatorio", "titular": "Verisign sube el precio mayorista de registro de .net de USD 10,91 a 12,00 desde el 1/3/2027, segun su acuerdo con ICANN" },
+        { "fecha": "2026-09-04", "tipo": "litigio", "titular": "Demanda antimonopolio en el Distrito Central de California contra Verisign e ICANN por el precio de los dominios .com" }
+      ],
+      "valuacion": {
+        "texto": "Precio 293,10 al 6/10/26: P/E 31,83 y P/E adelantado 28,73; los P/E de cierre anual fueron 35,92 (2021), 32,32 (2022), 25,72 (2023), 25,31 (2024) y 27,28 (2025)",
+        "metric": "P/E (cierres anuales 2021-2025; P/E adelantado actual 28,73)",
+        "current": 31.83,
+        "min5y": 25.31,
+        "max5y": 35.92,
+        "growthAccelerating": false
+      },
+      "proximosResultados": "2026-10-22",
+      "reservas": [
+        {
+          "tipo": "insiders",
+          "detalle": "El CEO James Bidzos vende 3.300 acciones ya tenidas casi cada semana bajo plan 10b5-1 (25/8/26 sin ejercicio de opciones): 122.400 en 12 meses y cero compras",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/0001014473/000120481626000038/wk-form4_1787777452.xml", "titulo": "Verisign Form 4 de D. James Bidzos, venta del 25/8/2026" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "Demanda antimonopolio del 4/9/2026 contra Verisign e ICANN alega monopolio ilegal y precios excesivos en .com, el nucleo del negocio",
+          "fuente": { "url": "https://domainnamewire.com/2026/09/04/antitrust-lawsuit-filed-against-verisign-and-icann-over-com-pricing/", "titulo": "Antitrust lawsuit filed against Verisign and ICANN over .com pricing" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No encontre el rango de 5 anos del P/E adelantado; use los P/E de cierres anuales 2021-2025 de stockanalysis" },
+        { "dato": "otro", "detalle": "No encontre las cifras de la guia anterior para medir cuanto la subieron, ni el rango exacto de crecimiento de la base de dominios en una fuente verificable" }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001014473/000101447326000026/q22026earningsrelease.htm", "titulo": "Verisign 8-K: comunicado de resultados 2T26 (23/7/2026)" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001014473/000101447326000028/vrsn-20260630.htm", "titulo": "Verisign Form 10-Q al 30/6/2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001014473/000101447326000019/q12026earningsrelease.htm", "titulo": "Verisign 8-K: comunicado de resultados 1T26" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/verisign-vrsn-beats-q2-earnings-212506956.html", "titulo": "VeriSign (VRSN) Beats Q2 Earnings and Revenue Estimates (Zacks)" },
+        { "url": "https://www.marketscreener.com/news/verisign-inc-updates-earnings-guidance-for-the-full-year-2026-ce7f51dfdd81f623", "titulo": "VeriSign, Inc. Updates Earnings Guidance for the Full Year 2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1014473/000101447326000030/vrsn-20260827.htm", "titulo": "Verisign 8-K del 27/8/2026: suba del precio mayorista de .net" },
+        { "url": "https://www.businesswire.com/news/home/20260722394416/en/Verisign-Announces-Delegation-of-.Web", "titulo": "Verisign Announces Delegation of .Web" },
+        { "url": "https://domainnamewire.com/2026/07/23/verisign-web/", "titulo": "Verisign finally gets .web, plans to launch domain this year" },
+        { "url": "https://domainnamewire.com/2026/09/04/antitrust-lawsuit-filed-against-verisign-and-icann-over-com-pricing/", "titulo": "Antitrust lawsuit filed against Verisign and ICANN over .com pricing" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001014473/000120481626000038/wk-form4_1787777452.xml", "titulo": "Verisign Form 4 de D. James Bidzos, venta del 25/8/2026" },
+        { "url": "https://www.dailypolitical.com/2026/10/01/verisign-inc-nasdaqvrsn-stock-has-average-price-target-of-333-00.html", "titulo": "VeriSign (NASDAQ:VRSN) Stock Has Average Price Target of $333.00" },
+        { "url": "https://stockanalysis.com/stocks/vrsn/", "titulo": "VeriSign (VRSN) precio y datos - stockanalysis.com" },
+        { "url": "https://stockanalysis.com/stocks/vrsn/financials/ratios/", "titulo": "VeriSign (VRSN) ratios anuales - stockanalysis.com" }
+      ],
+      "resumen": "Ultimo trimestre: 2T26 reportado el 23/7/2026. Ingresos USD 434,6 M (+6,0% i.a.), resultado operativo 296 M (vs 281 M), utilidad neta 217 M y EPS diluido 2,38 (vs 2,21). Contra el consenso Zacks de 2,36 fue +0,85%, y ventas +0,05% sobre 434,55 M; una fuente distinta citaba consenso de 2,45. No encontre items no recurrentes en el trimestre: el 10-Q confirma que no hubo cargo por el rescate anticipado de las notas 4,75% 2027 (el aviso irrevocable fue el 18/6/2026 pero el rescate ocurrio el 20/7/2026, ya en el 3T) y que el acuerdo por .web fue confidencial y no material; tasa impositiva efectiva 23% vs 22% en el 2T25. Guia subida el 23/7/2026 a ingresos 2026 de USD 1.745-1.755 M y resultado operativo de USD 1.185-1.195 M. El crecimiento de ingresos se desaceleró: 1T26 +6,6% (428,9 M) y 2T26 +6,0%; la base de .com y .net llego a 179,1 M (+5,1% i.a., +3,05 M en el trimestre) con un record de 12,7 M de registros nuevos (+21%). Recompro 0,7 M de acciones por 197 M en el 2T y aprobo 884 M mas de autorizacion; dividendo de 0,81 por accion aprobado el 20/7/2026. Eventos de 90 dias: el 22/7/2026 ICANN firmo el acuerdo de registro de .web y el 23/7 IANA delego el TLD a Verisign tras el retiro del reclamo de Altanovo; el 27/8/2026 anuncio la suba del precio mayorista de .net de 10,91 a 12,00 desde el 1/3/2027; el 4/9/2026 se presento una demanda antimonopolio en el Distrito Central de California contra Verisign e ICANN por el precio de los .com (el 10-Q del 30/6/2026 decia que no habia reclamos antimonopolio materiales). Fuera de la ventana: el 23/4/2026 anuncio la suba del .com de 10,26 a 10,97 desde el 1/11/2026. Insiders: las dos banderas del Radar se explican asi; del lado vendedor, el CEO James Bidzos vende 3.300 acciones ya tenidas casi todas las semanas bajo plan 10b5-1 (21/7, 28/7, 11/8, 18/8, 25/8, 22/9 y 29/9 de 2026), sin ejercicio de opciones en los Form 4, con 122.400 acciones vendidas en 12 meses y cero compras; su tenencia bajo de 398.088 el 25/8 a 381.727 el 29/9. Del lado comprador, la unica compra es la de la directora Courtney D. Armstrong el 27/8/2026, de 14,401 acciones a 293,444 y 4,91 acciones a 294,38, es decir unos USD 5.600 en total. Analistas de 90 dias: JPMorgan 24/7 neutral objetivo 308 a 316; Wedbush 1/9 outperform 324 a 341; Weiss 21/9 reafirma compra; Zacks 23/9 baja de strong-buy a hold. Consenso 324,40 segun stockanalysis (MarketBeat publica 333,00 con 6 analistas, 4 compra y 2 mantener). Valuacion: precio 293,10 al 6/10/2026, rango de 52 semanas 208,86-312,48, P/E 31,83 y adelantado 28,73, contra P/E de cierre anual de 35,92 (2021), 32,32 (2022), 25,72 (2023), 25,31 (2024) y 27,28 (2025); el precio esta por debajo del objetivo de consenso. Proximos resultados: 22/10/2026."
+    },
+    {
+      "symbol": "HIW",
+      "fecha": "2026-10-07",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-28",
+        "ventasVsConsenso": "Ingresos por alquiler y otros US$216,38 M (+7,9% interanual) contra un consenso de US$210,96 M.",
+        "gananciaVsConsenso": "FFO US$0,90 por acción contra un consenso de US$0,86 (+4,7%); ganancia GAAP US$93,5 M o US$0,85 por acción.",
+        "extraordinarios": [
+          { "detalle": "Ganancias por ventas de propiedades del 2T 2026, fuera del FFO", "montoUsd": 79000000 },
+          { "detalle": "Ganancia por venta de un terreno no central en Richmond vía JV al 50%: US$0,035 por acción, dentro del FFO", "montoUsd": 3900000 },
+          { "detalle": "Write-off de costos de pre-desarrollo capitalizados: casi US$1 M más de G&A que lo esperado", "montoUsd": 1000000 }
+        ],
+        "epsLimpia": 0.865,
+        "epsConsenso": 0.86,
+        "guia": "Subida: FFO 2026 a US$3,46-3,70 por acción (punto medio US$3,58, +US$0,04); ocupación esperada 86,0-87,0%."
+      },
+      "analistas": [
+        { "fecha": "2026-09-08", "firma": "Mizuho Securities", "accion": "mantiene Hold y sube objetivo de US$30 a US$32", "objetivo": 32 },
+        { "fecha": "2026-09-02", "firma": "Truist Financial", "accion": "mantiene Hold", "objetivo": 30 },
+        { "fecha": "2026-09-01", "firma": "Wells Fargo", "accion": "mantiene Hold y sube objetivo de US$26 a US$32", "objetivo": 32 },
+        { "fecha": "2026-08-05", "firma": "Deutsche Bank", "accion": "baja de Buy a Hold y sube objetivo de US$28 a US$33", "objetivo": 33 },
+        { "fecha": "2026-08-04", "firma": "Citi", "accion": "mantiene Hold y sube objetivo de US$24 a US$34", "objetivo": 34 }
+      ],
+      "consensoObjetivo": 32.33,
+      "eventos": [
+        { "fecha": "2026-07-22", "tipo": "dividendo", "titular": "Highwoods declara dividendos trimestrales; el común queda en US$0,50 por acción." },
+        { "fecha": "2026-07-28", "tipo": "programa de capital", "titular": "El 10-Q informa recompra autorizada por US$250 M y programa ATM de hasta US$300 M." },
+        { "fecha": "2026-09-14", "tipo": "venta de activos", "titular": "Cierra US$74 M de ventas no centrales en Richmond y Atlanta; las ventas de 2026 llegan a US$374,8 M." },
+        { "fecha": "2026-09-15", "tipo": "calendario", "titular": "Anuncia que publica los resultados del 3T 2026 el martes 27 de octubre." }
+      ],
+      "valuacion": {
+        "texto": "Precio US$29,64; P/FFO adelantado 8,3 contra la guía 2026 de US$3,58; precio/flujo de caja operativo 8,66 contra 6,27 (2023) y 11,23 (2021) en 5 años.",
+        "metric": "precio/flujo de caja operativo por ejercicio (proxy de P/FFO)",
+        "current": 8.66,
+        "min5y": 6.27,
+        "max5y": 11.23,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-10-27",
+      "reservas": [
+        {
+          "tipo": "extraordinarios",
+          "detalle": "La ganancia GAAP del 2T 2026 (US$93,5 M, US$0,85 por acción) incluye US$79,0 M de ganancias por ventas de propiedades; el FFO de US$0,90 las excluye.",
+          "fuente": { "url": "https://www.stocktitan.net/sec-filings/HIW/10-q-highwoods-properties-inc-quarterly-earnings-report-1ebf0c4ad88c.html", "titulo": "Highwoods Properties 10-Q del 2T 2026: ganancia con US$79 M de ventas de activos" }
+        },
+        {
+          "tipo": "extraordinarios",
+          "detalle": "El FFO de US$0,90 incluye US$0,035 por acción de ganancia por venta de un terreno en Richmond vía una JV al 50%; sin eso queda US$0,865 contra un consenso de US$0,86.",
+          "fuente": { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-highwoods-properties-tops-q2-2026-estimates-lifts-outlook-93CH-4821223", "titulo": "Transcripción de la conferencia del 2T 2026 de Highwoods Properties" }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "La ocupación en servicio es 85,7% y vence un bono no garantizado de US$289,1 M en marzo 2027, mientras el FFO se apoya en US$374,8 M de ventas de activos de 2026.",
+          "fuente": { "url": "https://www.stocktitan.net/sec-filings/HIW/10-q-highwoods-properties-inc-quarterly-earnings-report-1ebf0c4ad88c.html", "titulo": "Highwoods Properties 10-Q del 2T 2026: ocupación, deuda y vencimientos" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No conseguí el rango de 5 años del P/FFO adelantado: GuruFocus devolvió 403; usé precio/flujo de caja operativo por ejercicio como proxy." },
+        { "dato": "otro", "detalle": "No encontré el monto exacto del write-off de costos de pre-desarrollo capitalizados; la conferencia solo lo describe como casi US$1 M extra de G&A." },
+        { "dato": "ofertas_de_acciones", "detalle": "No encontré si Highwoods emitió acciones bajo el ATM de US$300 M en el 2T o el 3T de 2026; el 10-Q solo dice que está autorizado." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/921082/000092108226000045/0000921082-26-000045-index.htm", "titulo": "Highwoods Properties, 10-Q presentado el 28/7/2026 (trimestre al 30/6/2026)" },
+        { "url": "https://www.stocktitan.net/sec-filings/HIW/10-q-highwoods-properties-inc-quarterly-earnings-report-1ebf0c4ad88c.html", "titulo": "Highwoods Properties 10-Q del 2T 2026: cifras del trimestre y seis meses" },
+        { "url": "https://finance.yahoo.com/real-estate/articles/hiw-q2-ffo-beats-estimates-151800085.html", "titulo": "HIW Q2 FFO Beats Estimates on Leasing and Rent Growth, 2026 View Up" },
+        { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-highwoods-properties-tops-q2-2026-estimates-lifts-outlook-93CH-4821223", "titulo": "Earnings call transcript: Highwoods Properties tops Q2 2026 estimates, lifts outlook" },
+        { "url": "https://www.marketscreener.com/news/highwoods-properties-q2-ffo-revenue-rise-2026-guidance-revised-ce7f51d2db89f522", "titulo": "Highwoods Properties Q2 FFO, Revenue Rise; 2026 Guidance Revised" },
+        { "url": "https://stockanalysis.com/stocks/hiw/forecast/", "titulo": "Highwoods Properties (HIW) Stock Forecast & Price Targets" },
+        { "url": "https://stockanalysis.com/stocks/hiw/statistics/", "titulo": "Highwoods Properties (HIW) estadísticas: múltiplos actuales" },
+        { "url": "https://stockanalysis.com/stocks/hiw/financials/ratios/", "titulo": "Highwoods Properties (HIW) ratios históricos por ejercicio" },
+        { "url": "https://stockanalysis.com/stocks/hiw/", "titulo": "Highwoods Properties (HIW) precio, rango de 52 semanas y dividendo" },
+        { "url": "https://www.highwoods.com/for-our-investors/press-and-news", "titulo": "Highwoods Properties, comunicados de prensa (julio a septiembre 2026)" },
+        { "url": "https://www.manilatimes.net/2026/09/14/tmt-newswire/globenewswire/highwoods-announces-leasing-and-disposition-activity/2424389", "titulo": "Highwoods Announces Leasing and Disposition Activity (14/9/2026)" },
+        { "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000921082&type=4&dateb=&owner=include&count=40", "titulo": "EDGAR: Form 4 de Highwoods Properties (el último es del 18/6/2026)" }
+      ],
+      "resumen": "HIW publicó el 2T 2026 el 28/7/2026: ingresos US$216,38 M (+7,9% interanual) contra un consenso de US$210,96 M, y FFO de US$0,90 por acción contra un consenso de US$0,86 (+4,7%). La ganancia GAAP fue US$93,5 M o US$0,85 por acción e incluye US$79,0 M de ganancias por ventas de propiedades, que el FFO excluye; adentro del FFO sí hay US$0,035 por acción por la venta de un terreno en Richmond vía una JV al 50%, así que el FFO sin ese ítem es US$0,865 contra el consenso de US$0,86. La G&A tuvo casi US$1 M extra por write-off de costos de pre-desarrollo capitalizados. La guía subió: FFO 2026 de US$3,46 a US$3,70 (punto medio US$3,58, +US$0,04) y ocupación esperada 86,0-87,0%. Al 30/6/2026 la ocupación en servicio era 85,7%, la caja US$166,0 M, la deuda US$3,52 mil millones, el apalancamiento 42,1%, el revolver de US$750 M sin usar y hay un bono no garantizado de US$289,1 M que vence en marzo 2027; están autorizados un ATM de US$300 M y una recompra de US$250 M. El 14/9/2026 cerró US$74 M de ventas no centrales en Richmond y Atlanta y firmó 1,1 M de pies cuadrados de alquileres de segunda generación desde el 1/7, con ventas de 2026 por US$374,8 M. Seis acciones de analistas en 90 días, todas Hold: Mizuho US$32 el 8/9, Truist US$30 el 2/9, Wells Fargo US$32 el 1/9, Deutsche Bank bajó de Buy a Hold con objetivo US$33 el 5/8 y Citi US$34 el 4/8; el objetivo promedio de 10 analistas es US$32,33 contra un precio de US$29,64 del 6/10/2026, o sea 9,1% por debajo del consenso. El retorno a 12 meses es +0,47% y en el año +21,61%, lejos del 50% que gatillaría el freno de precio. El dividendo es US$0,50 por trimestre, US$2,00 al año, 6,75% de rendimiento y 56% del FFO del punto medio de la guía, aunque 131,84% de la ganancia contable. No hubo ningún Form 4 en los últimos 90 días: el último en EDGAR es del 18/6/2026, 111 días atrás. Los resultados del 3T 2026 son el 27/10/2026."
+    },
+    {
+      "symbol": "HIPO",
+      "fecha": "2026-10-07",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-30",
+        "ventasVsConsenso": "Ingresos US$144,7 M (+23,4% interanual) contra un consenso de US$139,84 M.",
+        "gananciaVsConsenso": "Ganancia ajustada US$0,79 por acción contra un consenso de US$0,21; ganancia GAAP US$10,1 M o US$0,38 por acción.",
+        "extraordinarios": [
+          { "detalle": "Desarrollo favorable de reservas de años de accidente anteriores: 2,1 puntos del ratio de siniestros neto del 2T", "montoUsd": 2500000 },
+          { "detalle": "Beneficio neto por una conmutación de reaseguro, 2 puntos del ratio del 2T, contenido dentro del desarrollo favorable", "montoUsd": 2600000 }
+        ],
+        "epsLimpia": 0.7,
+        "epsConsenso": 0.21,
+        "guia": "Subida: primas brutas suscriptas US$1,65-1,70 mil millones (antes 1,45-1,525), ganancia neta ajustada US$62-70 M (antes 48-56) y ratio combinado 99-101%."
+      },
+      "analistas": [
+        { "fecha": "2026-08-06", "firma": "KBW", "accion": "mantiene Hold", "objetivo": 35 },
+        { "fecha": "2026-07-31", "firma": "B. Riley Securities", "accion": "mantiene Buy", "objetivo": 38 },
+        { "fecha": "2026-07-31", "firma": "William Blair", "accion": "mantiene Hold, sin objetivo publicado", "objetivo": null }
+      ],
+      "consensoObjetivo": 41.13,
+      "eventos": [
+        { "fecha": "2026-07-13", "tipo": "insiders", "titular": "El CEO Richard McCathron vendió 5.000 acciones a US$28,53 el 9/7 bajo un plan 10b5-1 del 29/8/2025; le quedan 585.433." },
+        { "fecha": "2026-07-30", "tipo": "insiders", "titular": "El CFO Guy Zeltser vendió 1.669 acciones a US$30,98 el 28/7 bajo un plan 10b5-1 del 18/6/2025; le quedan 120.563." },
+        { "fecha": "2026-08-12", "tipo": "insiders", "titular": "El CEO vendió otras 5.000 acciones a US$32,00 el 10/8 bajo el mismo plan; le quedan 580.433, con 296.227 RSU adentro." },
+        { "fecha": "2026-08-18", "tipo": "insiders", "titular": "La COO Laura Boettcher entregó 1.586 acciones a US$32,8265 con código F, retención para pagar impuestos, no venta de mercado." },
+        { "fecha": "2026-08-27", "tipo": "operativo", "titular": "Hippo anuncia la expansión de su huella de seguro de hogar en la próxima fase de crecimiento rentable." },
+        { "fecha": "2026-09-11", "tipo": "insiders", "titular": "El CEO vendió otras 5.000 acciones a US$32,23 el 9/9 bajo el mismo plan 10b5-1 del 29/8/2025." },
+        { "fecha": "2026-09-24", "tipo": "operativo", "titular": "Su modelo de siniestros con IA muestra buenos resultados de satisfacción mientras crece el negocio de hogar." }
+      ],
+      "valuacion": {
+        "texto": "Precio US$32,48; precio/valor libro 1,84 contra 0,53 (2022) y 1,85 (2021) en 5 años; P/E adelantado 35,59 sobre GAAP y cerca de 13x contra la guía ajustada de US$62-70 M.",
+        "metric": "precio/valor libro",
+        "current": 1.84,
+        "min5y": 0.53,
+        "max5y": 1.85,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-11-04",
+      "reservas": [
+        {
+          "tipo": "extraordinarios",
+          "detalle": "El 2T 2026 tiene US$2,5 M de desarrollo favorable de reservas de años anteriores, 2,1 puntos del ratio de siniestros, de los cuales US$2,6 M son una conmutación de reaseguro.",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm", "titulo": "Hippo Holdings, comunicado de resultados del 2T 2026 (8-K, 30/7/2026)" }
+        },
+        {
+          "tipo": "valuacion",
+          "detalle": "Precio/valor libro 1,84 (patrimonio de Hippo US$465,6 M al 30/6/2026 contra capitalización de US$857 M) frente a un rango de 5 años de 0,53 a 1,85: está en el techo.",
+          "fuente": { "url": "https://stockanalysis.com/stocks/hipo/financials/ratios/", "titulo": "Hippo Holdings (HIPO) ratios históricos por ejercicio" }
+        },
+        {
+          "tipo": "extraordinarios",
+          "detalle": "El P/E de 7,14 engaña: el EPS de 12 meses de US$4,55 carga los US$91 M de ganancia por la venta de la red de constructores del 3T 2025, US$3,77 por acción en ese trimestre.",
+          "fuente": { "url": "https://www.prnewswire.com/news-releases/hippo-reports-third-quarter-2025-financial-results-302604711.html", "titulo": "Hippo Reports Third Quarter 2025 Financial Results" }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        { "dato": "otro", "detalle": "No existe rango de 5 años de P/E adelantado: la empresa dio pérdidas de 2021 a 2024 y el P/E recién aparece en 2025, así que usé precio/valor libro." },
+        { "dato": "otro", "detalle": "El 10-Q no desglosa el desarrollo de reservas del trimestre aislado por año de accidente; solo publica los seis meses, US$5,0 M favorables." }
+      ],
+      "fuentes": [
+        { "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm", "titulo": "Hippo Holdings, comunicado de resultados del 2T 2026 (8-K, 30/7/2026)" },
+        { "url": "https://www.prnewswire.com/news-releases/hippo-reports-second-quarter-2026-financial-results-302838160.html", "titulo": "Hippo Reports Second Quarter 2026 Financial Results" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000043/hippo-20260630.htm", "titulo": "Hippo Holdings, 10-Q del trimestre al 30/6/2026" },
+        { "url": "https://finance.yahoo.com/markets/stocks/articles/hippo-holdings-inc-hipo-q2-113502732.html", "titulo": "Hippo Holdings Inc. (HIPO) Q2 Earnings and Revenues Surpass Estimates" },
+        { "url": "https://www.fool.com/earnings/call-transcripts/2026/08/03/hippo-hipo-q2-2026-earnings-call-transcript/", "titulo": "Hippo (HIPO) Q2 2026 Earnings Call Transcript" },
+        { "url": "https://www.prnewswire.com/news-releases/hippo-reports-third-quarter-2025-financial-results-302604711.html", "titulo": "Hippo Reports Third Quarter 2025 Financial Results" },
+        { "url": "https://www.reinsurancene.ws/hippo-sees-6m-net-income-and-improved-cor-in-q425/", "titulo": "Hippo sees $6m net income and improved CoR in Q4'25" },
+        { "url": "https://www.morningstar.com/news/pr-newswire/20260430dc46410/hippo-reports-first-quarter-2026-financial-results", "titulo": "Hippo Reports First Quarter 2026 Financial Results" },
+        { "url": "https://stockanalysis.com/stocks/hipo/forecast/", "titulo": "Hippo Holdings (HIPO) Stock Forecast & Price Targets" },
+        { "url": "https://stockanalysis.com/stocks/hipo/statistics/", "titulo": "Hippo Holdings (HIPO) estadísticas: múltiplos y próxima fecha de resultados" },
+        { "url": "https://stockanalysis.com/stocks/hipo/financials/ratios/", "titulo": "Hippo Holdings (HIPO) ratios históricos por ejercicio" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1294172/000129417226000015/primarydocument.xml", "titulo": "Form 4 de Richard McCathron (CEO), venta del 10/8/2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1828105/000129417226000019/0001294172-26-000019-index.htm", "titulo": "Form 4 de Richard McCathron (CEO), período 9/9/2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1828105/000206105826000005/primarydocument.xml", "titulo": "Form 4 de Guy Zeltser (CFO), venta del 28/7/2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1828105/000214036526000005/primarydocument.xml", "titulo": "Form 4 de Laura Boettcher (COO), retención de impuestos del 15/8/2026" },
+        { "url": "https://www.stocktitan.net/sec-filings/HIPO/form-4-hippo-holdings-inc-insider-trading-activity-41563ecd5bdd.html", "titulo": "Form 4: el CEO de Hippo vende 5.000 acciones bajo plan 10b5-1 (9/7/2026)" },
+        { "url": "https://www.stocktitan.net/news/HIPO/", "titulo": "Hippo Holdings, listado de noticias de junio a octubre 2026" }
+      ],
+      "resumen": "HIPO publicó el 2T 2026 el 30/7/2026: ingresos US$144,7 M (+23,4% interanual) contra un consenso de US$139,84 M, ganancia GAAP US$10,1 M o US$0,38 por acción, y ganancia ajustada US$21,0 M o US$0,79 por acción contra un consenso de US$0,21. La ganancia sí tuvo liberación de reservas: el comunicado muestra US$2,5 M de beneficio por desarrollo favorable de años de accidente anteriores, 2,1 puntos del ratio de siniestros neto del trimestre, y US$2,6 M de beneficio neto por una conmutación de reaseguro que valen 2 puntos del ratio. El 10-Q aclara que no se suman: los US$5,0 M favorables de los seis meses son US$2,6 M de la conmutación más US$2,4 M de desarrollo favorable en líneas de propiedad, así que el beneficio del 2T es de un solo ítem de alrededor de US$2,5 M. Con 26.431.819 acciones diluidas eso son unos US$0,09 por acción, o sea que la ganancia ajustada sin la liberación queda cerca de US$0,70 contra un consenso de US$0,21: el trimestre no se explica por la liberación. El ratio de siniestros neto subió a 50,4% desde 47,0% y el bruto a 53,8% desde 36,8%, y en la conferencia dijeron que el desarrollo favorable fue 2% este trimestre contra 7% un año antes. La guía subió: primas brutas suscriptas US$1,65-1,70 mil millones desde US$1,45-1,525, ganancia neta ajustada US$62-70 M desde US$48-56 e ingresos US$580-585 M desde US$560-570, con ratio combinado 99-101%. Sobre la bandera de insiders: en 90 días el CEO McCathron vendió 5.000 acciones tres veces, a US$28,53 el 9/7, a US$32,00 el 10/8 y a US$32,23 el 9/9, siempre bajo un plan 10b5-1 firmado el 29/8/2025 y de acciones que ya tenía, unos US$461 mil en total, y le quedan alrededor de 575 mil acciones, de las cuales 296.227 son RSU; el CFO Zeltser vendió 1.669 acciones a US$30,98 el 28/7 bajo un plan del 18/6/2025 y le quedan 120.563; la COO Boettcher solo entregó 1.586 acciones con código F para pagar impuestos. Son ventas chicas, programadas con un año de anticipación y menos del 3% de la tenencia del CEO. Sobre la bandera sin_estados: Hippo sí presenta estados, el 10-Q del trimestre al 30/6/2026 está en EDGAR desde el 30/7/2026 y dice que no es parte de litigios con efecto material adverso. El patrimonio atribuible a Hippo es US$465,6 M y el precio/valor libro de 1,84 está pegado al máximo de 5 años de 1,85. Ojo con el P/E de 7,14 que aparece en las pantallas: el EPS de 12 meses de US$4,55 carga los US$91 M de ganancia por la venta de la red de constructores del 3T 2025, US$3,77 por acción, así que el 3T 2026 que se publica alrededor del 4/11/2026 (fecha todavía estimada, no anunciada) va a comparar contra ese número. Tres acciones de analistas en 90 días: KBW Hold US$35 el 6/8, B. Riley Buy US$38 el 31/7 y William Blair Hold sin objetivo el 31/7; el objetivo promedio de 5 analistas es US$41,13 contra un precio de US$32,48 del 6/10/2026. No encontré ofertas de acciones, cambios de CEO o CFO, informes de vendedores en corto, ciberataques ni litigios nuevos en el barrido de noticias de julio a octubre de 2026; la COO Boettcher fue promovida el 11/6/2026, fuera de la ventana de 90 días."
+    }
+  ],
+  "revisiones": [
+    {
+      "symbol": "SEZL",
+      "fecha": "2026-10-07",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        {
+          "tipo": "analistas",
+          "detalle": "TD Cowen bajó el objetivo de US$165 a US$160 manteniendo Compra, dentro de un recorte sectorial de objetivos antes de los resultados del Q3.",
+          "fecha": "2026-10-06",
+          "fuente": { "url": "https://www.marketbeat.com/instant-alerts/analyst-sezzle-nasdaq-sezl-price-target-cut-to-16000-by-analysts-at-td-cowen-2026-10-06/", "titulo": "Sezzle (NASDAQ:SEZL) Price Target Cut to $160.00 by Analysts at TD Cowen" }
+        },
+        {
+          "tipo": "capital",
+          "detalle": "Un 13D/A informó que la sentencia de divorcio del 2/9/2026 le quitó al CEO el voto y la disposición sobre 1.508.454 acciones del trust; su participación baja al 39,6%.",
+          "fecha": "2026-09-14",
+          "fuente": { "url": "https://www.stocktitan.net/sec-filings/SEZL/", "titulo": "Sezzle SEC filings — Schedule 13D/A y Form 4 del 14/9/2026" }
+        },
+        {
+          "tipo": "capital",
+          "detalle": "El CEO Youakim mantiene 1.540.000 acciones prendadas como garantía de un préstamo de US$20 M con Oppenheimer, ampliado el 1/3/2026.",
+          "fecha": "2026-03-01",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/1662991/000166299126000034/xslSCHEDULE_13D_X01/primary_doc.xml", "titulo": "Sezzle Inc. Schedule 13D/A (Youakim, Cerro Gordo LLC)" }
+        }
+      ],
+      "fuentes": [
+        { "url": "https://www.marketbeat.com/instant-alerts/analyst-sezzle-nasdaq-sezl-price-target-cut-to-16000-by-analysts-at-td-cowen-2026-10-06/", "titulo": "TD Cowen baja el objetivo de Sezzle a US$160 (6/10/2026)" },
+        { "url": "https://www.stocktitan.net/sec-filings/SEZL/", "titulo": "Sezzle SEC filings julio-octubre 2026" },
+        { "url": "https://www.stocktitan.net/news/SEZL/", "titulo": "Sezzle news julio-octubre 2026" },
+        { "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001662991&type=&dateb=&owner=include&count=40", "titulo": "EDGAR: presentaciones de Sezzle Inc." },
+        { "url": "https://www.investing.com/news/insider-trading-news/sezzle-director-bryan-hunt-buys-28965-in-company-stock-93CH-4918904", "titulo": "Sezzle director Bryan Hunt buys $28,965 in company stock (22/9/2026)" },
+        { "url": "https://stockanalysis.com/stocks/sezl/statistics/", "titulo": "Sezzle (SEZL) Statistics & Valuation — próximos resultados 4/11/2026" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/1662991/000166299126000034/xslSCHEDULE_13D_X01/primary_doc.xml", "titulo": "Sezzle Schedule 13D/A — prenda de acciones del CEO" }
+      ],
+      "resumen": "Novedades de los últimos 30 días (7/9 al 7/10/2026): el 6/10/2026 TD Cowen bajó el objetivo de US$165 a US$160 manteniendo Compra, dentro de un recorte sectorial que también tocó a SoFi, Affirm, Capital One y Klarna antes del Q3; es el único movimiento de analistas del período y el objetivo sigue 42% arriba del cierre de US$112,84. El 14/9/2026 un 13D/A y un Form 4 informaron que la sentencia de divorcio del 2/9/2026 le quitó al CEO Youakim el voto sobre 1.508.454 acciones del trust, bajando su participación conjunta al 39,6%; sigue con 1.540.000 acciones prendadas por un préstamo de US$20 M con Oppenheimer (13D/A del 1/3/2026). Compras de insiders en el período: el director Hunt compró 250 acciones a US$115,86 el 22/9/2026 y el GC Khurana 129 acciones el 20/8/2026; las ventas grandes son del 15-16/7/2026 y ya estaban en la verificación previa. No encontré rebajas de recomendación, ofertas de acciones (EDGAR no muestra S-1 ni 424B), investigaciones de organismos, sanciones ni cambios de rating de deuda. Noticias de los últimos 7 días: sólo operativas (6/10/2026, más de 2 millones de lecciones de Money IQ completadas). Lo que vence en los próximos 6 meses: resultados del Q3 el 4/11/2026 después del cierre y asamblea anual el 19/11/2026; la guía 2026 de ~US$607,9 M implica que el segundo semestre crezca ~31% contra el +51,7% del Q2."
+    },
+    {
+      "symbol": "HCI",
+      "fecha": "2026-10-07",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        {
+          "tipo": "regulacion",
+          "detalle": "La OIR de Florida aprobó el 22/9/2026 bajas de tarifa a cuatro aseguradoras de hogar y el comisionado anticipó recortes más agresivos hacia 2027; el promedio de los últimos 30 días es -4,8%.",
+          "fecha": "2026-09-23",
+          "fuente": { "url": "https://www.insurancejournal.com/news/southeast/2026/09/23/886558.htm", "titulo": "Florida OIR Approves Four More HO Rate Cuts as Citizens Keeps Shrinking" }
+        },
+        {
+          "tipo": "resultados",
+          "detalle": "La fuente de volumen de HCI se agota: Citizens bajó a 266.231 pólizas en agosto de 2026 desde 1,4 millones en su pico de 2023, con el valor asegurado cayendo de USD 553.000 M a ~85.000 M.",
+          "fecha": "2026-09-23",
+          "fuente": { "url": "https://www.insurancejournal.com/news/southeast/2026/09/23/886558.htm", "titulo": "Florida OIR Approves Four More HO Rate Cuts as Citizens Keeps Shrinking" }
+        }
+      ],
+      "fuentes": [
+        { "url": "https://www.insurancejournal.com/news/southeast/2026/09/23/886558.htm", "titulo": "Florida OIR Approves Four More HO Rate Cuts as Citizens Keeps Shrinking (23/9/2026)" },
+        { "url": "https://www.floridarealtors.org/news-media/news-articles/2026/09/florida-approves-more-home-insurance-rate-cuts", "titulo": "Florida approves more home insurance rate cuts (24/9/2026)" },
+        { "url": "https://markets.financialcontent.com/stocks/article/stockstory-2026-10-1-hci-group-hci-stock-is-up-what-you-need-to-know", "titulo": "HCI Group (HCI) Stock Is Up, What You Need To Know (1/10/2026): Truist reitera Buy, PO USD 235" },
+        { "url": "https://www.investing.com/news/analyst-ratings/truist-reiterates-buy-on-hci-group-stock-235-target-on-discipline-93CH-4926851", "titulo": "Truist reiterates Buy on HCI Group stock, $235 target on discipline (1/10/2026)" },
+        { "url": "https://simplywall.st/stocks/us/insurance/nyse-hci/hci-group/news/hci-group-hci-on-earnings-pressure-and-revenue-growth-looks", "titulo": "HCI Group on Earnings Pressure and Revenue Growth (1/10/2026): cierre USD 181,39; -3,44% en 30 días" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0001400810/000119312526340280/hci-20260630.htm", "titulo": "HCI Group 10-Q 2T26: prima bruta devengada 6M26 USD 647,0 M vs 603,0 M; ratio implícito 21,1% vs 20,5%" },
+        { "url": "https://www.globenewswire.com/news-release/2022/05/19/2446956/12000/en/hci-group-announces-pricing-of-150-million-offering-of-convertible-senior-notes-due-2042.html", "titulo": "Convertibles 4,75% due 2042: primer put del tenedor el 1/6/2027" },
+        { "url": "https://www.iposcoop.com/ipo/exzeo-group/", "titulo": "Exzeo Group IPO: precio USD 21, 8 M de acciones, USD 168 M, 4/11/2025; HCI retiene ~81,5%" },
+        { "url": "https://news.wfsu.org/2026-10-02/will-october-end-the-atlantics-historic-hurricane-pause", "titulo": "Will October end the Atlantic's historic hurricane pause? (2/10/2026)" },
+        { "url": "https://www.nbcmiami.com/weather/hurricane-season/john-morales-2026-atlantic-hurricane-season-was-expected-to-be-slow-but-not-dead/3863752/", "titulo": "Temporada atlántica 2026: 8 tormentas con nombre y ningún huracán" }
+      ],
+      "resumen": "Catástrofe activa: al 7/10/2026 la temporada atlántica 2026 no produjo ningún huracán (8 tormentas con nombre, primera vez en la era satelital; una depresión tropical activa), con El Niño récord suprimiendo desarrollo; la temporada sigue hasta el 30/11. No encontré ningún evento catastrófico que afecte a HCI en los últimos 30 días. Lo nuevo del período es regulatorio y de precio, no de siniestros: la OIR aprobó el 22/9 bajas de tarifa a cuatro aseguradoras (One Alliance -10,4%, Vyrd -10,4%, Safe Harbor -4,1%, Unique -3,2%, ninguna de HCI) y el comisionado Michael Yaworsky anticipó recortes más agresivos hacia 2027, mientras Citizens quedó en 266.231 pólizas (agosto 2026) desde 1,4 millones en 2023: las dos palancas de la reserva previa (prima media plana, crecimiento solo por volumen) se estrechan a la vez. Del lado opuesto, en los últimos 7 días la única acción de analistas fue a favor: Truist reiteró Buy con PO USD 235 el 1/10/2026 (la acción subió 4,5% a USD 181,58) y Citizens subió su PO de USD 255 a USD 265; no hubo ninguna rebaja en los últimos 30 días (la última fue Oppenheimer a Perform el 13/11/2025, vieja). Sin ofertas de acciones ni convertibles nuevos; el único put de los convertibles 4,75%/2042 es el 1/6/2027, fuera de los 6 meses. Sin ventas del insider de control: Paresh Patel no vendió acciones desde 2021 y en 2/2026 ejerció 20.000 opciones. Sin litigios materiales nuevos ni investigaciones abiertas que encontrara; la multa de USD 150.000 a TypTap de la OIR es de 9/2025 y ya es conocida. El 10-Q del 2T26 muestra ratio bruto implícito 21,1% en 6M26 vs 20,5% en 6M25, coherente en dirección con la reserva previa. No pude confirmar en fuente citable la fecha del reporte del 3T26 (aparece 5/11/2026 en buscadores), ni si Homeowners Choice o TypTap presentaron pedido propio de baja de tarifa ante la OIR en 2026, ni el cronograma de la distribución del ~81,5% restante de Exzeo. No incluí comunicados de estudios de abogados."
+    },
+    {
+      "symbol": "DLO",
+      "fecha": "2026-10-07",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        {
+          "tipo": "capital",
+          "detalle": "General Atlantic DO B.V. vendió 9.842.559 acciones Clase A a US$13,60 promedio (~US$134 M) vía Citadel y el grupo quedó con 36.814.136 acciones, el 21,4% de la clase.",
+          "fecha": "2026-08-19",
+          "fuente": { "url": "https://www.stocktitan.net/sec-filings/DLO/schedule-13d-a-d-local-ltd-amended-major-shareholder-report-b3294191bdb7.html", "titulo": "General Atlantic sells 9.8M dLocal shares, holds 21% (Schedule 13D/A)" }
+        },
+        {
+          "tipo": "capital",
+          "detalle": "El director Sebastián Kanovich sigue vendiendo bajo un plan 10b5-1 de noviembre de 2025 (77.453 acciones a ~US$15,54 el 11/8/2026) y conserva 11.629.474 Clase B convertibles.",
+          "fecha": "2026-08-11",
+          "fuente": { "url": "https://www.stocktitan.net/sec-filings/DLO/", "titulo": "dLocal SEC filings — Form 4 del 11/8/2026" }
+        },
+        {
+          "tipo": "resultados",
+          "detalle": "La guía de ganancia operativa quedó mantenida en +27,5-32,5% con el Q2 2026 creciendo sólo 15% interanual y la dirección anticipando desaceleración del TPV en el segundo semestre.",
+          "fecha": "2026-08-13",
+          "fuente": { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-dlocal-tops-revenue-in-q2-2026-but-eps-misses-93CH-4859491", "titulo": "Earnings call transcript: DLocal tops revenue in Q2 2026 but EPS misses" }
+        }
+      ],
+      "fuentes": [
+        { "url": "https://www.stocktitan.net/sec-filings/DLO/", "titulo": "dLocal SEC filings julio-octubre 2026" },
+        { "url": "https://www.stocktitan.net/sec-filings/DLO/schedule-13d-a-d-local-ltd-amended-major-shareholder-report-b3294191bdb7.html", "titulo": "General Atlantic sells 9.8M dLocal shares, holds 21%" },
+        { "url": "https://www.investing.com/news/transcripts/earnings-call-transcript-dlocal-tops-revenue-in-q2-2026-but-eps-misses-93CH-4859491", "titulo": "Earnings call transcript: DLocal Q2 2026" },
+        { "url": "https://www.globenewswire.com/news-release/2026/08/13/3344936/0/en/dlocal-reports-second-quarter-2026-financial-results.html", "titulo": "dLocal Reports Second Quarter 2026 Financial Results" },
+        { "url": "https://stockanalysis.com/stocks/dlo/forecast/", "titulo": "DLocal (DLO) Stock Forecast & Analyst Price Targets" },
+        { "url": "https://www.marketbeat.com/instant-alerts/price-dlocal-nasdaq-dlo-shares-gap-up-heres-what-happened-2026-10-05/", "titulo": "DLocal (NASDAQ:DLO) Shares Gap Up (5/10/2026)" },
+        { "url": "https://www.globenewswire.com/news-release/2026/04/20/3276970/0/en/dlocal-limited-announces-dismissal-of-new-york-state-securities-class-action.html", "titulo": "dLocal Announces Dismissal of New York State Securities Class Action" },
+        { "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001846832&type=&dateb=&owner=include&count=40", "titulo": "EDGAR: presentaciones de dLocal Ltd" }
+      ],
+      "resumen": "Novedades de los últimos 30 días (7/9 al 7/10/2026): no encontré rebajas de analistas (el último movimiento es Truist manteniendo Compra con objetivo US$18 el 31/8/2026), ni investigaciones de organismos, sanciones, litigios con fecha, ofertas de acciones ni cambios de rating de deuda. Lo publicado es operativo: el 1/10/2026 dLocal anunció que provee pagos locales a usuarios de LinkedIn en Brasil, México, Colombia y Chile, y el 17/9/2026 publicó un estudio propio sobre medios de pago locales; el 5/10/2026 la acción subió 5,6% hasta US$14,52 sin noticia específica. Fuera de la ventana de 30 días pero nuevo para esta ficha: el 17/8/2026 General Atlantic DO B.V. vendió 9.842.559 acciones Clase A a US$13,60 promedio (~US$134 M) y todavía tiene el 21,4%, informado en el 13D/A del 19/8/2026; el director Kanovich vendió 1.000.000 de acciones a US$14,63 el 1/7/2026 y siguió vendiendo el 9/7 y el 11/8 bajo plan 10b5-1, con 11.629.474 Clase B remanentes. En los resultados del 13/8/2026 el margen bruto bajó a 32% desde 39%, la EPS quedó US$0,01 abajo del consenso y la guía de ganancia operativa se mantuvo en +27,5-32,5% pese a un Q2 de +15%, con desaceleración anticipada para el segundo semestre. La demanda colectiva de valores de Nueva York fue desestimada en apelación el 20/4/2026; el único artículo con alegaciones regulatorias en Argentina que encontré es de mayo de 2023 y la empresa lo rechazó entonces. Lo que vence en los próximos 6 meses: resultados del Q3 (estimados 11/11/2026, sin fecha anunciada), continuidad del programa de recompra de US$300 M, el vencimiento de la línea de US$150 M el 14/8/2029 y la implementación del Pilar Dos de la OCDE en 2027, que según la dirección presionará la tasa efectiva de impuestos."
+    },
+    {
+      "symbol": "MCY",
+      "fecha": "2026-10-07",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        {
+          "tipo": "regulacion",
+          "detalle": "California promulgó la Smoke Damage Recovery Act (AB 1795): presume que el daño por humo dentro del área afectada viene del incendio, obliga a pagar testeo y a sostener el ALE hasta que la casa sea habitable.",
+          "fecha": "2026-10-05",
+          "fuente": { "url": "https://www.insurancejournal.com/magazines/mag-features/2026/10/05/887576.htm", "titulo": "California Governor Signs Act to Create Smoke Damage Presumption" }
+        },
+        {
+          "tipo": "regulacion",
+          "detalle": "La Disaster Recovery Reform Act (SB 876), anunciada el 28/9/2026 y vigente desde el 1/1/2027, duplica las multas por prácticas de reclamos en emergencias declaradas e impone restitución directa al asegurado.",
+          "fecha": "2026-09-28",
+          "fuente": { "url": "https://www.insurance.ca.gov/0400-news/0100-press-releases/2026/release034-2026.cfm", "titulo": "Governor signs Commissioner Lara and Senator Padilla's Disaster Recovery Reform Act into law" }
+        },
+        {
+          "tipo": "capital",
+          "detalle": "El 13D del 30/9/2026 pone 19.573.858 acciones (35,3%) en manos de una única fiduciaria que se reserva por escrito vender total o parcialmente e impulsar fusión, take-private o cambios de dividendo.",
+          "fecha": "2026-09-30",
+          "fuente": { "url": "https://www.sec.gov/Archives/edgar/data/0000064996/000119312526409121/primary_doc.xml", "titulo": "MERCURY GENERAL CORP - Schedule 13D (30/9/2026)" }
+        },
+        {
+          "tipo": "analistas",
+          "detalle": "Zacks Research bajó MCY de strong-buy a hold el 3/10/2026 (rating cuantitativo); en el mismo período Raymond James reiteró strong-buy y subió el objetivo de USD 90 a USD 100 el 22/9/2026.",
+          "fecha": "2026-10-03",
+          "fuente": { "url": "https://www.marketbeat.com/stocks/NYSE/MCY/", "titulo": "Mercury General (MCY) Stock Price, News & Analysis" }
+        },
+        {
+          "tipo": "noticias",
+          "detalle": "El Bouquet Fire se detectó el 3/10/2026 en el condado de Los Ángeles y llegó a 1.048 acres con 40% de contención el 4/10, con evacuaciones vigentes cerca de Santa Clarita.",
+          "fecha": "2026-10-05",
+          "fuente": { "url": "https://watchers.news/2026/10/05/evacuation-orders-remain-near-santa-clarita-after-bouquet-fire-burns-424-ha-1-048-acres-in-los-angeles-county-california/", "titulo": "Evacuation orders remain near Santa Clarita after Bouquet Fire burns 1 048 acres in Los Angeles County, California" }
+        }
+      ],
+      "fuentes": [
+        { "url": "https://www.insurancejournal.com/magazines/mag-features/2026/10/05/887576.htm", "titulo": "California Governor Signs Act to Create Smoke Damage Presumption (AB 1795)" },
+        { "url": "https://laist.com/news/housing-homelessness/california-los-angeles-palisades-eaton-fires-smoke-damage-bills-signed-wildfire-insurance", "titulo": "California becomes first state to require insurers to clean smoke damage (AB 1642 y AB 1795; 13.000 reclamos por humo tras Palisades/Eaton)" },
+        { "url": "https://www.insurance.ca.gov/0400-news/0100-press-releases/2026/release034-2026.cfm", "titulo": "Disaster Recovery Reform Act (SB 876) — CDI, 28/9/2026, vigente 1/1/2027" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000064996/000119312526409121/primary_doc.xml", "titulo": "Schedule 13D de Mercury General, 30/9/2026" },
+        { "url": "https://www.stocktitan.net/sec-filings/MCY/schedule-13d-mercury-general-corp-major-shareholder-acquisition-5-c9c58b9ed5e4.html", "titulo": "Mercury General director reports 35.3% stake (detalle del Item 4 del 13D)" },
+        { "url": "https://www.marketbeat.com/stocks/NYSE/MCY/", "titulo": "MCY — historial de ratings: Zacks a hold 3/10/2026; Raymond James strong-buy PO USD 100 el 22/9/2026" },
+        { "url": "https://watchers.news/2026/10/05/evacuation-orders-remain-near-santa-clarita-after-bouquet-fire-burns-424-ha-1-048-acres-in-los-angeles-county-california/", "titulo": "Bouquet Fire, 1.048 acres, 40% contenido (5/10/2026)" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000064996/000119312526332781/d61051d8k.htm", "titulo": "MCY 8-K del 4/8/2026 — resultados del 2T26" },
+        { "url": "https://www.insurancebusinessmag.com/us/news/breaking-news/mercury-general-posts-improved-q2-ratio-despite-ongoing-wildfire-reserve-costs-585008.aspx", "titulo": "Mercury General posts improved Q2 ratio despite ongoing wildfire reserve costs" },
+        { "url": "https://news.ambest.com/PR/PressContent.aspx?altsrc=2&refnum=37061", "titulo": "AM Best revisa outlooks a estable y afirma FSR A (Excellent) — 24/2/2026" },
+        { "url": "https://www.businesswire.com/news/home/20260624194993/en/AM-Best-Assigns-Issue-Credit-Ratings-to-Mercury-General-Corporations-New-Senior-Unsecured-Notes", "titulo": "AM Best califica las nuevas notas: USD 525 M al 6,25% con vencimiento junio 2036 (24/6/2026)" },
+        { "url": "https://newsroom.mercuryinsurance.com/2017-03-01-Mercury-General-Corporation-Announces-Public-Offering-of-375-Million-of-4-400-Senior-Notes-due-2027", "titulo": "Notas originales: USD 375 M al 4,400%, vencimiento 15/3/2027" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000064996/000006499626000024/mcy-20260826.htm", "titulo": "8-K del 26/8/2026: fallece George Joseph, fundador y presidente del directorio; Gabriel Tirador asume la presidencia" },
+        { "url": "https://www.insurance.ca.gov/0400-news/0100-press-releases/2026/release019-2026.cfm", "titulo": "CDI acciona contra State Farm por manejo de reclamos de los incendios de LA (mayo 2026)" },
+        { "url": "https://www.sec.gov/Archives/edgar/data/0000064996/000006499626000020/mcy-20260630.htm", "titulo": "MCY 10-Q 2T26 (plan de tarifas de California aprobado en 12/2025 y vigente desde julio de 2026)" }
+      ],
+      "resumen": "Catástrofe activa o reciente: encontré un solo incendio en curso en su zona, el Bouquet Fire (condado de Los Ángeles, detectado 3/10/2026, 1.048 acres, 40% contenido al 4/10) más una alerta de calor extremo hasta el 8/10, chico frente a Palisades/Eaton y sin estimación de pérdidas aseguradas publicada. Lo que de verdad cambió en los últimos 30 días es regulatorio y es específico del riesgo que MCY ya tiene abierto: AB 1795 instala la presunción de que el daño por humo dentro del área afectada por un incendio proviene del incendio, obliga a pagar testeo y muestreo, permite al asegurado elegir su contratista y a sostener el ALE hasta que la casa sea habitable (hay 13.000 reclamos por humo de casas en pie de Palisades y Eaton); hay dos fechas publicadas que no pude reconciliar, Insurance Journal dice 5/10/2026 y LAist 15/9/2026. SB 876, vigente el 1/1/2027, duplica multas en emergencias declaradas, impone restitución directa a asegurados, exige planes de recuperación e informes de estado en 15 días, y mueve la cobertura de actualización a código al momento de reconstruir, lo que eleva la severidad futura; el CDI la describe como la mayor actualización de las leyes de reclamos de California en más de tres décadas. En capital, el 13D del 30/9/2026 pone el 35,3% del bloque de control en manos de Vicky Wai Yee Joueph, única fiduciaria del fideicomiso que recibió las acciones de George Joseph, que se reserva por escrito el derecho a vender total o parcialmente y a impulsar una fusión, un take-private o cambios en el dividendo, aunque declara que hoy no tiene planes. En analistas, la única baja de los últimos 30 días es cuantitativa (Zacks a hold el 3/10/2026) y conviven con una suba de objetivo de Raymond James a USD 100 el 22/9/2026. Contexto conocido y fuera de la ventana de 30 días: los ~USD 80 M de desarrollo adverso de Palisades/Eaton y ~USD 72 M de tormentas de 2026 informados con el 2T26 el 4/8/2026, compensados en parte por ~USD 35 M de desarrollo favorable en auto; AM Best devolvió el outlook a estable el 24/2/2026; en junio de 2026 emitió USD 525 M al 6,25% con vencimiento 2036 para repagar las notas de USD 375 M al 4,400% que vencían el 15/3/2027, con lo cual ese vencimiento queda cubierto pero sube el costo de interés; y el fundador George Joseph murió el 26/8/2026, con el CEO Gabriel Tirador asumiendo la presidencia del directorio. No hallé ninguna acción del CDI contra Mercury por manejo de reclamos: el examen con 398 violaciones es contra State Farm. No pude confirmar en fuente citable la fecha del 3T26 (aparece 27/10/2026 en buscadores), ni la fecha de vigencia de AB 1795 ni si aplica a los reclamos de Palisades y Eaton ya abiertos, ni el costo estimado de AB 1795 y SB 876 para Mercury, ni ventas efectivas del fideicomiso posteriores al 13D. No incluí comunicados de estudios de abogados."
+    }
+  ]
+}

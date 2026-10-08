@@ -1,0 +1,1451 @@
+{
+  "verificaciones": [
+    {
+      "symbol": "BLX",
+      "fecha": "2026-10-01",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-27",
+        "ventasVsConsenso": "Ingresos totales $98,9M en 2Q26 (+10% interanual, +19% trimestral); no encontre consenso de ingresos con fuente propia.",
+        "gananciaVsConsenso": "Ganancia $66,5M y EPS $1,77 en 2Q26 (+4% y +3% interanual), maximo historico; no encontre el consenso de EPS publicado.",
+        "extraordinarios": [],
+        "epsLimpia": 1.77,
+        "epsConsenso": null,
+        "guia": "no da guía"
+      },
+      "analistas": [],
+      "consensoObjetivo": 65.9,
+      "eventos": [
+        {
+          "fecha": "2026-09-08",
+          "tipo": "financiacion",
+          "titular": "Bladex coloco MXN 5.000 millones en cebures a 3 anos en Mexico, demanda 1,56x, a TIIE de Fondeo mas 58 pb"
+        },
+        {
+          "fecha": "2026-09-15",
+          "tipo": "operacion",
+          "titular": "Bladex estructuro y otorgo un prestamo senior de USD 1.000 millones a la Republica de Panama, el mayor de su historia"
+        }
+      ],
+      "valuacion": {
+        "texto": "Precio/valor libro 1,18x al 1/10/2026 contra 0,55x (cierre 2022) y 0,99x (cierre 2025); ROE 15,4% en 2Q26 contra 18,5% un ano antes.",
+        "metric": "precio/valor libro tangible (cierres de ejercicio de los ultimos 5 anos)",
+        "current": 1.18,
+        "min5y": 0.55,
+        "max5y": 0.99,
+        "growthAccelerating": false
+      },
+      "proximosResultados": "2026-10-27",
+      "reservas": [
+        {
+          "tipo": "banco",
+          "detalle": "Los creditos Etapa 3 subieron a $75,1M (0,5% de la cartera) desde $38,7M el trimestre previo y $18,7M un ano antes.",
+          "fuente": {
+            "url": "https://wclis01.bladex.com/uiodrupalfiles/2026-07/PR2Q26_Eng_Full%20Report.pdf",
+            "titulo": "Bladex 2Q26 Quarterly Financial Report, 27/7/2026, pag. 17-18"
+          }
+        },
+        {
+          "tipo": "banco",
+          "detalle": "La prevision total cubre 1,2 veces los creditos deteriorados al 30/6/2026, contra 2,9x el trimestre previo y 5,1x un ano antes.",
+          "fuente": {
+            "url": "https://wclis01.bladex.com/uiodrupalfiles/2026-07/PR2Q26_Eng_Full%20Report.pdf",
+            "titulo": "Bladex 2Q26 Quarterly Financial Report, Financial Snapshot pag. 6"
+          }
+        },
+        {
+          "tipo": "banco",
+          "detalle": "En 2Q26 castigo $28,2M de creditos deteriorados de dos clientes en Colombia (gas upstream y metales) y vendio parte de una petroquimica brasilena.",
+          "fuente": {
+            "url": "https://wclis01.bladex.com/uiodrupalfiles/2026-07/PR2Q26_Eng_Full%20Report.pdf",
+            "titulo": "Bladex 2Q26 Quarterly Financial Report, pag. 17"
+          }
+        },
+        {
+          "tipo": "valuacion",
+          "detalle": "Precio/valor libro 1,18x hoy, por encima de todos los cierres de ejercicio de los ultimos 5 anos: 0,55x en 2022 y 0,99x en 2025.",
+          "fuente": {
+            "url": "https://stockanalysis.com/stocks/blx/financials/ratios/",
+            "titulo": "Bladex (BLX) Financial Ratios, stockanalysis.com, consultado 1/10/2026"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "El margen de interes cayo a 2,24% en 2Q26 desde 2,36% un ano antes, por exceso de liquidez y competencia por activos de calidad.",
+          "fuente": {
+            "url": "https://wclis01.bladex.com/uiodrupalfiles/2026-07/PR2Q26_Eng_Full%20Report.pdf",
+            "titulo": "Bladex 2Q26 Quarterly Financial Report, pag. 4 y 6"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "Prestamo de USD 1.000M a Panama el 15/9/2026 frente a un patrimonio total de $1.757M; el comunicado no dice cuanto retiene el banco.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/890541/000162828026062304/a6kotroscomunicadosdeprens.htm",
+            "titulo": "Bladex 6-K: Bladex Structures USD 1.0 Billion Loan for the Republic of Panama, 16/9/2026"
+          }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        {
+          "dato": "ganancia_limpia",
+          "detalle": "No encontre el consenso de EPS del 2Q26 con fuente; el informe no separa items no recurrentes, el EPS reportado es $1,77."
+        },
+        {
+          "dato": "banco_inmobiliario",
+          "detalle": "El informe 2Q26 no desglosa exposicion a inmobiliario comercial sobre capital; la cartera se describe como de comercio exterior."
+        },
+        {
+          "dato": "otro",
+          "detalle": "No encontre acciones de analistas con firma y fecha en los ultimos 90 dias; solo el consenso agregado de 4 analistas."
+        },
+        {
+          "dato": "otro",
+          "detalle": "No encontre el consenso de ingresos del trimestre con URL propia."
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://wclis01.bladex.com/uiodrupalfiles/2026-07/PR2Q26_Eng_Full%20Report.pdf",
+          "titulo": "Bladex 2Q26 Quarterly Financial Report, 27/7/2026"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000890541&type=4&dateb=&owner=include&count=20",
+          "titulo": "EDGAR: listado de Form 4 de Bladex, Inc. (CIK 890541)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/890541/000089054126000011/form4.xml",
+          "titulo": "Form 4 Bladex: Annette Marie Van Hoorde (CFO), compra 1.454 acciones a $55,00 el 28/8/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/890541/000089054126000009/form4.xml",
+          "titulo": "Form 4 Bladex: Alejandro Horacio Tizzoni (Chief Risk Officer), compra 1.850 acciones a $53,00 el 21/8/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/890541/000162828026062304/a6kotroscomunicadosdeprens.htm",
+          "titulo": "Bladex 6-K: prestamo de USD 1.000 millones a Panama, 16/9/2026"
+        },
+        {
+          "url": "https://www.stocktitan.net/news/BLX/",
+          "titulo": "Bladex (BLX) Stock News, stocktitan.net, consultado 1/10/2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/blx/statistics/",
+          "titulo": "Bladex (BLX) Statistics & Valuation, stockanalysis.com, 1/10/2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/blx/forecast/",
+          "titulo": "Bladex (BLX) Stock Forecast & Price Targets, stockanalysis.com, 1/10/2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/blx/financials/ratios/",
+          "titulo": "Bladex (BLX) Financial Ratios por ejercicio, stockanalysis.com"
+        },
+        {
+          "url": "https://www.fxempire.com/stocks/blx/earnings",
+          "titulo": "Bladex (BLX) Earnings Reports & Dates, fxempire.com"
+        }
+      ],
+      "resumen": "Bladex publico el 27/7/2026 su 2Q26 (IFRS, 6-K): ganancia record de $66,5M y EPS $1,77 (+4% y +3% interanual), ingresos totales $98,9M (+10%), margen de interes 2,24% contra 2,36% un ano antes, eficiencia 24,1% y ROE 15,4% contra 18,5%. La cartera de credito llego a $14.466M (+19%) y los depositos a $7.890M (+22%), 64% del fondeo total. El punto flojo es la calidad: los creditos Etapa 3 pasaron a $75,1M (0,5% de la cartera) desde $38,7M en 1Q26 y $18,7M en 2Q25, la cobertura cayo a 1,2 veces desde 5,1x, y en el trimestre castigo $28,2M de dos clientes colombianos (gas upstream y metales) ademas de vender parte de una exposicion petroquimica en Brasil; el cargo por deterioro del trimestre fue $8,6M contra $5,0M un ano antes. Capital Tier 1 Basilea III 16,6% e indice de adecuacion 14,3%. Insiders: el 21/8/2026 el Chief Risk Officer compro 1.850 acciones a $53,00 y el 28/8/2026 la CFO compro 1.454 acciones a $55,00, ambas compras marcadas P (Form 4 en EDGAR). Hechos de los ultimos 90 dias: colocacion de MXN 5.000 millones a 3 anos en Mexico el 8/9/2026 (demanda 1,56x) y un prestamo senior de USD 1.000 millones a la Republica de Panama anunciado el 15-16/9/2026, el mayor que estructuro, sin informar cuanto retiene frente a un patrimonio de $1.757M. No hubo ofertas de acciones en el periodo. Valuacion: precio/valor libro 1,18x al 1/10/2026 (precio $54,32, valor libro por accion $46,74), por encima de los cierres de ejercicio de los ultimos 5 anos (0,55x en 2022, 0,99x en 2025); P/E 8,97x y rendimiento por dividendo 5,06% con dividendo trimestral de $0,6875. Consenso de 4 analistas: objetivo $65,9 (rango $57-$73). Proximos resultados estimados entre el 26 y el 27/10/2026. No encontre consenso de EPS ni de ingresos del trimestre, ni acciones de analistas fechadas en 90 dias, ni desglose de inmobiliario comercial."
+    },
+    {
+      "symbol": "IOSP",
+      "fecha": "2026-10-01",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-04",
+        "ventasVsConsenso": "Ingresos $491,4M (+12% desde $439,7M un ano antes), por encima del consenso de $461,7M, unos $29,7M o 6,4% mas.",
+        "gananciaVsConsenso": "EPS ajustado $1,27 contra consenso de $1,05 (+21%); EPS GAAP $1,25 contra $0,94 un ano antes.",
+        "extraordinarios": [
+          {
+            "detalle": "Ganancia por diferencias de cambio que se resta del resultado ajustado, -$0,04 por accion",
+            "montoUsd": 900000
+          },
+          {
+            "detalle": "Amortizacion de intangibles adquiridos, +$0,03 por accion",
+            "montoUsd": 800000
+          },
+          {
+            "detalle": "Costos de cierre de operaciones heredadas, +$0,03 por accion",
+            "montoUsd": 700000
+          },
+          {
+            "detalle": "Ajuste de contraprestacion contingente, sin efecto por accion",
+            "montoUsd": 100000
+          },
+          {
+            "detalle": "Partidas impositivas, +$0,02 por accion",
+            "montoUsd": 700000
+          }
+        ],
+        "epsLimpia": 1.27,
+        "epsConsenso": 1.05,
+        "guia": "Guia cualitativa del 4/8/2026: la direccion espera mejora adicional en los tres segmentos en el segundo semestre de 2026 y mayor flujo de caja operativo; sin cifras."
+      },
+      "analistas": [
+        {
+          "fecha": "2026-08-06",
+          "firma": "Seaport Research Partners",
+          "accion": "mantiene compra y sube el objetivo de $105 a $110",
+          "objetivo": 110
+        },
+        {
+          "fecha": "2026-08-06",
+          "firma": "Weiss Ratings",
+          "accion": "sube de mantener (C-) a mantener (C)",
+          "objetivo": null
+        },
+        {
+          "fecha": "2026-09-26",
+          "firma": "Wall Street Zen",
+          "accion": "baja de compra fuerte a compra",
+          "objetivo": null
+        }
+      ],
+      "consensoObjetivo": 101,
+      "eventos": [],
+      "valuacion": {
+        "texto": "P/E adelantado 16,59x al 1/10/2026, entre 14,51x (cierre 2025) y 19,21x (cierre 2023) de los ultimos 5 cierres de ejercicio; ingresos +12% y EPS ajustado plano.",
+        "metric": "P/E adelantado (cierres de ejercicio de los ultimos 5 anos)",
+        "current": 16.59,
+        "min5y": 14.51,
+        "max5y": 19.21,
+        "growthAccelerating": null
+      },
+      "proximosResultados": "2026-11-03",
+      "reservas": [
+        {
+          "tipo": "un_analista",
+          "detalle": "El objetivo de consenso de $101 sale de 3 analistas y el unico objetivo con firma y fecha es Seaport Research Partners, $110 el 6/8/2026.",
+          "fuente": {
+            "url": "https://stockanalysis.com/stocks/iosp/forecast/",
+            "titulo": "Innospec (IOSP) Stock Forecast & Price Targets, stockanalysis.com, 1/10/2026"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "El EPS ajustado del 2Q26 fue $1,27 contra $1,26 un ano antes: plano pese a ingresos +12%, con Fuel Specialties +3% de resultado operativo.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001054905/000119312526333724/iosp-ex99_1.htm",
+            "titulo": "Innospec 8-K exhibit 99.1, Second Quarter 2026 Financial Results, 4-5/8/2026"
+          }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        {
+          "dato": "regulatorio",
+          "detalle": "No encontre riesgos regulatorios, de licencias ni litigios materiales nuevos para Innospec en los ultimos 90 dias."
+        },
+        {
+          "dato": "otro",
+          "detalle": "No hay Form 4 de Innospec en EDGAR posteriores a marzo de 2026, asi que no hay movimientos de insiders en los ultimos 90 dias."
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001054905/000119312526333724/iosp-ex99_1.htm",
+          "titulo": "Innospec 8-K exhibit 99.1: Innospec Reports Second Quarter 2026 Financial Results"
+        },
+        {
+          "url": "https://investors.innospec.com/news-releases/news-release-details/innospec-reports-second-quarter-2026-financial-results",
+          "titulo": "Innospec Reports Second Quarter 2026 Financial Results, 4/8/2026"
+        },
+        {
+          "url": "https://www.globenewswire.com/news-release/2026/08/04/3338883/0/en/innospec-reports-second-quarter-2026-financial-results.html",
+          "titulo": "GlobeNewswire: Innospec Reports Second Quarter 2026 Financial Results, 4/8/2026"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001054905&type=8-K&dateb=&owner=include&count=20",
+          "titulo": "EDGAR: 8-K de Innospec Inc. en 2026 (CIK 1054905)"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=IOSP&type=4&dateb=&owner=include&count=40",
+          "titulo": "EDGAR: Form 4 de Innospec Inc., sin presentaciones posteriores a marzo de 2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/iosp/statistics/",
+          "titulo": "Innospec (IOSP) Statistics & Valuation, stockanalysis.com, 1/10/2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/iosp/forecast/",
+          "titulo": "Innospec (IOSP) Stock Forecast & Price Targets, stockanalysis.com, 1/10/2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/iosp/financials/ratios/",
+          "titulo": "Innospec (IOSP) Financial Ratios por ejercicio, stockanalysis.com"
+        },
+        {
+          "url": "https://www.marketbeat.com/instant-alerts/analyst-wall-street-zen-downgrades-innospec-nasdaq-iosp-to-buy-2026-09-26/",
+          "titulo": "Wall Street Zen Downgrades Innospec (NASDAQ:IOSP) to Buy, 26/9/2026"
+        },
+        {
+          "url": "https://www.stocktitan.net/news/IOSP/",
+          "titulo": "Innospec (IOSP) Stock News, stocktitan.net, consultado 1/10/2026"
+        }
+      ],
+      "resumen": "Innospec publico el 4/8/2026 (8-K del 5/8/2026 con exhibit 99.1) su 2Q26: ingresos $491,4M, +12% desde $439,7M, por encima del consenso de $461,7M; ganancia neta $30,8M y EPS GAAP $1,25 contra $23,5M y $0,94 un ano antes; EPS ajustado $1,27 contra consenso de $1,05, es decir 21% arriba, pero practicamente igual a los $1,26 de un ano antes. Los tres segmentos crecieron: Performance Chemicals $190,3M (+9%) con resultado operativo $16,4M (+15%), Fuel Specialties $185,7M (+12%) con $36,3M (+3%) y Oilfield Services $115,4M (+14%) con $8,7M (+40%). Los ajustes entre GAAP y ajustado son chicos: ganancia cambiaria de $0,9M que resta $0,04 por accion, amortizacion de intangibles adquiridos $0,8M (+$0,03), costos de cierre de operaciones heredadas $0,7M (+$0,03), contraprestacion contingente $0,1M y partidas impositivas $0,7M (+$0,02); ninguno explica el resultado. Balance con caja neta de $250,2M y sin deuda, dividendo semestral de $0,92 por accion y $6,4M de recompras en el trimestre. No da guia numerica: la direccion solo espera mejora adicional en el segundo semestre de 2026 y mayor flujo operativo. Analistas de los ultimos 90 dias: Seaport Research Partners mantuvo compra y subio el objetivo de $105 a $110 el 6/8/2026, Weiss Ratings subio de C- a C el 6/8/2026 y Wall Street Zen bajo de compra fuerte a compra el 26/9/2026; el consenso es de apenas 3 analistas con objetivo $101 (rango $93-$110) contra un precio de $94,55. Valuacion: P/E adelantado 16,59x, dentro del rango de los ultimos 5 cierres de ejercicio (14,51x en 2025, 19,21x en 2023); P/E corriente 19,35x, precio/libro 1,75x, capitalizacion $2,33B, rendimiento por dividendo 1,94% y suba de 22,9% en 52 semanas. No hubo hechos regulatorios, adquisiciones, ofertas de acciones ni cambios de CEO/CFO en los ultimos 90 dias (el unico 8-K no financiero del ano, del 4/6/2026, sumo a Shelley Bausch al directorio desde el 1/7/2026). Sin Form 4 posteriores a marzo de 2026. Proximos resultados: martes 3/11/2026 despues del cierre."
+    },
+    {
+      "symbol": "VIR",
+      "fecha": "2026-10-01",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-05",
+        "ventasVsConsenso": "Ingresos 238,9 M USD contra 218,6 M de consenso y 1,2 M un ano antes; el 100% es el pago inicial de Astellas",
+        "gananciaVsConsenso": "EPS diluido GAAP 0,47 contra 0,34 de consenso; ganancia neta 80,1 M contra perdida de 111,0 M un ano antes",
+        "extraordinarios": [
+          {
+            "detalle": "Pago inicial de Astellas por VIR-5500: 240 M USD cobrados, 238,9 M reconocidos como ingreso de licencia en el 2T26",
+            "montoUsd": 238935000
+          },
+          {
+            "detalle": "Pago pasante a Sanofi disparado por el cierre de Astellas, cargado a I+D del 2T26",
+            "montoUsd": -48000000
+          },
+          {
+            "detalle": "Astellas compro 7.239.382 acciones por ~75 M USD al cierre (no pasa por resultados)",
+            "montoUsd": 75000000
+          }
+        ],
+        "epsLimpia": -0.65,
+        "epsConsenso": 0.34,
+        "guia": "no da guia de ingresos ni ganancias; solo dice que los 1,01 MM USD de caja e inversiones financian las operaciones hasta el 2S28"
+      },
+      "analistas": [
+        {
+          "fecha": "2026-09-30",
+          "firma": "Leerink Partners",
+          "accion": "reitera Buy",
+          "objetivo": 17
+        },
+        {
+          "fecha": "2026-09-28",
+          "firma": "Raymond James",
+          "accion": "reitera Strong Buy",
+          "objetivo": 19
+        },
+        {
+          "fecha": "2026-09-28",
+          "firma": "Needham",
+          "accion": "mantiene Buy",
+          "objetivo": 18
+        },
+        {
+          "fecha": "2026-09-21",
+          "firma": "H.C. Wainwright",
+          "accion": "mantiene Buy",
+          "objetivo": 20
+        },
+        {
+          "fecha": "2026-08-07",
+          "firma": "Bank of America",
+          "accion": "reitera Buy",
+          "objetivo": 15
+        },
+        {
+          "fecha": "2026-08-06",
+          "firma": "Evercore ISI",
+          "accion": "mantiene Buy",
+          "objetivo": 22
+        }
+      ],
+      "consensoObjetivo": 20.78,
+      "eventos": [
+        {
+          "fecha": "2026-07-24",
+          "tipo": "cambio_cfo",
+          "titular": "Jason O'Byrne avisa el 20/7 que deja de ser EVP y CFO desde el 3/8/2026; Brent Sabatini queda interino"
+        },
+        {
+          "fecha": "2026-10-01",
+          "tipo": "cambio_cfo",
+          "titular": "Aziz Sawaf designado EVP y CFO desde el 5/10/2026; sueldo base 520.000 USD y bono de ingreso de 150.000"
+        },
+        {
+          "fecha": "2026-09-17",
+          "tipo": "venta_insider",
+          "titular": "Form 144 del ex-CFO O'Byrne por 19.357 acciones (212.927 USD); cuarta de cuatro ventas desde el 21/8/2026"
+        },
+        {
+          "fecha": "2026-09-28",
+          "tipo": "clinico",
+          "titular": "La compania sigue apuntando al dato principal del Fase 3 ECLIPSE 1 en hepatitis delta para el 4T26, sin fecha"
+        }
+      ],
+      "valuacion": {
+        "texto": "No tiene P/E: pierde dinero (EPS ultimos 12 meses -1,70). Precio 11,45 USD el 1/10/2026, capitalizacion 1,94 MM, rango 52 semanas 4,82-11,94",
+        "metric": "P/E adelantado",
+        "current": null,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": null
+      },
+      "proximosResultados": "2026-11-04",
+      "reservas": [
+        {
+          "tipo": "extraordinarios",
+          "detalle": "Los 238,9 M USD de ingresos del 2T26 son el pago inicial de Astellas; sin el quedan 11 mil USD de ingresos por subsidios",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001706431/000162828026053351/a20260805-q2ex991earningsr.htm",
+            "titulo": "Vir Biotechnology 8-K exhibit 99.1, resultados 2T26 (5/8/2026)"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "El dato principal del registracional ECLIPSE 1 llega en el 4T26 sin fecha fija y concentra el valor del programa de hepatitis delta",
+          "fuente": {
+            "url": "https://www.biospace.com/press-releases/vir-biotechnology-provides-corporate-update-and-reports-second-quarter-2026-financial-results",
+            "titulo": "Vir Biotechnology, actualizacion corporativa y resultados 2T26 (5/8/2026)"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "Dos CFO en 90 dias: O'Byrne se fue el 3/8/2026 y Sawaf asume el 5/10/2026, con un interino en el medio",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001706431/000162828026049499/vir-20260720.htm",
+            "titulo": "Vir Biotechnology 8-K del 24/7/2026, renuncia del CFO"
+          }
+        }
+      ],
+      "evitar": [
+        {
+          "motivo": "item_unico",
+          "detalle": "La ganancia de 80,1 M USD es el pago de Astellas: sin ese ingreso y sin el pasante de 48 M a Sanofi el 2T26 da -110,9 M, EPS -0,65",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001706431/000162828026053351/a20260805-q2ex991earningsr.htm",
+            "titulo": "Vir Biotechnology 8-K exhibit 99.1, resultados 2T26 (5/8/2026)"
+          }
+        }
+      ],
+      "faltantes": [
+        {
+          "dato": "otro",
+          "detalle": "No hay P/E adelantado ni rango de 5 anos: la empresa pierde dinero (EPS 12 meses -1,70) y no publica guia de ganancias"
+        },
+        {
+          "dato": "otro",
+          "detalle": "No encontre fecha concreta del dato de ECLIPSE 1: la compania solo dice '4T26'"
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001706431/000162828026053351/a20260805-q2ex991earningsr.htm",
+          "titulo": "Vir Biotechnology 8-K exhibit 99.1, resultados 2T26 (5/8/2026)"
+        },
+        {
+          "url": "https://www.biospace.com/press-releases/vir-biotechnology-provides-corporate-update-and-reports-second-quarter-2026-financial-results",
+          "titulo": "Vir Biotechnology, actualizacion corporativa y resultados 2T26"
+        },
+        {
+          "url": "https://www.quiverquant.com/news/Vir+Biotechnology+(VIR)+Releases+Q2+2026+Earnings:+Revenue+and+EPS+Beat+Estimates",
+          "titulo": "Quiver Quant: VIR 2T26 ingresos 238,9 M vs 218,6 M y EPS 0,47 vs 0,34"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001706431/000162828026049499/vir-20260720.htm",
+          "titulo": "Vir Biotechnology 8-K del 24/7/2026, salida del CFO Jason O'Byrne"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001706431/000162828026064117/vir-20261001.htm",
+          "titulo": "Vir Biotechnology 8-K del 1/10/2026, designacion de Aziz Sawaf como CFO"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1706431/000195917326007020/primary_doc.xml",
+          "titulo": "Form 144 de Jason V. O'Byrne, 17/9/2026, 19.357 acciones"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1706431/000162828026056108/wk-form4_1786559443.xml",
+          "titulo": "Form 4 de Robert J. More, 12/8/2026 (transferencia entre entidades, sin venta al mercado)"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001706431&type=&dateb=&owner=include&count=60",
+          "titulo": "EDGAR: listado de presentaciones de Vir Biotechnology (sin S-3 ni 424B entre julio y octubre 2026)"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/vir/",
+          "titulo": "StockAnalysis VIR: precio 11,45, EPS 12m -1,70, proximos resultados 4/11/2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/vir/forecast/",
+          "titulo": "StockAnalysis VIR: objetivo promedio 20,78 con 10 analistas y ultimas acciones"
+        },
+        {
+          "url": "https://investors.vir.bio/news/news-details/2026/Vir-Biotechnology-Announces-Closing-of-Global-Strategic-Collaboration-with-Astellas-for-the-Treatment-of-Prostate-Cancer/default.aspx",
+          "titulo": "Vir anuncia el cierre de la colaboracion con Astellas (15/4/2026)"
+        },
+        {
+          "url": "https://www.ad-hoc-news.de/boerse/news/nebenwerte/raymond-james-reiterates-usd-19-00-target-for-vir-biotechnology-stock/70209679",
+          "titulo": "Raymond James reitera objetivo de 19 USD para VIR (28/9/2026)"
+        }
+      ],
+      "resumen": "VIR reporto el 2T26 el 5/8/2026: ingresos 238,9 M USD contra 218,6 M de consenso y ganancia de 80,1 M (EPS 0,47 contra 0,34). Todo el ingreso es el pago inicial de 240 M USD de Astellas por VIR-5500, cerrado el 15/4/2026, del que se reconocieron 238,9 M en el trimestre; los ingresos recurrentes del trimestre fueron 11 mil USD de subsidios. Contra ese ingreso hubo un pasante unico de 48 M USD a Sanofi dentro de I+D. Sacando los dos items, el trimestre da -110,9 M USD, es decir EPS de -0,65 (calculado sobre las ~170,4 M de acciones diluidas que surgen de 80,08/0,47); la empresa no publico EPS ajustado. Caja e inversiones 1,01 MM USD al 30/6/2026, alcanza hasta el 2S28; no da guia de ingresos ni de ganancias. No hubo ofertas de acciones entre julio y octubre de 2026 (EDGAR no muestra S-3 ni 424B); la unica entrada de capital fue la compra de 7.239.382 acciones por Astellas por ~75 M USD al cierre de abril. Insiders: un solo Form 4 en 90 dias (Robert J. More, 12/8/2026, transferencia de 8.000 acciones a un fondo afiliado, sin venta) y cuatro Form 144 del ex-CFO Jason O'Byrne entre el 21/8 y el 17/9/2026 por unas 91.233 acciones y ~945 mil USD, todas de RSU ya vestidas; monto chico y de un ex-funcionario. Hubo dos cambios de CFO en el trimestre: O'Byrne salio el 3/8/2026 y Aziz Sawaf asume el 5/10/2026. Seis casas cubrieron en los ultimos 90 dias, todas comprar, con objetivos de 15 a 22 y consenso de 20,78 contra un precio de 11,45 el 1/10/2026, asi que el precio esta muy por debajo del consenso. El dato principal del Fase 3 ECLIPSE 1 en hepatitis delta se espera en el 4T26 sin fecha publicada, y ECLIPSE 2 y 3 en el 1T27. No tiene P/E porque pierde dinero (EPS 12 meses -1,70). Proximos resultados el 4/11/2026."
+    },
+    {
+      "symbol": "MEDP",
+      "fecha": "2026-10-01",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-22",
+        "ventasVsConsenso": "Ingresos 707,3 M USD contra 690,7 M de consenso (+2,4%) y +17,2% interanual desde 603,3 M",
+        "gananciaVsConsenso": "EPS diluido GAAP 4,25 contra 4,08 de consenso Zacks; ganancia neta 121,4 M contra 90,3 M un ano antes",
+        "extraordinarios": [],
+        "epsLimpia": 4.25,
+        "epsConsenso": 4.08,
+        "guia": "subida: ingresos 2,805-2,885 MM USD (antes 2,755-2,855), EPS 17,25-17,95 (antes 16,68-17,50), EBITDA 618-642 M y tasa 19,0-19,5%"
+      },
+      "analistas": [
+        {
+          "fecha": "2026-09-30",
+          "firma": "UBS",
+          "accion": "sube de Sell a Neutral",
+          "objetivo": 673
+        },
+        {
+          "fecha": "2026-09-23",
+          "firma": "Argus",
+          "accion": "sube objetivo",
+          "objetivo": 693
+        },
+        {
+          "fecha": "2026-09-17",
+          "firma": "Truist Financial",
+          "accion": "mantiene Hold",
+          "objetivo": null
+        },
+        {
+          "fecha": "2026-09-14",
+          "firma": "Jefferies",
+          "accion": "mantiene Hold",
+          "objetivo": 560
+        },
+        {
+          "fecha": "2026-07-29",
+          "firma": "Mizuho Securities",
+          "accion": "mantiene Buy",
+          "objetivo": 665
+        },
+        {
+          "fecha": "2026-07-28",
+          "firma": "BMO Capital",
+          "accion": "mantiene Hold",
+          "objetivo": 600
+        }
+      ],
+      "consensoObjetivo": 589.92,
+      "eventos": [
+        {
+          "fecha": "2026-09-28",
+          "tipo": "insiders",
+          "titular": "13D/A: Troendle vendio con ordenes limite entre el 10/8 y el 25/9/2026 entre 600 y 638 USD; queda con 19,1% de la clase"
+        },
+        {
+          "fecha": "2026-07-22",
+          "tipo": "litigio",
+          "titular": "El 10-Q informa la demanda de accionistas Durbin (6/4/2026) y la derivada Bushansky (22/6/2026) por el book-to-bill, sin pasivo reconocido"
+        },
+        {
+          "fecha": "2026-09-22",
+          "tipo": "calendario",
+          "titular": "Medpace anuncia que reporta el 3T26 el 21/10/2026 despues del cierre, con llamada el 22/10"
+        }
+      ],
+      "valuacion": {
+        "texto": "P/E adelantado 33,11 contra un rango de 23,16 (1T23) a 42,23 (4T21) en 5 anos: zona media-alta, no extremo. P/E 12 meses 35,53 y precio/ventas 6,21",
+        "metric": "P/E adelantado",
+        "current": 33.11,
+        "min5y": 23.16,
+        "max5y": 42.23,
+        "growthAccelerating": false
+      },
+      "proximosResultados": "2026-10-21",
+      "reservas": [
+        {
+          "tipo": "insiders",
+          "detalle": "Troendle, fundador y CEO, vendio con ordenes limite del 10/8 al 25/9/2026 entre 600 y 638 USD; el 21 y 22/9 solo, 70.901 acciones por ~44,4 M USD",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000119312526405684/primary_doc.xml",
+            "titulo": "Medpace Schedule 13D/A del 28/9/2026 (August J. Troendle)"
+          }
+        },
+        {
+          "tipo": "demanda",
+          "detalle": "Demanda de accionistas Durbin c. Medpace 1:26-cv-00346 (S.D. Ohio, 6/4/2026) y derivada Bushansky 1:26-cv-617, ambas abiertas y sin pasivo reconocido",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000166839726000025/medp-20260630.htm",
+            "titulo": "Medpace 10-Q al 30/6/2026, nota de contingencias"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "El precio de 608,11 USD del 1/10/2026 esta 3,0% arriba del objetivo de consenso de 589,92 de 14 analistas, con recomendacion media Hold",
+          "fuente": {
+            "url": "https://stockanalysis.com/stocks/medp/forecast/",
+            "titulo": "StockAnalysis MEDP: objetivo promedio 589,92 y consenso Hold"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "El crecimiento de ingresos desacelera: +26,5% interanual en el 1T26 (706,6 M) y +17,2% en el 2T26 (707,3 M), con ingresos planos trimestre a trimestre",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000166839726000017/medp-20260422exx991.htm",
+            "titulo": "Medpace 8-K exhibit 99.1, resultados 1T26 (22/4/2026)"
+          }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        {
+          "dato": "otro",
+          "detalle": "El consenso de EPS del 2T26 varia por fuente: Zacks 4,08 y otros proveedores 3,97-3,98; use el de Zacks"
+        },
+        {
+          "dato": "otro",
+          "detalle": "No encontre el estado procesal exacto (si hay mocion de desestimacion pendiente) de las demandas Durbin y Bushansky mas alla de lo que dice el 10-Q"
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000166839726000023/medp-2026722exx991.htm",
+          "titulo": "Medpace 8-K exhibit 99.1, resultados 2T26 (22/7/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000166839726000017/medp-20260422exx991.htm",
+          "titulo": "Medpace 8-K exhibit 99.1, resultados 1T26 (22/4/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000166839726000025/medp-20260630.htm",
+          "titulo": "Medpace 10-Q al 30/6/2026 (contingencias, deuda cero)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000119312526405684/primary_doc.xml",
+          "titulo": "Medpace Schedule 13D/A del 28/9/2026, ventas de August J. Troendle"
+        },
+        {
+          "url": "https://finance.yahoo.com/markets/stocks/articles/medpace-medp-beats-q2-earnings-215507170.html",
+          "titulo": "Zacks: Medpace supera el 2T26 con 4,25 contra 4,08 de consenso"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/medp/",
+          "titulo": "StockAnalysis MEDP: precio 608,11, P/E 35,53, P/E adelantado 33,11"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/medp/statistics/",
+          "titulo": "StockAnalysis MEDP estadisticas: variacion 52 semanas +19,51%, interes corto 6,04%"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/medp/financials/ratios/?p=quarterly",
+          "titulo": "StockAnalysis MEDP: serie trimestral de P/E y P/E adelantado 2021-2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/medp/forecast/",
+          "titulo": "StockAnalysis MEDP: objetivo promedio 589,92, consenso Hold, acciones de analistas"
+        },
+        {
+          "url": "https://www.gurufocus.com/news/9103877/medp-upgraded-by-ubs-price-target-raised-to-673",
+          "titulo": "UBS sube MEDP de Sell a Neutral con objetivo 673 (30/9/2026)"
+        },
+        {
+          "url": "https://www.businesswire.com/news/home/20260424518209/en/MEDP-Class-Action-Medpace-Sued-for-Securities-Fraud-After-Cancellation-Rates-Lead-to-16-Stock-Drop",
+          "titulo": "Demanda colectiva Durbin c. Medpace 1:26-cv-00346, clase 22/4/2025-9/2/2026"
+        },
+        {
+          "url": "https://investor.medpace.com/news-releases/news-release-details/medpace-holdings-inc-report-third-quarter-2026-financial-results",
+          "titulo": "Medpace reportara el 3T26 el 21/10/2026"
+        },
+        {
+          "url": "https://www.marketbeat.com/instant-alerts/insider-medpace-nasdaq-medp-stock-insider-august-troendle-sells-27833-shares-2026-09-25/",
+          "titulo": "MarketBeat: Troendle vende 27.833 acciones a 621,33 el 24/9/2026"
+        }
+      ],
+      "resumen": "MEDP reporto el 2T26 el 22/7/2026: ingresos 707,3 M USD (+17,2%, contra 690,7 M de consenso) y EPS diluido GAAP 4,25 contra 4,08 de consenso Zacks, con ganancia neta de 121,4 M. El 10-Q al 30/6/2026 no identifica items no recurrentes y la empresa no tiene deuda (revolving de 10 M sin usar); recompro 705.616 acciones por 294,7 M en el trimestre, con 527 M de autorizacion restante. Subio la guia 2026: ingresos a 2,805-2,885 MM (antes 2,755-2,855), EPS a 17,25-17,95 (antes 16,68-17,50) y EBITDA a 618-642 M. Las nuevas ordenes netas crecieron 28,2% a 795,7 M con book-to-bill de 1,13x y backlog de 3.014,2 M (+4,9%), pero el crecimiento de ingresos desacelera: +26,5% en el 1T26 contra +17,2% en el 2T26. Insiders: el 13D/A del 28/9/2026 muestra que August Troendle, fundador y CEO, vendio con ordenes limite del 10/8 al 25/9/2026 entre 600 y 638 USD por accion, incluidas 70.901 acciones por ~44,4 M USD el 21 y 22/9; le quedan 389.302 directas mas 4.733.019 via Medpace Investors, 19,1% de la clase. Son acciones que ya tenia, no ejercicio de opciones. Litigios: demanda de accionistas Durbin c. Medpace 1:26-cv-00346 (S.D. Ohio, presentada el 6/4/2026, clase 22/4/2025-9/2/2026) por los dichos sobre el book-to-bill, y derivada Bushansky 1:26-cv-617 del 22/6/2026; el 10-Q dice que no reconocio pasivo porque la perdida no es probable ni estimable. Analistas en 90 dias: UBS subio de Sell a Neutral con 673 el 30/9, Argus a 693 el 23/9, Jefferies mantuvo Hold con 560 el 14/9, Truist Hold el 17/9, Mizuho Buy 665 el 29/7 y BMO Hold 600 el 28/7; el consenso de 14 analistas es Hold con objetivo 589,92, debajo del precio de 608,11 del 1/10/2026. En 52 semanas el papel subio 19,51%, menos del 50%. Valuacion: P/E adelantado 33,11 contra un rango de 5 anos de 23,16 (1T23) a 42,23 (4T21). Interes corto 6,04% de las acciones. Proximos resultados el 21/10/2026 despues del cierre."
+    },
+    {
+      "symbol": "AUPH",
+      "fecha": "2026-10-01",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-06",
+        "ventasVsConsenso": "Ingresos totales USD 83,2 M vs 80,45 M esperados (+2,77 M), +19% interanual; ventas netas de LUPKYNIS USD 79,4 M (+19%).",
+        "gananciaVsConsenso": "EPS diluido USD 0,28 vs 0,24 esperado (+0,04); utilidad neta USD 37,4 M vs 21,5 M del 2T25.",
+        "extraordinarios": [
+          {
+            "detalle": "Ganancia por tipo de cambio en la revaluación del leasing financiero Monoplant (inmaterial: ~0,007 por acción).",
+            "montoUsd": 977000
+          }
+        ],
+        "epsLimpia": 0.28,
+        "epsConsenso": 0.24,
+        "guia": "Reiterada: ingresos totales 2026 de USD 315-325 M (+11-15%) y ventas netas de LUPKYNIS de USD 305-315 M (+12-16%)."
+      },
+      "analistas": [
+        {
+          "fecha": "2026-08-26",
+          "firma": "Weiss Ratings",
+          "accion": "suba de hold (C+) a buy (B-)",
+          "objetivo": null
+        },
+        {
+          "fecha": "2026-08-20",
+          "firma": "Bloom Burton",
+          "accion": "suba de recomendación y de objetivo",
+          "objetivo": 21
+        },
+        {
+          "fecha": "2026-08-20",
+          "firma": "TD Cowen",
+          "accion": "mantiene",
+          "objetivo": 17
+        },
+        {
+          "fecha": "2026-08-07",
+          "firma": "RBC Capital",
+          "accion": "mantiene Sector Perform, sube objetivo de 15 a 16",
+          "objetivo": 16
+        }
+      ],
+      "consensoObjetivo": 17.67,
+      "eventos": [
+        {
+          "fecha": "2026-08-19",
+          "tipo": "litigio",
+          "titular": "Acuerdo con Teva: no lanza el genérico de voclosporina antes del 7/12/2036 y estipula que las patentes de Aurinia son válidas e infringidas."
+        }
+      ],
+      "valuacion": {
+        "texto": "P/E adelantado 20,5 con precio USD 16,02 (1/10/2026); el P/E histórico de 6,94 está distorsionado por el beneficio fiscal no recurrente del 4T25.",
+        "metric": "P/E adelantado",
+        "current": 20.5,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": false
+      },
+      "proximosResultados": "2026-10-29",
+      "reservas": [
+        {
+          "tipo": "extraordinarios",
+          "detalle": "La ganancia de 12 meses (USD 2,30/acción) incluye un beneficio fiscal no recurrente de USD 175,1 M del 4T25 por liberación de la previsión sobre activos diferidos.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1600620/000160062026000015/exhibit991_q42025earningsr.htm",
+            "titulo": "Aurinia 8-K exhibit 99.1 - resultados 4T y año 2025"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "Tras el acuerdo con Teva del 19/8/2026 siguen abiertos litigios de patentes contra siete fabricantes de genéricos de voclosporina, sin fecha de resolución publicada.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1600620/000160062026000066/exhibit991pressreleasedate.htm",
+            "titulo": "Aurinia 8-K exhibit 99.1 - acuerdo de patentes con Teva (19/8/2026)"
+          }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        {
+          "dato": "otro",
+          "detalle": "Mínimo y máximo de 5 años del P/E adelantado de AUPH: no encontré una serie publicada; la empresa recién tiene ganancias operativas sostenidas desde 2025."
+        },
+        {
+          "dato": "otro",
+          "detalle": "No pude identificar al declarante del Schedule 13D/A del 26/8/2026 ni la dirección del cambio de tenencia: EDGAR no devolvió la fila al filtrar por tipo."
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001600620/000160062026000059/exhibit991_q22026earningsr.htm",
+          "titulo": "Aurinia 8-K exhibit 99.1 - resultados 2T 2026 (6/8/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1600620/000160062026000015/exhibit991_q42025earningsr.htm",
+          "titulo": "Aurinia 8-K exhibit 99.1 - resultados 4T y año 2025"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1600620/000160062026000066/exhibit991pressreleasedate.htm",
+          "titulo": "Aurinia 8-K exhibit 99.1 - acuerdo de patentes con Teva (19/8/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001600620/000160062026000062/auph-20260630.htm",
+          "titulo": "Aurinia Form 10-Q al 30/6/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1600620/000160062026000068/wk-form4_1789158362.xml",
+          "titulo": "Form 4 Stephen P. Robertson (CLO) - venta del 10/9/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1600620/000183779826000013/wk-form4_1787707766.xml",
+          "titulo": "Form 4 Stephen P. Robertson (CLO) - venta del 21/8/2026"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001600620&type=&dateb=&owner=include&count=40&datea=20260703",
+          "titulo": "EDGAR - presentaciones de Aurinia desde julio 2026"
+        },
+        {
+          "url": "https://www.tipranks.com/stocks/auph/earnings/q2-2026-report",
+          "titulo": "TipRanks - AUPH 2T 2026: EPS 0,28 vs 0,24 e ingresos 83,22 M vs 80,45 M"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/auph/statistics/",
+          "titulo": "StockAnalysis - estadísticas de AUPH (P/E adelantado 20,5; precio 16,02)"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/auph/ratings/",
+          "titulo": "StockAnalysis - acciones de analistas sobre AUPH"
+        },
+        {
+          "url": "https://www.marketbeat.com/instant-alerts/consensus-aurinia-pharmaceuticals-inc-nasdaq-auph-stock-has-consensus-price-target-of-1767-according-to-brokerages-2026-09-28/",
+          "titulo": "MarketBeat (28/9/2026) - objetivo de consenso AUPH USD 17,67 con 6 firmas"
+        },
+        {
+          "url": "https://www.theglobeandmail.com/investing/markets/stocks/AUPH-Q/pressreleases/35935088/aurinia-pharmaceuticals-auph-was-downgraded-to-a-hold-rating-at-rbc-capital/",
+          "titulo": "Globe and Mail - RBC Capital sobre AUPH"
+        },
+        {
+          "url": "https://www.wisesheets.io/pe-ratio/AUPH",
+          "titulo": "Wisesheets - historial de P/E de AUPH"
+        }
+      ],
+      "resumen": "Último trimestre: 2T 2026 publicado el 6/8/2026. Ingresos USD 83,2 M (+19% interanual) contra 80,45 M esperados y EPS diluido de USD 0,28 contra 0,24 de consenso; utilidad neta USD 37,4 M. El trimestre está limpio: la utilidad antes de impuestos fue de USD 48,8 M con un CARGO impositivo de USD 11,4 M (no un beneficio), y el único ítem no recurrente es una ganancia cambiaria de USD 977 mil por la revaluación del leasing Monoplant, inmaterial. Por eso la ganancia limpia es la reportada: USD 0,28. Guía reiterada el 6/8/2026: ingresos totales 2026 de USD 315-325 M y ventas netas de LUPKYNIS de USD 305-315 M, es decir 11-15% de crecimiento, por debajo del 19% del trimestre, así que el crecimiento no acelera. Caja e inversiones por USD 443,1 M al 30/6/2026 contra 398,0 M al cierre de 2025, y recompra de 5,0 millones de acciones por USD 74,9 M en el primer semestre. La reserva importante es de arrastre, no del trimestre: la ganancia de los últimos 12 meses (USD 2,30 por acción) incluye un beneficio fiscal no recurrente de USD 175,1 M registrado en el 4T25 por liberación de la previsión sobre activos por impuestos diferidos. Por eso el P/E histórico de 6,94 es engañoso: el P/E adelantado es 20,5 al precio de USD 16,02 del 1/10/2026. No pude reconstruir el mínimo y el máximo de 5 años del P/E adelantado porque la empresa recién da ganancias sostenidas desde 2025, así que eso queda como faltante y NO como reserva de valuación. Evento del período: el 19/8/2026 Aurinia resolvió el litigio de patentes con Teva, que no podrá lanzar el genérico de voclosporina antes del 7/12/2036 y estipuló que las patentes son válidas e infringidas; siguen abiertos los litigios contra siete otros fabricantes de genéricos, sin fecha publicada. Insiders: los dos únicos Form 4 de los últimos 90 días son del Chief Legal Officer Stephen Robertson, 20.975 acciones a USD 16,97 el 21/8/2026 y 11.939 a USD 15,95 el 10/9/2026, ambas descritas en el propio formulario como ventas automáticas para cubrir retenciones impositivas por el vesting de PSUs otorgadas el 28/2/2025; le quedan 588.848 acciones. Por la regla, una venta para cubrir impuestos de un vesting no es reserva de insiders. Ofertas de acciones: verificado en negativo, no hay ninguna. Revisé la lista completa de EDGAR desde el 3/7/2026 y las únicas presentaciones son los dos Form 4, un Schedule 13D/A del 26/8/2026, un Form 144 del 21/8/2026 (consistente con la venta del CLO), el 8-K del acuerdo con Teva, el 10-Q y el 8-K de resultados: no hay S-3, 424B ni 8-K de colocación, y la empresa está recomprando acciones. Del 13D/A no pude identificar al declarante, eso queda como faltante. Analistas de los últimos 90 días: Bloom Burton subió recomendación y objetivo de USD 15 a 21 el 20/8/2026, TD Cowen mantuvo en USD 17 el 20/8/2026, RBC Capital mantuvo Sector Perform y subió el objetivo de USD 15 a 16 el 7/8/2026 y Weiss Ratings subió de hold (C+) a buy (B-) el 26/8/2026. El objetivo de consenso es USD 17,67 con seis firmas según MarketBeat del 28/9/2026, por encima del precio actual de USD 16,02, y la acción subió 44,5% en 12 meses, por debajo del umbral de 50%, así que no corresponde el motivo de precio sobre consenso tras suba. Próximos resultados estimados: 29/10/2026."
+    },
+    {
+      "symbol": "GSL",
+      "fecha": "2026-10-01",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-08-05",
+        "ventasVsConsenso": "Ingresos operativos USD 198,7 M vs 188,7 M esperados (+10,0 M); primer semestre USD 396,8 M.",
+        "gananciaVsConsenso": "EPS normalizado y reportado USD 2,48 vs 2,42 esperado; utilidad neta a comunes USD 89,3 M y EBITDA ajustado USD 131,4 M.",
+        "extraordinarios": [],
+        "epsLimpia": 2.48,
+        "epsConsenso": 2.42,
+        "guia": "No da guía de ganancias; informó cobertura contratada del 100% para 2026 y 90% para 2027, con USD 3,2 bn de ingresos contratados."
+      },
+      "analistas": [
+        {
+          "fecha": "2026-08-06",
+          "firma": "B. Riley Securities",
+          "accion": "mantiene Buy, sube objetivo de 48 a 52",
+          "objetivo": 52
+        },
+        {
+          "fecha": "2026-08-06",
+          "firma": "Jefferies",
+          "accion": "mantiene Buy, sube objetivo de 45 a 50",
+          "objetivo": 50
+        }
+      ],
+      "consensoObjetivo": 51,
+      "eventos": [
+        {
+          "fecha": "2026-06-24",
+          "tipo": "adquisicion",
+          "titular": "Ordenó cinco portacontenedores más por USD 413 M, llevando el programa de nuevas construcciones a 15 barcos por USD 1,33 bn."
+        },
+        {
+          "fecha": "2026-09-10",
+          "tipo": "capital",
+          "titular": "Declaró dividendo de USD 0,546875 por acción depositaria de las preferidas Serie B 8,75%, pagadero el 1/10/2026."
+        }
+      ],
+      "valuacion": {
+        "texto": "P/E adelantado 4,81 y precio/valor libro 0,82 con precio USD 44,96 (1/10/2026); el EPS de consenso cae de 9,89 en 2026 a 8,86 en 2027.",
+        "metric": "P/E adelantado",
+        "current": 4.81,
+        "min5y": null,
+        "max5y": null,
+        "growthAccelerating": false
+      },
+      "proximosResultados": "2026-11-09",
+      "reservas": [
+        {
+          "tipo": "insiders",
+          "detalle": "El CEO Lister vendió 30.000 acciones a USD 44,26 el 26/8/2026 y quedó con 15.934 directas; el CFO Psaropoulos 50.000 a USD 45,02 el 26-27/8 y quedó con 68.698. Sin ejercicio de opciones.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001430725/000114036126034782/form4.xml",
+            "titulo": "Form 4 Thomas Arthur Lister (CEO) - venta del 26/8/2026"
+          }
+        },
+        {
+          "tipo": "pico_de_ciclo",
+          "detalle": "El consenso proyecta EPS 2027 de USD 8,86 contra 9,89 en 2026 (-10,4%), con la cobertura contratada bajando a 90% en 2027 y flota de 18,4 años de edad promedio.",
+          "fuente": {
+            "url": "https://stockanalysis.com/stocks/gsl/forecast/",
+            "titulo": "StockAnalysis - pronóstico de EPS de GSL 2026 y 2027"
+          }
+        },
+        {
+          "tipo": "adquisicion",
+          "detalle": "Programa de 15 nuevas construcciones comprometido por USD 1,33 bn (cinco barcos por USD 413 M el 24/6/2026) contra deuda total de USD 676,4 M y capitalización de USD 1,62 bn.",
+          "fuente": {
+            "url": "https://www.nasdaq.com/press-release/global-ship-lease-announces-additional-newbuilding-orders-2026-06-24",
+            "titulo": "Global Ship Lease Announces Additional Newbuilding Orders (24/6/2026)"
+          }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        {
+          "dato": "otro",
+          "detalle": "Mínimo y máximo de 5 años del P/E adelantado de GSL: sólo encontré rangos de P/E histórico a 10 años (máximo 6,09, mínimo -1,27), que no son de 5 años ni adelantados."
+        },
+        {
+          "dato": "otro",
+          "detalle": "Consenso exacto de ingresos del 3T 2026 y detalle del financiamiento comprometido para los USD 1,33 bn de nuevas construcciones: no lo encontré publicado."
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.globenewswire.com/news-release/2026/08/05/3339245/0/en/global-ship-lease-reports-results-for-the-second-quarter-of-2026.html",
+          "titulo": "Global Ship Lease Reports Results for the Second Quarter of 2026 (5/8/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1430725/000114036126009637/gsl-20251231.htm",
+          "titulo": "Global Ship Lease Form 20-F al 31/12/2025"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1430725/000114036126036677/ef20081990_ex99-1.htm",
+          "titulo": "6-K exhibit 99.1 - dividendo de preferidas Serie B (10/9/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1430725/000114036126028451/ef20077832_6k.htm",
+          "titulo": "6-K del 14/7/2026 - artículos de incorporación enmendados"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001430725&type=6-K&dateb=&owner=include&count=40&datea=20260701",
+          "titulo": "EDGAR - 6-K de Global Ship Lease desde julio 2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001430725/000114036126034782/form4.xml",
+          "titulo": "Form 4 Thomas Arthur Lister (CEO) - venta del 26/8/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001430725/000114036126034888/form4.xml",
+          "titulo": "Form 4 Anastasios Psaropoulos (CFO) - ventas del 26 y 27/8/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001430725/000114036126030539/form4.xml",
+          "titulo": "Form 4 Yoram Neugeborn (director) - venta del 14/7/2026"
+        },
+        {
+          "url": "https://www.nasdaq.com/press-release/global-ship-lease-announces-additional-newbuilding-orders-2026-06-24",
+          "titulo": "Global Ship Lease Announces Additional Newbuilding Orders (24/6/2026)"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/gsl/",
+          "titulo": "StockAnalysis - GSL precio 44,96, próximos resultados 9/11/2026, dividendo 2,50"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/gsl/statistics/",
+          "titulo": "StockAnalysis - estadísticas de GSL (P/E adelantado 4,81; P/VL 0,82)"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/gsl/forecast/",
+          "titulo": "StockAnalysis - pronóstico de EPS y objetivos de analistas de GSL"
+        },
+        {
+          "url": "https://www.quiverquant.com/news/Global+Ship+Lease+(GSL)+Releases+Q2+2026+Earnings:+Revenue+Beats+and+EPS+Tops+Estimates",
+          "titulo": "QuiverQuant - GSL 2T 2026: ingresos 198,7 M vs 188,7 M de consenso"
+        },
+        {
+          "url": "https://www.marketbeat.com/instant-alerts/b-riley-financial-boosts-global-ship-lease-nysegsl-price-target-to-5200-2026-08-06/",
+          "titulo": "MarketBeat - B. Riley sube el objetivo de GSL a USD 52 (6/8/2026)"
+        },
+        {
+          "url": "https://www.marketbeat.com/instant-alerts/global-ship-lease-nysegsl-price-target-raised-to-5000-at-jefferies-financial-group-2026-08-06/",
+          "titulo": "MarketBeat - Jefferies sube el objetivo de GSL a USD 50 (6/8/2026)"
+        },
+        {
+          "url": "https://www.wisesheets.io/pe-ratio/GSL",
+          "titulo": "Wisesheets - historial de P/E de GSL"
+        }
+      ],
+      "resumen": "Último trimestre: 2T 2026 publicado el 5/8/2026. Ingresos operativos USD 198,7 M contra 188,7 M de consenso y EPS de USD 2,48 contra 2,42 esperado, con utilidad neta a comunes de USD 89,3 M y EBITDA ajustado de USD 131,4 M. No hay extraordinarios que limpiar: el propio comunicado informa utilidad normalizada igual a la reportada (USD 89,3 M y 2,48 por acción) porque no hubo ventas de barcos en el primer semestre de 2026, a diferencia del primer semestre de 2025 que tuvo una ganancia de USD 28,3 M por la venta de Tasman, Akiteta y Keta más USD 0,2 M de penalidades de prepago y USD 0,7 M de costos de financiamiento diferidos castigados. Así que la ganancia limpia es USD 2,48. La empresa no da guía de ganancias; sí informó cobertura contratada del 100% para 2026 y 90% para 2027, USD 3,2 bn de ingresos contratados (4,1 bn con opciones del fletador) y deuda total de USD 676,4 M al 30/6/2026 contra 768,5 M un año antes, con 21 barcos libres de gravamen. Sobre la bandera sin_estados: es un falso positivo del formato. GSL es emisor privado extranjero, no presenta 10-Q ni 10-K sino Form 20-F anual, el del ejercicio 2025 presentado en marzo de 2026, más 6-K trimestrales; los estados auditados existen y están en EDGAR. Sobre la bandera de dividendo 6,03%: el dividendo declarado el 5/8/2026 es de USD 0,625 por acción Clase A por trimestre, es decir USD 2,50 anualizados, que al precio de USD 44,96 del 1/10/2026 dan 5,56%, por debajo del 6,03% que muestra el Radar; la diferencia no la pude explicar con lo publicado. Insiders: la bandera es correcta y es reserva. En los últimos 90 días hay tres Form 4, todos ventas de acciones ya tenidas y sin ejercicio de opciones el mismo día: el CEO Thomas Lister vendió 30.000 acciones a USD 44,26 el 26/8/2026 y quedó con 15.934 directas (más 547.617 no vesteadas), el CFO Anastasios Psaropoulos vendió 1.670 a USD 45,03 el 26/8 y 48.330 a USD 45,02 el 27/8 y quedó con 68.698, y el director Yoram Neugeborn vendió 3.000 a USD 41,13 el 14/7/2026 y quedó con 3.174. Es decir, el CEO y el CFO se sacaron de encima la mayor parte de su tenencia líquida a precios cercanos al máximo de 52 semanas de USD 46,57. Pico de ciclo: el consenso proyecta EPS de USD 8,86 en 2027 contra 9,89 en 2026, una caída de 10,4%, con la cobertura bajando de 100% a 90% y una flota de 71 barcos con 18,4 años de edad promedio ponderada por TEU. Compromiso de capital: el 24/6/2026 ordenó cinco portacontenedores más por USD 413 M, llevando el programa a 15 nuevas construcciones por USD 1,33 bn con entregas hasta 2029, contra una capitalización de USD 1,62 bn; no encontré publicado el financiamiento comprometido para ese capex y eso queda como faltante. Ofertas de acciones: verificado en negativo para los últimos 90 días. Los únicos 6-K desde el 1/7/2026 son el del 14/7 con los artículos de incorporación enmendados aprobados en la asamblea del 17/6/2026, los del 5 y 6/8 con los resultados del 2T y el del 15/9 con el dividendo de las preferidas Serie B declarado el 10/9/2026: ninguna colocación de acciones. También descarté un supuesto crédito de USD 268 M que aparece en búsquedas: es de septiembre de 2019, no de 2026. Analistas de los últimos 90 días: sólo dos acciones, las dos del 6/8/2026 tras los resultados, B. Riley manteniendo Buy y subiendo el objetivo de USD 48 a 52 y Jefferies manteniendo Buy y subiendo de USD 45 a 50. El objetivo de consenso es USD 51 pero lo forman apenas tres firmas con un rango estrecho de USD 50 a 52, así que la bandera consenso_compra se apoya en una cobertura muy fina. El precio de USD 44,96 está por debajo del consenso y la acción subió 47,2% en 12 meses, por debajo del umbral de 50%, así que no corresponde el motivo de precio sobre consenso tras suba. No pude reconstruir el mínimo y el máximo de 5 años del P/E adelantado, sólo un rango de 10 años de P/E histórico con máximo 6,09 y mínimo -1,27, que no sirve para la regla, así que va a faltantes y no hay reserva de valuación: con P/E adelantado 4,81 y precio sobre valor libro 0,82 la acción no está cara. Próximos resultados: 9/11/2026."
+    },
+    {
+      "symbol": "NWPX",
+      "fecha": "2026-10-01",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-29",
+        "ventasVsConsenso": "Ventas 159,5 MUSD (+19,7% a/a) contra 154,71 MUSD de consenso: supera por 3,1%.",
+        "gananciaVsConsenso": "EPS diluido 1,62 USD contra 1,35 de consenso; utilidad neta 15,8 MUSD (+74,7% a/a).",
+        "extraordinarios": [],
+        "epsLimpia": 1.62,
+        "epsConsenso": 1.35,
+        "guia": "Guía dada sin cifras: espera que el tercer trimestre de 2026 sea 'comparable o más fuerte' que el segundo."
+      },
+      "analistas": [
+        {
+          "fecha": "2026-08-05",
+          "firma": "Weiss Ratings",
+          "accion": "reitera Buy",
+          "objetivo": null
+        }
+      ],
+      "consensoObjetivo": 110,
+      "eventos": [
+        {
+          "fecha": "2026-09-02",
+          "tipo": "adquisicion",
+          "titular": "NWPX cierra la compra de Serpentix Conveyor, LLC (ventas de ~15,6 MUSD en doce meses), segunda adquisición de 2026."
+        }
+      ],
+      "valuacion": {
+        "texto": "P/E 20,86 contra 103,91 USD; dentro del rango de los últimos 5 cierres de ejercicio (10,74 en 2022 a 27,24 en 2021). P/E adelantado 20,52.",
+        "metric": "P/E trailing (cierres de ejercicio 2021-2025; no hay serie de P/E adelantado a 5 años)",
+        "current": 20.86,
+        "min5y": 10.74,
+        "max5y": 27.24,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-10-28",
+      "reservas": [
+        {
+          "tipo": "insiders",
+          "detalle": "22 Form 4 entre el 5/8 y el 30/9/2026; los leídos son ventas de acciones ya poseídas, sin ejercicio de opciones: CEO 2.500 a 109,37 el 24/8.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001001385/000143774926028907/rdgdoc.xml",
+            "titulo": "Form 4 Scott J. Montross (President & CEO), venta 24/8/2026, plan 10b5-1 adoptado 05/05/2026"
+          }
+        },
+        {
+          "tipo": "un_analista",
+          "detalle": "El consenso de 110 USD es el promedio de solo dos objetivos: DA Davidson 90 (2/3/2026) y JPMorgan 130 (10/6/2026); ninguno dentro de 90 días.",
+          "fuente": {
+            "url": "https://www.marketbeat.com/stocks/NASDAQ/NWPX/forecast/",
+            "titulo": "NWPX Infrastructure (NWPX) Stock Forecast and Price Target 2026"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "El 10-Q de junio reconoce 1,7 MUSD de ingresos de trimestres anteriores por revisión de estimaciones de contratos (0,6 MUSD un año antes), sobre 34,4 de margen bruto.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001001385/000143774926025050/nwpx20260630_10q.htm",
+            "titulo": "NWPX Infrastructure 10-Q al 30/6/2026, Nota 9 Revenue"
+          }
+        },
+        {
+          "tipo": "otra",
+          "detalle": "Pasivo ambiental del Portland Harbor Superfund: la empresa dice que no puede estimar un monto ni un rango y que negociar con la EPA puede tomar dos años.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001001385/000143774926025050/nwpx20260630_10q.htm",
+            "titulo": "NWPX Infrastructure 10-Q al 30/6/2026, contingencias"
+          }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        {
+          "dato": "otro",
+          "detalle": "No encontré una serie de P/E adelantado con mínimo y máximo de 5 años; usé P/E trailing por cierre de ejercicio (fullratio y macrotrends devolvieron 403)."
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001001385/000143774926024881/ex_954632.htm",
+          "titulo": "NWPX Infrastructure, 8-K exhibit 99.1, resultados del segundo trimestre 2026 (29/7/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001001385/000143774926025050/nwpx20260630_10q.htm",
+          "titulo": "NWPX Infrastructure, Form 10-Q al 30/6/2026"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001001385&type=4&dateb=&owner=include&count=40",
+          "titulo": "EDGAR: listado de Form 4 de NWPX Infrastructure"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001001385/000143774926028907/rdgdoc.xml",
+          "titulo": "Form 4 Scott J. Montross, venta de 2.500 acciones a 109,37 el 24/8/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1001385/000143774926031545/rdgdoc.xml",
+          "titulo": "Form 4 Keith R. Larson (director), venta de 1.000 acciones a 102,20 el 28/9/2026"
+        },
+        {
+          "url": "https://www.prnewswire.com/news-releases/nwpx-infrastructure-announces-acquisition-of-serpentix-conveyor-llc-302868096.html",
+          "titulo": "NWPX Infrastructure Announces Acquisition of Serpentix Conveyor, LLC (2/9/2026)"
+        },
+        {
+          "url": "https://www.marketbeat.com/stocks/NASDAQ/NWPX/forecast/",
+          "titulo": "NWPX Infrastructure: consenso Moderate Buy, objetivo 110 USD"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/nwpx/statistics/",
+          "titulo": "NWPX Infrastructure: estadísticas y valuación (precio 103,91, P/E 20,86, próximos resultados 28/10/2026)"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/nwpx/financials/ratios/",
+          "titulo": "NWPX Infrastructure: ratios históricos por ejercicio"
+        },
+        {
+          "url": "https://www.stocktitan.net/news/NWPX/nwpx-infrastructure-announces-second-quarter-2026-financial-5mhlea0km04c.html",
+          "titulo": "Water-Related Infrastructure Maker NWPX Reports Record Q2 Net Income of $15.8M"
+        },
+        {
+          "url": "https://www.quiverquant.com/news/NWPX+Infrastructure+(NWPX)+Releases+Q2+2026+Earnings:+Revenue+and+EPS+Beat+Expectations",
+          "titulo": "NWPX Infrastructure (NWPX) Releases Q2 2026 Earnings: Revenue and EPS Beat Expectations"
+        },
+        {
+          "url": "https://intellectia.ai/news/stock/nwpx-infrastructure-announces-key-executive-promotions",
+          "titulo": "NWPX Infrastructure Announces Key Executive Promotions (29/1/2026, fuera de los 90 días)"
+        }
+      ],
+      "resumen": "Último trimestre: 29/7/2026, segundo de 2026. Ventas 159,5 MUSD (+19,7% a/a) contra 154,71 de consenso y EPS diluido 1,62 contra 1,35; utilidad neta récord de 15,8 MUSD (+74,7%). El comunicado no declara ítems no recurrentes y la propia empresa compara contra el tercer trimestre de 2018, que sí tenía una ganancia de compra ventajosa de 21,9 MUSD. Dos matices del 10-Q al 30/6/2026: 1,7 MUSD de ingresos reconocidos de trimestres anteriores por revisión de estimaciones de contratos (0,6 MUSD un año antes) y el Superfund de Portland Harbor, donde la empresa dice que no puede estimar monto ni rango y que las negociaciones con la EPA pueden llevar dos años. Guía cualitativa: el tercer trimestre 'comparable o más fuerte' que el segundo, sin cifras; cartera WTS de 305 MUSD (423 con pedidos confirmados) y libro de Precast de 61 MUSD. Insiders: 22 Form 4 entre el 5/8 y el 30/9/2026; los dos que leí en SEC son ventas de acciones ya poseídas, sin ejercicio de opciones, bajo planes 10b5-1 (CEO Montross 2.500 a 109,37 el 24/8, plan del 5/5/2026; director Larson 1.000 a 102,20 el 28/9, plan del 18/5/2026). Analistas: en 90 días solo Weiss reiteró Buy el 5/8/2026; el consenso de 110 USD es el promedio de dos objetivos viejos (DA Davidson 90 del 2/3/2026 y JPMorgan Neutral 130 del 10/6/2026). Evento: cierre de la compra de Serpentix Conveyor el 2/9/2026 (~15,6 MUSD de ventas anuales), segunda adquisición del año tras Boughton's Precast (9,0 MUSD, 23/2/2026). Valuación: 103,91 USD, P/E 20,86 y adelantado 20,52, dentro del rango de cierres de ejercicio 2021-2025 (10,74 a 27,24). La acción subió 97,68% en 52 semanas y cotiza a 94% del objetivo de consenso, es decir por debajo, no en o sobre él. No encontré ofertas de acciones: el 10-Q muestra recompras por 2,5 MUSD y deuda bajando a ~7,0 MUSD. Próximos resultados: 28/10/2026."
+    },
+    {
+      "symbol": "TAL",
+      "fecha": "2026-10-01",
+      "ultimoTrimestre": {
+        "fechaReporte": "2026-07-30",
+        "ventasVsConsenso": "Ingresos netos 758,4 MUSD (+31,9% a/a) contra 720,23 MUSD de consenso: supera por 5,3%.",
+        "gananciaVsConsenso": "Utilidad por ADS diluida non-GAAP 0,75 USD contra 0,13 de consenso; GAAP 0,73 contra 0,05 del año anterior.",
+        "extraordinarios": [
+          {
+            "detalle": "Otros ingresos de 405,2 MUSD contra 9,5 MUSD un año antes, 'principalmente por fluctuaciones del valor razonable de ciertas inversiones'.",
+            "montoUsd": 405200000
+          }
+        ],
+        "epsLimpia": null,
+        "epsConsenso": 0.13,
+        "guia": "no da guía"
+      },
+      "analistas": [
+        {
+          "fecha": "2026-07-31",
+          "firma": "Jefferies",
+          "accion": "inicia cobertura en Hold",
+          "objetivo": 14
+        },
+        {
+          "fecha": "2026-07-31",
+          "firma": "New Street Research",
+          "accion": "fija objetivo",
+          "objetivo": 13.6
+        },
+        {
+          "fecha": "2026-08-06",
+          "firma": "Zacks Research",
+          "accion": "sube a Strong-Buy",
+          "objetivo": null
+        },
+        {
+          "fecha": "2026-09-16",
+          "firma": "Weiss Ratings",
+          "accion": "sube a Hold (C+)",
+          "objetivo": null
+        }
+      ],
+      "consensoObjetivo": 14.8,
+      "eventos": [
+        {
+          "fecha": "2026-07-30",
+          "tipo": "capital",
+          "titular": "El directorio extiende 12 meses el programa de recompra: hasta ~393,7 MUSD hasta el 28/7/2027; entre el 23/4 y el 28/7/2026 recompró 1.226.033 acciones por ~40,7 MUSD."
+        }
+      ],
+      "valuacion": {
+        "texto": "A 12,10 USD el P/E adelantado es 11,97, por debajo de los cinco cierres de ejercicio anteriores (mínimo 13,51 en FY2026, máximo 45,99 en FY2022).",
+        "metric": "P/E adelantado",
+        "current": 11.97,
+        "min5y": 13.51,
+        "max5y": 45.99,
+        "growthAccelerating": true
+      },
+      "proximosResultados": "2026-10-29",
+      "reservas": [
+        {
+          "tipo": "extraordinarios",
+          "detalle": "De 408,0 MUSD de utilidad neta, 405,2 MUSD son 'otros ingresos' por valor razonable de inversiones; el resultado operativo fue 137,2 MUSD.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001499620/000110465926088660/tm2621668d1_ex99-1.htm",
+            "titulo": "TAL Education Group, 6-K exhibit 99.1, resultados del primer trimestre fiscal 2027 (30/7/2026)"
+          }
+        },
+        {
+          "tipo": "extraordinarios",
+          "detalle": "El non-GAAP de TAL (0,75 por ADS) solo excluye 11,5 MUSD de compensación en acciones: NO saca la ganancia de valor razonable de 405,2 MUSD.",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0001499620/000110465926088660/tm2621668d1_ex99-1.htm",
+            "titulo": "TAL Education Group, 6-K exhibit 99.1: utilidad neta non-GAAP 419,5 vs GAAP 408,0 MUSD"
+          }
+        }
+      ],
+      "evitar": [],
+      "faltantes": [
+        {
+          "dato": "ganancia_limpia",
+          "detalle": "El comunicado no da una utilidad por ADS sin la ganancia de valor razonable de 405,2 MUSD; el único ajuste non-GAAP es la compensación en acciones. No la calculo."
+        },
+        {
+          "dato": "otro",
+          "detalle": "No hay 10-Q ni 10-K: TAL es emisor privado extranjero y reporta por 6-K trimestral sin auditar; el último anual es el 20-F del 12/6/2026 (ejercicio cerrado 28/2/2026)."
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001499620/000110465926088660/tm2621668d1_ex99-1.htm",
+          "titulo": "TAL Education Group, 6-K exhibit 99.1, primer trimestre fiscal 2027 cerrado el 31/5/2026"
+        },
+        {
+          "url": "https://www.prnewswire.com/news-releases/tal-education-group-announces-unaudited-financial-results-for-the-first-fiscal-quarter-ended-may-31-2026-302838894.html",
+          "titulo": "TAL Education Group Announces Unaudited Financial Results for the First Fiscal Quarter Ended May 31, 2026"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001499620&type=6-K&dateb=&owner=include&count=20",
+          "titulo": "EDGAR: 6-K de TAL; el único de los últimos 90 días es el del 30/7/2026"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001499620&type=20-F&dateb=&owner=include&count=10",
+          "titulo": "EDGAR: 20-F de TAL, último presentado el 12/6/2026"
+        },
+        {
+          "url": "https://www.investing.com/news/earnings/tal-education-earnings-beat-by-062-revenue-topped-estimates-4823253",
+          "titulo": "TAL Education earnings beat by $0.62, revenue topped estimates (consenso 0,13 EPS y 720,23 MUSD)"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/tal/forecast/",
+          "titulo": "TAL Education Group: precio 12,10 USD, objetivo promedio 16,10 (19 analistas), Jefferies inicia en Hold con 14 el 31/7/2026"
+        },
+        {
+          "url": "https://www.marketbeat.com/stocks/NYSE/TAL/forecast/",
+          "titulo": "TAL Education Group: consenso Moderate Buy, objetivo 14,80 USD, acciones de analistas con fecha"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/tal/financials/ratios/",
+          "titulo": "TAL Education Group: P/E adelantado actual 11,97 y por ejercicio FY2022-FY2026"
+        },
+        {
+          "url": "https://www.tipranks.com/news/the-fly/tal-education-downgraded-to-neutral-from-buy-at-citi-thefly",
+          "titulo": "TAL Education downgraded to Neutral from Buy at Citi (27/6/2025, fuera de los 90 días)"
+        },
+        {
+          "url": "https://rallies.ai/news/tal-rises-as-buyback-tailwind-resurfaces-despite-fresh-china-tutoring-policy-overhang",
+          "titulo": "Guía del Ministerio de Educación de China del 23/3/2026 sobre educación suplementaria (fuera de los 90 días)"
+        }
+      ],
+      "resumen": "Último trimestre: 30/7/2026, primero del año fiscal 2027 cerrado el 31/5/2026. Ingresos netos 758,4 MUSD (+31,9% a/a) contra 720,23 de consenso; margen bruto 57,8% desde 54,9%; resultado operativo 137,2 MUSD contra 14,3 (+856,4%). La utilidad neta atribuible fue 408,0 MUSD, pero 405,2 MUSD son 'otros ingresos' que el comunicado atribuye a fluctuaciones del valor razonable de ciertas inversiones (9,5 MUSD un año antes), con impuesto a las ganancias de 143,7 MUSD contra 11,1. El non-GAAP (419,5 MUSD, 0,75 por ADS diluida contra 0,13 de consenso) solo excluye 11,5 MUSD de compensación en acciones, así que NO saca esa ganancia: el sorpresón de utilidad es casi todo valor razonable, mientras el negocio en sí sí ganó 137,2 MUSD operativos. El comunicado no da guía de ningún tipo, lo mismo que señalaba Citi al bajarla a Neutral (27/6/2025, fuera de ventana). Ingresos diferidos de 1.219,0 MUSD al 31/5/2026 contra 882,2 al 28/2/2026, y caja más inversiones de corto plazo por 2.874,5 MUSD. Capital: el directorio extendió 12 meses el programa de recompra lanzado en julio de 2025, con hasta ~393,7 MUSD disponibles hasta el 28/7/2027; recompró 1.226.033 acciones por ~40,7 MUSD entre el 23/4 y el 28/7/2026. No hay ofertas de acciones. Sobre 'sin_estados': TAL es emisor privado extranjero, no presenta 10-Q ni 10-K; el trimestre va por 6-K sin auditar y el anual es el 20-F del 12/6/2026 (ejercicio al 28/2/2026). En 90 días hubo un único 6-K, el de resultados: no encontré hechos regulatorios chinos nuevos en la ventana (la última referencia es la guía del Ministerio de Educación del 23/3/2026) ni cambios de CEO o CFO; el cambio de Mi Tian de CTO a Senior Vice President fue el 22/4/2026. Analistas en 90 días: Jefferies inicia en Hold con objetivo 14 y New Street fija 13,60 el 31/7/2026, Zacks sube a Strong-Buy el 6/8/2026 y Weiss a Hold (C+) el 16/9/2026. Objetivo de consenso 14,80 (MarketBeat) o 16,10 con 19 analistas de S&P Global, contra 12,10 USD de precio: la acción está por debajo del consenso. Valuación: P/E adelantado 11,97, más bajo que cualquiera de los cinco cierres de ejercicio previos (13,51 a 45,99). Sobre 'pares_no_comparables': el P/E informado de TAL queda distorsionado por la ganancia de valor razonable, así que no es comparable contra pares como New Oriental sin limpiar ese ítem. Próximos resultados estimados: 29/10/2026."
+    }
+  ],
+  "revisiones": [
+    {
+      "symbol": "BLX",
+      "fecha": "2026-10-01",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        {
+          "tipo": "noticias",
+          "detalle": "Estructuro y otorgo un prestamo senior de USD 1.000M a la Republica de Panama, el mayor de su historia, sin decir cuanto retiene frente a $1.757M de patrimonio.",
+          "fecha": "2026-09-15",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/890541/000162828026062304/a6kotroscomunicadosdeprens.htm",
+            "titulo": "Bladex 6-K: Bladex Structures USD 1.0 Billion Loan for the Republic of Panama, 16/9/2026"
+          }
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/890541/000162828026062304/a6kotroscomunicadosdeprens.htm",
+          "titulo": "Bladex 6-K del 16/9/2026: prestamo de USD 1.000 millones a Panama"
+        },
+        {
+          "url": "https://www.stocktitan.net/news/BLX/",
+          "titulo": "Bladex (BLX) Stock News, stocktitan.net, consultado 1/10/2026"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000890541&type=6-K&dateb=&owner=include&count=20",
+          "titulo": "EDGAR: 6-K de Bladex en 2026, el ultimo del 16/9/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/890541/000089054126000011/form4.xml",
+          "titulo": "Form 4 Bladex: compra de la CFO, 1.454 acciones a $55,00 el 28/8/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/890541/000089054126000009/form4.xml",
+          "titulo": "Form 4 Bladex: compra del Chief Risk Officer, 1.850 acciones a $53,00 el 21/8/2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/blx/",
+          "titulo": "Bladex (BLX) Stock Price & Overview, stockanalysis.com, 1/10/2026"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/blx/forecast/",
+          "titulo": "Bladex (BLX) Stock Forecast, stockanalysis.com, 1/10/2026"
+        },
+        {
+          "url": "https://www.fxempire.com/stocks/blx/earnings",
+          "titulo": "Bladex (BLX) Earnings Reports & Dates, fxempire.com"
+        }
+      ],
+      "resumen": "Busque lo publicado desde el 1/9/2026 y lo que vence en los proximos 6 meses. Resultados: no hubo publicacion nueva desde el 2Q26 del 27/7/2026; el deterioro de Etapa 3 a $75,1M con cobertura de 1,2x ya estaba en la verificacion del 24/9/2026 y no cambio. Regulacion: no encontre investigaciones, sanciones ni litigios materiales con fecha. Capital: el 8/9/2026 coloco MXN 5.000 millones en cebures a 3 anos en Mexico a TIIE de Fondeo mas 58 pb con demanda de 1,56 veces y calificaciones locales mxAAA de S&P y AAA(mex) de Fitch; es deuda, no dilucion, y no hubo ofertas de acciones ni ventas del accionista de control. Las calificaciones globales se movieron a favor antes de la ventana (S&P subio a BBB+ el 18/6/2026, Moody's afirmo Baa2/Prime-2 el 16/6/2026, Fitch afirmo BBB/F2 el 28/4/2026). Analistas: ninguna rebaja en 30 dias; el consenso de 4 analistas sigue en compra fuerte con objetivo $65,9. Noticias de los ultimos 7 dias: no hubo. La unica novedad que puede cambiar la compra de hoy es el prestamo de USD 1.000 millones a Panama del 15-16/9/2026, que concentra riesgo soberano sin informar el monto retenido. Insiders a favor: la CFO compro 1.454 acciones a $55,00 el 28/8/2026 y el Chief Risk Officer 1.850 a $53,00 el 21/8/2026. Precio al 1/10/2026 $54,32, contra el cierre de la linea de $55,02 y el stop de $53,20: queda 2,1% arriba del stop. Los proximos resultados caen el 26-27/10/2026, dentro de 4 semanas."
+    },
+    {
+      "symbol": "APH",
+      "fecha": "2026-10-01",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000820313&type=&dateb=&owner=include&count=40",
+          "titulo": "EDGAR: presentaciones de Amphenol; unica entre el 1/9 y el 1/10/2026 es un 8-K del 4/9/2026 (item 8.01)"
+        },
+        {
+          "url": "https://investor.amphenol.com/news-and-events/news-details/2026/Amphenol-Announces-Two-for-One-Stock-Split-and-Third-Quarter-2026-Dividend/default.aspx",
+          "titulo": "Amphenol anuncia split 2x1 y dividendo del 3T26 de 0,25 USD"
+        },
+        {
+          "url": "https://www.ebc.com/forex/amphenol-stock-split-2026-aph-september-3",
+          "titulo": "El split 2x1 de Amphenol se hizo efectivo el 3/9/2026"
+        },
+        {
+          "url": "https://investors.amphenol.com/news-and-events/events/event-details/2026/3rd-Quarter-2026-Earnings-2026-TUEfK-G-C6/default.aspx",
+          "titulo": "Amphenol: resultados del 3T26 el 28/10/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0000820313/000110465926089194/aph-20260630x10q.htm",
+          "titulo": "Amphenol 10-Q al 30/6/2026 (adquisicion CCS completada en el primer semestre)"
+        },
+        {
+          "url": "https://ieu-monitoring.com/editorial/eu-commission-clears-acquisition-of-commscope-technologies-by-amphenol/858796",
+          "titulo": "La Comision Europea autorizo la compra de CommScope Technologies el 18/11/2025"
+        },
+        {
+          "url": "https://investors.amphenol.com/news-and-events/news-details/2026/Amphenol-Completes-Acquisition-of-CCS-Business-From-CommScope/default.aspx",
+          "titulo": "Amphenol completo la compra del negocio CCS de CommScope el 9/1/2026"
+        },
+        {
+          "url": "https://www.marketbeat.com/instant-alerts/options-amphenol-corporation-nyse-aph-stock-short-interest-climbs-1326-2026-09-27/",
+          "titulo": "MarketBeat: el interes corto de APH sube 132,6% (27/9/2026), tras el split 2x1"
+        },
+        {
+          "url": "https://www.ad-hoc-news.de/boerse/news/corporate-news/zacks-cuts-amphenol-stock-to-hold-from-strong-buy/70211106",
+          "titulo": "Zacks baja APH de Strong Buy a Hold (28/9/2026); 15 compras y 2 mantener, objetivo medio 96,34"
+        }
+      ],
+      "resumen": "Revise APH al 1/10/2026 y no encontre nada publicado en los ultimos 30 dias ni vencimientos en los proximos 6 meses que cambien la compra de hoy. Resultados: el ultimo reporte sigue siendo el 2T26 (ventas 8,8 MM USD, +55%, y ganancia ajustada por accion 1,35 antes del split contra 1,19 de consenso); la guia del 3T26 dada el 29/7/2026 es de 9,3-9,4 MM USD de ventas y 1,40-1,42 de EPS ajustado, equivalente a 0,70-0,71 despues del split 2x1 que se hizo efectivo el 3/9/2026, o sea guia por encima del consenso y sin recortes ni retiros. El proximo reporte es el 28/10/2026. Regulacion: la unica operacion grande, la compra del negocio CCS de CommScope por 10,5 MM USD, ya tiene aprobacion de la Comision Europea del 18/11/2025 y cerro el 9/1/2026; la compra de Trexon por ~1.000 M cerro en noviembre de 2025. No hay investigaciones, sanciones ni litigios materiales con fecha en lo publicado. Capital: EDGAR no muestra ninguna oferta de acciones ni convertibles entre el 1/9 y el 1/10/2026; la unica presentacion del periodo es un 8-K del 4/9/2026 (item 8.01) y la empresa declaro un dividendo trimestral de 0,25 USD pagadero el 14/10/2026. Analistas: en 30 dias no hubo rebajas de casas de inversion; TD Cowen bajo el objetivo nominal de 175 a 90 USD el 9/9/2026, que ajustado por el split 2x1 es una suba leve frente a los 87,50 equivalentes, y el objetivo medio es 96,34 contra un precio de 84,34 el 29/9/2026, asi que el precio esta por debajo del consenso. Noticias de 7 dias: solo movimientos de precio y un salto del interes corto reportado el 27/9 que se explica por la duplicacion de acciones del split; Zacks, que es un modelo cuantitativo y no una casa de inversion, bajo su calificacion de Strong Buy a Hold el 28/9/2026 sin aportar datos nuevos, por lo que no lo cuento como objecion."
+    },
+    {
+      "symbol": "LLY",
+      "fecha": "2026-10-01",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        {
+          "tipo": "noticias",
+          "detalle": "El precio de lista de Wegovy y Ozempic baja a USD 675 por mes (-50% y -35%) desde el 1/1/2027, dentro de los próximos 6 meses, presionando el precio de Zepbound (lista USD 1.086).",
+          "fecha": "2027-01-01",
+          "fuente": {
+            "url": "https://www.prnewswire.com/news-releases/novo-nordisk-announces-significant-reduction-in-us-list-price-for-wegovy-ozempic-and-rybelsus-semaglutide-medicines-building-on-continued-efforts-to-expand-access-302695705.html",
+            "titulo": "Novo Nordisk anuncia la reducción del precio de lista en EE.UU. (24/2/2026)"
+          }
+        },
+        {
+          "tipo": "regulacion",
+          "detalle": "El MDL 3094 por lesiones gastrointestinales de incretinas (Mounjaro, Trulicity, Zepbound) acumula 3.848 demandas al 1/7/2026 según el propio 10-Q de Lilly.",
+          "fecha": "2026-07-01",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/0000059478/000005947826000081/lly-20260630.htm",
+            "titulo": "Eli Lilly Form 10-Q al 30/6/2026"
+          }
+        },
+        {
+          "tipo": "regulacion",
+          "detalle": "En el MDL 3094 hay una audiencia Rule 702 sobre advertencias, preemption y causalidad general fijada para septiembre de 2026, previa a cualquier juicio bellwether, que recién sería en 2027.",
+          "fecha": "2026-09-30",
+          "fuente": {
+            "url": "https://openclassactions.com/news/glp-1-mdl-3094-ozempic-lawsuit-update.php",
+            "titulo": "GLP-1 MDL 3094: 3.848 demandas y audiencia Rule 702 en septiembre de 2026"
+          }
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000059478&type=8-K&dateb=&owner=include&count=40&datea=20260701",
+          "titulo": "EDGAR - 8-K de Eli Lilly desde julio 2026 (sólo el del 5/8/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000059478&type=424&dateb=&owner=include&count=40&datea=20260101",
+          "titulo": "EDGAR - prospectos 424 de Eli Lilly en 2026 (424B2 del 6 y 8/5/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000059478&type=&dateb=&owner=include&count=40&datea=20260901",
+          "titulo": "EDGAR - presentaciones de Eli Lilly desde el 1/9/2026 (sólo Form 3 y 4)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0000059478/000005947826000081/lly-20260630.htm",
+          "titulo": "Eli Lilly Form 10-Q al 30/6/2026"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0000059478/000005947826000077/q226lillysalesandearningsp.htm",
+          "titulo": "Eli Lilly 8-K exhibit - resultados y ventas del 2T 2026 (5/8/2026)"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/lly/ratings/",
+          "titulo": "StockAnalysis - acciones de analistas sobre LLY (todas 'mantiene' en 30 días)"
+        },
+        {
+          "url": "https://stockanalysis.com/stocks/lly/",
+          "titulo": "StockAnalysis - LLY precio 1.143,82 el 1/10/2026, resultados el 29/10/2026"
+        },
+        {
+          "url": "https://www.prnewswire.com/news-releases/novo-nordisk-announces-significant-reduction-in-us-list-price-for-wegovy-ozempic-and-rybelsus-semaglutide-medicines-building-on-continued-efforts-to-expand-access-302695705.html",
+          "titulo": "Novo Nordisk anuncia la reducción del precio de lista en EE.UU. (24/2/2026)"
+        },
+        {
+          "url": "https://openclassactions.com/news/glp-1-mdl-3094-ozempic-lawsuit-update.php",
+          "titulo": "GLP-1 MDL 3094: 3.848 demandas y audiencia Rule 702 en septiembre de 2026"
+        },
+        {
+          "url": "https://www.ajmc.com/view/trump-announces-deals-with-eli-lilly-novo-nordisk-for-lower-weight-loss-drug-prices",
+          "titulo": "AJMC - acuerdos con la Casa Blanca: precio de Medicare de USD 245"
+        },
+        {
+          "url": "https://finance.yahoo.com/news/draftkings-eli-lilly-downgraded-wall-133356253.html",
+          "titulo": "Yahoo Finance - baja de HSBC a Reduce con objetivo USD 850 (17/3/2026)"
+        }
+      ],
+      "resumen": "La reserva previa del 25/9/2026 era 'falta verificar: no encontré ofertas de acciones en 90 días; la búsqueda en EDGAR no fue exhaustiva'. Ahora está cerrada en negativo, no por falta de dato. Revisé la lista completa de presentaciones de Lilly en EDGAR: desde el 1/9/2026 sólo hay Form 3 y Form 4 de insiders; el único 8-K desde julio es el de resultados del 5/8/2026; y los únicos prospectos 424 de todo 2026 son dos 424B2 del 6 y del 8/5/2026, que son colocaciones de deuda bajo estantería, no de acciones. No hay oferta de acciones ni convertible en los últimos 90 días ni anunciada. Analistas de los últimos 30 días: ninguna rebaja. Todas las acciones registradas son 'mantiene' (Goldman Sachs USD 1.371 el 1/10, BMO USD 1.400 el 30/9, J.P. Morgan subió el objetivo a USD 1.500 el 28/9, Barclays USD 1.400 el 28/9, Jefferies USD 1.440 y Wells Fargo USD 1.330 el 22/9) y Berenberg subió de Hold a Buy con objetivo de USD 1.400 el 15/9/2026. La baja de HSBC a Reduce con objetivo de USD 850 es del 17/3/2026, fuera de los 30 días, así que no la cuento como objeción. Resultados: no hay nada nuevo. El último reporte es el 2T 2026 del 5/8/2026 y los próximos resultados son el 29/10/2026; no hubo recorte ni retiro de guía ni ganancia explicada por ítems únicos en los últimos 30 días. Noticias de los últimos 7 días: todas de pipeline y favorables, Foundayo (orforglipron) mostró seguridad cardiovascular con reducción de A1C y peso en un estudio grande de diabetes tipo 2, EloraTZP mostró pérdida de peso promedio de 23,3%, retatrutide mostró pérdida de peso sustancial y la FDA aprobó Onswik, su insulina basal semanal. La única noticia negativa de la semana es la terminación del acuerdo de oncología con Foghorn Therapeutics el 1/10/2026, inmaterial para Lilly. Lo que sí cambia la compra de hoy, y por eso va como objeción, es el precio: desde el 1/1/2027, dentro de los próximos 6 meses, el precio de lista de Wegovy y Ozempic baja a USD 675 por mes, 50% y 35% menos, contra una lista de USD 1.086 para Zepbound, y los precios negociados de Medicare y Medicaid quedan en USD 245. El anuncio de Novo es del 24/2/2026, viejo, pero la fecha de vigencia cae dentro de la ventana de seis meses. La segunda objeción es el litigio: el propio 10-Q al 30/6/2026 informa 3.848 demandas en el MDL 3094 por lesiones gastrointestinales de incretinas, y el calendario del MDL tiene una audiencia Rule 702 sobre advertencias, preemption y causalidad general en septiembre de 2026, que es la decisión de compuerta previa a cualquier juicio bellwether, que recién sería en 2027. No escribo como objeción ningún comunicado de estudios de abogados buscando demandantes. Dato de contexto sobre la línea del plan: el precio del 1/10/2026 es USD 1.143,82, por debajo del cierre de USD 1.157,08 con el que se armó la línea y apenas 1,7% arriba del stop de USD 1.125,08."
+    },
+    {
+      "symbol": "SHC",
+      "fecha": "2026-10-01",
+      "busquedaHecha": true,
+      "motivoSinBusqueda": null,
+      "objeciones": [
+        {
+          "tipo": "regulacion",
+          "detalle": "Los primeros juicios por óxido de etileno de Vernon (California) están fijados para enero y abril de 2027, con ~150 reclamos pendientes y sin reserva contable al 30/6/2026.",
+          "fecha": "2026-08-06",
+          "fuente": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1822479/000182247926000047/shc-20260630.htm",
+            "titulo": "Sotera Health, Form 10-Q al 30/6/2026, nota de compromisos y contingencias"
+          }
+        }
+      ],
+      "fuentes": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/1822479/000182247926000047/shc-20260630.htm",
+          "titulo": "Sotera Health, Form 10-Q al 30/6/2026 (presentado 6/8/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=SHC&type=&dateb=&owner=include&count=40",
+          "titulo": "EDGAR: presentaciones de Sotera Health; la última es el Form 4 del 19/8/2026, sin nada en septiembre"
+        },
+        {
+          "url": "https://www.marketbeat.com/stocks/NASDAQ/SHC/forecast",
+          "titulo": "Sotera Health: consenso Moderate Buy, objetivo 21,50 USD; Piper Sandler reitera Overweight con 25 el 8/9/2026"
+        },
+        {
+          "url": "https://www.marketbeat.com/instant-alerts/consensus-sotera-health-company-nasdaq-shc-receives-consensus-rating-of-moderate-buy-from-analysts-2026-09-25/",
+          "titulo": "Sotera Health Company (NASDAQ:SHC) Receives Consensus Rating of 'Moderate Buy' from Analysts (25/9/2026)"
+        },
+        {
+          "url": "https://seekingalpha.com/article/4944607-sotera-health-company-shc-presents-at-wells-fargo-21st-annual-healthcare-conference",
+          "titulo": "Sotera Health presenta en la Wells Fargo 21st Annual Healthcare Conference (9/9/2026)"
+        },
+        {
+          "url": "https://investors.soterahealth.com/news-releases/news-release-details/sotera-health-delivers-strong-second-quarter-and-first-half-2026",
+          "titulo": "Sotera Health Delivers Strong Second-Quarter and First-Half 2026 Results and Raises FY 2026 Outlook (6/8/2026)"
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/data/0001822479/000182247926000050/shc-20260811.htm",
+          "titulo": "Sotera Health, 8-K del 14/8/2026: renuncia de James C. Neary como director Clase I, efectiva el 13/8/2026"
+        }
+      ],
+      "resumen": "Revisión al 1/10/2026 de lo publicado en los últimos 30 días y lo que vence en seis meses. Resultados: nada nuevo desde el 6/8/2026, cuando Sotera reportó el segundo trimestre con ingresos de 321,38 MUSD (+9,2% a/a) contra 309,70 esperados y 0,26 de EPS ajustada contra 0,24, y subió la perspectiva de 2026; el próximo reporte es el tercer trimestre, que la empresa viene publicando a principios de noviembre y todavía no tiene fecha anunciada. Regulación y litigios: el 10-Q al 30/6/2026 informa ~150 reclamos de daños por óxido de etileno en Vernon, California, con los primeros ocho juicios fijados para enero y abril de 2027, es decir dentro de seis meses, y sin reserva contable registrada al 30/6/2026 (la reserva de 34,0 MUSD por los acuerdos de Illinois se pagó en el primer semestre); en Georgia hay ~500 reclamos de daños personales y ~305 juicios por desvalorización de propiedades, con el proceso suspendido mientras se resuelven apelaciones; en Illinois quedan ~15 casos. No encontré normas nuevas de la EPA sobre óxido de etileno ni plazos de cumplimiento en el 10-Q. Capital: no hay presentaciones en EDGAR en septiembre, o sea ningún Form 4 ni Form 144 nuevo desde el 19/8/2026, y la venta de Petras del 17/8 ya estaba en la verificación previa; no hay ofertas de acciones ni convertibles; la deuda bruta al 30/6/2026 es de 2.165,9 MUSD (750 de notas garantizadas y 1.415,9 de préstamo a plazo) y la Enmienda 7 del 20/5/2026 bajó el spread 0,25 puntos a SOFR + 2,25%, sin cambio de calificación que haya encontrado. Analistas: ninguna rebaja en los últimos 30 días; Piper Sandler reiteró Overweight con objetivo 25 el 8/9/2026 y el consenso al 25/9/2026 es Moderate Buy con objetivo promedio de 21,50 contra un precio de ~18,36-18,45. Noticias de los últimos 7 días: nada material, solo análisis de terceros. Fuera de la ventana de 30 días pero relevante como contexto: el 8-K del 14/8/2026 informó la renuncia del director Clase I James C. Neary, efectiva el 13/8/2026. Conclusión de hechos: la única objeción con fecha que cambia la compra de hoy es el calendario de juicios de Vernon de enero y abril de 2027 sin reserva contable."
+    }
+  ]
+}

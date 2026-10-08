@@ -1,0 +1,892 @@
+{
+  "hechos": [
+    {
+      "tipo": "guia",
+      "symbol": "PGY",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingreso neto GAAP, guía de año completo",
+        "periodo": "FY2026",
+        "antes": "USD 110 millones – USD 160 millones (guía del 7/5/2026)",
+        "despues": "USD 155 millones – USD 180 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001883085/000188308526000052/earningspressreleasefina.htm",
+        "titulo": "Pagaya Technologies Ltd. – 8-K Exhibit 99.1, resultados Q2 2026, 30/7/2026 (\"Raises Full-Year Net Income Guidance\")"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "PGY",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Adjusted EBITDA, guía de año completo",
+        "periodo": "FY2026",
+        "antes": "USD 420 millones – USD 460 millones (guía del 7/5/2026)",
+        "despues": "USD 460 millones – USD 490 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001883085/000188308526000052/earningspressreleasefina.htm",
+        "titulo": "Pagaya Technologies Ltd. – 8-K Exhibit 99.1, resultados Q2 2026, 30/7/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "PGY",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Network volume, guía de año completo",
+        "periodo": "FY2026",
+        "antes": "USD 11.450 millones – USD 13.000 millones (guía del 7/5/2026)",
+        "despues": "USD 12.500 millones – USD 13.250 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001883085/000188308526000052/earningspressreleasefina.htm",
+        "titulo": "Pagaya Technologies Ltd. – 8-K Exhibit 99.1, resultados Q2 2026, 30/7/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "APH",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ventas 2026 y acreción al EPS diluido ajustado aportadas por la adquisición de CommScope (CCS)",
+        "periodo": "FY2026",
+        "antes": "Ventas USD 4.100 millones y acreción de USD 0,15 al EPS diluido ajustado",
+        "despues": "Ventas USD 4.600 millones y acreción de USD 0,30 al EPS diluido ajustado"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/820313/000110465926087904/aph-20260729xex99d1.htm",
+        "titulo": "Amphenol Corporation Reports Second Quarter 2026 Results (8-K Exhibit 99.1, 29/7/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CF",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "baja",
+        "metrica": "Fecha esperada de reanudación de producción del complejo Yazoo City",
+        "periodo": "Reinicio de Yazoo City",
+        "antes": "\"would not resume operations until late fourth quarter of 2026 at the earliest\" (8-K del 6/5/2026, resultados 1T 2026)",
+        "despues": "\"expected to resume ammonia, ammonium nitrate solution, nitric acid, urea ammonium nitrate solution and urea liquor production during 1H 2027\""
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1324404/000110465926091275/tm2622111d1_ex99-1.htm",
+        "titulo": "CF Industries Holdings Reports Second Quarter 2026 Results (8-K Exhibit 99.1, 5/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CF",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Producción bruta de amoníaco y capex financiado por CF",
+        "periodo": "FY2026",
+        "antes": "~9,5 millones de toneladas de amoníaco; capex ~USD 950 millones (~USD 400 millones de Blue Point), guía del 8-K del 18/2/2026",
+        "despues": "~9,5 millones de toneladas de amoníaco; capex ~USD 950 millones (~USD 400 millones de Blue Point)"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1324404/000110465926091275/tm2622111d1_ex99-1.htm",
+        "titulo": "CF Industries Holdings Reports Second Quarter 2026 Results (8-K Exhibit 99.1, 5/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "NVDA",
+      "fecha": "2026-08-26",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos trimestrales",
+        "periodo": "T3 del año fiscal 2027 (termina en octubre de 2026)",
+        "antes": "USD 91.000 millones ± 2% (guía del 20/5/2026 para el T2 FY27)",
+        "despues": "USD 108.000 millones ± 2%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000073/q2fy27pr.htm",
+        "titulo": "NVIDIA Announces Financial Results for Second Quarter Fiscal 2027 (8-K Exhibit 99.1, 26/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "NVDA",
+      "fecha": "2026-08-26",
+      "valor": {
+        "direccion": "baja",
+        "metrica": "Margen bruto GAAP y no-GAAP",
+        "periodo": "T3 del año fiscal 2027 (termina en octubre de 2026)",
+        "antes": "GAAP 74,9% ± 50 pb; no-GAAP 75,0% ± 50 pb (guía del 20/5/2026 para el T2 FY27)",
+        "despues": "GAAP 74,0% ± 50 pb; no-GAAP 74,0% ± 50 pb"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000073/q2fy27pr.htm",
+        "titulo": "NVIDIA Announces Financial Results for Second Quarter Fiscal 2027 (8-K Exhibit 99.1, 26/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "SEZL",
+      "fecha": "2026-08-06",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Crecimiento de ingresos totales",
+        "periodo": "FY2026",
+        "antes": "30%-35%",
+        "despues": "35%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1662991/000166299126000124/sezl-20260806ex9901.htm",
+        "titulo": "Sezzle Inc. Q2 2026 Earnings Press Release (8-K Exhibit 99.1, 6/8/2026) — tercera suba de la guía FY2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "SEZL",
+      "fecha": "2026-08-06",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingreso neto ajustado",
+        "periodo": "FY2026",
+        "antes": "USD 180,0 millones",
+        "despues": "USD 185,0 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1662991/000166299126000124/sezl-20260806ex9901.htm",
+        "titulo": "Sezzle Inc. Q2 2026 Earnings Press Release (8-K Exhibit 99.1, 6/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "SEZL",
+      "fecha": "2026-08-06",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingreso neto ajustado por acción diluida",
+        "periodo": "FY2026",
+        "antes": "USD 5,10",
+        "despues": "USD 5,25"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1662991/000166299126000124/sezl-20260806ex9901.htm",
+        "titulo": "Sezzle Inc. Q2 2026 Earnings Press Release (8-K Exhibit 99.1, 6/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "TRMD",
+      "fecha": "2026-08-26",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "TCE (time charter equivalent) earnings, año completo",
+        "periodo": "FY2026",
+        "antes": "USD 1.150 – 1.450 millones",
+        "despues": "USD 1.400 – 1.600 millones"
+      },
+      "fuente": {
+        "url": "https://www.nasdaq.com/press-release/torm-plc-q2-2026-results-dividend-distribution-and-financial-outlook-2026-2026-08-26",
+        "titulo": "TORM plc Q2 2026 Results, Dividend Distribution, and Financial Outlook 2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "TRMD",
+      "fecha": "2026-08-26",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "EBITDA, año completo",
+        "periodo": "FY2026",
+        "antes": "USD 800 – 1.100 millones",
+        "despues": "USD 1.000 – 1.200 millones"
+      },
+      "fuente": {
+        "url": "https://www.nasdaq.com/press-release/torm-plc-q2-2026-results-dividend-distribution-and-financial-outlook-2026-2026-08-26",
+        "titulo": "TORM plc Q2 2026 Results, Dividend Distribution, and Financial Outlook 2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "TGTX",
+      "fecha": "2026-08-03",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos globales totales",
+        "periodo": "FY2026",
+        "antes": "~USD 925 millones (guía del 6/5/2026)",
+        "despues": "~USD 950 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001001316/000143774926025304/ex_997107.htm",
+        "titulo": "TG Therapeutics Reports Second Quarter 2026 Financial Results and Raises BRIUMVI Revenue Guidance (8-K Exhibit 99)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "TGTX",
+      "fecha": "2026-08-03",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingreso neto de producto BRIUMVI en EE.UU.",
+        "periodo": "FY2026",
+        "antes": "USD 885 – 900 millones (guía del 6/5/2026)",
+        "despues": "USD 890 – 905 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001001316/000143774926025304/ex_997107.htm",
+        "titulo": "TG Therapeutics Reports Second Quarter 2026 Financial Results and Raises BRIUMVI Revenue Guidance (8-K Exhibit 99)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HSBC",
+      "fecha": "2026-08-04",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Banking NII (ingreso neto por intereses bancario)",
+        "periodo": "FY2026",
+        "antes": "around USD 46bn (guía del 5/5/2026)",
+        "despues": "at least USD 46bn"
+      },
+      "fuente": {
+        "url": "https://www.hsbc.com/-/files/hsbc/investors/hsbc-results/2026/interim/pdfs/hsbc-holdings-plc/260804-hsbc-holdings-plc-interim-results-2026-media-release.pdf",
+        "titulo": "HSBC Holdings plc 2026 Interim Results, media release, 4/8/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HSBC",
+      "fecha": "2026-08-04",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Cargo por ECL como % de préstamos brutos promedio",
+        "periodo": "FY2026",
+        "antes": "around 45bps (guía del 5/5/2026)",
+        "despues": "around 45bps"
+      },
+      "fuente": {
+        "url": "https://www.hsbc.com/-/files/hsbc/investors/hsbc-results/2026/interim/pdfs/hsbc-holdings-plc/260804-hsbc-holdings-plc-interim-results-2026-media-release.pdf",
+        "titulo": "HSBC Holdings plc 2026 Interim Results, media release, 4/8/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HSBC",
+      "fecha": "2026-08-04",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "RoTE (retorno sobre patrimonio tangible promedio)",
+        "periodo": "2026-2028",
+        "antes": "17% o mejor (objetivo de los resultados anuales de febrero de 2026)",
+        "despues": "17% o mejor"
+      },
+      "fuente": {
+        "url": "https://www.hsbc.com/-/files/hsbc/investors/hsbc-results/2026/interim/pdfs/hsbc-holdings-plc/260804-hsbc-holdings-plc-interim-results-2026-media-release.pdf",
+        "titulo": "HSBC Holdings plc 2026 Interim Results, media release, 4/8/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "MEDP",
+      "fecha": "2026-07-22",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos totales",
+        "periodo": "FY2026",
+        "antes": "USD 2.755 – 2.855 millones (8-K del 22/4/2026)",
+        "despues": "USD 2.805 – 2.885 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000166839726000023/medp-2026722exx991.htm",
+        "titulo": "Medpace Holdings, Inc. Reports Second Quarter 2026 Results (8-K Exhibit 99.1)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "MEDP",
+      "fecha": "2026-07-22",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ganancia por acción diluida GAAP",
+        "periodo": "FY2026",
+        "antes": "USD 16,68 – 17,50 (8-K del 22/4/2026)",
+        "despues": "USD 17,25 – 17,95"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001668397/000166839726000023/medp-2026722exx991.htm",
+        "titulo": "Medpace Holdings, Inc. Reports Second Quarter 2026 Results (8-K Exhibit 99.1)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CRDO",
+      "fecha": "2026-09-08",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Crecimiento de ingresos totales",
+        "periodo": "Año fiscal 2027 (termina en marzo de 2027)",
+        "antes": "más del 85% interanual",
+        "despues": "más del 85% interanual"
+      },
+      "fuente": {
+        "url": "https://finance.biggo.com/quote/CRDO/earnings-call/US_CRDO_2026-09-08",
+        "titulo": "Credo (CRDO) Q1 FY2027 Earnings Call — BigGo Finance (8/9/2026): \"management reiterates expectations of more than 85% year-over-year revenue growth\""
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "TSM",
+      "fecha": "2026-07-16",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Crecimiento de ingresos en dólares",
+        "periodo": "FY2026",
+        "antes": "más del 30% interanual",
+        "despues": "más del 40% interanual"
+      },
+      "fuente": {
+        "url": "https://finance.biggo.com/news/US_TSM_2026-07-16",
+        "titulo": "TSMC Raises 2026 Revenue Growth Outlook to 40%-Plus, Boosts CapEx to $64 Billion on AI Surge — BigGo Finance"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "TSM",
+      "fecha": "2026-07-16",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Gasto de capital (capex)",
+        "periodo": "FY2026",
+        "antes": "USD 52.000 – 56.000 millones",
+        "despues": "USD 60.000 – 64.000 millones"
+      },
+      "fuente": {
+        "url": "https://finance.biggo.com/news/US_TSM_2026-07-16",
+        "titulo": "TSMC Raises 2026 Revenue Growth Outlook to 40%-Plus, Boosts CapEx to $64 Billion on AI Surge — BigGo Finance"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CROX",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Crecimiento de ingresos totales",
+        "periodo": "FY2026",
+        "antes": "baja 1% a sube 1%",
+        "despues": "sube aproximadamente 1% a 2%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001334036/000133403626000050/croxq22026-pressrelease.htm",
+        "titulo": "Crocs, Inc. Reports Record Second Quarter 2026 Results; Raises Full-Year 2026 Outlook (8-K Exhibit 99.1)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CROX",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ganancia por acción diluida ajustada",
+        "periodo": "FY2026",
+        "antes": "USD 13,20 – 13,75",
+        "despues": "USD 13,70 – 14,00"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001334036/000133403626000050/croxq22026-pressrelease.htm",
+        "titulo": "Crocs, Inc. Reports Record Second Quarter 2026 Results; Raises Full-Year 2026 Outlook (8-K Exhibit 99.1)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CLS",
+      "fecha": "2026-07-27",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos totales",
+        "periodo": "FY2026",
+        "antes": "USD 19.000 millones",
+        "despues": "USD 20.500 millones"
+      },
+      "fuente": {
+        "url": "https://www.globenewswire.com/news-release/2026/07/27/3333904/0/en/Celestica-Announces-Second-Quarter-2026-Financial-Results.html",
+        "titulo": "Celestica Announces Second Quarter 2026 Financial Results"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CLS",
+      "fecha": "2026-07-27",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ganancia por acción ajustada (no-GAAP)",
+        "periodo": "FY2026",
+        "antes": "USD 10,15",
+        "despues": "USD 11,30"
+      },
+      "fuente": {
+        "url": "https://www.globenewswire.com/news-release/2026/07/27/3333904/0/en/Celestica-Announces-Second-Quarter-2026-Financial-Results.html",
+        "titulo": "Celestica Announces Second Quarter 2026 Financial Results"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HST",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Adjusted EBITDAre",
+        "periodo": "FY2026",
+        "antes": "USD 1.785 – 1.835 millones",
+        "despues": "USD 1.820 – 1.840 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1070750/000107075026000122/hst-ex991.htm",
+        "titulo": "Host Hotels & Resorts, Inc. Reports Results for the Second Quarter of 2026 (8-K Exhibit 99.1)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HST",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Adjusted FFO por acción diluida",
+        "periodo": "FY2026",
+        "antes": "USD 2,10 – 2,16",
+        "despues": "USD 2,15 – 2,18"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1070750/000107075026000122/hst-ex991.htm",
+        "titulo": "Host Hotels & Resorts, Inc. Reports Results for the Second Quarter of 2026 (8-K Exhibit 99.1)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "MNTN",
+      "fecha": "2026-08-04",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Ingresos y EBITDA ajustado, guía de año completo",
+        "periodo": "FY2026",
+        "antes": "Ingresos USD 347 – 357 millones; EBITDA ajustado USD 96 – 101 millones (guía del 5/5/2026)",
+        "despues": "Ingresos USD 347 – 357 millones; EBITDA ajustado USD 96 – 101 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1891027/000189102726000070/mntnearningsrelease2026-q2.htm",
+        "titulo": "MNTN, Inc. – 8-K Exhibit 99.1, MNTN Reports Second Quarter 2026 Results"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CUBI",
+      "fecha": "2026-07-23",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Crecimiento de préstamos y depósitos, ingreso neto por intereses, gasto no financiero y CET1",
+        "periodo": "FY2026",
+        "antes": "Depósitos/préstamos 8%-12%; ingreso neto por intereses USD 800 – 830 millones; gasto no financiero USD 440 – 460 millones; CET1 11,5%-12,5% (guía del 23/4/2026)",
+        "despues": "Mismos rangos, reafirmados sin cambios"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001488813/000148881326000082/q226pressrelease.htm",
+        "titulo": "Customers Bancorp, Inc. – 8-K Exhibit 99.1, Reports Results for Second Quarter 2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "GFR",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Producción de bitumen (bbls/d)",
+        "periodo": "FY2026",
+        "antes": "13.500 – 15.500 bbls/d (reafirmada el 5/5/2026)",
+        "despues": "21.500 – 23.500 bbls/d, tras el cierre de la adquisición de Connacher Oil and Gas el 5/8/2026"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001966287/000121390026085449/ea030022101ex99-3.htm",
+        "titulo": "Greenfire Resources Ltd. – 6-K Exhibit 99.3, Second Quarter 2026 Results and Operational Update"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "LTC",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Core FFO y Core FAD por acción",
+        "periodo": "FY2026",
+        "antes": "Core FFO USD 2,75 – 2,79; Core FAD USD 2,82 – 2,86 (guía de mayo de 2026)",
+        "despues": "Core FFO USD 2,76 – 2,78; Core FAD USD 2,83 – 2,85 (rango estrechado, mismo punto medio)"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/887905/000110465926091138/ltc-20260805xex99d1.htm",
+        "titulo": "LTC Properties, Inc. – 8-K Exhibit 99.1, LTC Reports 2026 Second Quarter Results"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "DAVE",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos y EBITDA ajustado",
+        "periodo": "FY2026",
+        "antes": "Ingresos USD 710 – 720 millones; EBITDA ajustado USD 305 – 315 millones (guía del 5/5/2026)",
+        "despues": "Ingresos USD 725 – 735 millones; EBITDA ajustado USD 315 – 325 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001841408/000119312526206471/dave-ex99_1.htm",
+        "titulo": "Dave Inc. – 8-K Exhibit 99.1, Reports Second Quarter 2026 Financial Results"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "FTK",
+      "fecha": "2026-08-04",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos y EBITDA ajustado",
+        "periodo": "FY2026",
+        "antes": "Ingresos USD 270 – 290 millones; EBITDA ajustado USD 36 – 41 millones (guía de mayo de 2026)",
+        "despues": "Ingresos USD 340 – 350 millones; EBITDA ajustado USD 47 – 51 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0000928054/000092805426000077/ex991-q22026.htm",
+        "titulo": "Flotek Industries Inc. – 8-K Exhibit 99.1, Second Quarter 2026 Results"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "KSPI",
+      "fecha": "2026-08-10",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Crecimiento de GMV (volumen bruto de mercancía)",
+        "periodo": "FY2026",
+        "antes": "~20% interanual (guía del 11/5/2026)",
+        "despues": "~20% interanual (\"We reiterate our full-year 2026 guidance\")"
+      },
+      "fuente": {
+        "url": "https://www.nasdaq.com/press-release/kaspikz-2q-1h-2026-financial-results-2026-08-10",
+        "titulo": "Kaspi.kz 2Q & 1H 2026 Financial Results"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "NWPX",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Flujo de caja libre",
+        "periodo": "FY2026",
+        "antes": "USD 50 – 56 millones",
+        "despues": "USD 56 – 65 millones"
+      },
+      "fuente": {
+        "url": "https://www.fool.com/earnings/call-transcripts/2026/08/07/nwpx-q2-2026-earnings-call-transcript/",
+        "titulo": "NWPX Q2 2026 Earnings Call Transcript (el CFO da la nueva guía de FCF USD 56-65 M contra el rango previo USD 50-56 M)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CPA",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Crecimiento de capacidad (ASMs)",
+        "periodo": "FY2026",
+        "antes": "11% a 13%",
+        "despues": "14% a 15%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1345105/000162828026054628/cpa2q26ex-9911.htm",
+        "titulo": "Copa Holdings Reports Second-Quarter Financial Results (6-K Exhibit 99.1, 5/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "DEO",
+      "fecha": "2026-05-06",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Ventas netas orgánicas",
+        "periodo": "FY2026",
+        "antes": "baja de 2% a 3%",
+        "despues": "baja de 2% a 3%"
+      },
+      "fuente": {
+        "url": "https://www.diageo.com/en/news-and-media/press-releases/2026/diageo-issues-fiscal-26-q3-trading-statement",
+        "titulo": "Diageo issues Fiscal 26 Q3 Trading Statement (\"guidance unchanged from fiscal 26 H1 results\")"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "DEO",
+      "fecha": "2026-05-06",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Crecimiento de la ganancia operativa orgánica",
+        "periodo": "FY2026",
+        "antes": "estable a suba de un dígito bajo, incluidos ~USD 300 millones de ahorros de Accelerate y el impacto de aranceles",
+        "despues": "estable a suba de un dígito bajo, incluidos ~USD 300 millones de ahorros de Accelerate y el impacto de aranceles"
+      },
+      "fuente": {
+        "url": "https://www.diageo.com/en/news-and-media/press-releases/2026/diageo-issues-fiscal-26-q3-trading-statement",
+        "titulo": "Diageo issues Fiscal 26 Q3 Trading Statement (\"guidance unchanged from fiscal 26 H1 results\")"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HIPO",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Gross Written Premium (GWP)",
+        "periodo": "FY2026",
+        "antes": "USD 1.450 – 1.525 millones",
+        "despues": "USD 1.650 – 1.700 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm",
+        "titulo": "Hippo Reports Second Quarter 2026 Financial Results (8-K Exhibit, 29/7/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HIPO",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Net Written Premium (NWP)",
+        "periodo": "FY2026",
+        "antes": "USD 520 – 550 millones",
+        "despues": "USD 565 – 580 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm",
+        "titulo": "Hippo Reports Second Quarter 2026 Financial Results (8-K Exhibit, 29/7/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HIPO",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos",
+        "periodo": "FY2026",
+        "antes": "USD 560 – 570 millones",
+        "despues": "USD 580 – 585 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm",
+        "titulo": "Hippo Reports Second Quarter 2026 Financial Results (8-K Exhibit, 29/7/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HIPO",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "baja",
+        "metrica": "Combined ratio",
+        "periodo": "FY2026",
+        "antes": "103% – 105%",
+        "despues": "99% – 101%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm",
+        "titulo": "Hippo Reports Second Quarter 2026 Financial Results (8-K Exhibit, 29/7/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HIPO",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "baja",
+        "metrica": "CAT loss ratio",
+        "periodo": "FY2026",
+        "antes": "13%",
+        "despues": "10%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm",
+        "titulo": "Hippo Reports Second Quarter 2026 Financial Results (8-K Exhibit, 29/7/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HIPO",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingreso neto ajustado",
+        "periodo": "FY2026",
+        "antes": "USD 48 – 56 millones",
+        "despues": "USD 62 – 70 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm",
+        "titulo": "Hippo Reports Second Quarter 2026 Financial Results (8-K Exhibit, 29/7/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "UBS",
+      "fecha": "2026-07-29",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Ahorro de costos brutos acumulados",
+        "periodo": "fin de 2026",
+        "antes": "~USD 13.500 millones acumulados para fines de 2026",
+        "despues": "~USD 13.500 millones acumulados para fines de 2026 (USD 12.600 millones alcanzados al 2T26)"
+      },
+      "fuente": {
+        "url": "https://www.ubs.com/global/en/media/display-page-ndp/en-20260729-2q26-quarterly-result.html",
+        "titulo": "UBS's second-quarter 2026 results (comunicado de UBS, 29/7/2026)"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "AII",
+      "fecha": "2026-08-11",
+      "valor": {
+        "trimestre": "Q2 2026 (trimestre terminado el 30/6/2026)",
+        "montoUsd": 0,
+        "puntosCombinado": 0,
+        "epsPublicado": 1.78,
+        "epsSinReservas": 1.78,
+        "epsConsenso": 0.81
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0002007587/000200758726000085/q2-2026earningsrelease.htm",
+        "titulo": "American Integrity Insurance Group – 8-K Exhibit 99.1, resultados Q2 2026 (11/8/2026): 'Prior Year Net Reserve Development' en cero para Q2 2026 contra USD 1,695 millones favorables en Q2 2025; EPS diluida ajustada USD 1,78 (GAAP USD 1,74). epsSinReservas es cálculo propio, igual al publicado porque el desarrollo fue USD 0; consenso USD 0,81 según cable de Yahoo Finance/Zacks del 11/8/2026"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "ALL",
+      "fecha": "2026-08-05",
+      "valor": {
+        "trimestre": "Q2 2026 (tres meses terminados el 30/6/2026)",
+        "montoUsd": 639000000,
+        "puntosCombinado": 4.6,
+        "epsPublicado": 8.99,
+        "epsSinReservas": 7.04,
+        "epsConsenso": 5.76
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/899051/000089905126000117/allcorp63026earningsreleas.htm",
+        "titulo": "Allstate Reports Excellent Operating Results (8-K Exhibit 99.1, 5/8/2026): EPS ajustada publicada USD 8,99 diluida y 'Effect of prior year reserve reestimates, excluding catastrophes' = 4,6 puntos del combined ratio Property-Liability del Q2 2026; montoUsd = liberación de reservas de auto del 10-Q Q2 2026 (USD 597 M lesiones + USD 42 M otras coberturas de auto); epsSinReservas es CÁLCULO PROPIO = 8,99 − [639 M × (1 − 21%) / 259,1 M acciones diluidas]; epsConsenso es CÁLCULO PROPIO implícito a partir de la sorpresa de 56,1% contra el Zacks Consensus Estimate"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "LNC",
+      "fecha": "2026-07-30",
+      "valor": {
+        "trimestre": "Q2 2026 (tres meses terminados el 30/6/2026)",
+        "montoUsd": 0,
+        "puntosCombinado": null,
+        "epsPublicado": 2.24,
+        "epsSinReservas": 2.24,
+        "epsConsenso": 2.0
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/59558/000005955826000058/a2q2026investorsupplemen.htm",
+        "titulo": "Lincoln National Q2 2026 Investor Supplement (8-K Exhibit 99.1, 30/7/2026): 'Total significant items' = USD 0 millones para el Q2 2026 (sin revisión anual de supuestos ni cargo/beneficio de reservas); LNC no reporta combined ratio; epsPublicado = adjusted operating income por acción diluida; epsSinReservas es CÁLCULO PROPIO, igual al publicado porque el monto es 0; epsConsenso = Zacks Consensus Estimate"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "NBN",
+      "fecha": "2026-07-27",
+      "valor": {
+        "trimestre": "Q4 del año fiscal 2026 (trimestre terminado el 30/6/2026)",
+        "montoUsd": 4705000,
+        "puntosCombinado": null,
+        "epsPublicado": 4.05,
+        "epsSinReservas": 3.6,
+        "epsConsenso": 3.4
+      },
+      "fuente": {
+        "url": "https://www.nasdaq.com/press-release/northeast-bank-reports-fourth-quarter-results-and-declares-dividend-2026-07-27",
+        "titulo": "Northeast Bank Reports Fourth Quarter Results and Declares Dividend (CÁLCULO PROPIO de la ganancia sin reservas: USD 4.705.000 de liberación sobre préstamos comprados, tasa efectiva 19,1%, 8.471.307 acciones diluidas)"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "CNOB",
+      "fecha": "2026-07-23",
+      "valor": {
+        "trimestre": "Q2 2026",
+        "montoUsd": 9200000,
+        "puntosCombinado": null,
+        "epsPublicado": 0.8,
+        "epsSinReservas": 0.67,
+        "epsConsenso": 0.83
+      },
+      "fuente": {
+        "url": "https://www.globenewswire.com/news-release/2026/07/23/3331988/25238/en/ConnectOne-Bancorp-Inc-Reports-Second-Quarter-2026-Results.html",
+        "titulo": "ConnectOne Bancorp Reports Second Quarter 2026 Results (CÁLCULO PROPIO de la ganancia sin la liberación de reservas: 0,80 − [9,2 M × (1 − 28% de tasa efectiva) / 50.404.698 acciones diluidas]; el consenso 0,83 corresponde al EPS operativo no-GAAP)"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "SPNT",
+      "fecha": "2026-07-29",
+      "valor": {
+        "trimestre": "Q2 2026",
+        "montoUsd": 16700000,
+        "puntosCombinado": -2.3,
+        "epsPublicado": 0.58,
+        "epsSinReservas": 0.47,
+        "epsConsenso": 0.65
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1576018/000157601826000084/exhibit991-earningspressre.htm",
+        "titulo": "SiriusPoint Ltd. – 8-K Exhibit 99.1, Reports Second Quarter 2026 Results (CÁLCULO PROPIO de la ganancia sin desarrollo favorable de reservas: 0,58 − [16,7 M × (1 − 19% de tasa efectiva) / 119.011.731 acciones diluidas]; consenso de 4 analistas previo al reporte)"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "HIPO",
+      "fecha": "2026-07-29",
+      "valor": {
+        "trimestre": "Q2 2026",
+        "montoUsd": 2500000,
+        "puntosCombinado": 2,
+        "epsPublicado": 0.38,
+        "epsSinReservas": 0.29,
+        "epsConsenso": null
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1828105/000182810526000041/q226earningsreleasefinal.htm",
+        "titulo": "Hippo Reports Second Quarter 2026 Financial Results: USD 2,5 M y 2 puntos de desarrollo favorable de reservas de años anteriores, EPS diluida publicada USD 0,38 (epsSinReservas es CÁLCULO PROPIO: USD 2,5 M × (1 − 8,18%) / 26.552.111 acciones, restado del EPS publicado)"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "HCI",
+      "fecha": "2026-08-07",
+      "valor": {
+        "trimestre": "Q2 2026",
+        "montoUsd": 0,
+        "puntosCombinado": 0,
+        "epsPublicado": 5.6,
+        "epsSinReservas": 5.6,
+        "epsConsenso": 5.05
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001400810/000119312526340280/R85.htm",
+        "titulo": "HCI Group 10-Q Q2 2026, nota 'Losses and Loss Adjustment Expenses': desarrollo neto de reservas de años anteriores = USD 0 en el trimestre; epsSinReservas es CÁLCULO PROPIO (sin ajuste, porque no hubo desarrollo)"
+      }
+    }
+  ]
+}

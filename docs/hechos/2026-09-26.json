@@ -1,0 +1,502 @@
+{
+  "hechos": [
+    {
+      "tipo": "guia",
+      "symbol": "SLDE",
+      "fecha": "2026-07-28",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Primas brutas emitidas y utilidad neta, guía de año completo",
+        "periodo": "FY2026",
+        "antes": "Primas brutas emitidas USD 1.850-1.950 millones; utilidad neta USD 455-470 millones (guía del 28/4/2026, resultados 1T 2026)",
+        "despues": "Primas brutas emitidas USD 1.850-1.950 millones; utilidad neta USD 455-470 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001886428/000119312526321067/slde-ex99_1.htm",
+        "titulo": "Slide Insurance Holdings — 8-K Exhibit 99.1, \"Slide Reports Second Quarter 2026 Results\", 28/7/2026 (\"reiterated its expectations\")"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "STNG",
+      "fecha": "2026-09-03",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "TCE spot/pool ya contratado del trimestre (MR, Handymax y LR2)",
+        "periodo": "3T 2026",
+        "antes": "MR USD 29.000/día con 46% de los días reservados; Handymax USD 20.800/día con 38%; LR2 USD 65.000/día con 34% (6-K Exhibit 99.1 del 30/7/2026)",
+        "despues": "MR USD 30.000/día con 79% de los días reservados; Handymax USD 25.500/día con 70%; LR2 USD 64.900/día con 85%"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1483934/000162828026060459/stngexhibit991-09032026.htm",
+        "titulo": "Scorpio Tankers — 6-K Exhibit 99.1, \"Updates on Third Quarter 2026 TCE Rates and Time Charter-Out Agreements\", 3/9/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "STNG",
+      "fecha": "2026-07-30",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Costo de dique seco y días fuera de servicio",
+        "periodo": "3T 2026, 4T 2026 y FY2027",
+        "antes": "3T 2026 USD 10,0 millones / 159 días; 4T 2026 USD 5,3 millones / 120 días; FY2027 USD 20,7 millones / 511 días (6-K Exhibit 99.1 del 5/5/2026)",
+        "despues": "3T 2026 USD 10,1 millones / 155 días; 4T 2026 USD 5,2 millones / 116 días; FY2027 USD 20,7 millones / 495 días"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001483934/000162828026051064/q22026earnings-exhibit991.htm",
+        "titulo": "Scorpio Tankers — 6-K Exhibit 99.1, resultados del 2T 2026 y declaración de dividendo, 30/7/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "ATEX",
+      "fecha": "2026-08-11",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Efectivo contratado por venta de espectro a cobrar en el año fiscal",
+        "periodo": "Año fiscal 2027 (cierra el 31/3/2027)",
+        "antes": "USD 25,3 millones esperados en el año fiscal 2027 por contratos de clientes existentes (8-K Exhibit 99.1 del 10/6/2026)",
+        "despues": "USD 15,7 millones ya cobrados en el 1T del año fiscal 2027 más unos USD 9,6 millones en lo que resta (USD 25,3 millones en total); USD 33,1 millones contratados aún pendientes"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001304492/000130449226000045/atex-06302026xpressrelease.htm",
+        "titulo": "Anterix Inc. — 8-K Exhibit 99.1, \"Anterix Inc. Reports First Quarter Fiscal Year 2027 Results\", 11/8/2026"
+      }
+    },
+    {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "FRO",
+      "fecha": "2026-08-28",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 78962000,
+        "concepto": "Partidas que la propia empresa excluye del \"adjusted profit\": ganancia de USD 54,717 millones por la venta de dos Suezmax de 2014 y 2015, resultado de asociadas USD 12,389 millones, dividendos cobrados USD 6,378 millones, revaluación de opción sintética USD 5,253 millones y derivados/extinción de deuda neto",
+        "epsPublicado": 2.96,
+        "epsSinExtraordinario": 2.61,
+        "epsConsenso": 2.64
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0000913290/000091957426005942/p15060813_ex-1.htm",
+        "titulo": "Frontline plc — 6-K Exhibit 1, \"FRO – Second Quarter and Six Months 2026 Results\", 28/8/2026. El 2,61 NO es cálculo propio: es el \"adjusted profit per share\" publicado por la empresa (USD 580,210 millones sobre 222.623.000 acciones), misma base que el consenso de FactSet de 2,64"
+      }
+    },
+    {
+      "tipo": "investigacion_regulatoria",
+      "symbol": "HRB",
+      "fecha": "2026-08-14",
+      "valor": {
+        "organismos": ["organismos gubernamentales no identificados en el 10-K"],
+        "asunto": "Consultas gubernamentales sobre el IRS Free File Program y otros aspectos del servicio de preparación de impuestos por cuenta propia, incluido el uso de píxeles de seguimiento; la empresa dice que las está respondiendo y que hay un cargo reservado dentro de la previsión por contingencias de USD 18,4 millones al 30/6/2026 (era USD 6,2 millones al 30/6/2025)",
+        "estado": "abierta",
+        "empresaAcusada": true
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/12659/000001265926000026/hrb-20260630.htm",
+        "titulo": "H&R Block — 10-K del año fiscal 2026 (cierre 30/6/2026), presentado el 14/8/2026, nota \"Litigation and Other Related Contingencies\""
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "VIST",
+      "fecha": "2026-07-17",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Producción total y EBITDA ajustado (Brent USD 65/bbl)",
+        "periodo": "FY2026",
+        "antes": "Producción 158 kboe/d; EBITDA ajustado USD 3.000 millones",
+        "despues": "Producción 158 kboe/d; EBITDA ajustado USD 3.000 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1762506/000119312526306731/d101768dex1.htm",
+        "titulo": "Vista Energy — 6-K Exhibit 1, presentación del 2T 2026 (17/7/2026): \"on track to deliver our 2026 guidance across all key operating and financial metrics\""
+      }
+    },
+    {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "TSM",
+      "fecha": "2026-07-16",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 2000000000,
+        "concepto": "Ganancia no operativa de NT$63.200 millones por venta y valuación a mercado de acciones de Vanguard International Semiconductor (VIS); la empresa dice que aportó NT$2,24 de los NT$27,25 de ganancia por acción del trimestre",
+        "epsPublicado": 4.31,
+        "epsSinExtraordinario": 3.96,
+        "epsConsenso": 3.83
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1046179/000104617926000541/a2026q2consolidatedreport-.htm",
+        "titulo": "TSMC 2Q26 Quarterly Management Report y estados consolidados (6-K, 16/7/2026) — la ganancia sin el extraordinario es CÁLCULO PROPIO: (NT$27,25 − NT$2,24) × 5 ADS ÷ 31,60 NT$/USD = USD 3,96"
+      }
+    },
+    {
+      "tipo": "investigacion_regulatoria",
+      "symbol": "TSM",
+      "fecha": "2026-04-16",
+      "valor": {
+        "organismos": ["autoridades de EE.UU.", "autoridades de Taiwán"],
+        "asunto": "Control de exportaciones: en octubre de 2024 TSMC notificó que un tipo de chip de un cliente fabricado por ella pudo haber sido desviado a una entidad restringida o incorporado a un producto de una entidad restringida; desde entonces coopera con los pedidos de información y documentos de las autoridades",
+        "estado": "abierta",
+        "empresaAcusada": true
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1046179/000162828026025362/tsm-20251231.htm",
+        "titulo": "TSMC — Form 20-F del ejercicio 2025, Item 3.D Factores de riesgo (presentado el 16/4/2026)"
+      }
+    },
+    {
+      "tipo": "investigacion_regulatoria",
+      "symbol": "PARR",
+      "fecha": "2026-08-05",
+      "valor": {
+        "organismos": ["EPA"],
+        "asunto": "Carta de la EPA del 29/9/2023 por presuntas violaciones de límites de emisiones al aire, controles, monitoreo y requisitos de reparación bajo el consent decree de 2016 (Clean Air Act) de la refinería de Kapolei, Hawái; la refinería de Wyoming opera bajo consent decrees con la EPA y el Wyoming DEQ y la empresa dice que podría quedar sujeta a una acción de penalidades superior a USD 300.000",
+        "estado": "abierta",
+        "empresaAcusada": true
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/821483/000082148326000014/0000821483-26-000014-index.htm",
+        "titulo": "Par Pacific Holdings — 10-Q del trimestre cerrado el 30/6/2026 (presentado el 5/8/2026), nota de Commitments and Contingencies"
+      }
+    },
+    {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "TK",
+      "fecha": "2026-07-29",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 10500000,
+        "concepto": "Ganancias por venta de buques de Teekay Tankers atribuibles a los accionistas de Teekay; la nota (1) del comunicado dice que la utilidad neta atribuible a los accionistas del 2T 2026 (USD 69,467 millones) incluye USD 10,5 millones, o USD 0,12 por acción, por ganancias en ventas de buques",
+        "epsPublicado": 0.79,
+        "epsSinExtraordinario": 0.67,
+        "epsConsenso": null
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/911971/000091197126000046/tkq2-26pressrelease.htm",
+        "titulo": "Teekay Corporation Ltd. Second Quarter 2026 Update — 6-K del 29/7/2026; la ganancia sin el extraordinario (0,67) es CÁLCULO PROPIO: 0,79 menos los 0,12 por acción que informa la empresa, ya neto de interés no controlante y con tasa efectiva del 2,3% en el semestre. No hay consenso publicado verificable para TK"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "THC",
+      "fecha": "2026-07-23",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos netos de operación, EBITDA ajustado, ganancia ajustada por acción diluida y flujo de caja libre ajustado",
+        "periodo": "FY2026",
+        "antes": "Ingresos USD 21.500-22.300 millones; EBITDA ajustado USD 4.485-4.785 millones; ganancia ajustada por acción USD 16,38-18,68; flujo de caja libre ajustado USD 2.500-2.800 millones (8-K del 30/4/2026)",
+        "despues": "Ingresos USD 21.900-22.500 millones; EBITDA ajustado USD 4.830-5.030 millones; ganancia ajustada por acción USD 20,30-21,69; flujo de caja libre ajustado USD 2.725-3.025 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/70318/000007031826000032/thc-20260630ex991earningsr.htm",
+        "titulo": "Tenet Reports Strong Second Quarter 2026 Results; Raises 2026 Financial Outlook — 8-K Exhibit 99.1 del 23/7/2026"
+      }
+    },
+    {
+      "tipo": "investigacion_regulatoria",
+      "symbol": "CART",
+      "fecha": "2026-08-07",
+      "valor": {
+        "organismos": ["FTC"],
+        "asunto": "Investigación de la FTC sobre prácticas de marketing y del programa de membresía Instacart+ (publicidad de \"entrega gratis\" con cargos por servicio obligatorios y falta de divulgación clara de los términos de la suscripción, sección 5 de la FTC Act y sección 4 de ROSCA). Terminó con una orden de consentimiento firme el 13/1/2026, sin admisión de responsabilidad, con pago de USD 60 millones a la FTC realizado en enero de 2026",
+        "estado": "cerrada",
+        "empresaAcusada": true
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001579091/000157909126000042/cart-20260630.htm",
+        "titulo": "Maplebear Inc. (Instacart) — 10-Q del trimestre cerrado el 30/6/2026, presentado el 7/8/2026, nota de Compromisos y Contingencias"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "HCSG",
+      "fecha": "2026-07-22",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Crecimiento de ingresos",
+        "periodo": "FY2026",
+        "antes": "crecimiento de un dígito medio (comunicado del 1T 2026, abril de 2026)",
+        "despues": "crecimiento de un dígito medio"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0000731012/000073101226000040/ex99-2026xq2xpressrelease.htm",
+        "titulo": "Healthcare Services Group Reports Second Quarter Results — 8-K Ex-99 del 22/7/2026: \"reaffirms 2026 mid-single-digit growth outlook\""
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "REPX",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Producción de petróleo (MBbls/d) e inversiones de capital totales",
+        "periodo": "FY2026",
+        "antes": "Producción 22,0-23,0 MBbls/d; capex USD 200-220 millones (comunicado del 1T 2026 del 6/5/2026)",
+        "despues": "Producción 22,5-23,5 MBbls/d; capex USD 230-242 millones (suba de unos USD 26 millones por infraestructura y disposición de agua salada)"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001001614/000100161426000049/q22026earningsrelease.htm",
+        "titulo": "Riley Permian Reports Second Quarter 2026 Results — 8-K Ex-99 del 5/8/2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "SHC",
+      "fecha": "2026-08-06",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Crecimiento de ingresos netos y de Adjusted EBITDA a moneda constante, y Adjusted EPS",
+        "periodo": "FY2026",
+        "antes": "Ingresos +5,0% a +6,5%; Adjusted EBITDA +5,5% a +7,0%; Adjusted EPS USD 0,93-1,01 (comunicado del 5/5/2026)",
+        "despues": "Ingresos +5,25% a +6,75%; Adjusted EBITDA +5,75% a +7,25%; Adjusted EPS USD 0,95-1,01"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001822479/000182247926000044/august62026-ex991.htm",
+        "titulo": "Sotera Health — 8-K Ex-99.1, resultados del 2T 2026 (6/8/2026): sube la guía 2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "BLX",
+      "fecha": "2026-07-27",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Adjusted ROE",
+        "periodo": "FY2026",
+        "antes": "14%-15%",
+        "despues": "14%-15%"
+      },
+      "fuente": {
+        "url": "https://wcpac01.bladex.com/uiodrupalfiles/2026-07/Presentation_2Q2026_4.pdf",
+        "titulo": "Bladex — presentación de resultados del 2T 2026 (27/7/2026), lámina 13 \"Full Year 2026 Guidance Ratified\""
+      }
+    },
+    {
+      "tipo": "investigacion_regulatoria",
+      "symbol": "AMAT",
+      "fecha": "2026-02-11",
+      "valor": {
+        "organismos": ["BIS", "DOJ", "SEC"],
+        "asunto": "Cumplimiento de controles de exportación en envíos a clientes de China entre noviembre de 2020 y julio de 2022; acuerdo con el Bureau of Industry and Security del Departamento de Comercio por USD 252,5 millones. El DOJ y la SEC cerraron sus investigaciones sin acción",
+        "estado": "cerrada",
+        "empresaAcusada": true
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/6951/000162828026007444/ex991pressrelease.htm",
+        "titulo": "Applied Materials — 8-K Ex-99.1 (11/2/2026): acuerdo con el Departamento de Comercio por USD 252,5 millones"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "UVE",
+      "fecha": "2026-07-30",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 0,
+        "puntosCombinado": 0,
+        "epsPublicado": 1.84,
+        "epsSinReservas": 1.84,
+        "epsConsenso": 1.43
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/891166/000089116626000088/uve-20260630.htm",
+        "titulo": "Universal Insurance Holdings — 10-Q al 30/6/2026: en el cuadro de reservas, \"incurrido de años anteriores\" = 0 en el 2T y el 1S 2026 (USD 71 mil en el 2T 2025). No hubo liberación, así que la ganancia no cambia. El 1,84 es el BPA ajustado del comunicado del 23/7/2026, la misma base del consenso Zacks de 1,43 (el BPA diluido contable fue 2,04)"
+      }
+    },
+    {
+      "tipo": "ganancia_por_reservas",
+      "symbol": "MCY",
+      "fecha": "2026-08-04",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 35000000,
+        "puntosCombinado": 2.3,
+        "epsPublicado": 3.52,
+        "epsSinReservas": 3.01,
+        "epsConsenso": 1.8
+      },
+      "fuente": {
+        "url": "https://newsroom.mercuryinsurance.com/2026-08-04-Mercury-General-Corporation-Announces-Second-Quarter-Results-and-Declares-Quarterly-Dividend",
+        "titulo": "Mercury General, resultados del 2T 2026 (4/8/2026): desarrollo favorable de ~USD 35 millones de años anteriores (2T 2025: USD 4 millones desfavorable), ratio combinado 89,9% contra 92,5%; primas netas devengadas 1.497,8 millones (35/1.497,8 = 2,3 puntos). El 3,52 es el BPA operativo, la misma base del consenso Zacks de 1,80 (el contable fue 4,76). La ganancia sin el desarrollo es CÁLCULO PROPIO: 35 M × (1 − 0,195) ÷ 55,389 M de acciones = 0,51; 3,52 − 0,51 = 3,01"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "DLO",
+      "fecha": "2026-08-13",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Crecimiento interanual del volumen total de pagos (TPV), de la ganancia bruta y de la ganancia operativa",
+        "periodo": "FY2026",
+        "antes": "TPV +50% a +60%; ganancia bruta +22,5% a +27,5%; ganancia operativa +27,5% a +32,5%",
+        "despues": "TPV +60% a +70%; ganancia bruta +25% a +30%; ganancia operativa +27,5% a +32,5% (sin cambio)"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001846832/000184683226000031/ex_991-dlocalxearningsxres.htm",
+        "titulo": "dLocal — 6-K con el comunicado de resultados del 2T 2026 (13/8/2026)"
+      }
+    },
+    {
+      "tipo": "oferta_de_compra",
+      "symbol": "DBRG",
+      "fecha": "2026-03-24",
+      "valor": {
+        "comprador": "SoftBank Group Corp.",
+        "efectivoUsd": 16.0,
+        "ratio": null,
+        "etapa": "Acuerdo definitivo de fusión; los accionistas aprobaron el 23/4/2026 (~96% de los votos emitidos); pendiente de aprobaciones regulatorias y otras condiciones de cierre",
+        "cierreEsperado": "segunda mitad de 2026",
+        "formulario": "DEFM14A"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1679688/000110465926033634/tm267669-2_defm14a.htm",
+        "titulo": "DigitalBridge Group — DEFM14A del 24/3/2026: SoftBank Group Corp. compra todas las acciones ordinarias a USD 16,00 en efectivo"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "TROW",
+      "fecha": "2026-07-31",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Gastos operativos ajustados, excluida la compensación por carried interest",
+        "periodo": "FY2026",
+        "antes": "+3% a +6% sobre los USD 4.600 millones de 2025",
+        "despues": "+4% a +7% sobre los USD 4.600 millones de 2025"
+      },
+      "fuente": {
+        "url": "https://www.fool.com/earnings/call-transcripts/2026/08/07/t-rowe-price-trow-q2-2026-earnings-call-transcript/",
+        "titulo": "T. Rowe Price, llamada de resultados del 2T 2026 del 31/7/2026: la CFO Jen Dardis eleva la guía de gastos operativos ajustados 2026 a 4-7% desde el 3-6% dado en el 1T 2026"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "WTRG",
+      "fecha": "2026-08-04",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Crecimiento anual compuesto de la ganancia por acción",
+        "periodo": "plurianual hasta 2027",
+        "antes": "5% a 7% sobre el BPA ajustado de 2024 de USD 1,97",
+        "despues": "5% a 7% sobre el BPA ajustado de 2024 de USD 1,97"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0000078128/000155278126000404/e26327_ex99-1.htm",
+        "titulo": "Essential Utilities — 8-K Ex-99.1 del 4/8/2026 con los resultados del 2T 2026: reafirma la guía plurianual de BPA de 5-7%"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "AVAH",
+      "fecha": "2026-08-13",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos y EBITDA ajustado",
+        "periodo": "FY2026",
+        "antes": "Ingresos USD 2.630-2.650 millones; EBITDA ajustado USD 338-342 millones",
+        "despues": "Ingresos más de USD 2.680 millones; EBITDA ajustado más de USD 365 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001832332/000119312526347839/avah-ex99_1.htm",
+        "titulo": "Aveanna Healthcare — 8-K Ex-99.1 del 13/8/2026: resultados del 2T 2026 y guía 2026 revisada al alza"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "VG",
+      "fecha": "2026-08-11",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "EBITDA ajustado consolidado y cargamentos exportados",
+        "periodo": "FY2026",
+        "antes": "EBITDA ajustado USD 8.200-8.500 millones; 494-523 cargamentos",
+        "despues": "EBITDA ajustado USD 8.700-9.100 millones; 500-518 cargamentos"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0002007855/000200785526000063/vgincq22026earningsrelease.htm",
+        "titulo": "Venture Global Reports Second Quarter 2026 Results (8-K Exhibit 99.1, 11/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "EXPE",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Reservas brutas, ingresos y expansión del margen de EBITDA ajustado",
+        "periodo": "FY2026",
+        "antes": "Reservas brutas USD 127.000-129.000 millones (+6-8%); ingresos USD 15.600-16.000 millones (+6-9%); margen +1,0 a +1,25 puntos",
+        "despues": "Reservas brutas USD 129.500-130.800 millones (+8-9%); ingresos USD 16.050-16.220 millones (+9-10%); margen +1,5 a +1,75 puntos"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001324424/000132442426000051/earningsrelease-q22026.htm",
+        "titulo": "Expedia Group Reports Second Quarter 2026 Results (8-K Exhibit 99.1, 5/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CHRD",
+      "fecha": "2026-08-05",
+      "valor": {
+        "direccion": "reafirma",
+        "metrica": "Volúmenes de petróleo e inversión de capital",
+        "periodo": "FY2026",
+        "antes": "161 MBopd (punto medio); capex USD 1.400 millones (punto medio)",
+        "despues": "160,2-161,8 MBopd (punto medio 161 MBopd, sin cambio); capex USD 1.360-1.440 millones (punto medio USD 1.400 millones, sin cambio)"
+      },
+      "fuente": {
+        "url": "https://www.prnewswire.com/news-releases/chord-energy-reports-second-quarter-2026-financial-and-operating-results-declares-base-dividend-and-updates-2026-outlook-302844081.html",
+        "titulo": "Chord Energy Reports Second Quarter 2026 Results and Updates 2026 Outlook (5/8/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "CGAU",
+      "fecha": "2026-07-28",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Producción consolidada de oro y producción de oro de Öksüt",
+        "periodo": "FY2026",
+        "antes": "Consolidada 250.000-280.000 onzas; Öksüt 110.000-125.000 onzas",
+        "despues": "Consolidada 260.000-290.000 onzas; Öksüt 120.000-135.000 onzas"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001854640/000162828026050229/exh992_20260630.htm",
+        "titulo": "Centerra Gold Reports Second Quarter 2026 Results (6-K Exhibit 99.2, 28/7/2026)"
+      }
+    },
+    {
+      "tipo": "guia",
+      "symbol": "OPRA",
+      "fecha": "2026-08-19",
+      "valor": {
+        "direccion": "sube",
+        "metrica": "Ingresos y EBITDA ajustado",
+        "periodo": "FY2026",
+        "antes": "Ingresos USD 727-740 millones; EBITDA ajustado USD 170-174 millones",
+        "despues": "Ingresos USD 734-742 millones; EBITDA ajustado USD 172-175 millones"
+      },
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/0001737450/000173745026000014/opra-ex99_1.htm",
+        "titulo": "Opera Reports Second Quarter 2026 Results Beyond the High End of Guidance Ranges (6-K Exhibit 99.1, 19/8/2026)"
+      }
+    },
+    {
+      "tipo": "ganancia_extraordinaria",
+      "symbol": "SHIP",
+      "fecha": "2026-07-30",
+      "valor": {
+        "trimestre": "2T 2026",
+        "montoUsd": 4600000,
+        "concepto": "Ganancia por la venta del buque M/V Squireship a United Maritime (parte relacionada), entregado en junio de 2026",
+        "epsPublicado": 1.32,
+        "epsSinExtraordinario": 1.13,
+        "epsConsenso": 0.94
+      },
+      "fuente": {
+        "url": "https://www.globenewswire.com/news-release/2026/07/30/3336084/0/en/Seanergy-Maritime-Reports-Second-Quarter-and-First-Half-2026-Financial-Results.html",
+        "titulo": "Seanergy Maritime Reports Second Quarter and First-Half 2026 Financial Results (6-K, 30/7/2026): ganancia neta 26,2 M (1,21 por acción) y ganancia ajustada 28,5 M (1,32 por acción, base del consenso), incluye 4,6 M por venta de buque. La ganancia ajustada sin ese monto (1,13) es CÁLCULO PROPIO: (28,5 M − 4,6 M) ÷ 21.107.948 acciones; la empresa no paga impuesto a las ganancias"
+      }
+    }
+  ]
+}
