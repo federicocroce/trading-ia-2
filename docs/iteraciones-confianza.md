@@ -735,3 +735,63 @@ la misma conclusión. El ranking fundamental no es solo no-predictivo arriba: es
 
 **Validación final**: `pnpm test` **1.388 en verde**, `pnpm typecheck` limpio, `pnpm consistencia` **0 graves** y 30
 avisos sobre 214 filas, `pnpm auditar` sin contradicciones entre pantallas.
+
+---
+
+## Iteración 18 — barrido completo, y por qué ninguna COMPRAR convence
+
+El dueño pidió un barrido de toda la app con el objetivo claro, y repitió el reclamo: de todo el espectro
+mundial, ninguna de las que la app da como compra convence. **Medido, tiene razón, y la causa es precisa.**
+
+### Qué eje del puntaje está roto
+
+Los cuatro ejes están guardados por fila y por fecha, así que es punto en el tiempo. Alfa a 7 días por tercil
+del eje (tercil 1 = puntaje más bajo), 13 fechas, 40-47 símbolos por tramo:
+
+| Eje | Peso | Tercil 1 | Tercil 2 | Tercil 3 | Lectura |
+|---|---|---|---|---|---|
+| **valuation** | **0,35** | −1,02 | −0,88 | −0,94 | **plano: cero señal** |
+| quality | 0,30 | −0,98 | −2,21 | +0,17 | débil, solo el tercil de arriba |
+| **growth** | **0,25** | +0,43 | −1,01 | −2,36 | **invertido y monótono** |
+| balance | 0,10 | −3,57 (31% acierto) | +0,69 | −0,13 | funciona **abajo** |
+
+**El 60% del peso (valuation + growth) es ruido o va al revés.** Eso explica que el mejor quintil sea el peor
+y que el mejor puesto rinda −1,74% con 34% de acierto. Lo único con señal fuerte es `balance` en el tercil
+malo, y es una señal NEGATIVA (evitar balances flojos).
+
+### No es cobertura: es selección
+
+De 35 líderes temáticos mundiales, **34 están en el universo de la app** (solo falta RHM.DE, listado alemán) y
+**21 nunca aparecieron en el Radar**: ASML, ETN, HUBB, AVGO, LMT, RTX, FCX, SCCO, NEM, FNV, PAAS, WPM, AG,
+BWXT, LEU, ALB, NVO, WST, PWR, MUFG. La app tiene a ASML y a Eaton adentro y nunca los mostró, porque el
+puntaje los deja fuera de la preselección de 600.
+
+### Lo que se cambió, y lo que NO
+
+**No se tocó ningún peso.** Re-pesar con 13 días y 40 símbolos por tramo es sobreajustar, y es exactamente lo
+que la skill `tocar-el-motor` prohíbe. `fundamentals_historia` ya acumula; en unas semanas se puede probar.
+
+- [x] **La puerta deja de depender del puntaje.** `simbolosConPuerta` se abre con un hecho de **sector**
+  verificado a favor, no solo con guía subida. Un hecho con fuente primaria es una razón mecánica, con fecha y
+  verificable, para que la app MIRE a una empresa; mirar no es comprar — después la deciden las mismas reglas
+  que a todas. *Y había un bug de cableado*: el pipeline pedía solo hechos de tipo `guia`, así que los de
+  sector nunca llegaban aunque la función ya los aceptara. 4 tests.
+- [x] **El plan dice su propio acierto**, en sus notas: *"281 de 647 filas (121 símbolos, del 7/9 al 30/9) le
+  ganaron al S&P a 7 días, o sea 43%, con alfa promedio −1,01%. No es un pronóstico de estas líneas: es el
+  historial del criterio que las eligió."* Antes presentaba las líneas como si el criterio estuviera validado.
+  3 tests.
+- [x] **Un hecho de sector más, verificado contra sec.gov**: GEV, cartera de equipos de Gas Power más reservas
+  de cupo de 100 a 116 GW, 125 GW esperados a fin de 2026 (8-K del 22/7/2026).
+  **MU quedó afuera a propósito**: fui a buscar el comunicado del 3T en sec.gov y **no dice** que el HBM esté
+  vendido — eso era prensa secundaria. Sin fuente verificada no se carga, aunque la tesis me guste.
+
+### Lo que el barrido encontró en la corrida
+
+`pnpm consistencia` dio **78 graves de `velas_desfasadas`**: cerró la rueda del 8/10 y las filas tenían velas
+del 7/10, o sea el plan estaba armado con cierres de ayer. **No es un defecto: es el chequeo del caso del 23/9
+funcionando.** Tras refrescar quedó **1 grave** (NVEC, precio vivo −2%, no es línea del plan) y 17 avisos.
+
+**Operativo, y vale como regla**: el plan se refresca después de cada cierre o sus precios son de ayer. El
+chequeo lo grita, pero grita después de que uno pregunta.
+
+Estado: `pnpm test` **1.403 en verde**, tipos limpios, pantallas sin contradicciones.
