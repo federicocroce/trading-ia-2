@@ -10,3 +10,8 @@ coverage/
 
 # Artefactos de subagent-driven-development (ledger, briefs, reportes)
 .superpowers/
+
+# Archivos intermedios de los skills (/hechos, /verificar, /mercado): estado a medio hacer de una corrida,
+# no son resultados. El resultado final de cada corrida sí se versiona (docs/hechos, docs/verificaciones).
+.parcial-*
+**/.parcial-*
