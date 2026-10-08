@@ -16,7 +16,15 @@ export function atr(candles: Candle[], period: number): number | null {
 
 /**
  * Stop "chandelier": máximo de las últimas `period` velas menos `atrMult` × ATR(period).
- * Sube cuando la acción hace máximos nuevos; nunca baja. Portado de trading v1.
+ *
+ * Es una ventana MÓVIL y sin memoria: sube cuando la acción hace máximos nuevos y **baja cuando un máximo
+ * sale de la ventana**, sin que el precio haya hecho nada. Hasta el 6/10/2026 este comentario decía "nunca
+ * baja" y nada en la función lo garantizaba: medido sobre las 8 posiciones del dueño y 64 ruedas, bajaba en
+ * 236 de 512 transiciones (46,1%). Para el stop de una POSICIÓN eso no sirve —el veredicto se daba vuelta
+ * solo— y el trinquete está en `ratchetStop`. Para una CANDIDATA sí es lo que se quiere: es "dónde estaría el
+ * stop hoy", no una promesa.
+ *
+ * Portado de trading v1.
  */
 export function computeTrailingStop(candles: Candle[], opts: { period?: number; atrMult?: number } = {}): number | null {
   const period = opts.period ?? 22;
@@ -25,6 +33,26 @@ export function computeTrailingStop(candles: Candle[], opts: { period?: number; 
   if (a === null) return null;
   const highest = Math.max(...candles.slice(-period).map((c) => c.high));
   return round2(highest - mult * a);
+}
+
+/**
+ * Trinquete del stop de una posición: el de hoy nunca es más bajo que el de ayer (2026-10-06).
+ *
+ * Por qué existe. `computeTrailingStop` es una ventana móvil de 22 velas, así que el stop baja cuando un
+ * máximo viejo sale de la ventana. Con GGAL el 6/10/2026 pasó de 41,75 a 41,53 sin un máximo nuevo. El
+ * efecto sobre el veredicto es el que importa: con el precio congelado en 38,25 el stop llegaba a 37,87 en
+ * diez ruedas y el VENDER se daba vuelta **solo**, sin que la posición mejorara. Un VENDER que se resuelve
+ * esperando no es un VENDER, y la pantalla le dice al dueño "tu stop sube solo a $X".
+ *
+ * `previo` sale del último veredicto guardado de ese símbolo, así que el trinquete queda anclado a cuando la
+ * posición entró a la app y no a un máximo anterior a la compra.
+ *
+ * Si hoy no se pudo calcular (faltan velas), devuelve null en vez de reusar el anterior: un problema de datos
+ * se dice, no se tapa con un número de ayer disfrazado de hoy.
+ */
+export function ratchetStop(calculado: number | null, previo: number | null): number | null {
+  if (calculado === null) return null;
+  return previo === null ? calculado : Math.max(calculado, previo);
 }
 
 /** Distancia mínima, en ATR de 14 ruedas, entre el piso de la franja de compra y el stop de una compra nueva. */
@@ -62,5 +90,11 @@ export function computeTarget(close: number, stop: number | null): number | null
  * "si sumás desde X". Todo veredicto que no es SUMAR ya trae éste; la API lo sirve junto a cada veredicto.
  */
 export function holdTargetOf(v: { close: number; stop: number | null }): number | null {
+  // Con el precio en o bajo el stop no hay objetivo que mostrar (6/10/2026): `cierre + 2 × (cierre − stop)`
+  // devuelve un número DEBAJO del precio y la columna publicaba un objetivo de baja. Pasaba en 6 de las 8
+  // posiciones: VIST mostraba 56,70 con el papel en 66,54 y +49% de ganancia. No es un número mal calculado,
+  // es que la operación no se puede plantear: si el precio ya se dio vuelta, no hay riesgo hasta el stop que
+  // duplicar. Misma guarda que `decideArStock` tiene desde el 12/9.
+  if (v.stop !== null && v.close <= v.stop) return null;
   return computeTarget(v.close, v.stop);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTarget, computeTrailingStop, decideVerb, ENTRY_STOP_ATR, entryStop, holdTargetOf, type Candle } from "./index.js";
+import { computeTarget, computeTrailingStop, decideVerb, ENTRY_STOP_ATR, entryStop, holdTargetOf, ratchetStop, type Candle } from "./index.js";
 
 /** 30 velas planas en 100 con rango diario 2 (high 101, low 99): ATR = 2. */
 const flat = (n: number, close = 100): Candle[] =>
@@ -61,6 +61,24 @@ describe("holdTargetOf (objetivo de la posición)", () => {
     expect(holdTargetOf({ close: 418.01, stop: 412.81 })).toBe(428.41);
   });
   it("sin stop no hay objetivo", () => expect(holdTargetOf({ close: 418.01, stop: null })).toBeNull());
+  /*
+   * 6/10/2026. Con el precio BAJO el stop, `cierre + 2 × (cierre − stop)` da un número por DEBAJO del precio y
+   * la columna "objetivo" de Cartera publicaba un objetivo de baja. El 6/10 pasaba en 6 de las 8 posiciones:
+   * VIST mostraba objetivo 56,70 con el papel en 66,54 y +49% de ganancia; GGAL 31,69 con el papel en 38,25.
+   *
+   * No es un número a corregir: es que la operación no se puede plantear. Si el precio ya está abajo del stop
+   * no hay "dos veces el riesgo hasta el stop" que medir. La misma guarda existe en `decideArStock` desde el
+   * 12/9 ("la pantalla publica un boleto imposible: comprar a 264 para vender a 261,90") y acá faltaba.
+   */
+  it("con el precio bajo el stop no hay objetivo: VIST del 6/10 (64,25 con stop 71,22) daba 50,31", () => {
+    expect(holdTargetOf({ close: 64.25, stop: 71.22 })).toBeNull();
+  });
+  it("justo en el stop tampoco: el objetivo sería el precio mismo", () => {
+    expect(holdTargetOf({ close: 100, stop: 100 })).toBeNull();
+  });
+  it("arriba del stop el objetivo sigue saliendo igual", () => {
+    expect(holdTargetOf({ close: 100, stop: 95 })).toBe(110);
+  });
   it("un veredicto que no es SUMAR ya trae este mismo objetivo: una sola cuenta", () => {
     const v = decideVerb({ candles: flat(30), spot: 100, avgCost: 80, layer: "riesgo", weightPct: 20, positionsCount: 5, today: "2026-01-31" });
     expect(v.verb).toBe("MANTENER");
@@ -69,5 +87,58 @@ describe("holdTargetOf (objetivo de la posición)", () => {
     expect(sumar.verb).toBe("SUMAR");
     expect(sumar.target).not.toBe(holdTargetOf(sumar));
     expect(holdTargetOf(sumar)).toBe(110);
+  });
+});
+
+describe("ratchetStop (el stop de seguimiento de una posición nunca baja, 2026-10-06)", () => {
+  /*
+   * El chandelier es el máximo de 22 velas menos 3 × ATR: una ventana móvil, sin memoria. Cuando un máximo
+   * sale de la ventana, el stop BAJA sin que el precio haya hecho nada. El docstring de computeTrailingStop
+   * decía "nunca baja" y nada en la función lo garantizaba.
+   *
+   * Caso real: GGAL del 5 al 6/10/2026, el stop pasó de 41,75 a 41,53 cuando el máximo de septiembre (46,09)
+   * se cayó de la ventana. Medido sobre las 8 posiciones del dueño y 64 ruedas, el stop bajó en 236 de 512
+   * transiciones: 46,1% (YPF 54,7%, HUT 51,6%, GGAL 50,0%).
+   *
+   * Lo que rompía la confianza: con el precio de GGAL congelado en 38,25 el stop llegaba a 37,87 en 10 ruedas
+   * y el VENDER se daba vuelta solo, sin que la posición mejorara.
+   */
+  it("mantiene el stop anterior cuando el chandelier baja", () => {
+    expect(ratchetStop(41.53, 41.75)).toBe(41.75);
+  });
+  it("sube cuando el chandelier hace un máximo nuevo", () => {
+    expect(ratchetStop(42.1, 41.75)).toBe(42.1);
+  });
+  it("sin stop anterior, manda el chandelier: el primer día de una posición no tiene de dónde trincar", () => {
+    expect(ratchetStop(41.53, null)).toBe(41.53);
+  });
+  it("sin velas para calcular no reutiliza el anterior: un problema de datos tiene que decirse, no taparse", () => {
+    expect(ratchetStop(null, 41.75)).toBeNull();
+  });
+});
+
+describe("decideVerb con el stop trincado", () => {
+  /*
+   * La prueba que importa de verdad: el veredicto no puede darse vuelta solo porque el stop decayó.
+   * Velas planas en 100 → chandelier 95. Precio 94, o sea bajo el stop: VENDER. Si mañana el chandelier
+   * cae a 93 porque un máximo salió de la ventana, sin el trinquete el mismo precio pasa a MANTENER.
+   */
+  const bajoStop = (): Candle[] => {
+    const c = flat(30);
+    c[29] = { ...c[29]!, close: 94, high: 94, low: 93 };
+    return c;
+  };
+  it("sigue siendo VENDER cuando el chandelier cae abajo del precio pero el stop anterior estaba arriba", () => {
+    const i = { candles: bajoStop(), spot: 94, avgCost: 80, layer: "riesgo" as const, weightPct: 20, positionsCount: 5, today: "2026-01-30" };
+    const sinTrinquete = decideVerb(i);
+    expect(sinTrinquete.verb).toBe("VENDER");
+    // El mismo precio con un stop anterior más alto sigue siendo VENDER, y con el stop anterior.
+    const conTrinquete = decideVerb({ ...i, prevStop: 99 });
+    expect(conTrinquete.stop).toBe(99);
+    expect(conTrinquete.verb).toBe("VENDER");
+  });
+  it("un stop anterior más bajo no pisa al calculado", () => {
+    const v = decideVerb({ candles: flat(30), spot: 100, avgCost: 80, layer: "riesgo", weightPct: 20, positionsCount: 5, today: "2026-01-31", prevStop: 90 });
+    expect(v.stop).toBe(95);
   });
 });

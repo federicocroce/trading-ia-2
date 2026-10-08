@@ -1,5 +1,5 @@
 import { entryTiming } from "../radar/entry.js";
-import { computeTarget, computeTrailingStop, holdTargetOf } from "./stop.js";
+import { computeTarget, computeTrailingStop, holdTargetOf, ratchetStop } from "./stop.js";
 import { noticiasLeidas, tesisAlerts, type TesisInput } from "./tesis.js";
 import type { Candle, Layer, Verb } from "./types.js";
 
@@ -14,6 +14,12 @@ export interface VerdictInput {
   positionsCount: number;
   /** YYYY-MM-DD */
   today: string;
+  /**
+   * El stop del último veredicto guardado de este símbolo. El stop de una posición no baja: si el chandelier
+   * de hoy quedó más abajo que éste, manda éste (2026-10-06, ver `ratchetStop`). Opcional: sin esto el stop
+   * sale como siempre, solo el chandelier del día.
+   */
+  prevStop?: number | null;
   /**
    * Lo que la app ya sabe del negocio: verificación web, eventos materiales, calidad de la ganancia y
    * consenso. Si falta, el veredicto sale igual que siempre, solo por precio.
@@ -62,7 +68,7 @@ export function decideVerb(i: VerdictInput): PositionVerdict {
     return { verb: "REVISAR", reason: "No tengo velas para este símbolo: no puedo decidir.", warning: "Sin precio. La app NO está vigilando esta posición.", close: Number.NaN, stop: null, target: null, gainPct: Number.NaN, stale: true };
   }
   const close = last.close;
-  const stop = computeTrailingStop(i.candles);
+  const stop = ratchetStop(computeTrailingStop(i.candles), i.prevStop ?? null);
   // El objetivo de la posición; solo SUMAR (una compra) lo reemplaza por el de la compra.
   const target = holdTargetOf({ close, stop });
   const gainPct = round2(((close - i.avgCost) / i.avgCost) * 100);

@@ -209,9 +209,7 @@
     "role": "satelite",
     "exposure": "emergentes",
     "ter": 0.47,
-    "themes": [
-      "argentina"
-    ]
+    "themes": []
   },
   {
     "symbol": "EWT",
