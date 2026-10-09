@@ -12,7 +12,9 @@ const store = (ultimaVela: string, builtAt?: string) => ({
   latestCandidates: async () => [{
     symbol: "APH", candidateDate: "2026-09-23", kind: "stock" as const, verdict: "COMPRAR" as const, score: 1, axes: {}, peerGroup: [],
     rankInGroup: null, groupSize: null, close: 80.72, entryLow: 80.72, entryHigh: 82.33, stop: null, target: null, sizeUsd: null, sizeQty: null,
-    riskScore: 3, flags: [], nthAppearance: 1, summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null,
+    // Con ficha porque estas filas representan una corrida SANA (8/10): una COMPRAR sin ficha es `ficha_faltante`
+    // y agregaría un grave propio al caso de "Yahoo falló y la corrida no suma graves por eso".
+    riskScore: 3, flags: [], nthAppearance: 1, summary: "la tesis de prueba", whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: "c1-prueba",
     spyClose: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null,
     alpha90dPct: null, measuredAt: null, entry: null,
   }],

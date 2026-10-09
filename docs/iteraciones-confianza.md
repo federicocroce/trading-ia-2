@@ -795,3 +795,154 @@ funcionando.** Tras refrescar quedó **1 grave** (NVEC, precio vivo −2%, no es
 chequeo lo grita, pero grita después de que uno pregunta.
 
 Estado: `pnpm test` **1.403 en verde**, tipos limpios, pantallas sin contradicciones.
+
+---
+
+## Iteración 19 — del tema al ticker: cargar los hechos que faltaban (8/10)
+
+Pregunta del dueño: *"¿por qué no podemos analizar todos, obtener tickers y analizar los tickers?"*
+
+La respuesta medida fue: **sí se puede, y cuando se hace, la mayoría de los temas no sobreviven al precio.**
+
+### El embudo real, contado
+
+| paso | símbolos |
+|---|---|
+| universo barrido | 14.484 |
+| con fundamentales de Finnhub | 2.658 |
+| preseleccionados por puntaje, por corrida | 600 |
+| con velas cargadas (13 días de corridas) | 950 |
+| evaluados alguna vez | 751 |
+| filas del Radar | 110 |
+
+De 177 tickers de los 19 temas del informe temático: **167 ya tenían fundamentales** (la cobertura no era el
+problema), **75 tenían velas** y **55 se habían evaluado alguna vez**. Sin 200 velas no hay media de 200, ni
+ATR, ni stop: `technicalGate` no puede correr y el símbolo **no puede tener veredicto nunca**.
+
+### El hallazgo que da vuelta el informe temático
+
+Cruzando cada tema contra los precios que la app ya tiene (variación a 6 meses y posición contra su media de
+200):
+
+| tema | var. 6 m | sobre su media 200 |
+|---|---|---|
+| tanqueros | +44,3% | 9 de 9 |
+| memoria | +47,7% | 5 de 7 |
+| patentes-farma | +11,6% | 5 de 5 |
+| japón | −12,2% | 0 de 1 |
+| gas-productor | −12,7% | 0 de 3 |
+| **oro-plata** | **−14,3%** | 3 de 12 |
+| defensa | −17,9% | 0 de 3 |
+| minerales | −26,4% | 0 de 4 |
+| nuclear | −31,5% | 0 de 2 |
+
+**GLD tocó 495,90 el 29/1/2026 y vale 378,62: −23,6% desde el máximo, y plano contra hace un año.** El tema
+que yo había llamado "el agujero más grande, en tu app y en mi informe" era un movimiento terminado hace ocho
+meses. La encuesta LBMA que proyecta oro a 5.000 salió el 6/10, con el metal 24% abajo de su máximo.
+
+**Los dos temas que sí confirman con precio (tanqueros y memoria) son los que la app ya había encontrado
+sola.** El análisis temático por búsqueda web llega tarde; las compuertas de precio tenían razón.
+
+### Defecto encontrado: los hechos de aranceles estaban vencidos y yo dije que la puerta estaba abierta
+
+Reporté *"seis símbolos con la puerta abierta: CF, CROX, FIVE, GEV, HAS, VST"*. Falso: los tres hechos de
+aranceles son del 20/2/2026, o sea **230 días contra una ventana de 180**. `hechosVigentes` los excluye. La
+puerta real eran **tres**: CF, GEV, VST. Listé los símbolos con hecho `a_favor` sin aplicar la vigencia.
+
+### Lo que se cargó: 36 hechos de sector, 7 temas, toda fuente primaria abierta y leída
+
+| ámbito | sesgo | símbolos | fuente |
+|---|---|---|---|
+| memoria: precio y capex del ciclo | a favor | SNDK WDC STX AMKR TER ONTO CAMT KLIC ACLS | Micron, 8-K del 30/9/2026 (sec.gov) |
+| tanqueros de crudo: tarifas | a favor | INSW DHT TNK NAT CMBT | Frontline, 6-K del 28/8/2026 (sec.gov) |
+| tanqueros de productos: tarifas | a favor | TRMD HAFN ASC | Scorpio, 6-K del 3/9/2026 (sec.gov) |
+| agro: insumos contra granos | a favor | MOS NTR | USDA ERS, 3/9/2026 |
+| gas natural: exceso a 2027 | a favor | NRG | EIA STEO de octubre 2026 |
+| gas natural: exceso a 2027 | **en contra** | EQT AR RRC CNX EXE | EIA STEO de octubre 2026 |
+| reaseguro: tarifas de catástrofe bajando | **en contra** | RNR EG ACGL AXS MKL SPNT | RenaissanceRe, 10-Q del 2T26 |
+| farma: precios fijados por Medicare | **en contra** | LLY PFE BMY GILD MRK | el 10-Q del 2T26 de cada una |
+
+Reglas que se respetaron, y cuestan:
+
+- **El signo lo pone el precio medido, no el titular.** Si cargaba los temas como los conté el martes, la app
+  habría abierto la puerta a doce mineras de oro que están todas abajo de su media de 200.
+- **Cada hecho lleva su contrapeso, dicho por la propia fuente.** Frontline avisa que el TCE del 3T completo
+  va a quedar *por debajo* de lo contratado por los días en lastre; RenaissanceRe sostiene que la tarifa sigue
+  en nivel de suficiencia; Pfizer aclara que a Xeljanz **no** se le va a aplicar precio máximo porque hay
+  genérico real.
+- **ABBV quedó afuera a propósito**: su propio 10-Q dice que el gobierno le dio *"a three-year exemption from
+  tariffs and future price mandates"*. Cargarla como `en_contra` con ese párrafo en la misma fuente sería
+  mentir por omisión.
+- **Lo que no se cargó, y por qué**: aranceles (ventana vencida); oro, plata, defensa, minerales, nuclear y
+  Japón (la única evidencia es el precio, que la app ya ve por `bajo_sma200` — cargarlo sería contar lo mismo
+  dos veces); cuántica (ninguno de los 6 símbolos tiene una sola vela); robótica, software por asiento y
+  salud de medio término (no encontré fuente primaria en los hosts de la lista). CTRA no está en el universo;
+  GLRE, IPI y UAN están `excluded` por la barra de calidad, y la puerta **no** puede rescatar a un excluido
+  porque nunca llega a tener fundamentales.
+
+### Defecto que destapó la carga: el tope de la puerta es chico y el desempate es alfabético
+
+`PUERTA_TOPE = 20` y quedaron **23 candidatos** `a_favor` vigentes. Ordena por fecha descendente, así que mi
+propia carga **expulsó a GEV, NAT y TNK**. Y entre los cinco tanqueros de crudo, todos fechados 28/8, el corte
+entre CMBT/DHT/INSW y NAT/TNK lo decide el **orden alfabético**: precisión falsa.
+
+**No se cambió el tope.** Subir un umbral sin medir es exactamente lo que la skill prohíbe, y además es
+decisión del dueño. Queda dicho: es una línea, y la puerta solo agrega candidatas a evaluar — nunca obliga a
+comprar.
+
+### Mi error al correr, y el defecto grande que destapó
+
+Corrí `rank` sabiendo que la cuota de Gemini es de 20 pedidos por día (está escrito en mis propias notas) y que
+ese paso pide una ficha por candidata. **La cuota ya estaba gastada por la corrida del cron**, así que las 48
+fichas que intentó fallaron. Error mío y evitable.
+
+Pero al mirar el daño apareció algo que no era mío y es peor. En `filaDeAccion`:
+
+```ts
+if (deps.cardWriter) {
+  try {
+    const w = await writeCardFor(...);
+    if (w?.degrade && verdict === "COMPRAR") verdict = "OBSERVAR";   // la compuerta
+  } catch (e) {
+    ctx.errors.push({ symbol: sym, error: String(e) });               // y si falla, sigue como COMPRAR
+  }
+}
+```
+
+**La ficha no es decoración: es una compuerta que puede degradar un COMPRAR a OBSERVAR.** Cuando falla, el
+error se anota y la fila sigue COMPRAR **sin haber pasado por esa compuerta**. Falla abierta, la misma clase de
+defecto que el verificador del 14/9.
+
+Y es crónico, no de esta noche:
+
+| fecha | COMPRAR | sin ficha | filas que decían tener versión de ficha sin tenerla |
+|---|---|---|---|
+| 8/10 (mi corrida) | 73 | **73** | 108 |
+| 7/10 | 79 | **63** | 60 |
+| 6/10 | 58 | 7 | 1 |
+| 4/10 | 43 | **38** | 46 |
+| 30/9 | 46 | 6 | 0 |
+
+**Al ensanchar la preselección a 600 el presupuesto de fichas dejó de alcanzar, y nadie lo vio porque nada lo
+contaba.** Desde el 7/10, la compuerta del narrador está prácticamente apagada para la mayoría de las
+candidatas. Eso es parte de por qué las COMPRAR no convencen: el filtro que debía atajar las historias que no
+cierran no corrió.
+
+Peor: la fila guardaba `prompt_version` igual, así que **decía tener una ficha que no tenía**. Aviso falso.
+
+### Lo arreglado
+
+- [x] **`prompt_version` solo cuando hay ficha**, en los dos lugares que la escriben (`filaDeAccion` y el
+  relleno de `refreshRadar`). Una fila no puede decir que pasó por el narrador si no pasó.
+- [x] **Chequeo nuevo `ficha_faltante`, grave**: una COMPRAR de acción sin ficha se reporta, porque COMPRAR
+  significa que el dueño compra. Sobre la base real dispara **65 graves**, que es la verdad que estaba tapada.
+  3 tests.
+- [x] **Dos fixtures de test decían "corrida sana" con una COMPRAR sin ficha.** Les puse ficha: el caso de
+  "Yahoo falló y la corrida no suma graves por eso" se apoyaba en que no existía este chequeo.
+
+Lo que NO se tocó: el veredicto sigue sin bloquearse por falta de ficha. `refreshRadar` ya rellena las fichas
+que faltan y aplica el degradado ahí (`needCards`), así que el estado es **recuperable corriendo el refresco
+cuando la cuota se renueva**. Cambiar el veredicto por ausencia de ficha es una decisión del dueño, no mía.
+
+**Consecuencia operativa, dicha sin vueltas: el plan de esta noche no se ejecuta.** Sus 10 líneas salen de
+filas sin ficha, o sea COMPRAR que nunca pasaron la compuerta del narrador.

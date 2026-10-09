@@ -371,6 +371,20 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
     }
   }
 
+  // 5b-bis. Una COMPRAR sin ficha es una COMPRAR cuya compuerta del narrador NUNCA corrió (8/10/2026).
+  //     `filaDeAccion` pide la ficha dentro de un try/catch: si la cuota de Gemini está agotada, el error se anota
+  //     y la fila sigue su camino **con el veredicto COMPRAR intacto**, sin pasar por el degradado a OBSERVAR que
+  //     esa misma ficha habilita. Falla abierta, igual que el verificador del 14/9.
+  //     Es crónico, no de un día: el 7/10 eran 63 de 79 COMPRAR sin ficha y el 4/10, 38 de 43. Al ensanchar la
+  //     preselección a 600 el presupuesto de fichas dejó de alcanzar y nadie lo vio, porque nada lo contaba.
+  //     `refreshRadar` las rellena después (ver `needCards`), así que el estado es recuperable; lo que no se puede
+  //     es presentar COMPRAR sin ficha en silencio, cuando COMPRAR significa que el dueño compra.
+  for (const row of i.rows) {
+    if (row.verdict !== "COMPRAR" || row.kind !== "stock") continue;
+    if (row.summary !== null) continue;
+    add("ficha_faltante", row.symbol, "grave", "es COMPRAR y no tiene ficha: la compuerta del narrador no corrió, así que nadie la pudo degradar a OBSERVAR");
+  }
+
   // 5c. El precio vivo del hub contra Yahoo (ver `checkLivePrices`): el segundo testigo de afuera.
   if (i.livePrices) out.push(...checkLivePrices(new Date(i.livePrices.at), i.livePrices.samples));
 

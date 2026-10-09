@@ -12,7 +12,9 @@ const vela = (date: string, close: number): Candle => ({ date, open: close, high
 const fila = (over: Partial<CandidateRow> & { symbol: string }): CandidateRow => ({
   candidateDate: "2026-09-11", kind: "stock", verdict: "COMPRAR", score: 1, axes: {}, peerGroup: [], rankInGroup: null, groupSize: null,
   close: 100, entryLow: 100, entryHigh: 102, stop: 92, target: 118, sizeUsd: null, sizeQty: null, riskScore: 3, flags: [], nthAppearance: 1,
-  summary: null, whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: null, spyClose: null,
+  // La ficha va en el helper porque una COMPRAR sana TIENE ficha (8/10): sin esto, cada caso de acá abajo
+  // arrastraba un `ficha_faltante` que no era lo que ese caso probaba.
+  summary: "la tesis de prueba", whyRanks: null, mainRisk: null, moat: null, degradedBy: null, promptVersion: "c1-prueba", spyClose: null,
   close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null,
   entry: { state: "en_zona", level: 102, levelLabel: "hasta 2% sobre el precio", low: 100, high: 102, validSessions: 15, sma20: 99, sma50: 95, sma200: null, distSma200Pct: null, pendSma200Pct: null, atr14: 2, extensionAtr: 0.5, rangePct60: 60, why: "ni extendida ni floja" },
   ...over,
@@ -499,6 +501,37 @@ describe("la verificación de la fila es la guardada (auditoría del 15/9)", () 
  * los símbolos de EE.UU. Ningún chequeo lo vio: `precio_guardado` compara la fila contra SUS PROPIAS velas
  * guardadas, y coincidían perfecto — con velas viejas. Esto mira las velas contra el calendario.
  */
+describe("ficha_faltante: una COMPRAR sin ficha no pasó por el narrador (8/10)", () => {
+  it("la cuota agotada dejó 73 COMPRAR sin ficha el 8/10 y nada lo contaba", () => {
+    const f = solo("ficha_faltante", checkConsistency({
+      rows: [fila({ symbol: "MMSI", summary: null })],
+      candles: { MMSI: [vela("2026-09-11", 100)] },
+      plan: null,
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("grave");
+    expect(f[0]!.detail).toContain("no corrió");
+  });
+
+  it("una OBSERVAR sin ficha no se reporta: el degradado solo puede bajar un COMPRAR", () => {
+    const f = solo("ficha_faltante", checkConsistency({
+      rows: [fila({ symbol: "TER", verdict: "OBSERVAR", summary: null })],
+      candles: { TER: [vela("2026-09-11", 100)] },
+      plan: null,
+    }));
+    expect(f).toEqual([]);
+  });
+
+  it("con ficha no se reporta nada", () => {
+    const f = solo("ficha_faltante", checkConsistency({
+      rows: [fila({ symbol: "STX", summary: "fabrica discos" })],
+      candles: { STX: [vela("2026-09-11", 100)] },
+      plan: null,
+    }));
+    expect(f).toEqual([]);
+  });
+});
+
 describe("velas_desfasadas", () => {
   const conSesion = (over: Parameters<typeof checkConsistency>[0]) => checkConsistency({ lastSession: "2026-09-22", today: "2026-09-23", ...over });
 

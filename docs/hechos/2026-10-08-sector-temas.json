@@ -1,0 +1,544 @@
+{
+  "hechos": [
+    {
+      "tipo": "sector",
+      "symbol": "EQT",
+      "fecha": "2026-10-06",
+      "fuente": {
+        "url": "https://www.eia.gov/outlooks/steo/report/natgas.php",
+        "titulo": "EIA, Short-Term Energy Outlook de octubre 2026, capitulo de gas natural"
+      },
+      "valor": {
+        "ambito": "gas natural: exceso a 2027",
+        "titulo": "Henry Hub proyectado en 3,16 para 2027: la produccion crece mas rapido que la exportacion",
+        "detalle": "EIA STEO de octubre 2026: Henry Hub promedia 3,48 por MMBtu en 2026 y cae a 3,16 en 2027. La produccion seca pasa de 112,20 a 116,13 Bcf/d (+3,93) mientras las exportaciones de GNL van de 17,6 a 18,6 Bcf/d (+1,0): la oferta crece casi cuatro veces mas que la demanda de exportacion. Precio de venta mas bajo para un productor de gas.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "AR",
+      "fecha": "2026-10-06",
+      "fuente": {
+        "url": "https://www.eia.gov/outlooks/steo/report/natgas.php",
+        "titulo": "EIA, Short-Term Energy Outlook de octubre 2026, capitulo de gas natural"
+      },
+      "valor": {
+        "ambito": "gas natural: exceso a 2027",
+        "titulo": "Henry Hub proyectado en 3,16 para 2027: la produccion crece mas rapido que la exportacion",
+        "detalle": "EIA STEO de octubre 2026: Henry Hub promedia 3,48 por MMBtu en 2026 y cae a 3,16 en 2027. La produccion seca pasa de 112,20 a 116,13 Bcf/d (+3,93) mientras las exportaciones de GNL van de 17,6 a 18,6 Bcf/d (+1,0): la oferta crece casi cuatro veces mas que la demanda de exportacion. Precio de venta mas bajo para un productor de gas.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "RRC",
+      "fecha": "2026-10-06",
+      "fuente": {
+        "url": "https://www.eia.gov/outlooks/steo/report/natgas.php",
+        "titulo": "EIA, Short-Term Energy Outlook de octubre 2026, capitulo de gas natural"
+      },
+      "valor": {
+        "ambito": "gas natural: exceso a 2027",
+        "titulo": "Henry Hub proyectado en 3,16 para 2027: la produccion crece mas rapido que la exportacion",
+        "detalle": "EIA STEO de octubre 2026: Henry Hub promedia 3,48 por MMBtu en 2026 y cae a 3,16 en 2027. La produccion seca pasa de 112,20 a 116,13 Bcf/d (+3,93) mientras las exportaciones de GNL van de 17,6 a 18,6 Bcf/d (+1,0): la oferta crece casi cuatro veces mas que la demanda de exportacion. Precio de venta mas bajo para un productor de gas.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "CNX",
+      "fecha": "2026-10-06",
+      "fuente": {
+        "url": "https://www.eia.gov/outlooks/steo/report/natgas.php",
+        "titulo": "EIA, Short-Term Energy Outlook de octubre 2026, capitulo de gas natural"
+      },
+      "valor": {
+        "ambito": "gas natural: exceso a 2027",
+        "titulo": "Henry Hub proyectado en 3,16 para 2027: la produccion crece mas rapido que la exportacion",
+        "detalle": "EIA STEO de octubre 2026: Henry Hub promedia 3,48 por MMBtu en 2026 y cae a 3,16 en 2027. La produccion seca pasa de 112,20 a 116,13 Bcf/d (+3,93) mientras las exportaciones de GNL van de 17,6 a 18,6 Bcf/d (+1,0): la oferta crece casi cuatro veces mas que la demanda de exportacion. Precio de venta mas bajo para un productor de gas.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "EXE",
+      "fecha": "2026-10-06",
+      "fuente": {
+        "url": "https://www.eia.gov/outlooks/steo/report/natgas.php",
+        "titulo": "EIA, Short-Term Energy Outlook de octubre 2026, capitulo de gas natural"
+      },
+      "valor": {
+        "ambito": "gas natural: exceso a 2027",
+        "titulo": "Henry Hub proyectado en 3,16 para 2027: la produccion crece mas rapido que la exportacion",
+        "detalle": "EIA STEO de octubre 2026: Henry Hub promedia 3,48 por MMBtu en 2026 y cae a 3,16 en 2027. La produccion seca pasa de 112,20 a 116,13 Bcf/d (+3,93) mientras las exportaciones de GNL van de 17,6 a 18,6 Bcf/d (+1,0): la oferta crece casi cuatro veces mas que la demanda de exportacion. Precio de venta mas bajo para un productor de gas.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "NRG",
+      "fecha": "2026-10-06",
+      "fuente": {
+        "url": "https://www.eia.gov/outlooks/steo/report/natgas.php",
+        "titulo": "EIA, Short-Term Energy Outlook de octubre 2026, capitulo de gas natural"
+      },
+      "valor": {
+        "ambito": "gas natural: exceso a 2027",
+        "titulo": "Henry Hub proyectado en 3,16 para 2027: combustible mas barato para una generadora que quema gas",
+        "detalle": "EIA STEO de octubre 2026: Henry Hub promedia 3,48 por MMBtu en 2026 y cae a 3,16 en 2027, con la produccion seca de 112,20 a 116,13 Bcf/d contra exportaciones de GNL de 17,6 a 18,6. Es el mismo hecho que castiga al productor, con el signo invertido. Contrapeso: el gas barato tambien baja el precio mayorista de la electricidad que cobra.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "SNDK",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "WDC",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "STX",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "AMKR",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "TER",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "ONTO",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "CAMT",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "KLIC",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "ACLS",
+      "fecha": "2026-09-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/a2026q4ex991-pressrelease.htm",
+        "titulo": "Micron, comunicado del 4T fiscal 2026 presentado en un 8-K (30/9/2026)"
+      },
+      "valor": {
+        "ambito": "memoria: precio y capex del ciclo",
+        "titulo": "Micron factura 133.190 M en el ano fiscal 2026 contra 37.380 M, y guia 61.500 M para el 1T fiscal 2027",
+        "detalle": "Micron, 30/9/2026: ingresos de 54.230 M en el 4T fiscal contra 11.320 M un ano antes, y 133.190 M en el ano fiscal 2026 contra 37.380 M. Guia del 1T fiscal 2027 en 61.500 M mas o menos 1.500 M. Es el mayor fabricante de memoria: el dato habla del precio de la memoria y del capex del sector, no de los resultados de esta empresa. Contrapeso: un ciclo asi historicamente termina en sobreoferta.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "INSW",
+      "fecha": "2026-08-28",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913290/000091957426005942/p15060813_ex-1.htm",
+        "titulo": "Frontline, resultados del 2T26 presentados en un 6-K (28/8/2026)"
+      },
+      "valor": {
+        "ambito": "tanqueros de crudo: tarifas",
+        "titulo": "VLCC a 152.700 por dia en el 2T26, y 156.900 ya contratado para el 3T con el 86% de los dias cubierto",
+        "detalle": "Frontline, 28/8/2026: TCE spot del 2T26 de 152.700 por dia en VLCC, 111.500 en Suezmax y 92.400 en LR2/Aframax. Para el 3T26 ya tiene contratado 156.900 (86% de los dias), 117.400 (79%) y 81.000 (70%). Es la flota de crudo mas grande que cotiza. Contrapeso dicho por la propia empresa: espera que el TCE spot del 3T completo quede POR DEBAJO de lo contratado, por los dias en lastre.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "DHT",
+      "fecha": "2026-08-28",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913290/000091957426005942/p15060813_ex-1.htm",
+        "titulo": "Frontline, resultados del 2T26 presentados en un 6-K (28/8/2026)"
+      },
+      "valor": {
+        "ambito": "tanqueros de crudo: tarifas",
+        "titulo": "VLCC a 152.700 por dia en el 2T26, y 156.900 ya contratado para el 3T con el 86% de los dias cubierto",
+        "detalle": "Frontline, 28/8/2026: TCE spot del 2T26 de 152.700 por dia en VLCC, 111.500 en Suezmax y 92.400 en LR2/Aframax. Para el 3T26 ya tiene contratado 156.900 (86% de los dias), 117.400 (79%) y 81.000 (70%). Es la flota de crudo mas grande que cotiza. Contrapeso dicho por la propia empresa: espera que el TCE spot del 3T completo quede POR DEBAJO de lo contratado, por los dias en lastre.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "TNK",
+      "fecha": "2026-08-28",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913290/000091957426005942/p15060813_ex-1.htm",
+        "titulo": "Frontline, resultados del 2T26 presentados en un 6-K (28/8/2026)"
+      },
+      "valor": {
+        "ambito": "tanqueros de crudo: tarifas",
+        "titulo": "VLCC a 152.700 por dia en el 2T26, y 156.900 ya contratado para el 3T con el 86% de los dias cubierto",
+        "detalle": "Frontline, 28/8/2026: TCE spot del 2T26 de 152.700 por dia en VLCC, 111.500 en Suezmax y 92.400 en LR2/Aframax. Para el 3T26 ya tiene contratado 156.900 (86% de los dias), 117.400 (79%) y 81.000 (70%). Es la flota de crudo mas grande que cotiza. Contrapeso dicho por la propia empresa: espera que el TCE spot del 3T completo quede POR DEBAJO de lo contratado, por los dias en lastre.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "NAT",
+      "fecha": "2026-08-28",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913290/000091957426005942/p15060813_ex-1.htm",
+        "titulo": "Frontline, resultados del 2T26 presentados en un 6-K (28/8/2026)"
+      },
+      "valor": {
+        "ambito": "tanqueros de crudo: tarifas",
+        "titulo": "VLCC a 152.700 por dia en el 2T26, y 156.900 ya contratado para el 3T con el 86% de los dias cubierto",
+        "detalle": "Frontline, 28/8/2026: TCE spot del 2T26 de 152.700 por dia en VLCC, 111.500 en Suezmax y 92.400 en LR2/Aframax. Para el 3T26 ya tiene contratado 156.900 (86% de los dias), 117.400 (79%) y 81.000 (70%). Es la flota de crudo mas grande que cotiza. Contrapeso dicho por la propia empresa: espera que el TCE spot del 3T completo quede POR DEBAJO de lo contratado, por los dias en lastre.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "CMBT",
+      "fecha": "2026-08-28",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913290/000091957426005942/p15060813_ex-1.htm",
+        "titulo": "Frontline, resultados del 2T26 presentados en un 6-K (28/8/2026)"
+      },
+      "valor": {
+        "ambito": "tanqueros de crudo: tarifas",
+        "titulo": "VLCC a 152.700 por dia en el 2T26, y 156.900 ya contratado para el 3T con el 86% de los dias cubierto",
+        "detalle": "Frontline, 28/8/2026: TCE spot del 2T26 de 152.700 por dia en VLCC, 111.500 en Suezmax y 92.400 en LR2/Aframax. Para el 3T26 ya tiene contratado 156.900 (86% de los dias), 117.400 (79%) y 81.000 (70%). Es la flota de crudo mas grande que cotiza. Contrapeso dicho por la propia empresa: espera que el TCE spot del 3T completo quede POR DEBAJO de lo contratado, por los dias en lastre.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "TRMD",
+      "fecha": "2026-09-03",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1483934/000162828026060459/stngexhibit991-09032026.htm",
+        "titulo": "Scorpio Tankers, tarifas del 3T26 presentadas en un 6-K (3/9/2026)"
+      },
+      "valor": {
+        "ambito": "tanqueros de productos: tarifas",
+        "titulo": "LR2 a 64.900 por dia con el 85% del trimestre ya reservado",
+        "detalle": "Scorpio Tankers, 3/9/2026: TCE promedio del 3T26 a la fecha del aviso de 64.900 por dia en LR2 con el 85% de los dias reservados, 30.000 en MR con el 79% y 25.500 en Handymax con el 70%. Contrapeso dicho por la empresa: las tarifas y las coberturas pueden cambiar hasta que se cierren los resultados de los pools, y el aviso no da comparacion contra el trimestre anterior.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "HAFN",
+      "fecha": "2026-09-03",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1483934/000162828026060459/stngexhibit991-09032026.htm",
+        "titulo": "Scorpio Tankers, tarifas del 3T26 presentadas en un 6-K (3/9/2026)"
+      },
+      "valor": {
+        "ambito": "tanqueros de productos: tarifas",
+        "titulo": "LR2 a 64.900 por dia con el 85% del trimestre ya reservado",
+        "detalle": "Scorpio Tankers, 3/9/2026: TCE promedio del 3T26 a la fecha del aviso de 64.900 por dia en LR2 con el 85% de los dias reservados, 30.000 en MR con el 79% y 25.500 en Handymax con el 70%. Contrapeso dicho por la empresa: las tarifas y las coberturas pueden cambiar hasta que se cierren los resultados de los pools, y el aviso no da comparacion contra el trimestre anterior.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "ASC",
+      "fecha": "2026-09-03",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1483934/000162828026060459/stngexhibit991-09032026.htm",
+        "titulo": "Scorpio Tankers, tarifas del 3T26 presentadas en un 6-K (3/9/2026)"
+      },
+      "valor": {
+        "ambito": "tanqueros de productos: tarifas",
+        "titulo": "LR2 a 64.900 por dia con el 85% del trimestre ya reservado",
+        "detalle": "Scorpio Tankers, 3/9/2026: TCE promedio del 3T26 a la fecha del aviso de 64.900 por dia en LR2 con el 85% de los dias reservados, 30.000 en MR con el 79% y 25.500 en Handymax con el 70%. Contrapeso dicho por la empresa: las tarifas y las coberturas pueden cambiar hasta que se cierren los resultados de los pools, y el aviso no da comparacion contra el trimestre anterior.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "RNR",
+      "fecha": "2026-07-23",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913144/000091314426000084/rnr-20260630.htm",
+        "titulo": "RenaissanceRe, 10-Q del 2T26 (23/7/2026)"
+      },
+      "valor": {
+        "ambito": "reaseguro: tarifas de catastrofe bajando",
+        "titulo": "la prima bruta de catastrofe cae 15,8% por bajas de tarifa en las renovaciones de mitad de ano",
+        "detalle": "RenaissanceRe, 10-Q del 2T26: la prima bruta suscrita de la clase catastrofe cae 215,3 M (-15,8%) por reducciones de tarifa en las renovaciones de mitad de ano, y la de Propiedad entera 180,3 M (-10,4%). Contrapeso de la misma empresa: sostiene que el negocio de catastrofe en EE.UU. sigue en un nivel fuerte de suficiencia de tarifa. Es el ciclo dado vuelta, no un trimestre.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "EG",
+      "fecha": "2026-07-23",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913144/000091314426000084/rnr-20260630.htm",
+        "titulo": "RenaissanceRe, 10-Q del 2T26 (23/7/2026)"
+      },
+      "valor": {
+        "ambito": "reaseguro: tarifas de catastrofe bajando",
+        "titulo": "la prima bruta de catastrofe cae 15,8% por bajas de tarifa en las renovaciones de mitad de ano",
+        "detalle": "RenaissanceRe, 10-Q del 2T26: la prima bruta suscrita de la clase catastrofe cae 215,3 M (-15,8%) por reducciones de tarifa en las renovaciones de mitad de ano, y la de Propiedad entera 180,3 M (-10,4%). Contrapeso de la misma empresa: sostiene que el negocio de catastrofe en EE.UU. sigue en un nivel fuerte de suficiencia de tarifa. Es el ciclo dado vuelta, no un trimestre.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "ACGL",
+      "fecha": "2026-07-23",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913144/000091314426000084/rnr-20260630.htm",
+        "titulo": "RenaissanceRe, 10-Q del 2T26 (23/7/2026)"
+      },
+      "valor": {
+        "ambito": "reaseguro: tarifas de catastrofe bajando",
+        "titulo": "la prima bruta de catastrofe cae 15,8% por bajas de tarifa en las renovaciones de mitad de ano",
+        "detalle": "RenaissanceRe, 10-Q del 2T26: la prima bruta suscrita de la clase catastrofe cae 215,3 M (-15,8%) por reducciones de tarifa en las renovaciones de mitad de ano, y la de Propiedad entera 180,3 M (-10,4%). Contrapeso de la misma empresa: sostiene que el negocio de catastrofe en EE.UU. sigue en un nivel fuerte de suficiencia de tarifa. Es el ciclo dado vuelta, no un trimestre.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "AXS",
+      "fecha": "2026-07-23",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913144/000091314426000084/rnr-20260630.htm",
+        "titulo": "RenaissanceRe, 10-Q del 2T26 (23/7/2026)"
+      },
+      "valor": {
+        "ambito": "reaseguro: tarifas de catastrofe bajando",
+        "titulo": "la prima bruta de catastrofe cae 15,8% por bajas de tarifa en las renovaciones de mitad de ano",
+        "detalle": "RenaissanceRe, 10-Q del 2T26: la prima bruta suscrita de la clase catastrofe cae 215,3 M (-15,8%) por reducciones de tarifa en las renovaciones de mitad de ano, y la de Propiedad entera 180,3 M (-10,4%). Contrapeso de la misma empresa: sostiene que el negocio de catastrofe en EE.UU. sigue en un nivel fuerte de suficiencia de tarifa. Es el ciclo dado vuelta, no un trimestre.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "MKL",
+      "fecha": "2026-07-23",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913144/000091314426000084/rnr-20260630.htm",
+        "titulo": "RenaissanceRe, 10-Q del 2T26 (23/7/2026)"
+      },
+      "valor": {
+        "ambito": "reaseguro: tarifas de catastrofe bajando",
+        "titulo": "la prima bruta de catastrofe cae 15,8% por bajas de tarifa en las renovaciones de mitad de ano",
+        "detalle": "RenaissanceRe, 10-Q del 2T26: la prima bruta suscrita de la clase catastrofe cae 215,3 M (-15,8%) por reducciones de tarifa en las renovaciones de mitad de ano, y la de Propiedad entera 180,3 M (-10,4%). Contrapeso de la misma empresa: sostiene que el negocio de catastrofe en EE.UU. sigue en un nivel fuerte de suficiencia de tarifa. Es el ciclo dado vuelta, no un trimestre.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "SPNT",
+      "fecha": "2026-07-23",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/913144/000091314426000084/rnr-20260630.htm",
+        "titulo": "RenaissanceRe, 10-Q del 2T26 (23/7/2026)"
+      },
+      "valor": {
+        "ambito": "reaseguro: tarifas de catastrofe bajando",
+        "titulo": "la prima bruta de catastrofe cae 15,8% por bajas de tarifa en las renovaciones de mitad de ano",
+        "detalle": "RenaissanceRe, 10-Q del 2T26: la prima bruta suscrita de la clase catastrofe cae 215,3 M (-15,8%) por reducciones de tarifa en las renovaciones de mitad de ano, y la de Propiedad entera 180,3 M (-10,4%). Contrapeso de la misma empresa: sostiene que el negocio de catastrofe en EE.UU. sigue en un nivel fuerte de suficiencia de tarifa. Es el ciclo dado vuelta, no un trimestre.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "LLY",
+      "fecha": "2026-08-05",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000081/lly-20260630.htm",
+        "titulo": "Eli Lilly, 10-Q del 2T26 (5/8/2026)"
+      },
+      "valor": {
+        "ambito": "farma: precios fijados por Medicare",
+        "titulo": "Trulicity y Verzenio quedan con precio fijado por el gobierno desde 2028",
+        "detalle": "Eli Lilly, 10-Q del 2T26: HHS selecciono Jardiance en agosto de 2023 (vigente 2026) y en enero de 2026 selecciono Trulicity y Verzenio, con precio fijado por el gobierno desde 2028. La propia empresa dice que, dado su portafolio, espera que otros productos significativos sean seleccionados en los proximos anos, y que el IRA ya influye de forma relevante en su estrategia.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "PFE",
+      "fecha": "2026-08-04",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/78003/000007800326000095/pfe-20260628.htm",
+        "titulo": "Pfizer, 10-Q del 2T26 (4/8/2026)"
+      },
+      "valor": {
+        "ambito": "farma: precios fijados por Medicare",
+        "titulo": "Eliquis ya con precio maximo fijado; Ibrance y Xtandi desde 2027",
+        "detalle": "Pfizer, 10-Q del 2T26: el precio maximo fijado de Eliquis entro en vigencia el 1/1/2026, y los de Ibrance y Xtandi rigen desde 2027. Matiz a su favor, de la propia empresa: aunque Xeljanz sigue seleccionado hasta 2028, CMS determino que existe comercializacion real de un generico, asi que para Xeljanz no se va a fijar ni aplicar precio maximo.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "BMY",
+      "fecha": "2026-07-30",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/14272/000001427226000020/bmy-20260630.htm",
+        "titulo": "Bristol-Myers Squibb, 10-Q del 2T26 (30/7/2026)"
+      },
+      "valor": {
+        "ambito": "farma: precios fijados por Medicare",
+        "titulo": "Pomalyst con precio maximo desde 2027 y Orencia seleccionada para 2028",
+        "detalle": "Bristol-Myers Squibb, 10-Q del 2T26: el precio maximo de Pomalyst aplica al canal Medicare de EE.UU. desde el 1/1/2027, y en enero de 2026 HHS selecciono Orencia para precio fijado por el gobierno desde 2028. La empresa dice que mas productos podrian ser seleccionados y que eso puede acelerar la erosion de ingresos ANTES del vencimiento de la propiedad intelectual.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "GILD",
+      "fecha": "2026-08-06",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/882095/000088209526000031/gild-20260630.htm",
+        "titulo": "Gilead Sciences, 10-Q del 2T26 (6/8/2026)"
+      },
+      "valor": {
+        "ambito": "farma: precios fijados por Medicare",
+        "titulo": "Biktarvy seleccionada para precio maximo de Medicare desde 2028",
+        "detalle": "Gilead, 10-Q del 2T26: en enero de 2026 HHS selecciono Biktarvy para determinacion de precio maximo en Medicare, vigente desde 2028, y la empresa dice que mas de sus productos podrian ser seleccionados. Ella misma anticipa que el precio negociado de Medicare va a ser sustancialmente mas bajo que el que cobra hoy en ese canal.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "MRK",
+      "fecha": "2026-08-07",
+      "fuente": {
+        "url": "https://www.sec.gov/Archives/edgar/data/310158/000031015826000212/mrk-20260630.htm",
+        "titulo": "Merck, 10-Q del 2T26 (7/8/2026)"
+      },
+      "valor": {
+        "ambito": "farma: precios fijados por Medicare",
+        "titulo": "Lenvima con precio fijado desde 2028, y la empresa espera que Keytruda sea seleccionada en 2027",
+        "detalle": "Merck, 10-Q del 2T26: HHS selecciono Lenvima para precio fijado por el gobierno desde el 1/1/2028, y la empresa espera que Keytruda sea seleccionada en 2027 con precio vigente desde el 1/1/2029. Ademas Januvia y Janumet perdieron exclusividad en EE.UU. en mayo de 2026 y Janumet XR en julio de 2026. Dice que fijar precios puede afectar tambien al mercado privado.",
+        "sesgo": "en_contra"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "MOS",
+      "fecha": "2026-09-03",
+      "fuente": {
+        "url": "https://ers.usda.gov/topics/farm-economy/farm-sector-income-finances/farm-sector-income-forecast",
+        "titulo": "USDA ERS, Farm Sector Income Forecast (3/9/2026)"
+      },
+      "valor": {
+        "ambito": "agro: insumos contra granos",
+        "titulo": "el gasto en fertilizante sube 15,3%, y esto lo vende",
+        "detalle": "USDA ERS, 3/9/2026: el gasto en fertilizante, cal y acondicionadores sube 5.300 millones (+15,3%) a 39.600 millones. Es el mismo hecho que estrangula al productor agropecuario, con el signo invertido: del lado del que produce el nutriente es ingreso. Contrapeso: el productor con margen estrangulado es su cliente y puede reducir dosis.",
+        "sesgo": "a_favor"
+      }
+    },
+    {
+      "tipo": "sector",
+      "symbol": "NTR",
+      "fecha": "2026-09-03",
+      "fuente": {
+        "url": "https://ers.usda.gov/topics/farm-economy/farm-sector-income-finances/farm-sector-income-forecast",
+        "titulo": "USDA ERS, Farm Sector Income Forecast (3/9/2026)"
+      },
+      "valor": {
+        "ambito": "agro: insumos contra granos",
+        "titulo": "el gasto en fertilizante sube 15,3%, y esto lo vende",
+        "detalle": "USDA ERS, 3/9/2026: el gasto en fertilizante, cal y acondicionadores sube 5.300 millones (+15,3%) a 39.600 millones. Es el mismo hecho que estrangula al productor agropecuario, con el signo invertido: del lado del que produce el nutriente es ingreso. Contrapeso: el productor con margen estrangulado es su cliente y puede reducir dosis.",
+        "sesgo": "a_favor"
+      }
+    }
+  ]
+}
