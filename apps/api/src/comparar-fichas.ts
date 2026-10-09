@@ -10,7 +10,9 @@ import { buildContainer } from "./container.js";
  * entrada que arma el Radar (`cardInputFor`) y muestra las dos fichas una al lado de la otra. Solo lectura sobre la
  * base: no guarda la ficha local en ninguna fila.
  *
- * Uso: tsx src/comparar-fichas.ts [cantidad] [--url http://127.0.0.1:8091] [--modelo nombre] [--salida archivo.jsonl]
+ * Uso: tsx src/comparar-fichas.ts [cantidad] [--simbolos A,B,C] [--url http://127.0.0.1:8091] [--modelo nombre] [--salida archivo.jsonl]
+ *
+ * `--simbolos` fija la muestra: para comparar dos modelos locales entre sí, los dos tienen que ver las mismas filas.
  *
  * Por qué existe: cambiar el modelo que escribe la ficha sin medirlo es cambiar una compuerta de compra a ciegas.
  */
@@ -27,7 +29,9 @@ const today = todayLocal();
 const filas = (await c.store.latestCandidates()).filter((r) => r.kind === "stock" && r.summary !== null);
 // Primero las COMPRAR (son las que la ficha puede degradar), después el resto.
 filas.sort((a, b) => (a.verdict === b.verdict ? 0 : a.verdict === "COMPRAR" ? -1 : 1));
-const elegidas = filas.slice(0, n);
+const fijos = arg("--simbolos")?.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean);
+const elegidas = fijos?.length ? fijos.map((sym) => filas.find((r) => r.symbol === sym)).filter((r): r is (typeof filas)[number] => !!r) : filas.slice(0, n);
+if (fijos?.length && elegidas.length < fijos.length) console.log(`[comparar] sin ficha de Gemini hoy: ${fijos.filter((sym) => !elegidas.some((r) => r.symbol === sym)).join(" ")}`);
 const ranked = new Map(rankStocks(await rankableFundamentals(deps, today), deps.policy.weights).ranked.map((r) => [r.symbol, r]));
 const local = new LocalCardWriter({ url, model: modelo });
 console.log(`[comparar] ${elegidas.length} filas con ficha de Gemini · modelo local ${modelo} en ${url}`);
