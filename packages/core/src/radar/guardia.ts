@@ -68,10 +68,17 @@ export function revisarCorrida(i: GuardiaInput): Aviso[] {
     return out;
   }
 
-  // 4. Con un grave, el plan no se ejecuta.
-  if (c.graves > 0) {
-    const graves = c.findings.filter((f) => f.severity === "grave");
-    out.push({ motivo: "graves", detalle: graves.map((f) => `${f.check} ${f.symbol ?? ""}: ${f.detail}`).join(" · ") });
+  // 4. Con un grave que frena, avisar. Desde el 9/10 frena solo el grave general (sin símbolo) o el de una línea del
+  //    plan: uno en una acción que el plan no compra no frena nada, y la guardia no puede decir otra cosa que la
+  //    pantalla. Es la misma partición que `gravesDelPlan` en apps/web/src/instruccion.ts (la web no importa el núcleo).
+  const enPlan = new Set(i.plan.lines.map((l) => l.symbol.toUpperCase()));
+  const frenan = c.findings.filter((f) => {
+    if (f.severity !== "grave") return false;
+    const sym = f.symbol?.trim().toUpperCase();
+    return !sym || sym === "*" || enPlan.has(sym);
+  });
+  if (frenan.length) {
+    out.push({ motivo: "graves", detalle: frenan.map((f) => `${f.check} ${f.symbol ?? ""}: ${f.detail}`).join(" · ") });
   }
   return out;
 }

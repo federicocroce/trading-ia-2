@@ -379,9 +379,8 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
   //     preselección a 600 el presupuesto de fichas dejó de alcanzar y nadie lo vio, porque nada lo contaba.
   //     `refreshRadar` las rellena después (ver `needCards`), así que el estado es recuperable; lo que no se puede
   //     es presentar COMPRAR sin ficha en silencio, cuando COMPRAR significa que el dueño compra.
-  //     Grave solo si es LÍNEA DEL PLAN (9/10). Un grave cualquiera frena el plan entero (`controlesBloquean`), y con
-  //     la cuota corta siempre quedan COMPRAR sin ficha fuera del plan: como grave, el plan diría "no ejecutes" todos
-  //     los días por filas que no compra. Fuera del plan, una COMPRAR es candidata, no orden: alcanza con el aviso.
+  //     Grave solo si es LÍNEA DEL PLAN (9/10): esa es la que se compra, y un grave en una línea la frena (ver
+  //     `gravesDelPlan` en la web). Fuera del plan una COMPRAR es candidata, no orden: alcanza con el aviso.
   const lineasDelPlan = new Set((i.plan?.lines ?? []).map((l) => l.symbol.toUpperCase()));
   for (const row of i.rows) {
     if (row.verdict !== "COMPRAR" || row.kind !== "stock") continue;

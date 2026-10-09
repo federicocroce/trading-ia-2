@@ -1027,3 +1027,46 @@ El 35B-A3B es ~60% más rápido pero rinde menos (73,4 contra 77,2 en SWE-bench)
 **La conexión es el límite**: ~7 Mbps medidos contra dos fuentes distintas, y con cuatro conexiones en
 paralelo el total no sube. Son ~8 horas de descarga. Cuando termine: comparar contra Gemini, y solo si las
 fichas son correctas, instalar el servicio y pasar a `REASONER=local`.
+
+---
+
+## Iteración 21 — el modelo local en uso, y el plan que nunca decía "ejecutá" (9/10)
+
+### Modelo local activo
+
+Qwen3.6-27B (Q6_K, sha256 verificado contra Hugging Face) como servicio de launchd, ~25 GB de RAM.
+`REASONER=local`. Antes de activarlo:
+
+- [x] **Contra Gemini, mismas 12 entradas**: 12 de 12 válidas, 27 s cada una. Cada número que citó y Gemini
+  no está en la entrada (132.884 acciones de un insider de TK, flujo operativo −8,8 M de HAFC, pérdida
+  operativa −27 M de OPY, el CEO de Lam entre los vendedores). Un error: "Dollar Tree opera Family Dollar".
+- [x] **La regla de degradar era ambigua para los dos modelos.** El 27B degradó GFR por falta de estados y TK
+  por insiders; Gemini había hecho lo mismo con ORRF, SPNT e HIPO. Se aclaró que no se degrada por banderas que
+  las reglas ya pesan ni por falta de dato. No se exige un evento: los degradados buenos de Gemini (LNC, TGTX,
+  FDUS) salieron de los trimestres.
+- [x] **Temperatura 0**: con 0,1 la misma entrada de GFR degradaba una vez sí y otra no.
+- [x] **Compuerta probada en las dos direcciones**: 10 de 10. No degrada por banderas; degrada siempre ante un
+  recorte de guía grave o una dilución grave inyectados.
+
+En uso real: 39 fichas y 3 clasificaciones de titulares, 100% válidas. COMPRAR sin ficha: de 23 a 0.
+
+### El plan frenado por acciones que no compraba
+
+Desde el 15/9, un grave en **cualquier** símbolo frenaba el plan entero. El 9/10 el plan compraba MMSI, MCY,
+JBL, BLX, DXCM, MUSA, FRPT y EME, y lo frenaban ATLC, OPY y UFPT (el precio de IEX difería 1,3% del cierre
+oficial en acciones chicas) y TSM y VIST (posiciones). Como en cada refresco aparece alguno así, **el plan no
+decía "ejecutá" casi nunca.**
+
+Decisión del dueño: **se bloquea solo lo que tiene el error.**
+
+- [x] `gravesDelPlan` parte los graves en tres: **generales** (sin símbolo) frenan todo; **de una línea** frenan
+  esa línea, con el motivo; **de otra acción** se muestran como alerta y no frenan nada.
+- [x] La guardia de las 10:00 usa la misma partición: no puede notificar "el plan no se ejecuta" cuando la
+  pantalla dice que sí.
+- [x] Dos fixtures de test frenaban el plan con un grave en NVDA, que no era línea: ahora usan un grave general
+  para seguir probando lo mismo (que la cabecera y el Radar salen de la misma función).
+
+**Auditado con el plan real**: freno general ninguno, ninguna línea con grave, 5 graves fuera del plan (TSM,
+VIST, ATLC, OPY, UFPT). Las 11 líneas quedan ejecutables, **con sus avisos escritos**: MCY y FRPT llevan una
+objeción de la revisión (MCY: 13D de la viuda del fundador con el 35,3%; FRPT: Wells Fargo bajó el objetivo
+de 82 a 77). Que la objeción avise y no frene es la decisión del 18/9; antes quedaba tapada por el freno total.

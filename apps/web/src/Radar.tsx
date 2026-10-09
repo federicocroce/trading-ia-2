@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { filasDeLideres } from "./lideres";
 import { riesgoPaisFechas } from "./macroAr";
-import { controlesBloquean, instruccionRadar, planLoCompra, planStatusFor } from "./instruccion";
+import { controlesBloquean, gravesDelPlan, instruccionRadar, planLoCompra, planStatusFor } from "./instruccion";
 import { baseCandidata, baseLinea, pctDesde, qtyLinea, riesgoLinea, tramoLinea, type Base } from "./orden";
 import { InstruccionChip, RadarVerdict, invalidatePlan } from "./plan";
 import { api, isHistorical, type ArgentinaData, type Candidate, type PlanChange, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type GrupoMedicion, type Horizonte, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
@@ -552,9 +552,13 @@ function LideresCard({ rows }: { rows: Candidate[] }) {
 const horaLocal = (iso: string) => new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 /**
- * Estado de los controles automáticos sobre esta versión del plan (15/9). Si frenan, arriba de todo dice que no se
- * ejecute y por qué; cada línea dice ESPERAR (ver `controlesBloquean`). Si están al día, una línea chica lo confirma.
+ * Estado de los controles automáticos sobre esta versión del plan (15/9). Si frenan el plan entero (no corrieron, no
+ * pudieron, o hay un error general), arriba dice que no se ejecute y por qué. Desde el 9/10 un error en un símbolo frena
+ * solo esa línea, y uno en una acción que el plan no compra se muestra como alerta, sin frenar nada.
  */
+const lista = (fs: Array<{ check: string; symbol: string | null; detail: string }>) => (
+  <ul style={{ margin: "4px 0 0 18px" }}>{fs.slice(0, 8).map((f, i) => <li key={i}><span className="mono">{f.check}</span>{f.symbol ? ` ${f.symbol}` : ""}: {f.detail}</li>)}</ul>
+);
 function ControlesDelPlan({ p }: { p: ContributionPlan }) {
   if (!p.lines.length) return null;
   const freno = controlesBloquean(p);
@@ -563,23 +567,36 @@ function ControlesDelPlan({ p }: { p: ContributionPlan }) {
     return (
       <div className="err" style={{ marginTop: 8 }}>
         <b>No ejecutes este plan todavía:</b> {freno}.
-        {k && !k.error && k.graves > 0 && (
-          <ul style={{ margin: "4px 0 0 18px" }}>
-            {k.findings.filter((f) => f.severity === "grave").slice(0, 8).map((f, i) => <li key={i}><span className="mono">{f.check}</span>{f.symbol ? ` ${f.symbol}` : ""}: {f.detail}</li>)}
-          </ul>
-        )}
+        {k && !k.error && gravesDelPlan(p).generales.length > 0 && lista(gravesDelPlan(p).generales)}
       </div>
     );
   }
+  const { deLineas, deOtros } = gravesDelPlan(p);
+  const lineas = [...deLineas.values()].flat();
   const avisos = k!.findings.filter((f) => f.severity === "aviso");
-  const titulo = "Después de cada corrida y de cada rearmado corren solos la auditoría de pantallas y la consistencia de filas. Con un error grave, el plan no se ejecuta.";
-  // Los avisos se dicen cuáles son (15/9: "2 avisos" sin decir de qué).
-  if (!avisos.length) return <div className="muted" style={{ marginTop: 6, fontSize: 12 }} title={titulo}>✓ Controles automáticos al día ({horaLocal(k!.at)}): sin errores graves.</div>;
+  const titulo = "Después de cada corrida y de cada rearmado corren solos la auditoría de pantallas y la consistencia de filas. Un error general frena el plan; uno en una acción frena solo esa línea.";
   return (
-    <details className="muted" style={{ marginTop: 6, fontSize: 12 }} title={titulo}>
-      <summary style={{ cursor: "pointer" }}>✓ Controles automáticos al día ({horaLocal(k!.at)}): sin errores graves · {avisos.length === 1 ? "1 aviso" : `${avisos.length} avisos`} (no frenan el plan)</summary>
-      <ul style={{ margin: "4px 0 0 18px" }}>{avisos.map((f, i) => <li key={i}><span className="mono">{f.check}</span>{f.symbol ? ` ${f.symbol}` : ""}: {f.detail}</li>)}</ul>
-    </details>
+    <>
+      {lineas.length > 0 && (
+        <div className="err" style={{ marginTop: 8 }}>
+          <b>{deLineas.size === 1 ? "Una línea espera" : `${deLineas.size} líneas esperan`}</b> por un error grave en sus datos: {[...deLineas.keys()].join(", ")}. El resto del plan se puede ejecutar.
+          {lista(lineas)}
+        </div>
+      )}
+      {deOtros.length > 0 && (
+        <details className="warn" style={{ marginTop: 6, fontSize: 12 }}>
+          <summary style={{ cursor: "pointer" }}>{deOtros.length === 1 ? "1 error grave" : `${deOtros.length} errores graves`} en acciones que el plan no compra ({[...new Set(deOtros.map((f) => f.symbol))].join(", ")}): no frenan el plan</summary>
+          {lista(deOtros)}
+        </details>
+      )}
+      {!lineas.length && !deOtros.length && !avisos.length && <div className="muted" style={{ marginTop: 6, fontSize: 12 }} title={titulo}>✓ Controles automáticos al día ({horaLocal(k!.at)}): sin errores graves.</div>}
+      {avisos.length > 0 && (
+        <details className="muted" style={{ marginTop: 6, fontSize: 12 }} title={titulo}>
+          <summary style={{ cursor: "pointer" }}>{!lineas.length && !deOtros.length ? "✓ " : ""}Controles automáticos al día ({horaLocal(k!.at)}){!lineas.length && !deOtros.length ? ": sin errores graves" : ""} · {avisos.length === 1 ? "1 aviso" : `${avisos.length} avisos`} (no frenan el plan)</summary>
+          {lista(avisos)}
+        </details>
+      )}
+    </>
   );
 }
 

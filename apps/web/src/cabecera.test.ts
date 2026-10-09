@@ -14,7 +14,8 @@ const plan: ContributionPlan = {
   leftOut: [{ symbol: "SNDK", reason: "1° por convicción: verificación web pendiente: no entra hasta que se verifique" }],
   controles: { at: "2026-09-15T18:56:51.469Z", planBuiltAt: "2026-09-15T18:56:51.462Z", graves: 0, avisos: 2, findings: [] },
 };
-const frenado: ContributionPlan = { ...plan, controles: { ...plan.controles!, graves: 1, findings: [{ check: "x", symbol: "NVDA", severity: "grave", detail: "el plan compra algo en OBSERVAR" }] } };
+// Grave general (sin símbolo): desde el 9/10 es el que frena el plan entero; uno en un símbolo frena solo su línea.
+const frenado: ContributionPlan = { ...plan, controles: { ...plan.controles!, graves: 1, findings: [{ check: "x", symbol: null, severity: "grave", detail: "el plan compra algo en OBSERVAR" }] } };
 
 /** La etiqueta final, igual que la dibujan `RadarVerdict` y `CarteraVerdict`. */
 const etiqueta = (c: ReturnType<typeof chipDeCabecera>, symbol: string, p: ContributionPlan | null) => {

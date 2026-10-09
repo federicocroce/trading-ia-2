@@ -38,23 +38,60 @@ const conAvisos = (s: { avisos?: string[] }) => (s.avisos?.length ? { avisos: s.
 /** "5° por convicción: verificación web con reservas: …" → sin el lugar en la fila, que no le importa a quien lee. */
 const sinLugar = (reason: string) => reason.replace(/^(?:\d+° por convicción|seguimiento|ETF): /, "");
 
+type Hallazgo = NonNullable<ContributionPlan["controles"]>["findings"][number];
+
 /**
- * Por qué el plan no se puede ejecutar ahora, o null si se puede (15/9). La app no dice COMPRAR sobre un plan que sus
- * propios controles no revisaron, que no pudieron revisar o en el que encontraron un error grave. El 15/9 el plan
- * decía "comprar NVDA" con NVDA ya en OBSERVAR, y el control que lo detecta existía pero nadie lo corría.
+ * Los errores graves de los controles, partidos según a quién frenan (9/10).
+ *
+ * Hasta el 9/10 un grave en CUALQUIER símbolo frenaba el plan entero. Ese día el plan compraba MMSI, MCY, JBL, BLX,
+ * DXCM, MUSA, FRPT y EME, y lo frenaban ATLC, OPY y UFPT (candidatas que no compraba: el precio en vivo de IEX difería
+ * 1,3% del cierre oficial) y TSM y VIST (posiciones, por el precio entre Cartera y Radar). Como en cada refresco
+ * aparece algún grave así en una acción chica, el plan no decía "ejecutá" casi nunca. Decisión del dueño: se bloquea
+ * solo lo que tiene el error.
+ *
+ * - `generales`: sin símbolo. No se sabe a qué alcanzan, así que frenan todo.
+ * - `deLineas`: de un símbolo que el plan compra. Frenan ESA línea.
+ * - `deOtros`: de un símbolo que el plan no compra. No frenan nada; se muestran como alerta.
+ */
+export function gravesDelPlan(plan: ContributionPlan): { generales: Hallazgo[]; deLineas: Map<string, Hallazgo[]>; deOtros: Hallazgo[] } {
+  const enPlan = new Set(plan.lines.map((l) => l.symbol.toUpperCase()));
+  const generales: Hallazgo[] = [];
+  const deLineas = new Map<string, Hallazgo[]>();
+  const deOtros: Hallazgo[] = [];
+  for (const f of plan.controles?.findings ?? []) {
+    if (f.severity !== "grave") continue;
+    const sym = f.symbol?.trim().toUpperCase();
+    if (!sym || sym === "*") generales.push(f);
+    else if (enPlan.has(sym)) deLineas.set(sym, [...(deLineas.get(sym) ?? []), f]);
+    else deOtros.push(f);
+  }
+  return { generales, deLineas, deOtros };
+}
+
+/**
+ * Por qué el plan ENTERO no se puede ejecutar ahora, o null si se puede (15/9). La app no dice COMPRAR sobre un plan que
+ * sus propios controles no revisaron o no pudieron revisar. El 15/9 el plan decía "comprar NVDA" con NVDA ya en
+ * OBSERVAR, y el control que lo detecta existía pero nadie lo corría. Desde el 9/10 un error grave frena todo solo si
+ * es general; el de un símbolo frena su línea (`frenoDeLinea`).
  */
 export function controlesBloquean(plan: ContributionPlan | null): string | null {
   if (!plan || !plan.lines.length) return null;
-  // La revisión antes de comprar en curso ya no frena (18/9): esas líneas entran con el aviso escrito, y si la revisión
-  // encuentra una objeción la línea sale del plan y "por qué cambió" lo dice. Del 15/9 al 18/9 nunca corrió y todo esperaba.
+  // La revisión antes de comprar ya no frena (18/9): ni pendiente ni con objeción. La línea entra con el aviso escrito y
+  // decide el dueño (ver `reviewCaution` en el núcleo). Del 15/9 al 18/9 nunca corrió y todo esperaba.
   const k = plan.controles;
   if (!k || !plan.builtAt || k.planBuiltAt !== plan.builtAt) return "los controles automáticos todavía no revisaron este plan (tardan hasta un minuto)";
   if (k.error) return `los controles no pudieron correr: ${k.error}`;
-  if (k.graves > 0) {
-    const g = k.findings.find((f) => f.severity === "grave");
-    return `la app encontró ${k.graves === 1 ? "un error grave" : `${k.graves} errores graves`} en sus propios datos${g ? ` (${g.symbol ? `${g.symbol}: ` : ""}${g.detail})` : ""}`;
-  }
+  const { generales } = gravesDelPlan(plan);
+  if (generales.length) return `la app encontró ${generales.length === 1 ? "un error grave general" : `${generales.length} errores graves generales`} en sus propios datos (${generales[0]!.detail})`;
   return null;
+}
+
+/** Por qué ESTA línea no se ejecuta (9/10): un error grave en su propio símbolo. null si no tiene. */
+export function frenoDeLinea(symbol: string, plan: ContributionPlan | null): string | null {
+  if (!plan) return null;
+  const propios = gravesDelPlan(plan).deLineas.get(symbol.toUpperCase());
+  if (!propios?.length) return null;
+  return `error grave en sus datos (${propios[0]!.detail})`;
 }
 
 /** El plan de hoy compra este símbolo y nada lo frena: la única condición para decir "comprar ahora" (15/9). */
@@ -69,7 +106,7 @@ export function planStatusFor(symbol: string, plan: ContributionPlan | null): Pl
   const sym = symbol.toUpperCase();
   const line = plan.lines.find((l) => l.symbol.toUpperCase() === sym);
   if (line) {
-    const freno = controlesBloquean(plan);
+    const freno = controlesBloquean(plan) ?? frenoDeLinea(sym, plan);
     if (freno) return { kind: "frenado", lineKind: line.kind, amountUsd: line.amountUsd, reason: freno };
     const tramos = plan.tranches ?? 1;
     const avisos = line.avisos?.length ? { avisos: line.avisos } : {};

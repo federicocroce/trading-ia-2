@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ContributionPlan } from "./api";
-import { controlesBloquean, instruccionCartera, instruccionRadar, planStatusFor } from "./instruccion";
+import { controlesBloquean, frenoDeLinea, gravesDelPlan, instruccionCartera, instruccionRadar, planStatusFor } from "./instruccion";
 
 /**
  * 14/9: "volvemos a tener doble discurso". Hoy decía "Entran a COMPRAR: HSBC, ORRF", la tarjeta de arriba del Radar
@@ -83,12 +83,31 @@ describe("controles que frenan (15/9)", () => {
    * detecta nunca corrió. Ahora corren solos, y si encuentran algo grave, no corrieron o no pudieron correr sobre esta
    * versión del plan, ninguna línea dice COMPRAR, SUMAR ni NÚCLEO: dice ESPERAR, con el motivo.
    */
-  const grave = { ...plan, controles: { ...plan.controles!, graves: 1, findings: [{ check: "plan_contra_radar", symbol: "NVDA", severity: "grave" as const, detail: "el plan lo compra y el Radar lo tiene en OBSERVAR" }] } };
-  it("con un grave: ESPERAR en el Radar, en el núcleo y en Cartera, con el motivo", () => {
-    expect(instruccionRadar("COMPRAR", planStatusFor("APH", grave))).toMatchObject({ label: "ESPERAR", tone: "ESPERAR" });
-    expect(instruccionRadar("COMPRAR", planStatusFor("APH", grave)).detail).toMatch(/no ejecutar: .*error grave.*NVDA: el plan lo compra y el Radar lo tiene en OBSERVAR/);
-    expect(instruccionRadar("NUCLEO", planStatusFor("VTI", grave)).label).toBe("ESPERAR");
-    expect(instruccionCartera("SUMAR", planStatusFor("NEM", grave)).label).toBe("ESPERAR");
+  const conGrave = (symbol: string | null) => ({ ...plan, controles: { ...plan.controles!, graves: 1, findings: [{ check: "plan_contra_radar", symbol, severity: "grave" as const, detail: "el plan lo compra y el Radar lo tiene en OBSERVAR" }] } });
+  it("9/10: un grave en una línea frena SOLO esa línea, con el motivo; el resto se ejecuta", () => {
+    const g = conGrave("APH");
+    expect(controlesBloquean(g)).toBeNull();
+    expect(instruccionRadar("COMPRAR", planStatusFor("APH", g))).toMatchObject({ label: "ESPERAR", tone: "ESPERAR" });
+    expect(instruccionRadar("COMPRAR", planStatusFor("APH", g)).detail).toMatch(/no ejecutar: error grave en sus datos \(el plan lo compra y el Radar lo tiene en OBSERVAR\)/);
+    expect(instruccionRadar("NUCLEO", planStatusFor("VTI", g)).label).toBe("NÚCLEO");
+    expect(instruccionCartera("SUMAR", planStatusFor("NEM", g)).label).toBe("SUMAR");
+    expect(frenoDeLinea("aph", g)).toMatch(/error grave/);
+  });
+  it("9/10: un grave en una acción que el plan no compra no frena nada (ATLC, OPY y UFPT frenaban todo el plan)", () => {
+    const g = conGrave("ATLC");
+    expect(controlesBloquean(g)).toBeNull();
+    expect(instruccionRadar("COMPRAR", planStatusFor("APH", g)).label).toBe("COMPRAR");
+    expect(instruccionRadar("NUCLEO", planStatusFor("VTI", g)).label).toBe("NÚCLEO");
+    expect(gravesDelPlan(g).deOtros.map((f) => f.symbol)).toEqual(["ATLC"]);
+  });
+  it("un grave sin símbolo es general: no se sabe a qué alcanza, así que frena todo", () => {
+    for (const sym of [null, "*"]) {
+      const g = conGrave(sym);
+      expect(controlesBloquean(g)).toMatch(/error grave general/);
+      expect(instruccionRadar("COMPRAR", planStatusFor("APH", g)).label).toBe("ESPERAR");
+      expect(instruccionRadar("NUCLEO", planStatusFor("VTI", g)).label).toBe("ESPERAR");
+      expect(instruccionCartera("SUMAR", planStatusFor("NEM", g)).label).toBe("ESPERAR");
+    }
   });
   it("sin controles sobre esta versión (se rearmó después) o si no pudieron correr, tampoco se ejecuta", () => {
     expect(controlesBloquean({ ...plan, controles: null })).toMatch(/todavía no revisaron este plan/);
@@ -104,7 +123,7 @@ describe("controles que frenan (15/9)", () => {
   });
   it("con los controles al día y sin graves, nada cambia; lo que no está en el plan sigue siendo CANDIDATA", () => {
     expect(controlesBloquean(plan)).toBeNull();
-    expect(instruccionRadar("COMPRAR", planStatusFor("NBN", grave)).label).toBe("CANDIDATA");
+    expect(instruccionRadar("COMPRAR", planStatusFor("NBN", conGrave("APH"))).label).toBe("CANDIDATA");
   });
 });
 

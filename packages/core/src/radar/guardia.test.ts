@@ -40,12 +40,24 @@ describe("revisarCorrida", () => {
     expect(revisarCorrida(base({ plan: { ...p, controles: { ...p.controles!, planBuiltAt: p.builtAt! } } })).map((x) => x.motivo)).toEqual(["plan_viejo"]);
   });
 
-  it("avisa si hay graves, y dice cuáles", () => {
-    const p = base().plan!;
+  it("avisa si hay graves en una línea del plan, y dice cuáles", () => {
+    const p = { ...base().plan!, lines: [{ symbol: "APH", kind: "comprar" as const, amountUsd: 3_000, rationale: "", close: 80, spyClose: null, alpha30dPct: null, alpha90dPct: null }] };
     const a = revisarCorrida(base({ plan: { ...p, controles: { ...p.controles!, graves: 1, findings: [{ check: "velas_desfasadas", symbol: "APH", severity: "grave", detail: "su última vela es del 2026-09-21" }] } } }));
     expect(a.map((x) => x.motivo)).toEqual(["graves"]);
     expect(a[0]!.detalle).toContain("velas_desfasadas");
     expect(a[0]!.detalle).toContain("APH");
+  });
+
+  it("9/10: un grave en una acción que el plan no compra no es aviso: no frena nada, y la pantalla tampoco lo frena", () => {
+    const p = base().plan!;
+    const a = revisarCorrida(base({ plan: { ...p, controles: { ...p.controles!, graves: 1, findings: [{ check: "precio_vivo", symbol: "ATLC", severity: "grave", detail: "el hub sirve 92.53 y Yahoo 93.73" }] } } }));
+    expect(a).toEqual([]);
+  });
+
+  it("un grave sin símbolo es general y avisa", () => {
+    const p = base().plan!;
+    const a = revisarCorrida(base({ plan: { ...p, controles: { ...p.controles!, graves: 1, findings: [{ check: "auditoria", symbol: null, severity: "grave", detail: "dos pantallas se contradicen" }] } } }));
+    expect(a.map((x) => x.motivo)).toEqual(["graves"]);
   });
 
   it("avisa si los controles son de un plan anterior: no controlan al que estás mirando", () => {
