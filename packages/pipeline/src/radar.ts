@@ -356,7 +356,7 @@ export async function universoDelRanking(deps: Pick<RadarDeps, "store">, today: 
     pendientes: estado?.alpaca_ok ?? 0,
   };
 }
-async function rankableFundamentals(deps: RadarDeps, today: string): Promise<Map<string, Fundamentals>> {
+export async function rankableFundamentals(deps: RadarDeps, today: string): Promise<Map<string, Fundamentals>> {
   return (await universoDelRanking(deps, today)).all;
 }
 /** Por debajo de esta fracción del barrido, el universo está roto (fundamentales viejas) y el ranking no pisa el Radar. */
@@ -378,13 +378,25 @@ async function coberturaDelBarrido(deps: Pick<RadarDeps, "store" | "assets">, sc
   return { filas, listados, cubre: listados === null || listados === 0 || filas >= listados * COBERTURA_MINIMA };
 }
 
-/** Escribe la ficha de un candidato y aplica sus efectos (degradar, temas). Devuelve null si el modelo falló. */
-async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: { flags: string[]; close: number; stop: number | null; target: number | null; riskScore: number }, ins: { buys: number; sells: number } | null, extra: { core?: CoreEarnings | null; quarters?: QuarterStatement[] | undefined; events?: CandidateEvent[] | undefined } = {}): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
-  if (!deps.cardWriter) return null;
+type DatosDeFicha = { flags: string[]; close: number; stop: number | null; target: number | null; riskScore: number };
+type ExtraDeFicha = { core?: CoreEarnings | null; quarters?: QuarterStatement[] | undefined; events?: CandidateEvent[] | undefined };
+
+/**
+ * Lo que recibe el modelo para escribir la ficha. Separado de `writeCardFor` (9/10) para poder mandarle la MISMA
+ * entrada a dos modelos y comparar sus fichas: así se midió el modelo local contra Gemini antes de cambiarlo.
+ */
+export async function cardInputFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: DatosDeFicha, ins: { buys: number; sells: number } | null, extra: ExtraDeFicha = {}): Promise<CardInput> {
   const sym = f.symbol;
   const tags = (await deps.store.tags(sym)) ?? (await tagSymbol(deps, sym, { industry: f.industry, country: null }));
   const profile = await deps.store.profile(sym);
-  const input: CardInput = { symbol: sym, name: profile?.profile.name ?? null, industry: f.industry, sector: tags.sector, themes: tags.themes, themeOptions: deps.taxonomy.themes, verdict, score: r.score, axes: r.axes, rankInGroup: r.rankInGroup, groupSize: r.groupSize, basis: r.basis, own: ownMetrics(f), medians: r.medians, peers: r.group, flags: d.flags, insiders: ins, analyst: f.analyst, surprises: f.earningsSurprises, filings: await deps.filings(sym).catch(() => []), close: d.close, stop: d.stop, target: d.target, riskScore: d.riskScore, ...(extra.quarters !== undefined ? { quarters: extra.quarters } : {}), ...(extra.core !== undefined ? { core: extra.core } : {}), ...(extra.events !== undefined ? { events: extra.events } : {}) };
+  return { symbol: sym, name: profile?.profile.name ?? null, industry: f.industry, sector: tags.sector, themes: tags.themes, themeOptions: deps.taxonomy.themes, verdict, score: r.score, axes: r.axes, rankInGroup: r.rankInGroup, groupSize: r.groupSize, basis: r.basis, own: ownMetrics(f), medians: r.medians, peers: r.group, flags: d.flags, insiders: ins, analyst: f.analyst, surprises: f.earningsSurprises, filings: await deps.filings(sym).catch(() => []), close: d.close, stop: d.stop, target: d.target, riskScore: d.riskScore, ...(extra.quarters !== undefined ? { quarters: extra.quarters } : {}), ...(extra.core !== undefined ? { core: extra.core } : {}), ...(extra.events !== undefined ? { events: extra.events } : {}) };
+}
+
+/** Escribe la ficha de un candidato y aplica sus efectos (degradar, temas). Devuelve null si el modelo falló. */
+async function writeCardFor(deps: RadarDeps, f: Fundamentals, r: RankedStock, verdict: "COMPRAR" | "OBSERVAR", d: DatosDeFicha, ins: { buys: number; sells: number } | null, extra: ExtraDeFicha = {}): Promise<{ card: { summary: string; whyRanks: string; mainRisk: string; moat: string }; degrade: boolean; degradeReason: string | null } | null> {
+  if (!deps.cardWriter) return null;
+  const sym = f.symbol;
+  const input = await cardInputFor(deps, f, r, verdict, d, ins, extra);
   const c = await deps.cardWriter.write(input);
   if (c.themes.length) await tagSymbol(deps, sym, { industry: f.industry, country: null }, c.themes, "modelo");
   return { card: { summary: c.summary, whyRanks: c.whyRanks, mainRisk: c.mainRisk, moat: c.moat }, degrade: c.degrade, degradeReason: c.degradeReason ?? null };

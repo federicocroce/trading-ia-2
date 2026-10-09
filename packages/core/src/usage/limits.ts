@@ -17,6 +17,7 @@ export interface SourceLimit {
  */
 export const USAGE_LIMITS: Record<UsageSource, SourceLimit> = {
   gemini: { perMinute: 10, perDay: null, perModelKey: true },
+  local: { perMinute: null, perDay: null },
   finnhub: { perMinute: 60, perDay: null },
   alpaca: { perMinute: 200, perDay: null },
   sec: { perMinute: 600, perDay: null },

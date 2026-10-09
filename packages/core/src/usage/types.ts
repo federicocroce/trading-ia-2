@@ -3,7 +3,8 @@
  * Una fila por pedido saliente: quién lo hizo (paso, propósito, símbolo), a quién (fuente, endpoint,
  * modelo, clave) y cómo terminó (estado HTTP, resultado, tokens, milisegundos). Puro: sin base ni red.
  */
-export type UsageSource = "gemini" | "finnhub" | "alpaca" | "sec" | "yahoo" | "otro";
+/** "local": el modelo que corre en esta máquina (9/10). Sin cuota ni costo; se registra igual para ver cuánto tarda. */
+export type UsageSource = "gemini" | "local" | "finnhub" | "alpaca" | "sec" | "yahoo" | "otro";
 
 /**
  * - ok: respondió y se pudo usar.

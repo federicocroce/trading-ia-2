@@ -31,6 +31,19 @@ describe("resolveReasoner", () => {
   it("ignora keys vacías y respeta el orden 1..4", () => {
     expect(resolveReasoner({ GOOGLE_AI_API_KEY_1: "", GOOGLE_AI_API_KEY_3: "g3", GOOGLE_AI_API_KEY_4: "g4" }).geminiKeys).toEqual(["g3", "g4"]);
   });
+  it("REASONER=local exige LOCAL_LLM_URL y toma el nombre del modelo (9/10)", () => {
+    const r = resolveReasoner({ ...gemini, REASONER: "local", LOCAL_LLM_URL: "http://127.0.0.1:8091", LOCAL_LLM_MODEL: "qwen3.5-35b-a3b" });
+    expect(r.kind).toBe("local");
+    expect(r.localUrl).toBe("http://127.0.0.1:8091");
+    expect(r.localModel).toBe("qwen3.5-35b-a3b");
+    expect(() => resolveReasoner({ ...gemini, REASONER: "local" })).toThrow(/LOCAL_LLM_URL/);
+  });
+  it("con REASONER=local, la ficha la escribe el modelo local", () => {
+    const r = resolveReasoner({ REASONER: "local", LOCAL_LLM_URL: "http://127.0.0.1:8091" });
+    expect(buildCardWriter(r).promptVersion).toMatch(/-local$/);
+    expect(buildNarrator(r).promptVersion).toMatch(/-local$/);
+    expect(buildReasoner(r).promptVersion).toMatch(/-local$/);
+  });
   it("GEMINI_MODELS separa por coma", () => {
     expect(resolveReasoner({ ...gemini, GEMINI_MODELS: " gemini-2.5-flash, gemini-3.6-flash " }).geminiModels).toEqual(["gemini-2.5-flash", "gemini-3.6-flash"]);
     expect(resolveReasoner(gemini).geminiModels).toBeUndefined();

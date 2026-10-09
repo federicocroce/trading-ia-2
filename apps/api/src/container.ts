@@ -3,7 +3,7 @@ import { AlpacaAssets, AlpacaBroker, AlpacaMarketData, AlpacaPriceHistory, ArRss
 import { bajoOfertaDeCompra, DEFAULT_FILTER_CONFIG, QUALITY_FLAGS, DEFAULT_RISK_LIMITS, DefaultFilter, DefaultRiskEngine, todayLocal, type Broker, type CandidateVerifier, type CardWriter, type EventClassifier, type Ingestor, type MarketData, type PortfolioSnapshot, type PositionNarrator, type Reasoner, type RiskEngine } from "@thesis/core";
 import { Repo, createDb } from "@thesis/db";
 import { EdgarDocumentProvider, buildSnapshot, eventUniverse, scanEventsFor, type CarteraDeps, type CarteraStore, type FundamentalsSource, type RadarDeps, type RadarStore, type RunDeps, type ScanSummary, type Store, type TickerDeps, type TickerStore, ArgentinaDeps } from "@thesis/pipeline";
-import { AgentReviewer, AgentVerifier, AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, GeminiCandidateVerifier, GeminiCardWriter, GeminiPreTradeReviewer, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
+import { AgentReviewer, AgentVerifier, AnthropicCardWriter, AnthropicEventClassifier, AnthropicNarrator, AnthropicReasoner, DEFAULT_RPM_PER_KEY, LocalCardWriter, LocalEventClassifier, LocalNarrator, LocalReasoner, GeminiCandidateVerifier, GeminiCardWriter, GeminiPreTradeReviewer, GeminiEventClassifier, GeminiNarrator, GeminiReasoner, QuotaTracker, type GeminiCallerOptions } from "@thesis/reasoner";
 import { KeyedRateLimiter, recordingFetch } from "@thesis/core";
 import { StoreUsageRecorder } from "@thesis/pipeline";
 import type { Config, ReasonerConfig } from "./config.js";
@@ -69,8 +69,12 @@ export interface Container {
   account: () => Promise<{ equity: number; lastEquity: number }>;
 }
 
+/** Opciones del modelo local (9/10): mismo registro de uso que Gemini, para ver cuánto tarda cada pedido. */
+const localOpts = (r: ReasonerConfig, shared: GeminiShared) => ({ url: r.localUrl!, model: r.localModel ?? "local", log: (m: string) => console.log(m), ...(shared.recorder ? { recorder: shared.recorder } : {}) });
+
 /** Un razonador por proveedor; el prompt, la validación y pMarket son los mismos. */
 export function buildReasoner(r: ReasonerConfig, shared: GeminiShared = {}): Reasoner {
+  if (r.kind === "local") return new LocalReasoner(localOpts(r, shared));
   if (r.kind === "gemini") {
     return new GeminiReasoner({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
   }
@@ -79,6 +83,7 @@ export function buildReasoner(r: ReasonerConfig, shared: GeminiShared = {}): Rea
 
 /** Narrador de posiciones: misma regla de proveedor que el razonador. Solo puede degradar. */
 export function buildNarrator(r: ReasonerConfig, shared: GeminiShared = {}): PositionNarrator {
+  if (r.kind === "local") return new LocalNarrator(localOpts(r, shared));
   if (r.kind === "gemini") {
     return new GeminiNarrator({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
   }
@@ -87,6 +92,7 @@ export function buildNarrator(r: ReasonerConfig, shared: GeminiShared = {}): Pos
 
 /** Ficha de candidato: misma regla de proveedor que el razonador. Solo puede degradar. */
 export function buildCardWriter(r: ReasonerConfig, shared: GeminiShared = {}): CardWriter {
+  if (r.kind === "local") return new LocalCardWriter(localOpts(r, shared));
   if (r.kind === "gemini") {
     return new GeminiCardWriter({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
   }
@@ -110,6 +116,7 @@ export function buildReviewer(r: ReasonerConfig, shared: GeminiShared = {}, modo
 }
 
 export function buildEventClassifier(r: ReasonerConfig, shared: GeminiShared = {}): EventClassifier {
+  if (r.kind === "local") return new LocalEventClassifier(localOpts(r, shared));
   if (r.kind === "gemini") {
     return new GeminiEventClassifier({ keys: r.geminiKeys, ...(r.geminiModels ? { models: r.geminiModels } : {}), log: (m) => console.log(m), ...shared });
   }

@@ -502,15 +502,25 @@ describe("la verificación de la fila es la guardada (auditoría del 15/9)", () 
  * guardadas, y coincidían perfecto — con velas viejas. Esto mira las velas contra el calendario.
  */
 describe("ficha_faltante: una COMPRAR sin ficha no pasó por el narrador (8/10)", () => {
-  it("la cuota agotada dejó 73 COMPRAR sin ficha el 8/10 y nada lo contaba", () => {
+  it("FRPT del 9/10: una línea del plan sin ficha es grave, porque frena lo que el plan compra", () => {
     const f = solo("ficha_faltante", checkConsistency({
-      rows: [fila({ symbol: "MMSI", summary: null })],
-      candles: { MMSI: [vela("2026-09-11", 100)] },
-      plan: null,
+      rows: [fila({ symbol: "FRPT", summary: null })],
+      candles: { FRPT: [vela("2026-09-11", 100)] },
+      plan: plan([linea({ symbol: "FRPT" })]),
     }));
     expect(f).toHaveLength(1);
     expect(f[0]!.severity).toBe("grave");
-    expect(f[0]!.detail).toContain("no corrió");
+    expect(f[0]!.detail).toContain("línea del plan");
+  });
+
+  it("una COMPRAR sin ficha FUERA del plan es aviso: si fuera grave, el plan diría 'no ejecutes' todos los días", () => {
+    const f = solo("ficha_faltante", checkConsistency({
+      rows: [fila({ symbol: "IOSP", summary: null })],
+      candles: { IOSP: [vela("2026-09-11", 100)] },
+      plan: plan([linea({ symbol: "MMSI" })]),
+    }));
+    expect(f).toHaveLength(1);
+    expect(f[0]!.severity).toBe("aviso");
   });
 
   it("una OBSERVAR sin ficha no se reporta: el degradado solo puede bajar un COMPRAR", () => {

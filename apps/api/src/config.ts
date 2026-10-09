@@ -42,7 +42,7 @@ export interface Universe {
   legalNames: Record<string, string>;
 }
 
-export type ReasonerKind = "anthropic" | "gemini";
+export type ReasonerKind = "anthropic" | "gemini" | "local";
 export interface ReasonerConfig {
   kind: ReasonerKind;
   anthropicApiKey?: string;
@@ -51,6 +51,9 @@ export interface ReasonerConfig {
   geminiKeys: string[];
   /** GEMINI_MODELS separado por coma; undefined = default del reasoner. */
   geminiModels?: string[];
+  /** REASONER=local (9/10): servidor compatible con OpenAI en esta máquina (LOCAL_LLM_URL) y el nombre del modelo. */
+  localUrl?: string;
+  localModel?: string;
 }
 
 /**
@@ -63,19 +66,22 @@ export function resolveReasoner(env: Record<string, string | undefined>): Reason
   const models = env["GEMINI_MODELS"]?.split(",").map((m) => m.trim()).filter(Boolean);
   const forced = env["REASONER"]?.trim();
   let kind: ReasonerKind;
-  if (forced === "gemini" || forced === "anthropic") kind = forced;
-  else if (forced) throw new Error(`REASONER=${forced} desconocido (gemini|anthropic)`);
+  const localUrl = env["LOCAL_LLM_URL"]?.trim() || undefined;
+  if (forced === "gemini" || forced === "anthropic" || forced === "local") kind = forced;
+  else if (forced) throw new Error(`REASONER=${forced} desconocido (gemini|anthropic|local)`);
   else if (anthropicApiKey) kind = "anthropic";
   else if (geminiKeys.length) kind = "gemini";
   else throw new Error("razonador sin credenciales: configurá ANTHROPIC_API_KEY o GOOGLE_AI_API_KEY_1..4");
   if (kind === "gemini" && !geminiKeys.length) throw new Error("REASONER=gemini requiere GOOGLE_AI_API_KEY_1..4");
   if (kind === "anthropic" && !anthropicApiKey) throw new Error("REASONER=anthropic requiere ANTHROPIC_API_KEY");
+  if (kind === "local" && !localUrl) throw new Error("REASONER=local requiere LOCAL_LLM_URL (p. ej. http://127.0.0.1:8091)");
   return {
     kind,
     geminiKeys,
     ...(anthropicApiKey ? { anthropicApiKey } : {}),
     ...(env["ANTHROPIC_MODEL"] ? { anthropicModel: env["ANTHROPIC_MODEL"] } : {}),
     ...(models?.length ? { geminiModels: models } : {}),
+    ...(localUrl ? { localUrl, localModel: env["LOCAL_LLM_MODEL"]?.trim() || "local" } : {}),
   };
 }
 
