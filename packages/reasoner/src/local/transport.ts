@@ -73,7 +73,9 @@ export class LocalToolCaller {
         { role: "user", content: user },
       ],
       response_format: { type: "json_schema", json_schema: { name: tool.name, schema: tool.inputSchema, strict: true } },
-      temperature: 0.1,
+      // 0 y no 0,1 (9/10): con 0,1 la misma entrada de GFR salió una vez sin degradar y otra degradando. Una compuerta
+      // de compra no puede cambiar de opinión entre dos corridas con los mismos datos.
+      temperature: 0,
       max_tokens: this.maxOutputTokens,
       // Qwen piensa antes de responder si no se le dice: con la salida atada a un esquema, el pensamiento solo gasta tiempo.
       chat_template_kwargs: { enable_thinking: false },

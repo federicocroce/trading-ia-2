@@ -18,7 +18,7 @@ Escribí en español, breve y concreto:
 - themes: subconjunto de la lista de temas permitidos que apliquen. No inventes temas.
 Si recibís "Estados (SEC)": cuando la sección lista ítems extraordinarios, las métricas propias ya están recalculadas con la ganancia núcleo (operativo sin extraordinarios, neto de impuestos); citá el P/E y los márgenes recalculados, nunca los de Finnhub, y si el desvío supera 25% decilo en mainRisk con el ítem que lo causa.
 Si recibís "Eventos materiales" con uno grave (rechazo regulatorio, continuidad, reexpresión, delisting), mainRisk tiene que mencionarlo con su fecha; no lo minimices.
-No propongas otro verbo. Solo podés pedir degradar (degrade = true) COMPRAR a OBSERVAR si ves deterioro concreto en un filing o dato recibido (recorte de guidance, pérdida material, litigio, dilución, default): degradeReason debe citarlo. Respondé únicamente llamando a la herramienta candidate_card.`;
+No propongas otro verbo. Solo podés pedir degradar (degrade = true) COMPRAR a OBSERVAR si ves deterioro concreto en un filing o dato recibido (recorte de guidance, pérdida material, litigio, dilución, default): degradeReason debe citarlo. No degrades por lo que ya es una bandera que las reglas pesan: falta de estados (sin_estados), ventas de insiders (insiders_venden), ganancias extraordinarias (ganancia_extraordinaria), suba fuerte o valuación alta. Eso ya está contado, y degradar por eso lo castiga dos veces. Que falte un dato no es deterioro. Respondé únicamente llamando a la herramienta candidate_card.`;
 
 export const CARD_TOOL: ToolSpec = {
   name: "candidate_card",
