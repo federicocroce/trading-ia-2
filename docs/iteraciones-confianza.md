@@ -986,3 +986,44 @@ El degradado del narrador dispara muy poco:
 Entre 0 y 4 de ~80, o sea 2 a 4%. Así que `ficha_faltante` importa por dos razones más chicas y honestas:
 la pantalla mostraba un COMPRAR **sin tesis que leer**, y la fila **mentía** que había pasado por el
 narrador. No importa porque el filtro fuera bueno: con ese porcentaje, no lo es.
+
+---
+
+## Iteración 20 — ¿el problema son los modelos? (9/10)
+
+Pregunta del dueño: *"¿el problema son los modelos? corremos modelos locales y listo"*.
+
+**Respuesta medida: son dos problemas, y el modelo explica uno solo.**
+
+1. **Las fichas sin hacer: sí, es el modelo.** La cuota gratis de Gemini no alcanza (98 buenas contra 83
+   COMPRAR). Un modelo local no tiene cuota. Ninguna de las cuatro tareas (ficha, titulares, narrador, tesis)
+   busca en la web; la verificación, que sí busca, la hace el agente de Claude.
+2. **Que la app no gane plata: no es el modelo.** El narrador degrada 2 a 4% de las fichas. El selector rinde
+   43% de acierto por el puntaje (60% del peso en ejes planos o invertidos), y eso no lo toca ningún modelo.
+
+### Lo construido
+
+- [x] `REASONER=local`: mismo prompt, herramienta y parser que Gemini contra `llama-server` en 127.0.0.1:8091.
+  Sin caída silenciosa a Gemini, para que `promptVersion` no mienta. 10 tests.
+- [x] `comparar-fichas.ts`: misma entrada (`cardInputFor`) a los dos modelos, fichas lado a lado. Solo lectura.
+- [x] Servicio de launchd del modelo, escrito y sin instalar.
+- [x] **Corrección de mi regla de anoche**: `ficha_faltante` era grave para toda COMPRAR. Pero cualquier grave
+  frena el plan entero (`controlesBloquean`), así que el plan habría dicho "no ejecutes" todos los días por
+  filas que no compra. Ahora es grave solo para líneas del plan.
+
+### La medición del 9B
+
+12 de 12 fichas válidas, 6,9 s cada una. Los números que cita son los de la entrada. **Pero inventa la
+empresa**: a CART (Instacart) le puso *"opera la plataforma de criptomonedas Coinbase"*, a Lam Research le
+atribuyó litografía (hace grabado y deposición), a CMB.TECH la puso en petróleo y gas. Y razona mal: a HAFC le
+marcó como riesgo una deuda de 0,16 contra 0,18 de mediana. **No sirve.**
+
+### El modelo elegido, y por qué ese
+
+Qwen3.6-27B denso en Q6_K (22,1 GB). Es lo mejor que entra con holgura en 64 GB: el gpt-oss-120b pide ~66 GB.
+El 35B-A3B es ~60% más rápido pero rinde menos (73,4 contra 77,2 en SWE-bench), y la velocidad no importa:
+~150 fichas por noche a ~20 s son 50 minutos.
+
+**La conexión es el límite**: ~7 Mbps medidos contra dos fuentes distintas, y con cuatro conexiones en
+paralelo el total no sube. Son ~8 horas de descarga. Cuando termine: comparar contra Gemini, y solo si las
+fichas son correctas, instalar el servicio y pasar a `REASONER=local`.
