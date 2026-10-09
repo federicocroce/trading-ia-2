@@ -946,3 +946,43 @@ cuando la cuota se renueva**. Cambiar el veredicto por ausencia de ficha es una 
 
 **Consecuencia operativa, dicha sin vueltas: el plan de esta noche no se ejecuta.** Sus 10 líneas salen de
 filas sin ficha, o sea COMPRAR que nunca pasaron la compuerta del narrador.
+
+### La recuperación, y por qué el problema es de capacidad (9/10, 04:11)
+
+El refresco corrió al renovarse la cuota. Resultado: **de 68 graves a 24**, y las fichas pasaron de 4 a 86.
+El plan se rearmó con 11 líneas y **6 de las 7 líneas de riesgo tienen ficha** (MMSI, DEO, HCI, MCY, BLX,
+MUSA). **FRPT no**: es la única línea del plan cuya compuerta del narrador no corrió.
+
+VTI, VEA, VWO y EME aparecen sin ficha y está bien: los ETF y las filas de seguimiento no llevan ficha. La
+diferencia es que ahora **no mienten una versión que no tienen** — antes decían `prompt_version` igual.
+
+Pero la causa de fondo no era mi corrida ni la mala suerte. **El presupuesto de fichas no alcanza:**
+
+| modelo | llamadas hoy | ok | 429 por cuota |
+|---|---|---|---|
+| gemini-2.5-flash (4 keys) | 90 | 63 | 6 |
+| gemini-3.6-flash (4 keys) | 89 | 31 | 6 |
+| gemini-3.8-flash (4 keys) | 31 | 4 | 0 |
+
+**98 llamadas buenas en todo el día, agotadas a la hora de renovarse la cuota** (07:05 a 08:02 UTC), contra
+83 COMPRAR que necesitan ficha, más el clasificador de titulares, más la verificación. No es transitorio: es
+una cuenta que no cierra desde que la preselección subió a 600. Decidirlo es del dueño, porque es plata:
+pagar cuota, angostar la preselección, o repartir el presupuesto distinto.
+
+### Y una corrección a lo que yo mismo dije hace dos horas
+
+Dije que la compuerta apagada era "parte de por qué las COMPRAR no convencen". **Medido, es falso o casi.**
+El degradado del narrador dispara muy poco:
+
+| fecha | filas con ficha | degradadas por el narrador |
+|---|---|---|
+| 9/10 | 86 | 0 |
+| 7/10 | 51 | 1 |
+| 6/10 | 79 | 1 |
+| 2/10 | 80 | 2 |
+| 30/9 | 80 | 3 |
+| 28/9 | 78 | 4 |
+
+Entre 0 y 4 de ~80, o sea 2 a 4%. Así que `ficha_faltante` importa por dos razones más chicas y honestas:
+la pantalla mostraba un COMPRAR **sin tesis que leer**, y la fila **mentía** que había pasado por el
+narrador. No importa porque el filtro fuera bueno: con ese porcentaje, no lo es.
