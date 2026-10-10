@@ -1113,3 +1113,44 @@ acierto, 114 símbolos) y −7,41% a 30 días (24%, 47 símbolos).**
 **El diagnóstico del dueño era correcto: la app hace más cosas de las que debe.** Tres piezas deciden sin valor
 medido (puntaje, convicción, verificación), una no decide nada y es la que más consume (tesis), y la única que mide
 positivo es la que no se usa.
+
+---
+
+## Iteración 23 — las cinco decisiones, y el loop sobre la salida real (10/10)
+
+### Ejecutado (decisión del dueño: "hacé todas")
+
+- [x] **Orden medido en lugar de convicción** (`ordenMedido`). Medido sobre 718 COMPRAR, 24 fechas, 153 símbolos, cada
+  señal en las dos mitades: riesgo ≥ 6 −2,25% (−3,16 / −1,98); balance < −0,5 −1,34% (−2,64 / −0,80); sorpresa +
+  riesgo < 6 + balance ok +1,02% contra −1,88% (+1,87 / +0,74). Líderes primero con tope de 2.
+- [x] **La convicción desempata y la negativa sigue dejando afuera**: lleva frenos no medidos (tema sobreponderado,
+  régimen, objetivo corto) que no se aflojan. Al principio la saqué entera y dos tests me lo atraparon.
+- [x] **Mismo monto para cada nueva.**
+- [x] **Pesos del puntaje**: valuación 0, crecimiento 0 (inconsistentes entre mitades), calidad 0,5, balance 0,5.
+- [x] **Verificación solo sobre las líneas del plan.**
+- [x] **Tesis por eventos en manual** (paso "manual": se corre a mano, nada lo dispara).
+
+### Huecos que encontró el loop corriendo el ranking real, y arreglados
+
+| Hueco | Arreglo |
+|---|---|
+| La línea decía "convicción 101,36" en los líderes (el número de orden) | La línea lleva la convicción de verdad |
+| `plan_con_bloqueo` frenaba a TSEM y AMAT, que el plan dejó entrar | Plan y control usan la misma función (`frenoDelPlan`) |
+| Una posición como fila de seguimiento no aplicaba el trinquete (TSM 454,95 contra 456,51) | El seguimiento recibe el stop anterior |
+| Textos que decían "elige y reparte por convicción" | Pie del plan, ayuda del Radar y skill de verificación corregidos |
+| Precios de Cartera y de los ADR un cierre atrás | Desfase de mi corrida de sábado: se corrieron los pasos de Cartera y Argentina |
+
+Estado final: consistencia **0 graves**, auditoría de pantallas **0 graves**, 1.460+ tests en verde.
+
+### El hallazgo más importante de la iteración
+
+**Cartera dice VENDER en las 8 posiciones del dueño**, la mayoría desde fines de septiembre, y siguen en cartera.
+Medido desde el día de cada señal hasta el cierre del 9/10: GGAL −8,0%, VIST −5,8%, YPF −4,0%, PAM −1,5%, MARA
+−14,8%, NEM +1,5%, contra el S&P +2,2%. No seguir la señal costó ~USD 6.000. **El lado vendedor funciona y no se
+está usando.**
+
+### Lo que el loop NO puede cerrar hoy
+
+Que el criterio de compra le gane al mercado necesita datos hacia adelante: la medición a 30 días de los líderes
+(desde ~21/10) y el alfa de las filas que entren por los hechos del agente (semanas). Y Cartera no mira las fechas de
+resultados de las posiciones (NEM 22/10, TSM 15/10): pendiente.
