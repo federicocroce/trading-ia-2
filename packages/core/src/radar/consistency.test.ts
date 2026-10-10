@@ -761,3 +761,22 @@ describe("stop_en_desacuerdo: una posición tiene un solo stop (7/10)", () => {
     }))).toEqual([]);
   });
 });
+
+describe("plan_con_bloqueo usa la misma regla que el plan (10/10)", () => {
+  it("TSEM y AMAT: un líder en retroceso que subió más de 100% está en el plan y el control no lo frena", () => {
+    const f = solo("plan_con_bloqueo", checkConsistency({
+      rows: [fila({ symbol: "TSEM", flags: ["subio_mucho_12m", "lider_en_retroceso"] })],
+      candles: { TSEM: [vela("2026-09-11", 100)] },
+      plan: plan([linea({ symbol: "TSEM" })]),
+    }));
+    expect(f).toEqual([]);
+  });
+  it("una que subió más de 100% y NO es líder en retroceso sigue siendo grave si está en el plan", () => {
+    const f = solo("plan_con_bloqueo", checkConsistency({
+      rows: [fila({ symbol: "SUB", flags: ["subio_mucho_12m"] })],
+      candles: { SUB: [vela("2026-09-11", 100)] },
+      plan: plan([linea({ symbol: "SUB" })]),
+    }));
+    expect(f).toHaveLength(1);
+  });
+});

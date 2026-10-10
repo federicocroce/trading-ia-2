@@ -1355,7 +1355,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           ...(c.kind === "stock" ? (() => {
             const o = ordenMedido(c);
             const motivo = o.motivo || (conviction.has(c.symbol) ? "" : "sin stop u objetivo usables");
-            return { lider: o.lider, ...(motivo ? { noElegible: motivo } : {}) };
+            return { lider: o.lider, conviccion: conviction.get(c.symbol) ?? null, ...(motivo ? { noElegible: motivo } : {}) };
           })() : {}),
           // La salvedad que más pesa al comprar: si se mueve como algo tuyo, la línea del plan lo dice.
           cautions: overlap[c.symbol] ? [overlapCaution(overlap[c.symbol]!)] : [],

@@ -1,6 +1,6 @@
 ---
 name: verificar
-description: Verifica y revisa antes de comprar las acciones que el plan y el Radar necesitan hoy, leyendo fuentes primarias (comunicado de resultados, 10-Q/10-K, Form 4). Escribe HALLAZGOS con fuente en un JSON y lo carga con el importador de la app, que decide por regla. Reemplaza a Gemini para la verificación y la revisión (22/9).
+description: Verifica y revisa antes de comprar las acciones que el plan compra hoy (desde el 10/10 solo las líneas del plan: el "evitar" no salió nunca y la señal de "apta" iba al revés), leyendo fuentes primarias (comunicado de resultados, 10-Q/10-K, Form 4). Escribe HALLAZGOS con fuente en un JSON y lo carga con el importador de la app, que decide por regla. Reemplaza a Gemini para la verificación y la revisión (22/9).
 argument-hint: "[SÍMBOLOS...]"
 disable-model-invocation: true
 ---

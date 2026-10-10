@@ -50,3 +50,12 @@ describe("el plan con el orden medido (10/10)", () => {
     expect(Math.max(...montos) - Math.min(...montos)).toBeLessThanOrEqual(1);
   });
 });
+
+describe("el texto de la línea dice la convicción de verdad (10/10)", () => {
+  it("a un líder el orden le suma 100, pero la línea muestra su convicción, no 101,36", () => {
+    const p = planContribution({ ...base, buyCandidates: [accion("TSEM", 101.36, { lider: true, conviccion: 1.36 })] }, c);
+    const l = p.lines.find((x) => x.symbol === "TSEM")!;
+    expect(l.rationale).toContain("convicción 1.36");
+    expect(l.rationale).not.toContain("101.36");
+  });
+});

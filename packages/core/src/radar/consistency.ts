@@ -2,7 +2,7 @@ import type { Candle } from "../cartera/types.js";
 import { inRegularSession, lastCompletedSession, localDateTime, marketOf, tradeSession } from "../pricing/sessions.js";
 import { atr, computeTrailingStop, ENTRY_STOP_ATR, entryStop } from "../cartera/stop.js";
 import { CONSENSUS_SCALE, DIVIDEND_FLAG_MIN_PCT, VERIFY_FRESH_DAYS, dividendoNoComprobable } from "./candidate.js";
-import { PLAN_BLOCKERS, STOP_NOISE_ATR, lineHasExit, type ContributionPlan } from "./plan.js";
+import { STOP_NOISE_ATR, frenoDelPlan, lineHasExit, type ContributionPlan } from "./plan.js";
 import { UNRELIABLE_GROWTH_INDUSTRY } from "./ranking.js";
 import type { FinnhubMetrics } from "./universe.js";
 import type { CandidateRow } from "./types.js";
@@ -420,8 +420,9 @@ export function checkConsistency(i: ConsistencyInput): Finding[] {
   const flagsOf = new Map(i.rows.map((r) => [r.symbol, r.flags]));
   for (const l of i.plan?.lines ?? []) {
     if (l.kind !== "comprar" && l.kind !== "seguimiento") continue;
-    const bloqueo = (flagsOf.get(l.symbol) ?? []).find((f) => PLAN_BLOCKERS[f]);
-    if (bloqueo) add("plan_con_bloqueo", l.symbol, "grave", `el plan lo compra y la fila de hoy dice ${PLAN_BLOCKERS[bloqueo]}`);
+    // La misma función que usa el plan (10/10): con listas distintas, el control frenaba a los líderes que el plan dejó entrar.
+    const bloqueo = frenoDelPlan(flagsOf.get(l.symbol) ?? []);
+    if (bloqueo) add("plan_con_bloqueo", l.symbol, "grave", `el plan lo compra y la fila de hoy dice ${bloqueo}`);
   }
 
   return out;

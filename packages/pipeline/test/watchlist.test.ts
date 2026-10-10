@@ -140,4 +140,18 @@ describe("ciclo de vida del seguimiento", () => {
     expect(it.entryPrice).toBe(12);
     expect(it.status).toBe("live");
   });
+
+  it("10/10, TSM: una posición tuya que queda como fila de seguimiento conserva el stop de la posición (trinquete)", async () => {
+    const { store, deps } = setup();
+    const peers = ["VST", "CEG", "NRG", "AES", "SO"];
+    for (const p of peers) await store.saveFundamentals(fund(p, 25, peers.filter((x) => x !== p)));
+    await store.addWatch("VST");
+    await store.upsertPosition({ symbol: "VST", quantity: 10, avgCost: 120, currency: "USD", market: "us", layer: "riesgo", notes: null } as never);
+    // Cartera ya tenía un stop más alto que el que daría la ventana de hoy: el stop de una posición no baja.
+    await store.upsertVerdicts([{ verdictDate: "2026-09-07", symbol: "VST", verb: "MANTENER", reason: "r", narrative: null, warning: null, close: 199, spot: 199, stop: 195, target: 230, gainPct: 60, weightPct: 5, spyClose: 600, degradedBy: null, promptVersion: null, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, measuredAt: null }] as never);
+    await refreshWatchlist(deps, { today, portfolioUsd: 150_000 });
+    const vst = (await store.latestCandidates()).find((x) => x.kind === "watch" && x.symbol === "VST")!;
+    expect(vst.stop).toBe(195);
+  });
 });
+

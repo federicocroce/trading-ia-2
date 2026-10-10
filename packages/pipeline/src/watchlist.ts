@@ -1,6 +1,6 @@
 import type { Candle, CandidateRow, Fundamentals, VerificationSummary, WatchItem } from "@thesis/core";
 import { PLAN_BLOCKERS, computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
-import { calendarioDeResultados, conCalendario, hechosDe, pruneFamilias, tagSymbol, universoDelRanking, type RadarDeps } from "./radar.js";
+import { calendarioDeResultados, conCalendario, hechosDe, pruneFamilias, stopsPrevios, tagSymbol, universoDelRanking, type RadarDeps } from "./radar.js";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verificacionGuardada, verifyFor, type VerifyBudget } from "./radar-verify.js";
 
@@ -85,6 +85,9 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
   const delRanking = new Set(latest.filter((r) => r.candidateDate === opts.today && (r.kind === "stock" || r.kind === "etf")).map((r) => r.symbol));
   // Lo tuyo que ya está en cartera usa el stop de la posición; lo demás es una compra nueva (ver `heldSymbols`).
   const held = new Set((await store.positions()).map((p) => p.symbol.toUpperCase()));
+  // El stop anterior de cada posición (10/10), la misma fuente que usan el Radar y Cartera: sin esto, una posición que
+  // quedaba como fila de seguimiento no aplicaba el trinquete. TSM el 10/10: 454,95 acá contra 456,51 en Cartera.
+  const stopPrevio = await stopsPrevios(store);
   // La lista de seguimiento comparte la cuota de búsqueda: la mitad del tope de una corrida.
   const verifyBudget: VerifyBudget = { left: Math.max(1, Math.floor((policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT) / 2)) };
 
@@ -118,7 +121,7 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
       // decir COMPRAR bajo una oferta de compra, porque `decideCandidate` sólo mira `filings`/`hechos` si se los pasan.
       const filings = await deps.filingsDeOferta(sym).catch(() => [] as string[]);
       const hechos = await hechosDe(deps, sym, opts.today);
-      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym.toUpperCase()), filings, hechos, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
+      const base = { f, candles, nthAppearance: nth, portfolioUsd: opts.portfolioUsd, today: opts.today, held: held.has(sym.toUpperCase()), prevStop: stopPrevio.get(sym.toUpperCase()) ?? null, filings, hechos, ...(deps.verifier ? { verificationVersion: deps.verifier.promptVersion } : {}), ...(ev ? { events: ev.events, eventsUnclassified: ev.unclassified, analystTargets: ev.analystTargets } : {}) };
       let d = decideCandidate({ ...base, ...(verification ? { verification } : {}) }, policy);
       // Verificación web también para lo tuyo que quedó COMPRAR (GLW 10/9: consenso en el precio tras +130%); el dictamen vuelve a las reglas.
       // Lo que una regla fija deja afuera del plan no gasta una búsqueda (15/9), como en el ranking.

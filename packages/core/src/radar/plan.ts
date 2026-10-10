@@ -26,7 +26,7 @@ export interface PlanInput {
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva.
    *  `atr`: ATR de 14 ruedas al día de la fila, para medir si el stop quedó dentro del ruido (ver `noiseBlock`).
    *  `overlap`: la posición tuya con la que más se mueve; desde `OVERLAP_BLOCK_CORR` no entra como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined; /** Si ya la tenés, qué dice Cartera hoy: con REVISAR o VENDER el plan no la compra como nueva (18/9). */ cartera?: { verb: string; reason: string } | null; /** Orden medido (10/10, ver `ordenMedido`): por qué no entra como nueva, vacío si entra. */ noElegible?: string; /** Líder en retroceso: va primero, con tope, y no lo frena haber subido más de 100%. */ lider?: boolean }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined; /** Si ya la tenés, qué dice Cartera hoy: con REVISAR o VENDER el plan no la compra como nueva (18/9). */ cartera?: { verb: string; reason: string } | null; /** Orden medido (10/10, ver `ordenMedido`): por qué no entra como nueva, vacío si entra. */ noElegible?: string; /** Líder en retroceso: va primero, con tope, y no lo frena haber subido más de 100%. */ lider?: boolean; /** La convicción de verdad, para el texto (10/10): `priority` es el orden (a un líder se le suma 100) y mostrado como convicción decía 101,36. */ conviccion?: number | null }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   /**
@@ -201,6 +201,16 @@ export const PLAN_BLOCKERS: Record<string, string> = {
  *
  * Sin régimen conocido se aplican TODOS: no se afloja una regla por no saber en qué régimen estamos.
  */
+/**
+ * El freno fijo que deja una acción fuera del plan, en palabras, o null. UNA función para el plan y para el control
+ * de consistencia (10/10): el plan dejaba entrar a los líderes en retroceso aunque hubieran subido más de 100% y el
+ * control, con su propia lista, gritaba "plan_con_bloqueo" sobre TSEM y AMAT, y ese grave frenaba justo esas líneas.
+ */
+export function frenoDelPlan(flags: readonly string[], frenos: Record<string, string> = PLAN_BLOCKERS): string | null {
+  const lider = flags.includes("lider_en_retroceso");
+  const f = flags.find((x) => frenos[x] && !(x === "subio_mucho_12m" && lider));
+  return f ? frenos[f]! : null;
+}
 export const BLOCKERS_SOLO_RESTRICTIVO = new Set(["subio_mucho_12m"]);
 
 /** Los frenos vigentes para este régimen. `null` = no se sabe → todos. */
@@ -493,9 +503,9 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       // Los frenos vigentes dependen del régimen (7/10, ver `blockersVigentes`).
       // Al líder en retroceso no lo frena haber subido más de 100% (10/10): medido, los que subieron mucho rinden −2,26%
       // a 7 días, pero los líderes en zona de retroceso +2,20%. El freno queda para los demás.
-      const blocker = (b.flags ?? []).find((f) => frenos[f] && !(f === "subio_mucho_12m" && b.lider));
+      const blocker = frenoDelPlan(b.flags ?? [], frenos);
       if (blocker) {
-        leftOut.push({ symbol: b.symbol, reason: `${place}: ${frenos[blocker]}` });
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${blocker}` });
         return;
       }
       // El stop dentro del ruido (APH, 14/9) o una posición que se mueve como algo que ya tenés (GFI con NEM): no entra,
@@ -590,7 +600,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         return;
       }
       const kind: PlanLine["kind"] = b.kind === "watch" ? "seguimiento" : "comprar";
-      const base = b.kind === "watch" ? `tu lista de seguimiento, COMPRAR hoy${b.score !== null ? `, score ${b.score}` : ""}` : b.kind === "etf" ? "ETF satélite con fuerza relativa positiva" : `${placeOf.get(b.symbol) ?? "candidato del Radar"}, convicción ${b.priority ?? "—"}${b.score !== null ? `, score ${b.score}` : ""}`;
+      const base = b.kind === "watch" ? `tu lista de seguimiento, COMPRAR hoy${b.score !== null ? `, score ${b.score}` : ""}` : b.kind === "etf" ? "ETF satélite con fuerza relativa positiva" : `${placeOf.get(b.symbol) ?? "candidato del Radar"}, convicción ${b.conviccion !== undefined ? (b.conviccion ?? "—") : (b.priority ?? "—")}${b.score !== null ? `, score ${b.score}` : ""}`;
       const salvedades = [...(b.cautions ?? []), ...(avisosDe.get(b.symbol) ?? [])];
       const why = salvedades.length ? `${base} · ⚠ ${salvedades.join(" · ⚠ ")}` : base;
       const avisos = avisosDe.get(b.symbol) ?? [];
