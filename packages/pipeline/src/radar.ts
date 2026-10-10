@@ -1423,5 +1423,9 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   const conEntradas: ContributionPlan = { ...plan, inputs };
   const final: ContributionPlan = { ...conEntradas, changes: explainPlanChange(anterior, conEntradas), previousBuiltAt: anterior?.builtAt ?? null };
   await store.savePlan(final);
+  // Registro de aciertos (10/10): lo que el plan compra hoy, para medirlo contra el S&P desde este día. Falla abierta:
+  // un registro que no se pudo escribir no puede tirar el plan.
+  const hoyRegistro = opts.today ?? todayLocal();
+  await store.saveRegistroPlan(hoyRegistro, final.lines.filter((l) => l.kind === "comprar" || l.kind === "seguimiento").map((l) => ({ symbol: l.symbol, kind: l.kind, montoUsd: l.amountUsd }))).catch(() => {});
   return final;
 }

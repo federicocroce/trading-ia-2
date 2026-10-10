@@ -5,6 +5,23 @@ description: Obligatoria antes de cambiar cualquier regla, umbral, peso, tope o 
 
 # Tocar el motor
 
+## CONGELADO del 10/10/2026 al 7/11/2026
+
+Decisión del dueño (10/10): "nada de esto genera confianza" si las reglas cambian cada dos días. Hasta el 7/11 **no
+se cambian pesos, orden medido, frenos ni topes** de lo que decide comprar o vender. Solo se corrige un error
+demostrado (un dato falso, dos pantallas que se contradicen, un bug), y se dice que es eso.
+
+Lo que el analista no comparta de una línea del plan va por `analista --importar` con un criterio de la lista, nunca
+como consejo en el chat (ver `packages/core/src/radar/analista.ts`).
+
+Revisiones con fecha y con la medida escrita de antemano:
+
+- **21/10**: líderes en retroceso a 30 días (`pnpm frenos 30`). Si no se sostienen, el tope de 2 baja a 0.
+- **7/11**: el registro de aciertos (pestaña Registro del Radar). Si las compras del plan no le ganan al S&P, la app
+  deja de recomendar acciones y queda en núcleo de ETFs más la disciplina de venta. Se miran también los vetos del
+  analista: si no aciertan más de la mitad, el canal se cierra.
+
+
 ## Por qué existe
 
 Entre el 7 y el 8 de octubre de 2026 cambié reglas de decisión en esta app apoyado en razonamientos que

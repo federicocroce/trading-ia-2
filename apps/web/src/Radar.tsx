@@ -3,6 +3,7 @@ import { filasDeLideres } from "./lideres";
 import { riesgoPaisFechas } from "./macroAr";
 import { controlesBloquean, gravesDelPlan, instruccionRadar, planLoCompra, planStatusFor } from "./instruccion";
 import { fechaDeResultados } from "./resultados";
+import { RegistroCard } from "./Registro";
 import { baseCandidata, baseLinea, pctDesde, qtyLinea, riesgoLinea, tramoLinea, type Base } from "./orden";
 import { InstruccionChip, RadarVerdict, invalidatePlan } from "./plan";
 import { api, isHistorical, type ArgentinaData, type Candidate, type PlanChange, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type GrupoMedicion, type Horizonte, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
@@ -39,7 +40,7 @@ const SIN_TENENCIAS: Tenencias = { tiene: () => false, objetivo: () => null, pes
 const AXIS_LABEL: Record<string, string> = { valuation: "valuación", quality: "calidad", growth: "crecimiento", balance: "balance", rs3m: "FR 3m", rs6m: "FR 6m", rs12m: "FR 12m", ret3m: "ret 3m", ret6m: "ret 6m", volUsd: "vol US$/día", distSma200Pct: "vs SMA200", atrPct: "ATR%" };
 
 /** Sub-pestañas del Radar, cada una con su URL (`?tab=radar&sub=etfs`). */
-const SUBS = [["resumen", "Resumen"], ["acciones", "Acciones US"], ["seguimiento", "Seguimiento"], ["etfs", "ETFs"], ["argentina", "Argentina"], ["medicion", "Medición"]] as const;
+const SUBS = [["resumen", "Resumen"], ["acciones", "Acciones US"], ["seguimiento", "Seguimiento"], ["etfs", "ETFs"], ["argentina", "Argentina"], ["medicion", "Medición"], ["registro", "Registro"]] as const;
 type Sub = (typeof SUBS)[number][0];
 const readSub = (): Sub => {
   const v = new URLSearchParams(window.location.search).get("sub");
@@ -218,6 +219,7 @@ export function Radar() {
       {sub === "seguimiento" && watch && <WatchCard w={watch} plan={plan} ten={ten} setWatch={setWatch} editing={editing} setEditing={setEditing} reload={load} />}
       {sub === "argentina" && ar && <ArgentinaCard d={ar} plan={plan} ten={ten} editing={editing} setEditing={setEditing} reload={load} />}
       {sub === "medicion" && meas && <MeasCard m={meas} />}
+      {sub === "registro" && <RegistroCard />}
     </>
   );
 }

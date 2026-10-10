@@ -249,6 +249,7 @@ export const api = {
     plan: () => j<ContributionPlan | null>("/radar/plan"),
     buildPlan: (amountUsd?: number) => j<ContributionPlan>(`/radar/plan${amountUsd ? `?amount=${Math.round(amountUsd)}` : ""}`, { method: "POST" }),
     measurement: () => j<RadarMeasurement>("/radar/measurement"),
+    registro: () => j<Registro>("/radar/registro"),
   },
   taxonomy: {
     options: () => j<TaxonomyOptions>("/taxonomy/options"),
@@ -290,3 +291,9 @@ export const api = {
       criteria: Record<string, boolean>;
     }>("/calibration"),
 };
+
+/** Registro de aciertos (10/10): compras del plan, ventas de Cartera y vetos del analista, desde el día en que se dijeron. */
+export type TipoRegistro = "compra_plan" | "venta_cartera" | "veto_analista";
+export interface FilaRegistro { tipo: TipoRegistro; symbol: string; desde: string; detalle?: string; precioDesde: number | null; precioHoy: number | null; hoy: string | null; retornoPct: number | null; spyPct: number | null; alfaPct: number | null; acerto: boolean | null }
+export interface Registro { desde: string; filas: FilaRegistro[]; resumen: Array<{ tipo: TipoRegistro; senales: number; medidas: number; retornoMedioPct: number | null; alfaMedioPct: number | null; aciertoPct: number | null }> }
+

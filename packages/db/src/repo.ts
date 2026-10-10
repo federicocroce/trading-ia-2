@@ -593,6 +593,14 @@ export class Repo {
     return r ? this.rowToPlan(r) : null;
   }
   /** Revisión antes de comprar (15/9): una por símbolo y por día; la última del día manda. */
+  async saveRegistroPlan(fecha: string, lineas: Array<{ symbol: string; kind: string; montoUsd: number }>): Promise<void> {
+    // El plan del día reemplaza al anterior del mismo día: si se rearmó, vale el último.
+    await this.db.delete(s.registroPlan).where(eq(s.registroPlan.fecha, fecha));
+    if (lineas.length) await this.db.insert(s.registroPlan).values(lineas.map((l) => ({ fecha, symbol: l.symbol.toUpperCase(), kind: l.kind, montoUsd: str(l.montoUsd) })));
+  }
+  async registroPlan(): Promise<Array<{ fecha: string; symbol: string; kind: string; montoUsd: number }>> {
+    return (await this.db.select().from(s.registroPlan)).map((r) => ({ fecha: String(r.fecha), symbol: r.symbol, kind: r.kind, montoUsd: Number(r.montoUsd) }));
+  }
   async saveVeredictosAnalista(vs: VeredictoAnalista[]): Promise<number> {
     for (const v of vs) {
       const row = { fecha: v.fecha, symbol: v.symbol.toUpperCase(), veredicto: v.veredicto, criterio: v.criterio, motivo: v.motivo, fuente: v.fuente, version: v.version };

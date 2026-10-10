@@ -287,6 +287,18 @@ export const pretradeReviews = pgTable(
   },
   (t) => [primaryKey({ columns: [t.symbol, t.reviewDate] })],
 );
+/** Lo que el plan compró cada día (10/10): para el registro de aciertos. `contribution_plans` se pisa en cada rearmado. */
+export const registroPlan = pgTable(
+  "registro_plan",
+  {
+    fecha: date("fecha").notNull(),
+    symbol: text("symbol").notNull(),
+    kind: text("kind").notNull(),
+    montoUsd: numeric("monto_usd", { precision: 14, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.fecha, t.symbol] })],
+);
 /** Veredicto del analista sobre cada línea del plan (10/10): uno por símbolo y día. Ver core/radar/analista.ts. */
 export const veredictosAnalista = pgTable(
   "veredictos_analista",

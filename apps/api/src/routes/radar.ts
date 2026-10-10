@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { todayLocal, assessRegime, summarizeRadar, topPicks, type CandidateRow, type Tags } from "@thesis/core";
+import { todayLocal, assessRegime, medirRegistro, rachasDeVenta, summarizeRadar, topPicks, type CandidateRow, type EntradaRegistro, type Tags } from "@thesis/core";
 import { TNX_SYMBOL, buildContributionPlan, candidateOverlap, comparables, measureRadar, rankRadar, refreshArgentina, refreshRadar, replan, scanUniverse } from "@thesis/pipeline";
 import type { Container } from "../container.js";
 import { refrescarTrasVerificar } from "../verificaciones.js";
@@ -189,6 +189,26 @@ export function radarRoutes(c: Container) {
     const plan = await buildContributionPlan(deps, { month, portfolioUsd: await portfolioUsd(), ...(amount > 0 ? { amountUsd: amount } : {}) });
     await c.controlar?.().catch(() => null);
     return ctx.json(plan);
+  });
+  // Registro de aciertos (10/10): "si hubieras hecho lo que dijo la app", desde el día en que se dijo, contra el S&P.
+  app.get("/radar/registro", async (ctx) => {
+    const plan = await store.latestPlan();
+    const enPlan = new Set((plan?.lines ?? []).map((l) => l.symbol.toUpperCase()));
+    const primera = new Map<string, string>();
+    for (const r of await store.registroPlan()) if (!primera.has(r.symbol) || r.fecha < primera.get(r.symbol)!) primera.set(r.symbol, r.fecha);
+    const vetos = new Map<string, { fecha: string; motivo: string }>();
+    for (const v of (await store.veredictosAnalista("2000-01-01")).filter((x) => x.veredicto === "no").sort((a, b) => a.fecha.localeCompare(b.fecha))) if (!vetos.has(v.symbol)) vetos.set(v.symbol, { fecha: v.fecha, motivo: v.motivo });
+    const entradas: EntradaRegistro[] = [
+      ...[...primera].map(([symbol, desde]) => ({ tipo: "compra_plan" as const, symbol, desde, detalle: enPlan.has(symbol) ? "en el plan de hoy" : "ya no está en el plan" })),
+      ...rachasDeVenta(await store.allVerdicts()),
+      ...[...vetos].map(([symbol, v]) => ({ tipo: "veto_analista" as const, symbol, desde: v.fecha, detalle: v.motivo })),
+    ];
+    const desde = entradas.reduce((m, e) => (e.desde < m ? e.desde : m), today(ctx));
+    const velas = new Map<string, Array<{ date: string; close: number }>>();
+    for (const sym of new Set([...entradas.map((e) => e.symbol), "SPY"])) velas.set(sym, await store.candles(sym, desde).catch(() => []));
+    const precioEn = (sym: string, fecha: string) => { const v = (velas.get(sym) ?? []).filter((x) => x.date <= fecha); return v.length ? v[v.length - 1]!.close : null; };
+    const ultimo = (sym: string) => { const v = velas.get(sym) ?? []; return v.length ? { fecha: v[v.length - 1]!.date, close: v[v.length - 1]!.close } : null; };
+    return ctx.json({ ...medirRegistro(entradas, precioEn, ultimo), desde });
   });
   app.get("/radar/measurement", async (ctx) => {
     const all = await store.allCandidates();

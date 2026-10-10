@@ -218,6 +218,13 @@
       "when": 1791664179709,
       "tag": "0030_veredictos_analista",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791664615626,
+      "tag": "0031_registro_plan",
+      "breakpoints": true
     }
   ]
 }

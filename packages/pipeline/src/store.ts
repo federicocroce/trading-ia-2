@@ -149,6 +149,9 @@ export interface RadarStore {
   savePreTradeReview(r: PreTradeReview): Promise<void>;
   /** Veredictos del analista (10/10): uno por símbolo y día. */
   saveVeredictosAnalista(vs: VeredictoAnalista[]): Promise<number>;
+  /** Lo que el plan compra cada día (10/10): el registro de aciertos lo mide contra el S&P. */
+  saveRegistroPlan(fecha: string, lineas: Array<{ symbol: string; kind: string; montoUsd: number }>): Promise<void>;
+  registroPlan(): Promise<Array<{ fecha: string; symbol: string; kind: string; montoUsd: number }>>;
   veredictosAnalista(desde: string): Promise<VeredictoAnalista[]>;
   preTradeReviews(date: string): Promise<PreTradeReview[]>;
   plansToMeasure(before: string): Promise<ContributionPlan[]>;
@@ -641,6 +644,15 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   async savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>) {
     const p = this.plans.get(month);
     if (p) this.plans.set(month, { ...p, controles });
+  }
+  private registro = new Map<string, { fecha: string; symbol: string; kind: string; montoUsd: number }>();
+  async saveRegistroPlan(fecha: string, lineas: Array<{ symbol: string; kind: string; montoUsd: number }>) {
+    // El plan del día reemplaza al anterior del MISMO día: si se rearmó, vale el último.
+    for (const k of [...this.registro.keys()]) if (k.startsWith(`${fecha}|`)) this.registro.delete(k);
+    for (const l of lineas) this.registro.set(`${fecha}|${l.symbol.toUpperCase()}`, { fecha, symbol: l.symbol.toUpperCase(), kind: l.kind, montoUsd: l.montoUsd });
+  }
+  async registroPlan() {
+    return [...this.registro.values()];
   }
   private veredictos = new Map<string, VeredictoAnalista>();
   async saveVeredictosAnalista(vs: VeredictoAnalista[]) {
