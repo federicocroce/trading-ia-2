@@ -20,6 +20,9 @@ Revisiones con fecha y con la medida escrita de antemano:
 - **7/11**: el registro de aciertos (pestaña Registro del Radar). Si las compras del plan no le ganan al S&P, la app
   deja de recomendar acciones y queda en núcleo de ETFs más la disciplina de venta. Se miran también los vetos del
   analista: si no aciertan más de la mitad, el canal se cierra.
+- **Hipótesis a medir el 7/11** (no son reglas): retorno de 12 meses menor a 10%. El 10/10, a 30 días, rindió −12,5%
+  contra −6,5% y −5,2% de los tramos de arriba, en orden, pero con 7 acciones y una sola mitad. La sacó el dueño
+  mirando MMSI ("la media de 200 está planchada"); la pendiente sola, medida dos veces, no predice.
 
 
 ## Por qué existe
