@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { HttpClient } from "../src/http/index.js";
 import { AlpacaPriceHistory, CompletedSessionsHistory, FallbackPriceHistory, FinnhubProfiles, YahooPriceHistory, fixtureHttpClient, parseYahooChart, parseYahooChartWithGaps } from "../src/index.js";
 
 const yahoo = { chart: { result: [{ timestamp: [1756684800, 1756771200, 1756857600], indicators: { quote: [{ open: [1, 2, null], high: [2, 3, null], low: [0.5, 1.5, null], close: [1.5, 2.5, null], volume: [100, 200, null] }] } }], error: null } };
@@ -35,6 +36,12 @@ describe("AlpacaPriceHistory", () => {
     const http = fixtureHttpClient({ "https://data.alpaca.markets/v2/stocks/bars?symbols=YPF": { bars: { YPF: [{ t: "2026-09-01T04:00:00Z", o: 1, h: 2, l: 0.5, c: 1.5, v: 10 }] } } });
     const c = await new AlpacaPriceHistory(http, { keyId: "k", secretKey: "s", paper: true }).candles("YPF", 30);
     expect(c).toEqual([{ date: "2026-09-01", open: 1, high: 2, low: 0.5, close: 1.5, volume: 10 }]);
+  });
+  it("10/10: pide las velas ajustadas por split, como Yahoo: rellena huecos de esa serie y no puede mezclar escalas", async () => {
+    const pedidas: string[] = [];
+    const http = { getJson: async (url: string) => { pedidas.push(url); return { bars: { XLY: [] } }; }, getText: async () => "" } as unknown as HttpClient;
+    await new AlpacaPriceHistory(http, { keyId: "k", secretKey: "s", paper: true }).candles("XLY", 30);
+    expect(pedidas[0]).toContain("adjustment=split");
   });
 });
 

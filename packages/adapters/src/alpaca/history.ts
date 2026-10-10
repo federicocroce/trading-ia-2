@@ -15,7 +15,10 @@ export class AlpacaPriceHistory implements PriceHistory {
   async candles(symbol: string, days: number): Promise<Candle[]> {
     const sym = symbol.toUpperCase();
     const start = new Date(Date.now() - Math.ceil(days * 1.6) * 86_400_000).toISOString().slice(0, 10);
-    const r = await this.http.getJson<BarsResp>(`${ALPACA_DATA}/v2/stocks/bars?symbols=${sym}&timeframe=1Day&start=${start}&limit=1000&feed=iex`, alpacaHeaders(this.cfg));
+    // `adjustment=split` (10/10): Alpaca entrega por defecto las velas CRUDAS y Yahoo, el primario, ajustadas por split.
+    // Como esto rellena huecos de la serie de Yahoo, un hueco posterior a un split mezclaba dos escalas. Medido ese día
+    // con los ETF de sectores: crudos, XLY daba −52% y XLU −54% en 12 meses; ajustados, −3,7% y −6,2%.
+    const r = await this.http.getJson<BarsResp>(`${ALPACA_DATA}/v2/stocks/bars?symbols=${sym}&timeframe=1Day&start=${start}&limit=1000&adjustment=split&feed=iex`, alpacaHeaders(this.cfg));
     return (r.bars[sym] ?? []).map((b) => ({ date: b.t.slice(0, 10), open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v }));
   }
 }

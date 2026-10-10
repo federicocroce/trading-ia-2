@@ -45,7 +45,7 @@ export class AlpacaMarketData implements MarketData {
     let avgVolume30d: number | null = null;
     try {
       const start = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
-      const bars = await this.http.getJson<BarsResp>(`${ALPACA_DATA}/v2/stocks/bars?symbols=${sym}&timeframe=1Day&start=${start}&limit=30&feed=iex`, this.h);
+      const bars = await this.http.getJson<BarsResp>(`${ALPACA_DATA}/v2/stocks/bars?symbols=${sym}&timeframe=1Day&start=${start}&limit=30&adjustment=split&feed=iex`, this.h);
       const arr = bars.bars[sym] ?? [];
       if (arr.length) avgVolume30d = Math.round(arr.reduce((a, b) => a + b.v, 0) / arr.length);
     } catch {
