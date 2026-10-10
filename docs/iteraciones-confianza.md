@@ -1070,3 +1070,46 @@ Decisión del dueño: **se bloquea solo lo que tiene el error.**
 VIST, ATLC, OPY, UFPT). Las 11 líneas quedan ejecutables, **con sus avisos escritos**: MCY y FRPT llevan una
 objeción de la revisión (MCY: 13D de la viuda del fundador con el 35,3%; FRPT: Wells Fargo bajó el objetivo
 de 82 a 77). Que la objeción avise y no frene es la decisión del 18/9; antes quedaba tapada por el freno total.
+
+---
+
+## Iteración 22 — cadenas, agente diario, y qué sobra en la app (10/10)
+
+### Construido
+
+- [x] **Fechas de resultados con dos fuentes** (Finnhub + calendario de Nasdaq): difería en 33 de 93 símbolos en la
+  mira; frena con cualquiera. Ver iteración en `c14205b`.
+- [x] **Alpaca con velas ajustadas por split**, como Yahoo (`c45057f`).
+- [x] **Mapa de cadenas** (`config/cadenas.json`): 15 temas, 34 eslabones, 172 acciones evaluables. Un hecho se escribe
+  sobre un eslabón y el importador lo expande. Puerta de 20 a 60.
+- [x] **`radar-cli cadenas`**: precio de cada eslabón y sus hechos vigentes; la "lectura" pone el signo.
+- [x] **Skill `/cadenas`** con cron de lunes a viernes 07:00. Hecho a favor solo si el precio del eslabón confirma.
+- [x] **La puerta abre en el refresco diario**, no solo el domingo.
+- [x] **La regla de la Fed, medida** (910 acciones, 17 decisiones): día de Fed cae >2 ATR el 3,43% contra 1,75%; con
+  tasas subiendo, las cuatro decisiones de 2026 peor que el 85% de los días normales. Se queda. **El día de inflación
+  no se distingue de uno normal: no se agrega regla.**
+
+### Qué sobra: cada pieza contra tres preguntas (¿decide? ¿está medido que sirve? ¿cuánto cuesta?)
+
+Lo que la app compra hoy, medido: **las COMPRAR sin ningún freno rinden −0,78% contra el S&P a 7 días (43% de
+acierto, 114 símbolos) y −7,41% a 30 días (24%, 47 símbolos).**
+
+| Pieza | ¿Decide? | Medido | Costo | Veredicto |
+|---|---|---|---|---|
+| Barrido y barra de calidad | sí (14.500 → 2.700) | saca basura (fondos, penny) | bajo | queda |
+| **Puntaje contra pares** | **sí: elige 600** | valuación plana, crecimiento invertido; el mejor puesto rinde −1,74% | barrido de ~20 h | **dejar de usarlo como única puerta** |
+| Compuerta técnica (media de 200, no perseguir, resultados cerca) | sí | protege; `bajo_sma200` con sesgo de supervivencia | gratis | queda |
+| Freno "consenso cerca" | sí | −0,63 puntos (evita perder) | gratis | queda |
+| Freno "subió >100%" | sí | −0,11 (neutro) y frena a los líderes | gratis | revisar con la lista de líderes |
+| **Verificación web por agente** | **nunca**: "evitar" salió 0 veces | "apta" rinde −2,2%, "con reservas" −0,31%: al revés | ~400-500k tokens/día | **dejar solo la revisión de las líneas del plan** |
+| Ficha del narrador | casi nunca (degrada 2-4%) | efecto chico | gratis desde el modelo local | queda como lectura |
+| **Convicción (orden del plan)** | **sí: decide quién entra** | no ordena: el tramo 3 rinde +1,52%, el 2 −2,86% | gratis | **pesos iguales entre las elegibles** |
+| Núcleo, tramos, regla de la Fed | sí | Fed medida | gratis | queda |
+| Cartera: stops y venta | sí | consistentes entre pantallas | gratis | queda |
+| **Motor de tesis original** | **no** (1 orden en un mes, 0 resultados medidos) | nada | **3,28 M tokens en 14 días: el mayor consumidor** | **apagar** |
+| Argentina en pesos | no (el plan no compra en pesos) | — | sin modelo | queda como información |
+| **Lista de líderes en retroceso** | **no** (no entra al plan) | **+3,47% a 7 días, 76% de acierto, 11 símbolos: lo único positivo** | gratis | **falta**: medir a 30 días (desde ~21/10) y darle lugar si se sostiene |
+
+**El diagnóstico del dueño era correcto: la app hace más cosas de las que debe.** Tres piezas deciden sin valor
+medido (puntaje, convicción, verificación), una no decide nada y es la que más consume (tesis), y la única que mide
+positivo es la que no se usa.
