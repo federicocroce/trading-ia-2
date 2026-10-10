@@ -22,3 +22,4 @@ export * from "./universe.js";
 export * from "./consistency.js";
 export * from "./hechos.js";
 export * from "./agente.js";
+export * from "./cadenas.js";

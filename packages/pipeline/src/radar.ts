@@ -1060,7 +1060,16 @@ async function sumarNuevasDelDia(deps: RadarDeps, ctx: ContextoFila, latest: Can
   const posicion = new Map(ranked.map((r, i) => [r.symbol, i + 1]));
   // Solo las filas de acciones: una de seguimiento o de Argentina no le quita a nadie la entrada (el domingo tampoco).
   const yaEstan = new Set(latest.filter((c) => c.kind === "stock").map((c) => c.symbol.toUpperCase()));
-  const nuevas = ranked.slice(0, policy.candidates.preselect).filter((r) => !yaEstan.has(r.symbol.toUpperCase()));
+  const pre = ranked.slice(0, policy.candidates.preselect);
+  // La puerta de hechos también en el refresco diario (10/10). Hasta acá solo la abría el ranking del domingo: un hecho
+  // de cadena cargado el martes por el agente diario recién se miraba cinco días después.
+  const hechosDePuertaDia = [
+    ...(await store.hechosPorTipo("guia", addDays(ctx.today, -VENTANAS_DIAS.guia)).catch(() => [] as HechoExterno[])),
+    ...(await store.hechosPorTipo("sector", addDays(ctx.today, -VENTANAS_DIAS.sector)).catch(() => [] as HechoExterno[])),
+  ];
+  const enPre = new Set(pre.map((r) => r.symbol));
+  const porPuertaDia = simbolosConPuerta(hechosDePuertaDia, ctx.today).filter((sym) => all.has(sym) && !enPre.has(sym)).map((sym) => ranked.find((r) => r.symbol === sym)).filter((r): r is RankedStock => !!r);
+  const nuevas = [...pre, ...porPuertaDia].filter((r) => !yaEstan.has(r.symbol.toUpperCase()));
   if (!nuevas.length) return [];
   const { candles } = await candlesFor(deps, nuevas.map((r) => r.symbol));
   const afuera: EvaluadaRadar[] = [];

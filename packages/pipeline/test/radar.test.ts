@@ -483,6 +483,26 @@ describe("el Radar suma COMPRAR nuevas todos los días (24/9)", () => {
     expect(salio[0]!.motivo).toMatch(/SK/);
   });
 
+  it("10/10: la puerta de hechos también abre en el refresco diario, no solo en el ranking del domingo", async () => {
+    // Preselección de 8 sobre 12: cuatro quedan afuera por puntaje y el domingo no se evalúan.
+    const chica: RadarPolicy = { ...policy, candidates: { ...policy.candidates, preselect: 8 } };
+    const { store, d } = deps({ history: conVelas(new Map()), policy: chica });
+    await scanUniverse(d, { scanDate: "2026-05-17", today: TODAY });
+    await rankRadar(d, { today: TODAY, portfolioUsd: 100_000 });
+    const { all } = await universoDelRanking(d, TODAY);
+    const afuera = rankStocks(all, policy.weights).ranked.slice(8).map((r) => r.symbol);
+    const elegida = afuera[afuera.length - 1]!;
+    expect(await store.evaluadas(elegida, TODAY)).toEqual([]);
+    // El martes el agente carga un hecho de cadena verificado a favor sobre esa acción.
+    await store.saveHechos([clasificarHecho({ tipo: "sector", symbol: elegida, fecha: "2026-05-19", fuente: { url: "https://www.sec.gov/x", titulo: "8-K" }, valor: { ambito: "memoria", titulo: "capex de memoria arriba", detalle: "dato de prueba", sesgo: "a_favor", eslabon: "ia.memoria" } }, { hostsPrimarios: ["sec.gov"], origen: "agente", detectadoAt: "2026-05-19T00:00:00.000Z" })]);
+    await refreshRadar(d, { today: "2026-05-20", portfolioUsd: 100_000 });
+    // Se evaluó en el refresco: o entró como fila del día, o quedó escrita en evaluadas con su motivo.
+    const fila = (await store.latestCandidates()).find((c) => c.symbol === elegida && c.candidateDate === "2026-05-20");
+    const evaluada = (await store.evaluadas(elegida, "2026-05-20"))[0];
+    expect(fila ?? evaluada).toBeDefined();
+    if (!fila) expect(evaluada).toMatchObject({ origen: "refresco" });
+  });
+
   it("las `top` por puntaje no ceden su lugar aunque caigan a OBSERVAR, y la que no entra lo dice", async () => {
     const velas = new Map<string, Candle[]>([["SK", cae]]);
     const { store, d } = deps({ history: conVelas(velas) });

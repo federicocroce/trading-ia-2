@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { SIM_CALENTAMIENTO, medirConviccion, medirFrenos, revisarCorrida, simular, todayLocal } from "@thesis/core";
-import { buildContributionPlan, checkRun, explorarMercado, importarDelAgente, importarHechos, pendientesDelAgente, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
+import { buildContributionPlan, checkRun, medirCadenas, explorarMercado, importarDelAgente, importarHechos, pendientesDelAgente, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
 import { loadConfig, findRoot } from "./config.js";
 import { buildContainer } from "./container.js";
 
@@ -16,7 +16,7 @@ process.on("SIGINT", () => { stop = true; console.log("\n[radar] deteniendo al t
 const deps = { ...c.radarDeps, shouldStop: () => stop, onProgress: (p: { done: number; total: number; stage: string }) => console.log(`[radar] ${p.stage}: ${p.done}/${p.total}`) };
 
 // El registro de uso atribuye cada pedido al mismo paso que en "ponerme al día" (scan/rank → scan; refresh/measure → radar).
-const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", porque: "radar", pares: "radar", frenos: "radar", simular: "radar", conviccion: "radar", guardia: "radar", reverificar: "radar", verificar: "agente" };
+const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", porque: "radar", pares: "radar", frenos: "radar", simular: "radar", conviccion: "radar", guardia: "radar", reverificar: "radar", verificar: "agente", cadenas: "radar" };
 let code = 0;
 await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   if (cmd === "scan") console.log(await scanUniverse(deps, { scanDate: today, today }));
@@ -183,6 +183,16 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
     else for (const l of await porQueNoEsta(deps, sym, today)) console.log(`[porque] ${l}`);
   }
   else if (cmd === "argentina") { const r = await refreshArgentina(c.argentinaDeps, { today }); console.log(JSON.stringify({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors }, null, 2)); }
+  // cadenas [--salida archivo.json]: precio y hechos vigentes de cada eslabón (10/10). Solo lectura (baja velas que falten).
+  // Lo lee el agente de /cadenas para poner el signo de un hecho con el precio medido.
+  else if (cmd === "cadenas") {
+    const filas = await medirCadenas(deps, cfg.radar.cadenas, today);
+    const i = process.argv.indexOf("--salida");
+    if (i > 0 && process.argv[i + 1]) await writeFile(path.resolve(process.env["INIT_CWD"] ?? process.cwd(), process.argv[i + 1]!), JSON.stringify({ fecha: today, eslabones: filas }, null, 2));
+    const f = (x: number | null) => (x === null ? "—" : `${x > 0 ? "+" : ""}${x}%`);
+    console.log("eslabón                          acciones  1m      3m      6m      sobre 200  desde máx  lectura     hechos vigentes");
+    for (const e of filas) console.log(`${e.eslabon.padEnd(32)} ${String(e.conVelas).padStart(3)}/${String(e.simbolos.length).padEnd(4)} ${f(e.r21).padEnd(7)} ${f(e.r63).padEnd(7)} ${f(e.r126).padEnd(7)} ${(e.sobre200Pct === null ? "—" : `${e.sobre200Pct}%`).padEnd(10)} ${f(e.desdeMaxPct).padEnd(10)} ${(e.lectura ?? "—").padEnd(11)} ${e.hechos.map((h) => `${h.fecha} ${h.sesgo === "a_favor" ? "+" : "−"} ${h.titulo.slice(0, 50)}`).join(" | ")}`);
+  }
   // hechos --importar archivo.json [--origen agente|manual]: el único camino de escritura a hechos_externos (17/9).
   else if (cmd === "hechos") {
     const args = process.argv.slice(3);
@@ -198,7 +208,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       if (r.guardados === 0) code = 1;
     }
   }
-  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | guardia | frenos [7|30|90] | simular [ruedas] | conviccion [7|30|90] | reverificar SÍMBOLO [--buscar] | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...] | hechos --importar archivo.json [--origen agente|manual] | porque SÍMBOLO | pares"); code = 1; }
+  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | guardia | frenos [7|30|90] | simular [ruedas] | conviccion [7|30|90] | reverificar SÍMBOLO [--buscar] | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...] | hechos --importar archivo.json [--origen agente|manual] | cadenas [--salida archivo.json] | porque SÍMBOLO | pares"); code = 1; }
 });
 // Lo encolado por el registro de uso se escribe antes de salir: process.exit no espera al volcado.
 await c.usage?.flush();

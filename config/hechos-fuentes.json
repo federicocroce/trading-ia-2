@@ -22,6 +22,12 @@
     "govinfo.gov",
     "eia.gov",
     "usda.gov",
-    "ny.gov"
+    "ny.gov",
+    "federalreserve.gov",
+    "treasury.gov",
+    "bls.gov",
+    "defense.gov",
+    "centcom.mil",
+    "pa.gov"
   ]
 }

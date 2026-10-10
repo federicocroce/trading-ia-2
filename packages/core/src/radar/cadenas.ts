@@ -28,3 +28,36 @@ export function nombreDelEslabon(c: Cadenas, eslabon: string): string | null {
   for (const t of c.cadenas) for (const e of t.eslabones) if (e.id === eslabon) return `${t.nombre} → ${e.nombre}`;
   return null;
 }
+
+/**
+ * El precio de un eslabón (10/10), con las velas de sus acciones. Es lo que pone el SIGNO de un hecho de cadena: el
+ * 8/10 conté el oro como "el agujero más grande" y llevaba ocho meses cayendo; si se cargaba a favor, la app abría
+ * la puerta a doce mineras todas bajo su media de 200. Medianas, no promedios: una sola acción no mueve el eslabón.
+ */
+export interface PrecioDeEslabon {
+  conVelas: number;
+  r21: number | null;
+  r63: number | null;
+  r126: number | null;
+  /** Porcentaje de acciones del eslabón con el cierre arriba de su media de 200. */
+  sobre200Pct: number | null;
+  /** Mediana de la distancia al máximo de 252 ruedas, en %. */
+  desdeMaxPct: number | null;
+  /** "confirma" si la mayoría está sobre su media de 200; "en_contra" si la mayoría está debajo; null sin datos. */
+  lectura: "confirma" | "en_contra" | null;
+}
+const mediana = (xs: number[]): number | null => {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return Math.round((s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2) * 10) / 10;
+};
+export function precioDeEslabon(series: ReadonlyArray<ReadonlyArray<{ close: number }>>): PrecioDeEslabon {
+  const utiles = series.filter((c) => c.length >= 200);
+  const ret = (c: ReadonlyArray<{ close: number }>, n: number) => (c.length > n ? 100 * (c[c.length - 1]!.close / c[c.length - 1 - n]!.close - 1) : null);
+  const vals = (n: number) => utiles.map((c) => ret(c, n)).filter((x): x is number => x !== null);
+  const sobre = utiles.filter((c) => c[c.length - 1]!.close > c.slice(-200).reduce((a, v) => a + v.close, 0) / 200).length;
+  const desde = utiles.map((c) => 100 * (c[c.length - 1]!.close / Math.max(...c.slice(-252).map((v) => v.close)) - 1));
+  const sobre200Pct = utiles.length ? Math.round((100 * sobre) / utiles.length) : null;
+  return { conVelas: utiles.length, r21: mediana(vals(21)), r63: mediana(vals(63)), r126: mediana(vals(126)), sobre200Pct, desdeMaxPct: mediana(desde), lectura: sobre200Pct === null ? null : sobre200Pct > 50 ? "confirma" : sobre200Pct < 50 ? "en_contra" : null };
+}
