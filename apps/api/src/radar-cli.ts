@@ -205,7 +205,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       const archivo = i > 0 ? process.argv[i + 1] : undefined;
       if (!archivo) { console.error("uso: tsx src/radar-cli.ts analista --pendientes | --importar archivo.json"); code = 1; }
       else {
-        const r = await importarVeredictos(c.store, JSON.parse(await readFile(path.resolve(process.env["INIT_CWD"] ?? process.cwd(), archivo), "utf8")), { version: "analista-1" });
+        const r = await importarVeredictos(c.store, JSON.parse(await readFile(path.isAbsolute(archivo) ? archivo : path.resolve(await findRoot(), archivo), "utf8")), { version: "analista-1" });
         console.log(JSON.stringify(r, null, 2));
         if (r.guardados) await replan(deps, { today, portfolioUsd }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
       }
@@ -216,7 +216,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   else if (cmd === "cadenas") {
     const filas = await medirCadenas(deps, cfg.radar.cadenas, today);
     const i = process.argv.indexOf("--salida");
-    if (i > 0 && process.argv[i + 1]) await writeFile(path.resolve(process.env["INIT_CWD"] ?? process.cwd(), process.argv[i + 1]!), JSON.stringify({ fecha: today, eslabones: filas }, null, 2));
+    if (i > 0 && process.argv[i + 1]) await writeFile(path.isAbsolute(process.argv[i + 1]!) ? process.argv[i + 1]! : path.resolve(await findRoot(), process.argv[i + 1]!), JSON.stringify({ fecha: today, eslabones: filas }, null, 2));
     const f = (x: number | null) => (x === null ? "—" : `${x > 0 ? "+" : ""}${x}%`);
     console.log("eslabón                          acciones  1m      3m      6m      sobre 200  desde máx  lectura     hechos vigentes");
     for (const e of filas) console.log(`${e.eslabon.padEnd(32)} ${String(e.conVelas).padStart(3)}/${String(e.simbolos.length).padEnd(4)} ${f(e.r21).padEnd(7)} ${f(e.r63).padEnd(7)} ${f(e.r126).padEnd(7)} ${(e.sobre200Pct === null ? "—" : `${e.sobre200Pct}%`).padEnd(10)} ${f(e.desdeMaxPct).padEnd(10)} ${(e.lectura ?? "—").padEnd(11)} ${e.hechos.map((h) => `${h.fecha} ${h.sesgo === "a_favor" ? "+" : "−"} ${h.titulo.slice(0, 50)}`).join(" | ")}`);

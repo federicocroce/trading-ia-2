@@ -1,0 +1,84 @@
+{
+ "veredictos": [
+  {
+   "symbol": "TSEM",
+   "fecha": "2026-10-10",
+   "veredicto": "no",
+   "criterio": "valuacion_extrema_con_insiders",
+   "motivo": "cotiza a 93,8 veces la ganancia y los insiders vendieron 38 veces sin comprar en 90 días",
+   "fuente": null
+  },
+  {
+   "symbol": "LGND",
+   "fecha": "2026-10-10",
+   "veredicto": "no",
+   "criterio": "valuacion_extrema_con_insiders",
+   "motivo": "cotiza a 87,9 veces la ganancia y los insiders vendieron 24 veces sin comprar en 90 días",
+   "fuente": null
+  },
+  {
+   "symbol": "AMAT",
+   "fecha": "2026-10-10",
+   "veredicto": "si",
+   "criterio": null,
+   "motivo": "ningún criterio aplica: 46 veces la ganancia, 3 ventas de insiders, no repite eslabón con otra línea ni posición",
+   "fuente": null
+  },
+  {
+   "symbol": "EXPO",
+   "fecha": "2026-10-10",
+   "veredicto": "si",
+   "criterio": null,
+   "motivo": "ningún criterio aplica; presenta resultados el 22-29/10 y eso ya lo frena la regla de resultados",
+   "fuente": null
+  },
+  {
+   "symbol": "PLUS",
+   "fecha": "2026-10-10",
+   "veredicto": "si",
+   "criterio": null,
+   "motivo": "ningún criterio aplica: 19,5 veces la ganancia (21 ventas de insiders, pero sin precio extremo)",
+   "fuente": null
+  },
+  {
+   "symbol": "SXT",
+   "fecha": "2026-10-10",
+   "veredicto": "si",
+   "criterio": null,
+   "motivo": "ningún criterio aplica",
+   "fuente": null
+  },
+  {
+   "symbol": "SEIC",
+   "fecha": "2026-10-10",
+   "veredicto": "si",
+   "criterio": null,
+   "motivo": "ningún criterio aplica: 23 veces la ganancia (15 ventas de insiders, sin precio extremo)",
+   "fuente": null
+  },
+  {
+   "symbol": "LRCX",
+   "fecha": "2026-10-10",
+   "veredicto": "no",
+   "criterio": "concentracion",
+   "motivo": "repite el eslabón ia.equipos_semis de AMAT, que ya es línea del plan",
+   "fuente": null
+  },
+  {
+   "symbol": "PRDO",
+   "fecha": "2026-10-10",
+   "veredicto": "si",
+   "criterio": null,
+   "motivo": "ningún criterio aplica: 11 veces la ganancia, 2 ventas de insiders",
+   "fuente": null
+  },
+  {
+   "symbol": "MMSI",
+   "fecha": "2026-10-10",
+   "veredicto": "si",
+   "criterio": null,
+   "motivo": "ningún criterio aplica: 36 veces la ganancia, 2 ventas de insiders, verificación apta",
+   "fuente": null
+  }
+ ]
+}
