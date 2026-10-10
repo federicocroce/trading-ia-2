@@ -63,7 +63,7 @@ describe("planContribution", () => {
     expect(p.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["TSM", "sumar", 1950], ["NVDA", "comprar", 3250], ["VTI", "nucleo", 780], ["VEA", "nucleo", 325], ["VWO", "nucleo", 195]]);
     const p2 = planContribution({ ...i, sumarCandidates: [] }, { ...c, maxNewPositionsPerMonth: 1 });
     expect(p2.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["NVDA", "comprar", 3250], ["VTI", "nucleo", 1950], ["VEA", "nucleo", 813], ["VWO", "nucleo", 487]]);
-    expect(p2.notes.join(" ")).toMatch(/AMD \(2° por convicción: tope de 1 posiciones nuevas\)/);
+    expect(p2.notes.join(" ")).toMatch(/AMD \(2° por orden medido: tope de 1 posiciones nuevas\)/);
   });
   it("un monto grande con el núcleo vacío: 60% al núcleo, SUMAR hasta 30% del resto, nuevas por convicción repartidas parejo, una de seguimiento, ticket completo", () => {
     const i: PlanInput = {
@@ -84,7 +84,7 @@ describe("planContribution", () => {
     const p = planContribution(i, c, { amountUsd: 40_000 });
     expect(p.totalUsd).toBe(40_000);
     // Un monto de 6 aportes admite dos posiciones nuevas extra (una por cada 3 aportes): entran las tres acciones y el ETF satélite,
-    // repartidas por convicción (pieza 5), no parejo.
+    // con el mismo monto cada una (10/10).
     expect(p.lines.map((l) => [l.symbol, l.kind])).toEqual([
       ["VTI", "nucleo"], ["VEA", "nucleo"], ["VWO", "nucleo"],
       ["NEM", "sumar"],
@@ -93,20 +93,21 @@ describe("planContribution", () => {
     expect(p.lines.slice(0, 4).map((l) => l.amountUsd)).toEqual([14_400, 6_000, 3_600, 4_800]);
     const zvraUsd = p.lines.find((l) => l.symbol === "ZVRA")!.amountUsd;
     const nvdaUsd = p.lines.find((l) => l.symbol === "NVDA")!.amountUsd;
-    expect(zvraUsd).toBeGreaterThan(nvdaUsd); // más convicción, más plata
+    // Mismo monto para todas desde el 10/10: la convicción medida no ordenaba, así que no puede repartir plata.
+    expect(Math.abs(zvraUsd - nvdaUsd)).toBeLessThanOrEqual(1);
     expect(p.lines.slice(4).reduce((s, l) => s + l.amountUsd, 0)).toBe(11_200);
     // Con el aporte mensual normal, el tope sigue siendo el de la política.
     const mensual = planContribution({ ...i, closes: i.closes }, c);
     expect(mensual.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["ZVRA", "NBN"]);
     // Explicabilidad: cada COMPRAR que no entró aparece en las notas con su lugar por convicción y el motivo.
-    expect(mensual.notes.join("\n")).toMatch(/NVDA \(3° por convicción: tope de 2 posiciones nuevas\)/);
+    expect(mensual.notes.join("\n")).toMatch(/NVDA \(3° por orden medido: tope de 2 posiciones nuevas\)/);
     expect(mensual.leftOut!.find((x) => x.symbol === "CRWV")?.reason).toMatch(/seguimiento/);
     expect(mensual.leftOut!.some((x) => x.symbol === "COPX")).toBe(true);
     for (const b of i.buyCandidates) expect(mensual.lines.some((l) => l.symbol === b.symbol) || mensual.leftOut!.some((x) => x.symbol === b.symbol)).toBe(true);
     expect(p.lines.reduce((s, l) => s + l.amountUsd, 0)).toBe(40_000);
-    expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).toMatch(/^3° por convicción de 3 COMPRAR del Radar/);
+    expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).toMatch(/^3° por orden medido de 3 COMPRAR del Radar/);
     expect(p.lines.find((l) => l.symbol === "NVDA")!.priority).toBe(1.49);
-    expect(p.lines.find((l) => l.symbol === "ZVRA")!.rationale).toMatch(/^1° por convicción de 3/);
+    expect(p.lines.find((l) => l.symbol === "ZVRA")!.rationale).toMatch(/^1° por orden medido de 3/);
     const nem = p.lines.find((l) => l.symbol === "NEM")!;
     expect([nem.stop, nem.target]).toEqual([118.5, 152.4]); // el stop y objetivo del veredicto de Cartera viajan a la línea SUMAR
     const zvra = p.lines.find((l) => l.symbol === "ZVRA")!;
@@ -120,7 +121,7 @@ describe("planContribution", () => {
       buyCandidates: [{ symbol: "NVDA", kind: "stock", priority: 1.8, score: 2.1, sizeUsd: 14_994, close: 180, stop: 170, cautions: ["se mueve como TSM que ya tenés (correlación 0.81)"] }],
     };
     const p = planContribution(i, { ...c, maxNewPositionsPerMonth: 1 });
-    expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).toMatch(/^1° por convicción de 1 COMPRAR del Radar, convicción 1\.8, score 2\.1 · ⚠ se mueve como TSM que ya tenés \(correlación 0\.81\)$/);
+    expect(p.lines.find((l) => l.symbol === "NVDA")!.rationale).toMatch(/^1° por orden medido de 1 COMPRAR del Radar, convicción 1\.8, score 2\.1 · ⚠ se mueve como TSM que ya tenés \(correlación 0\.81\)$/);
   });
   describe("quién entra al plan (13/9)", () => {
     // El dueño preguntó: "si antes estaba NBN, ¿qué me asegura que GFI esté correcto como siguiente?". Nada, si GFI
@@ -333,7 +334,7 @@ describe("revisión antes de comprar (15/9)", () => {
     // las compuertas avisando, el plan iba a decir "COMPRAR TSM USD 4.741". Para lo que ya tenés manda Cartera.
     const p = cuarenta([{ ...compra("TSM", 1.3, sin), cartera: { verb: "REVISAR", reason: "la verificación web del 2026-09-15 tiene reservas" } }, compra("NVDA", 1.1, sin)]);
     expect(p.lines.some((l) => l.symbol === "TSM")).toBe(false);
-    expect(p.leftOut!.find((x) => x.symbol === "TSM")!.reason).toBe("1° por convicción: ya la tenés y Cartera dice REVISAR (la verificación web del 2026-09-15 tiene reservas): no se compra más hasta resolverlo");
+    expect(p.leftOut!.find((x) => x.symbol === "TSM")!.reason).toBe("1° por orden medido: ya la tenés y Cartera dice REVISAR (la verificación web del 2026-09-15 tiene reservas): no se compra más hasta resolverlo");
     expect(p.lines.some((l) => l.symbol === "NVDA")).toBe(true);
     // No se gasta una revisión ni una verificación en lo que igual queda afuera.
     const q = cuarenta([{ ...compra("TSM", 1.3, null), verification: null, cartera: { verb: "VENDER", reason: "cerró bajo su stop" } }]);

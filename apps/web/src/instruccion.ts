@@ -36,7 +36,7 @@ const usd = (n: number) => `USD ${Math.round(n).toLocaleString("es-AR")}`;
 const enPlan = (s: { amountUsd: number; trancheUsd?: number; avisos?: string[] }) => [s.trancheUsd !== undefined ? `${usd(s.amountUsd)} en el plan · 1er tramo ${usd(s.trancheUsd)}` : `${usd(s.amountUsd)} en el plan de hoy`, ...(s.avisos ?? []).map((a) => `⚠ ${a}`)].join(" · ");
 const conAvisos = (s: { avisos?: string[] }) => (s.avisos?.length ? { avisos: s.avisos.length } : {});
 /** "5° por convicción: verificación web con reservas: …" → sin el lugar en la fila, que no le importa a quien lee. */
-const sinLugar = (reason: string) => reason.replace(/^(?:\d+° por convicción|seguimiento|ETF): /, "");
+const sinLugar = (reason: string) => reason.replace(/^(?:\d+° por (?:convicción|orden medido)|seguimiento|ETF): /, "");
 
 type Hallazgo = NonNullable<ContributionPlan["controles"]>["findings"][number];
 

@@ -11,7 +11,9 @@ import type { Container } from "./container.js";
  */
 export function cronPlan(cfg: Pick<Config, "dailyCron" | "carteraCron" | "radarScanCron" | "radarRefreshCron" | "radarPlanCron">): Array<{ expr: string; steps: StepId[] }> {
   return [
-    { expr: cfg.dailyCron, steps: ["tesis"] },
+    // Sin "tesis" desde el 10/10: el motor de tesis por eventos era el mayor consumidor de modelo (3,28 M de tokens en 14
+    // días), generó 397 tesis y una sola orden, y nada de la app usaba su salida. El código queda; para volver a
+    // prenderlo, agregar { expr: cfg.dailyCron, steps: ["tesis"] } acá y pasar el paso a "daily" en STEPS de catchup.ts.
     { expr: cfg.carteraCron, steps: ["cartera"] },
     { expr: cfg.radarScanCron, steps: ["scan"] },
     { expr: cfg.radarRefreshCron, steps: ["radar", "argentina"] },

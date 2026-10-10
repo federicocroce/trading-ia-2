@@ -106,8 +106,8 @@ describe("plan: la verificación web avisa; solo 'evitar' deja afuera (18/9)", (
   it("HRTG con 'evitar' queda afuera con su motivo, y la nota lo dice", () => {
     const plan = planContribution({ month: "2026-09", portfolioValueUsd: 150_000, positions: [], sumarCandidates: [], buyCandidates: [b("HRTG", 1.5, { verdict: "evitar", reason: "temporada de huracanes con reservas cortas" }), b("LNC", 1.4, { verdict: "apto", reason: "barata" })], coreEtfs: [], spyClose: null, closes: {} }, cfg, {});
     expect(plan.lines.filter((l) => l.kind === "comprar").map((l) => l.symbol)).toEqual(["LNC"]);
-    expect(plan.leftOut?.find((x) => x.symbol === "HRTG")?.reason).toBe("1° por convicción: verificación web dice evitar: temporada de huracanes con reservas cortas");
-    expect(plan.notes.join(" ")).toContain("HRTG (1° por convicción: verificación web dice evitar: temporada de huracanes con reservas cortas)");
+    expect(plan.leftOut?.find((x) => x.symbol === "HRTG")?.reason).toBe("1° por orden medido: verificación web dice evitar: temporada de huracanes con reservas cortas");
+    expect(plan.notes.join(" ")).toContain("HRTG (1° por orden medido: verificación web dice evitar: temporada de huracanes con reservas cortas)");
   });
 });
 

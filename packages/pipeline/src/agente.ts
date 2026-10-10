@@ -1,4 +1,4 @@
-import { PLAN_BLOCKERS, verificationOrder, type CandidateVerifier, type PreTradeReviewer } from "@thesis/core";
+import type { CandidateVerifier, PreTradeReviewer } from "@thesis/core";
 import { CUESTIONARIO_AGENTE, RevisionAgenteSchema, VerificacionAgenteSchema, dictamenDeRevision, dictamenDeVerificacion } from "@thesis/reasoner";
 import { VERIFY_FRESH_DAYS } from "./radar-verify.js";
 import type { RadarDeps } from "./radar.js";
@@ -44,8 +44,10 @@ export async function pendientesDelAgente(deps: { store: Store; verifier?: Candi
       const v = await store.verification(s).catch(() => null);
       return !!v && v.promptVersion === version && edadDias(v.date, opts.today) < VERIFY_FRESH_DAYS;
     };
-    const comprables = verificationOrder(filas.filter((f) => (f.kind === "stock" || f.kind === "watch") && f.verdict === "COMPRAR" && !f.flags.some((x) => PLAN_BLOCKERS[x])), await store.allTags());
-    const orden = unicos([...lineas.map((l) => l.symbol), ...(plan?.verificationsPending ?? []), ...comprables.map((f) => f.symbol)]);
+    // Solo lo que el plan compra (10/10). Hasta acá seguía con todas las COMPRAR hasta el tope diario, y medido: el
+    // "evitar" no salió NUNCA (cero filas en la historia), así que la verificación no frenó ninguna compra, y su señal va
+    // al revés (las "aptas" rinden −2,2% a 7 días, las "con reservas" −0,3%). Lo que sirve es leerla en lo que se compra.
+    const orden = unicos([...lineas.map((l) => l.symbol), ...(plan?.verificationsPending ?? [])]);
     aVerificar = [];
     for (const s of orden) {
       if (aVerificar.length >= opts.topeVerificaciones) break;

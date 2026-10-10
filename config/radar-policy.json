@@ -1,9 +1,9 @@
 {
   "weights": {
-    "valuation": 0.35,
-    "quality": 0.3,
-    "growth": 0.25,
-    "balance": 0.1
+    "valuation": 0,
+    "quality": 0.5,
+    "growth": 0,
+    "balance": 0.5
   },
   "quality": {
     "minMcapUsd": 500000000,

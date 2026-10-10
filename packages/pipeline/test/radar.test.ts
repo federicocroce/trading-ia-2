@@ -263,7 +263,8 @@ describe("plan y medición", () => {
     // Regla v2: SUMAR hasta el 30% del resto; las dos nuevas (máximo por mes) se reparten parejo lo que queda.
     // Las dos nuevas se reparten por convicción (peso 1 + convicción): SA rankea mejor que SH y se lleva más.
     // Hasta el 14/9 las dos pagaban una penalidad por "moverse como VTI" (el núcleo) y el reparto era 2935/1615.
-    expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 1950], ["SA", "comprar", 2862], ["SH", "comprar", 1688]]);
+    // Mismo monto para cada nueva desde el 10/10 (antes 2.862 y 1.688 por convicción: la misma suma, repartida pareja).
+    expect(plan.lines.map((l) => [l.symbol, l.kind, l.amountUsd])).toEqual([["SL", "sumar", 1950], ["SA", "comprar", 2275], ["SH", "comprar", 2275]]);
     // De qué rueda es cada precio (15/9: "candidatos del 15/9" con cierres del 14/9 y nada lo decía).
     for (const l of plan.lines) {
       const vela = (await store.candles(l.symbol, "2000-01-01")).filter((c) => c.close === l.close).at(-1);

@@ -42,7 +42,8 @@ describe("dueSteps", () => {
   });
   it("el barrido semanal se ejecuta antes que lo diario; el ranking no es un paso del calendario", () => {
     const due = dueSteps({}, at(2026, 9, 8, 9));
-    expect(due.map((d) => d.id)).toEqual(["scan", "cartera", "argentina", "radar", "plan", "tesis"]);
+    // Sin "tesis": manual desde el 10/10.
+    expect(due.map((d) => d.id)).toEqual(["scan", "cartera", "argentina", "radar", "plan"]);
     expect(STEPS.some((s) => (s.id as string) === "rank")).toBe(false);
   });
 

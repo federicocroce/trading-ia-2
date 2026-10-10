@@ -18,7 +18,8 @@ describe("crons", () => {
     const c = { store, catchupRunners: runners } as unknown as Container;
     const programados = new Map<string, () => Promise<void>>();
     scheduleJobs(c, cfg, (expr, fn) => { programados.set(expr, fn); });
-    expect([...programados.keys()].sort()).toEqual(Object.values(cfg).sort());
+    // Todos los crons menos el de las tesis, apagado el 10/10.
+    expect([...programados.keys()].sort()).toEqual(Object.values({ ...cfg, dailyCron: undefined }).filter(Boolean).sort());
     await programados.get(cfg.radarRefreshCron)!();
     expect(corridos).toEqual(["radar", "argentina"]);
     const jobs = await store.jobRuns();
@@ -27,7 +28,9 @@ describe("crons", () => {
   });
   it("cada paso que cambia lo que el plan compra tiene su cron", () => {
     const pasos = cronPlan(cfg).flatMap((j) => j.steps);
-    for (const id of ["scan", "cartera", "radar", "argentina", "plan", "tesis"] as const) expect(pasos).toContain(id);
+    for (const id of ["scan", "cartera", "radar", "argentina", "plan"] as const) expect(pasos).toContain(id);
+    // Las tesis no: apagadas el 10/10 (el mayor consumidor de modelo, y nada usaba su salida).
+    expect(pasos).not.toContain("tesis");
   });
 });
 

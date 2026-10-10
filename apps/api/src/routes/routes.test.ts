@@ -191,15 +191,15 @@ describe("/catchup", () => {
     state.lastRun = null;
     state.catchup = { running: false, last: null, current: null };
     const before = await (await app.request("/catchup")).json();
-    expect(before.due.map((d: { id: string }) => d.id)).toEqual(["scan", "cartera", "argentina", "radar", "plan", "tesis"]);
+    expect(before.due.map((d: { id: string }) => d.id)).toEqual(["scan", "cartera", "argentina", "radar", "plan"]); // sin "tesis" (manual, 10/10)
     const run = await (await app.request("/catchup", { method: "POST" })).json();
-    expect(run.ran.map((r: { id: string; ok: boolean }) => `${r.id}:${r.ok}`)).toEqual(["scan:true", "cartera:true", "argentina:true", "radar:true", "plan:true", "tesis:true"]);
+    expect(run.ran.map((r: { id: string; ok: boolean }) => `${r.id}:${r.ok}`)).toEqual(["scan:true", "cartera:true", "argentina:true", "radar:true", "plan:true"]);
     const jobs = await store.jobRuns();
     // El barrido se registra cuando termina en segundo plano; los demás quedan registrados ya.
-    expect(Object.keys(jobs).sort()).toEqual(["argentina", "cartera", "plan", "radar", "tesis"]);
+    expect(Object.keys(jobs).sort()).toEqual(["argentina", "cartera", "plan", "radar"]);
     const after = await (await app.request("/catchup")).json();
     expect(after.due.map((d: { id: string }) => d.id)).toEqual(["scan"]);
-    expect(after.lastResult.ran).toHaveLength(6);
+    expect(after.lastResult.ran).toHaveLength(5);
     const again = await (await app.request("/catchup", { method: "POST" })).json();
     expect(again.ran.map((r: { id: string }) => r.id)).toEqual(["scan"]);
   });

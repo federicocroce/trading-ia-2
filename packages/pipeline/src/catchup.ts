@@ -7,7 +7,8 @@ export type StepId = "scan" | "cartera" | "radar" | "argentina" | "plan" | "tesi
 export interface StepSpec {
   id: StepId;
   label: string;
-  cadence: "daily" | "weekly" | "monthly";
+  /** "manual" (10/10): el paso existe y se puede correr a mano, pero ni el cron ni "ponerme al día" lo disparan. */
+  cadence: "daily" | "weekly" | "monthly" | "manual";
   hour: number;
   minute: number;
   /** Solo semanal: 0 = domingo. */
@@ -25,7 +26,8 @@ export const STEPS: StepSpec[] = [
   { id: "argentina", label: "Argentina (macro, BYMA, CEDEARs)", cadence: "daily", hour: 7, minute: 50 },
   { id: "radar", label: "Refresco y medición del Radar", cadence: "daily", hour: 7, minute: 50 },
   { id: "plan", label: "Plan del aporte", cadence: "monthly", hour: 8, minute: 0 },
-  { id: "tesis", label: "Tesis por eventos", cadence: "daily", hour: 7, minute: 30 },
+  // Manual desde el 10/10 (era diario 07:30): ver jobs.ts. Se puede correr a mano; nada lo dispara solo.
+  { id: "tesis", label: "Tesis por eventos (manual)", cadence: "manual", hour: 7, minute: 30 },
 ];
 
 export function stepById(id: StepId): StepSpec {
@@ -71,6 +73,7 @@ export interface DueStep {
 export function dueSteps(last: Partial<Record<StepId, string | null>>, now: Date): DueStep[] {
   const out: DueStep[] = [];
   for (const s of STEPS) {
+    if (s.cadence === "manual") continue;
     const expected = expectedDate(s, now);
     const l = last[s.id] ?? null;
     if (l === null || l < expected) out.push({ id: s.id, label: s.label, last: l, expected });

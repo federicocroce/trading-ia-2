@@ -160,7 +160,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   // Solo se esperan pasos de lunes a viernes: el sábado y el domingo no corre ninguno (ver cronPlan).
   else if (cmd === "guardia") {
     const dia = new Date(`${today}T12:00:00Z`).getUTCDay();
-    const esperados = dia >= 1 && dia <= 5 ? ["tesis", "cartera", "radar", "argentina"] : [];
+    const esperados = dia >= 1 && dia <= 5 ? ["cartera", "radar", "argentina"] : []; // sin "tesis": apagado el 10/10
     const avisos = revisarCorrida({ today, plan: await c.store.latestPlan().catch(() => null), jobRuns: await c.store.jobRuns(), esperados });
     if (!avisos.length) console.log(`[guardia] ${today}: la corrida de hoy está en orden`);
     else {

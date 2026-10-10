@@ -71,10 +71,11 @@ import {
   type SymbolProfile,
   type Tags,
   type TaxonomyConfig,
-  topPicks,
   verificationOrder,
   returnPct,
+  topPicks,
   totalReturnPct,
+  ordenMedido,
 } from "@thesis/core";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verificacionGuardada, verifyFor, type VerifyBudget } from "./radar-verify.js";
@@ -1296,6 +1297,8 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
   const tnx = await deps.history.candles(TNX_SYMBOL, HISTORY_DAYS).catch(() => [] as Candle[]);
   if (tnx.length) await store.upsertCandles(TNX_SYMBOL, tnx).catch(() => {});
   const regime = assessRegime(tnx);
+  // La convicción ya no ordena sola (10/10): queda como desempate entre las que cumplen lo medido, porque lleva adentro
+  // frenos que no se midieron y no se aflojan (tema sobreponderado, régimen restrictivo, objetivo corto, superposición).
   const conviction = new Map(topPicks(candidates, tags, overweight, 1000, overlap, regime).map((p) => [p.symbol, p.conviction]));
   // Coherencia (pieza 3): una posición subponderada no se suma si el ETF de su tema está en OBSERVAR (oro bajo la media con NEM).
   const etfObserved = candidates.filter((c) => c.kind === "etf" && c.verdict === "OBSERVAR");
@@ -1340,12 +1343,20 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
         return { symbol: v.symbol, valueUsd: weights.get(v.symbol)?.value ?? 0, weightPct: v.weightPct, stop: c ? c.stop : v.stop, target: c ? c.target : v.target, caution: sumarCaution(v.symbol), verification: c ? planVerification(c.verification) : undefined, atr: atrOf.get(v.symbol) ?? null, review: reviewOf(v.symbol) };
       }),
       // El plan reparte dólares: las filas argentinas (pesos) y los CEDEARs no entran.
-      // Prioridad: acciones por convicción (la misma del panel "lo que más recomienda"), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
+      // Prioridad: acciones por orden medido (10/10), seguimiento por menor riesgo, ETFs por fuerza relativa 6m.
       buyCandidates: candidates
         .filter((c): c is CandidateRow & { kind: "stock" | "etf" | "watch" } => c.verdict === "COMPRAR" && (c.kind === "stock" || c.kind === "etf" || c.kind === "watch"))
         .map((c) => ({
           symbol: c.symbol, kind: c.kind, score: c.score, sizeUsd: c.sizeUsd, close: c.close, entryLow: c.entryLow, entryHigh: c.entryHigh, stop: c.stop, target: c.target,
-          priority: c.kind === "stock" ? (conviction.get(c.symbol) ?? null) : c.kind === "watch" ? -(c.riskScore ?? 10) : (c.axes["rs6m"] ?? null),
+          // Acciones (10/10): decide lo medido (`ordenMedido`); los líderes van primero y la convicción desempata entre
+          // las elegibles. La convicción negativa sigue dejando afuera, con su motivo, como antes.
+          // Negativa queda negativa (también en un líder): el plan la deja afuera y su lugar va al núcleo, como antes.
+          priority: c.kind === "stock" ? (() => { const o = ordenMedido(c); const cv = conviction.get(c.symbol) ?? null; return o.prioridad === null || cv === null ? null : cv < 0 ? cv : (o.lider ? 100 : 0) + cv; })() : c.kind === "watch" ? -(c.riskScore ?? 10) : (c.axes["rs6m"] ?? null),
+          ...(c.kind === "stock" ? (() => {
+            const o = ordenMedido(c);
+            const motivo = o.motivo || (conviction.has(c.symbol) ? "" : "sin stop u objetivo usables");
+            return { lider: o.lider, ...(motivo ? { noElegible: motivo } : {}) };
+          })() : {}),
           // La salvedad que más pesa al comprar: si se mueve como algo tuyo, la línea del plan lo dice.
           cautions: overlap[c.symbol] ? [overlapCaution(overlap[c.symbol]!)] : [],
           // Para lo que ya tenés manda Cartera (18/9): con REVISAR o VENDER el plan no la compra como nueva.

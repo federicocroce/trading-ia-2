@@ -1,6 +1,7 @@
 import type { EntryTiming } from "./entry.js";
 import type { PlanChange, PlanSymbolInput } from "./plan-changes.js";
 import { firstTrancheFrom } from "./fomc.js";
+import { LIDERES_MAX } from "./orden-medido.js";
 import type { MacroRegime } from "./regime.js";
 import type { AssetClass, EtfConfig, EtfRole, RadarPolicy } from "./types.js";
 
@@ -25,7 +26,7 @@ export interface PlanInput {
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva.
    *  `atr`: ATR de 14 ruedas al día de la fila, para medir si el stop quedó dentro del ruido (ver `noiseBlock`).
    *  `overlap`: la posición tuya con la que más se mueve; desde `OVERLAP_BLOCK_CORR` no entra como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined; /** Si ya la tenés, qué dice Cartera hoy: con REVISAR o VENDER el plan no la compra como nueva (18/9). */ cartera?: { verb: string; reason: string } | null }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined; /** Si ya la tenés, qué dice Cartera hoy: con REVISAR o VENDER el plan no la compra como nueva (18/9). */ cartera?: { verb: string; reason: string } | null; /** Orden medido (10/10, ver `ordenMedido`): por qué no entra como nueva, vacío si entra. */ noElegible?: string; /** Líder en retroceso: va primero, con tope, y no lo frena haber subido más de 100%. */ lider?: boolean }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   /**
@@ -432,7 +433,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     sumarPool -= amt;
   }
 
-  // 3. Nuevas: acciones por prioridad (convicción), una de seguimiento, un ETF satélite. Repartidas por convicción (pieza 5).
+  // 3. Nuevas: acciones por orden medido (10/10, ver `ordenMedido`), una de seguimiento, un ETF satélite. Mismo monto cada una.
   const byPriority = (a: PlanInput["buyCandidates"][number], b: PlanInput["buyCandidates"][number]) => (b.priority ?? -Infinity) - (a.priority ?? -Infinity) || (b.score ?? -Infinity) - (a.score ?? -Infinity);
   // Un monto grande admite más posiciones nuevas: una extra por cada 3 aportes mensuales, hasta 5 (repartir 40k en 2 acciones es concentrar).
   const maxNew = maxNewPositions(aporte, c.monthlyUsd, c.maxNewPositionsPerMonth);
@@ -451,6 +452,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
   const leftOut: Array<{ symbol: string; reason: string }> = [];
   const POOL_LABEL: Record<"stock" | "watch" | "etf", string> = { stock: "posiciones nuevas", watch: "de seguimiento", etf: "ETF satélite" };
   let newCount = 0;
+  let lideresTomados = 0;
   /** Lugares de acciones que quedaron vacíos porque la que los ocupaba quedó afuera (verificación, stop en el ruido o no diversifica) y ninguna la reemplazó. */
   let vacantes = 0;
   /** Prioridad de cada acción que cayó por la verificación, en orden: el lugar vacío pesa lo que pesaba ella. */
@@ -459,7 +461,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     let taken = 0;
     const queue = i.buyCandidates.filter((x) => x.kind === pool.kind).sort(byPriority);
     queue.forEach((b, idx) => {
-      const place = pool.kind === "stock" ? `${idx + 1}° por convicción` : pool.kind === "watch" ? "seguimiento" : "ETF";
+      const place = pool.kind === "stock" ? `${idx + 1}° por orden medido` : pool.kind === "watch" ? "seguimiento" : "ETF";
       const isNew = valueOf(b.symbol) === 0;
       // Un símbolo que ya recibió plata como SUMAR no puede recibirla otra vez como compra nueva: TSM el
       // 12/9 salía dos veces en el mismo plan, con dos montos, para una sola posición.
@@ -470,8 +472,15 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         return;
       }
       if (decididoComoSumar.has(b.symbol)) return;
-      // Convicción negativa (15/9): el ranking la trae, pero sus salvedades pesan más que sus virtudes. No entra aunque sea
+      // No cumple lo medido (10/10, ver `ordenMedido`): reemplaza a la "convicción negativa", que dependía de un orden
+      // que medido no ordenaba. No deja lugar vacío: el lugar lo toma la siguiente que sí cumple.
+      if (pool.kind === "stock" && b.noElegible) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: no cumple lo medido: ${b.noElegible}` });
+        return;
+      }
+      // Convicción negativa (15/9): cumple lo medido, pero sus salvedades pesan más que sus virtudes. No entra aunque sea
       // la única (PBT era "1° por convicción" con −0,98), y su lugar va al núcleo como el de una verificación que no pasó.
+      // Se conserva al pasar al orden medido (10/10): la convicción lleva frenos que no se midieron y no se aflojan.
       if (pool.kind === "stock" && b.priority !== null && b.priority < 0) {
         leftOut.push({ symbol: b.symbol, reason: `${place}: convicción negativa (${coma(b.priority, 2).replace("-", "−")}): sus salvedades pesan más que sus virtudes` });
         caidas.push(b.priority);
@@ -482,7 +491,9 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       // frena de todos modos era gastar cuota.
       // Salvedades de precio (pieza 3) y banco sin estados legibles (14/9): tampoco entra como nueva, con el motivo.
       // Los frenos vigentes dependen del régimen (7/10, ver `blockersVigentes`).
-      const blocker = (b.flags ?? []).find((f) => frenos[f]);
+      // Al líder en retroceso no lo frena haber subido más de 100% (10/10): medido, los que subieron mucho rinden −2,26%
+      // a 7 días, pero los líderes en zona de retroceso +2,20%. El freno queda para los demás.
+      const blocker = (b.flags ?? []).find((f) => frenos[f] && !(f === "subio_mucho_12m" && b.lider));
       if (blocker) {
         leftOut.push({ symbol: b.symbol, reason: `${place}: ${frenos[blocker]}` });
         return;
@@ -525,6 +536,11 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         leftOut.push({ symbol: b.symbol, reason: `${place}: el lugar libre era de una acción que quedó afuera (no pasó la verificación, stop en el ruido, no diversifica o convicción negativa), y esa parte va al núcleo` });
         return;
       }
+      // Tope de líderes (10/10): la señal más fuerte medida y la menos probada (10 símbolos, sin 30 días todavía).
+      if (pool.kind === "stock" && b.lider && lideresTomados >= LIDERES_MAX) {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: tope de ${LIDERES_MAX} líderes en retroceso (señal medida a 7 días, todavía sin medición a 30)` });
+        return;
+      }
       if (taken >= pool.max) {
         leftOut.push({ symbol: b.symbol, reason: `${place}: tope de ${pool.max} ${POOL_LABEL[pool.kind]}` });
         return;
@@ -542,7 +558,8 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         avisosDe.set(b.symbol, [...avisosDeFila(b.flags), ...avisosDeIa(b.verification, b.review)]);
       }
       chosen.push(b);
-      if (pool.kind === "stock") placeOf.set(b.symbol, `${idx + 1}° por convicción de ${queue.length} COMPRAR del Radar`);
+      if (pool.kind === "stock") placeOf.set(b.symbol, `${idx + 1}° por orden medido de ${queue.length} COMPRAR del Radar${b.lider ? " (líder en retroceso)" : ""}`);
+      if (pool.kind === "stock" && b.lider) lideresTomados++;
       taken++;
       if (pool.countsAsNew && isNew) newCount++;
     });
@@ -555,14 +572,12 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
     }
   }
   if (chosen.length && remaining >= MIN_LINE_USD) {
-    // Reparto por convicción (pieza 5): cada acción pesa 1 + su convicción (más convicción, más plata, sin extremos: 1,5 contra 0,6
-    // de convicción reparte 62/38, no 71/29); seguimiento y ETF pesan como el promedio de las acciones.
-    const stockWeights = chosen.filter((b) => b.kind === "stock" && b.priority !== null).map((b) => 1 + Math.max(0, b.priority!));
-    const avg = stockWeights.length ? stockWeights.reduce((s, x) => s + x, 0) / stockWeights.length : 1;
-    const weightOf = (b: PlanInput["buyCandidates"][number]) => (b.kind === "stock" && b.priority !== null ? 1 + Math.max(0, b.priority) : avg);
-    // Cada lugar vacío pesa lo que pesaba la acción que se fue (así las demás reciben lo mismo que con el lugar
-    // lleno) y su parte queda sin repartir: va al núcleo en el paso 4.
-    const pesoVacante = caidas.slice(0, vacantes).reduce<number>((s, pr) => s + (pr !== null ? 1 + Math.max(0, pr) : avg), 0);
+    // Mismo monto para todas (10/10). Hasta acá cada acción pesaba 1 + su convicción, y la convicción medida no ordenaba:
+    // dar más plata a la de más convicción era precisión falsa. Sin un orden que discrimine, repartir parejo baja la
+    // varianza sin bajar la media. Seguimiento y ETF pesan igual que una acción.
+    const weightOf = (_b: PlanInput["buyCandidates"][number]) => 1;
+    // Cada lugar vacío pesa lo mismo que una acción y su parte queda sin repartir: va al núcleo en el paso 4.
+    const pesoVacante = caidas.slice(0, vacantes).length;
     const wsum = chosen.reduce((s, b) => s + weightOf(b), 0) + pesoVacante;
     const vacanteUsd = vacantes > 0 ? Math.floor((remaining * pesoVacante) / wsum) : 0;
     if (vacantes > 0) notes.push(`${vacantes === 1 ? "Un lugar" : `${vacantes} lugares`} de posiciones nuevas ${vacantes === 1 ? "quedó vacío" : "quedaron vacíos"}: la acción que lo ocupaba quedó afuera (ver motivo abajo) y ninguna verificada la reemplazó. Esa parte (USD ${miles(vacanteUsd)}) va al núcleo; no se reparte entre las demás ni la toma un ETF.`);

@@ -188,13 +188,14 @@ describe("plan estandarizado (piezas 3, 4 y 5): el caso del 10/9 con USD 40.000"
     expect(left["HRTG"]).toBeUndefined();
     expect(left["SOLV"]).toBeUndefined();
     expect(left["NBN"]).toBeUndefined();
-    expect(left["PAM"]).toBe("6° por convicción: ya está en el tope del 15% por posición");
-    expect(left["TER"]).toBe(`8° por convicción: ${PLAN_BLOCKERS["subio_mucho_12m"]}`);
+    expect(left["PAM"]).toBe("6° por orden medido: ya está en el tope del 15% por posición");
+    expect(left["TER"]).toBe(`8° por orden medido: ${PLAN_BLOCKERS["subio_mucho_12m"]}`);
     // La regla fija va primero (15/9): GLW subió más de 100% y eso la frena con o sin verificación.
     expect(left["GLW"]).toBe(`seguimiento: ${PLAN_BLOCKERS["subio_mucho_12m"]}`);
     const comprar = p.lines.filter((l) => l.kind === "comprar");
     expect(comprar.reduce((s, l) => s + l.amountUsd, 0) + 24_000).toBe(40_000);
-    expect(comprar[0]!.amountUsd).toBeGreaterThan(comprar[3]!.amountUsd); // más convicción, más plata
+    // Mismo monto para todas desde el 10/10: la convicción medida no ordenaba, así que no puede repartir plata.
+    expect(Math.abs(comprar[0]!.amountUsd - comprar[3]!.amountUsd)).toBeLessThanOrEqual(1);
     expect(p.lines.filter((l) => l.kind === "seguimiento")).toHaveLength(0);
   });
 

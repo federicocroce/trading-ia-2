@@ -18,12 +18,13 @@ const sec = { url: "https://www.sec.gov/Archives/edgar/data/1/x.htm", titulo: "8
 const verif = (symbol: string, over: Record<string, unknown> = {}) => ({ symbol, fecha: HOY, ultimoTrimestre: { fechaReporte: "2026-08-06", ventasVsConsenso: null, gananciaVsConsenso: null, extraordinarios: [], epsLimpia: 1, epsConsenso: 0.9, guia: null }, analistas: [], consensoObjetivo: null, eventos: [], valuacion: { texto: null, metric: null, current: null, min5y: null, max5y: null, growthAccelerating: null }, proximosResultados: null, reservas: [], evitar: [], faltantes: [], fuentes: [sec], resumen: "informe", ...over });
 
 describe("pendientesDelAgente", () => {
-  it("primero las líneas del plan (sin el núcleo), después lo que el plan anotó, después las COMPRAR por convicción; con topes", async () => {
+  it("10/10: solo las líneas del plan (sin el núcleo) y lo que el plan anotó; las demás COMPRAR ya no se verifican", async () => {
     const store = new MemoryStore();
     await store.upsertCandidates([fila("APH"), fila("CDLR"), fila("PGY", { score: 2 }), fila("FIVE", { score: 1.5 }), fila("SNDK", { flags: ["subio_mucho_12m"] }), fila("OBS", { verdict: "OBSERVAR" }), fila("QQQ", { kind: "etf" })]);
     await store.savePlan(plan([["VTI", "nucleo"], ["APH", "comprar"], ["CDLR", "comprar"]], { verificationsPending: ["FIVE"] }));
     const p = await pendientesDelAgente(deps(store), { today: HOY, topeVerificaciones: 4, topeRevisiones: 5 });
-    expect(p.verificar.map((x) => x.symbol)).toEqual(["APH", "CDLR", "FIVE", "PGY"]);
+    // PGY es COMPRAR pero no es línea: desde el 10/10 no se verifica ("evitar" no salió nunca y la señal va al revés).
+    expect(p.verificar.map((x) => x.symbol)).toEqual(["APH", "CDLR", "FIVE"]);
     // La revisión es solo de las líneas del plan: vale por el día.
     expect(p.revisar.map((x) => x.symbol)).toEqual(["APH", "CDLR"]);
     expect(p.version).toBe(AGENTE_VERSION);
@@ -31,7 +32,7 @@ describe("pendientesDelAgente", () => {
     expect(p.cuestionario).toContain("NO escribas veredictos");
     expect(p.revisar[0]).toMatchObject({ linea: { kind: "comprar", close: 100, stop: 90 } });
   });
-  it("revisión del 22/9: una línea de ETF del plan no gasta verificación ni revisión (los ETFs no se verifican); sin plan, solo las COMPRAR", async () => {
+  it("revisión del 22/9: una línea de ETF del plan no gasta verificación ni revisión (los ETFs no se verifican); sin plan, nada que verificar (10/10)", async () => {
     const store = new MemoryStore();
     await store.upsertCandidates([fila("CIBR", { kind: "etf" }), fila("APH")]);
     await store.savePlan(plan([["CIBR", "comprar"], ["APH", "comprar"]]));
@@ -41,7 +42,7 @@ describe("pendientesDelAgente", () => {
     const sinPlan = new MemoryStore();
     await sinPlan.upsertCandidates([fila("PGY")]);
     const q = await pendientesDelAgente(deps(sinPlan), { today: HOY, topeVerificaciones: 8, topeRevisiones: 5 });
-    expect(q.verificar.map((x) => x.symbol)).toEqual(["PGY"]);
+    expect(q.verificar).toEqual([]);
     expect(q.revisar).toEqual([]);
   });
   it("lo ya verificado por el agente en los últimos 7 días y lo ya revisado hoy no vuelve; lo de Gemini sí", async () => {

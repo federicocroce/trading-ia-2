@@ -36,7 +36,7 @@ const amountOf = (p: ContributionPlan, s: string) => p.lines.filter((l) => l.sym
 /** El motivo con el que el plan dejó afuera al símbolo, sin su lugar en la fila. */
 function reasonOf(p: ContributionPlan, s: string): string | null {
   const fuera = p.leftOut?.find((x) => x.symbol === s)?.reason;
-  if (fuera) return fuera.replace(/^(?:\d+° por convicción|seguimiento|ETF): /, "");
+  if (fuera) return fuera.replace(/^(?:\d+° por (?:convicción|orden medido)|seguimiento|ETF): /, "");
   const nota = p.notes.map((n) => new RegExp(`^No se sumó ${s}: (.+?)(?:\\. Su parte.*)?\\.?$`).exec(n)).find((m) => m !== null);
   return nota ? nota[1]! : null;
 }
