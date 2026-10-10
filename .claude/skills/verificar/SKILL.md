@@ -51,6 +51,35 @@ Si te pidieron ensayo, agregá `--ensayo` (decide y muestra, no guarda). El impo
 qué rechazó y por qué. Si rechazó algo por forma (una URL vacía, un tipo que no existe), corregí ESE ítem y volvé a
 importar el archivo entero: lo ya guardado se pisa con lo mismo.
 
+### 3b. Veredicto del analista (10/10)
+
+Decisión del dueño: **la app tiene que tener siempre el último veredicto del analista** sobre lo que compra. Una sola
+voz: si no estás de acuerdo con una línea, lo decís ACÁ, con la regla de abajo, y nunca como consejo en un chat.
+
+```bash
+pnpm --filter @thesis/api exec tsx src/radar-cli.ts analista --pendientes
+```
+
+Para cada línea, "si" o "no". **Un "no" solo con uno de estos criterios** (el comando los imprime):
+
+- `valuacion_extrema_con_insiders`: más de 60 veces la ganancia **y** 10 ventas de insiders o más sin compras en 90 días.
+- `deterioro_no_capturado`: un hecho concreto y reciente en contra que la app no tiene como bandera, **con fuente**.
+- `dato_erroneo`: un dato de la app está mal y cambia la lectura, **con la fuente que lo corrige**.
+- `concentracion`: repite el eslabón de otra línea del plan o de una posición (el comando trae los eslabones).
+
+Lo que no entra en un criterio es un "si". **No busques razones para decir que no**: el 18/9 un revisor que buscaba
+objeciones objetó las dos únicas líneas del plan. Y antes de un "no" por algo que se pueda medir (stop lejano, media
+de 200, precio), recordá que el 10/10 se midieron dos objeciones así y resultaron falsas.
+
+`docs/verificaciones/<hoy>-analista.json` como `{ "veredictos": [ { "symbol", "fecha", "veredicto", "criterio", "motivo", "fuente" } ] }` y:
+
+```bash
+pnpm --filter @thesis/api exec tsx src/radar-cli.ts analista --importar docs/verificaciones/<hoy>-analista.json
+```
+
+El importador rearma el plan: un "no" deja entrar a la siguiente. Volvé a correr `--pendientes` y juzgá las líneas
+nuevas (como mucho tres vueltas). Todo veredicto queda guardado y el registro mide si los "no" acertaron.
+
 ### 4. Registrar
 
 Escribí `docs/verificaciones/<hoy>.md` con: cuántos símbolos se verificaron y revisaron, el dictamen de cada uno como lo

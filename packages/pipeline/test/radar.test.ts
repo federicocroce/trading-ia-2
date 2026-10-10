@@ -425,7 +425,8 @@ describe("plan: revisión antes de comprar (15/9)", () => {
     // escrita al lado de COMPRAR, con el mismo monto, y "por qué cambió" la lista como aviso.
     if (!antes.reviewsPending!.includes("SA")) expect.fail("el fixture tiene que poner a SA entre lo que se revisa");
     const sa = despues.lines.find((l) => l.symbol === "SA");
-    expect(sa?.avisos).toEqual(["la revisión antes de comprar encontró una objeción: vence su licencia en abril"]);
+    // Y desde el 10/10 también el veredicto del analista, que en el fixture todavía no corrió.
+    expect(sa?.avisos).toEqual(["la revisión antes de comprar encontró una objeción: vence su licencia en abril", "veredicto del analista pendiente"]);
     expect(sa?.amountUsd).toBe(antes.lines.find((l) => l.symbol === "SA")!.amountUsd);
     expect(despues.changes?.find((c) => c.symbol === "SA")).toMatchObject({ change: "aviso", cause: "la revisión antes de comprar encontró una objeción: vence su licencia en abril" });
     const entro = despues.lines.find((l) => l.kind === "comprar");

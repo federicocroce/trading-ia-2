@@ -211,6 +211,13 @@
       "when": 1791641586234,
       "tag": "0029_resultados_segunda_fuente",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791664179709,
+      "tag": "0030_veredictos_analista",
+      "breakpoints": true
     }
   ]
 }

@@ -76,6 +76,8 @@ import {
   topPicks,
   totalReturnPct,
   ordenMedido,
+  veredictosVigentes,
+  VEREDICTO_VIGENCIA_DIAS,
 } from "@thesis/core";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verificacionGuardada, verifyFor, type VerifyBudget } from "./radar-verify.js";
@@ -1327,6 +1329,9 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
     if (!v) return null;
     return { verdict: v.verdict, reason: v.reason, current: v.promptVersion === deps.verifier.promptVersion };
   };
+  // Veredictos del analista vigentes (10/10). Sin ninguno guardado nunca, igual se marca pendiente: es la verdad.
+  const veredictos = veredictosVigentes(await store.veredictosAnalista(addDays(hoy, -VEREDICTO_VIGENCIA_DIAS)).catch(() => []), hoy);
+  const analistaDe = (sym: string) => { const v = veredictos.get(sym.toUpperCase()); return v ? { veredicto: v.veredicto, criterio: v.criterio, motivo: v.motivo } : null; };
   const plan = planContribution(
     {
       month: opts.month,
@@ -1372,6 +1377,7 @@ export async function buildContributionPlan(deps: RadarDeps, opts: { month: stri
           overlap: overlap[c.symbol] ?? null,
           // Los ETFs no se revisan: no tienen hechos de una empresa que buscar.
           review: c.kind === "etf" ? undefined : reviewOf(c.symbol),
+          ...(c.kind === "etf" ? {} : { analista: analistaDe(c.symbol) }),
         })),
       coreEtfs: deps.etfs.filter((e) => e.role === "nucleo"),
       spyClose: candidates[0]?.spyClose ?? verdicts[0]?.spyClose ?? null,

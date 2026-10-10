@@ -1,4 +1,4 @@
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, EvaluadaRadar, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, EvaluadaRadar, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, NewsItem, Order, Outcome, PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, MacroAr, WatchEval, WatchItem, WatchSnapshot, VeredictoAnalista} from "@thesis/core";
 import { computeEdge, familyOf } from "@thesis/core";
 import { randomUUID } from "node:crypto";
 
@@ -147,6 +147,9 @@ export interface RadarStore {
   savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>): Promise<void>;
   /** Revisión antes de comprar (15/9): una por símbolo y por día. */
   savePreTradeReview(r: PreTradeReview): Promise<void>;
+  /** Veredictos del analista (10/10): uno por símbolo y día. */
+  saveVeredictosAnalista(vs: VeredictoAnalista[]): Promise<number>;
+  veredictosAnalista(desde: string): Promise<VeredictoAnalista[]>;
   preTradeReviews(date: string): Promise<PreTradeReview[]>;
   plansToMeasure(before: string): Promise<ContributionPlan[]>;
   updatePlanLines(month: string, lines: PlanLine[]): Promise<void>;
@@ -638,6 +641,14 @@ export class MemoryStore implements Store, CarteraStore, RadarStore, TickerStore
   async savePlanControles(month: string, controles: NonNullable<ContributionPlan["controles"]>) {
     const p = this.plans.get(month);
     if (p) this.plans.set(month, { ...p, controles });
+  }
+  private veredictos = new Map<string, VeredictoAnalista>();
+  async saveVeredictosAnalista(vs: VeredictoAnalista[]) {
+    for (const v of vs) this.veredictos.set(`${v.fecha}|${v.symbol.toUpperCase()}`, { ...v, symbol: v.symbol.toUpperCase() });
+    return vs.length;
+  }
+  async veredictosAnalista(desde: string) {
+    return [...this.veredictos.values()].filter((v) => v.fecha >= desde);
   }
   private reviews = new Map<string, PreTradeReview>();
   async savePreTradeReview(r: PreTradeReview) {

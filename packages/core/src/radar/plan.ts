@@ -2,6 +2,7 @@ import type { EntryTiming } from "./entry.js";
 import type { PlanChange, PlanSymbolInput } from "./plan-changes.js";
 import { firstTrancheFrom } from "./fomc.js";
 import { LIDERES_MAX } from "./orden-medido.js";
+import { textoNoDelAnalista, type CriterioAnalista } from "./analista.js";
 import type { MacroRegime } from "./regime.js";
 import type { AssetClass, EtfConfig, EtfRole, RadarPolicy } from "./types.js";
 
@@ -26,7 +27,7 @@ export interface PlanInput {
    *  `flags`: banderas del candidato; las de precio (`consenso_en_precio`, `subio_mucho_12m`) tampoco entran como nueva.
    *  `atr`: ATR de 14 ruedas al día de la fila, para medir si el stop quedó dentro del ruido (ver `noiseBlock`).
    *  `overlap`: la posición tuya con la que más se mueve; desde `OVERLAP_BLOCK_CORR` no entra como nueva. */
-  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined; /** Si ya la tenés, qué dice Cartera hoy: con REVISAR o VENDER el plan no la compra como nueva (18/9). */ cartera?: { verb: string; reason: string } | null; /** Orden medido (10/10, ver `ordenMedido`): por qué no entra como nueva, vacío si entra. */ noElegible?: string; /** Líder en retroceso: va primero, con tope, y no lo frena haber subido más de 100%. */ lider?: boolean; /** La convicción de verdad, para el texto (10/10): `priority` es el orden (a un líder se le suma 100) y mostrado como convicción decía 101,36. */ conviccion?: number | null }>;
+  buyCandidates: Array<{ symbol: string; kind: "stock" | "etf" | "watch"; priority: number | null; score: number | null; sizeUsd: number | null; close: number; entryLow?: number | null; entryHigh?: number | null; stop?: number | null; target?: number | null; cautions?: string[]; verification?: PlanVerification | null | undefined; flags?: string[]; entry?: PlanLine["entry"]; atr?: number | null; overlap?: { with: string; corr: number } | null; review?: PlanReview | null | undefined; /** Si ya la tenés, qué dice Cartera hoy: con REVISAR o VENDER el plan no la compra como nueva (18/9). */ cartera?: { verb: string; reason: string } | null; /** Orden medido (10/10, ver `ordenMedido`): por qué no entra como nueva, vacío si entra. */ noElegible?: string; /** Líder en retroceso: va primero, con tope, y no lo frena haber subido más de 100%. */ lider?: boolean; /** La convicción de verdad, para el texto (10/10): `priority` es el orden (a un líder se le suma 100) y mostrado como convicción decía 101,36. */ conviccion?: number | null; /** Veredicto del analista (10/10, ver `analista.ts`). `null` = pendiente (entra con aviso); `undefined` = sin analista (no se exige). */ analista?: { veredicto: "si" | "no"; criterio: string | null; motivo: string } | null }>;
   /** Régimen macro (pieza 4): con régimen restrictivo una parte del aporte va a letras del Tesoro antes que nada. */
   regime?: MacroRegime | null;
   /**
@@ -508,6 +509,13 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
         leftOut.push({ symbol: b.symbol, reason: `${place}: ${blocker}` });
         return;
       }
+      // El "no" del analista (10/10): decisión del dueño, "la app siempre tiene que tener tu último veredicto". Va después de
+      // las reglas medidas y fijas (el motivo que se muestra es el primero que vale) y antes de la verificación. No deja
+      // lugar vacío: lo toma la siguiente que cumple.
+      if (pool.kind !== "etf" && b.analista?.veredicto === "no") {
+        leftOut.push({ symbol: b.symbol, reason: `${place}: ${textoNoDelAnalista({ criterio: b.analista.criterio as CriterioAnalista | null, motivo: b.analista.motivo })}` });
+        return;
+      }
       // El stop dentro del ruido (APH, 14/9) o una posición que se mueve como algo que ya tenés (GFI con NEM): no entra,
       // y el lugar no lo toma la siguiente sin verificar ni un ETF: va al núcleo. El ruido se mide contra lo más bajo
       // que se puede pagar, el piso de la franja (15/9: PAM esperaba un retroceso a 81,96–82,79 con el stop en 81,88;
@@ -565,7 +573,7 @@ export function planContribution(i: PlanInput, c: RadarPolicy["contribution"], o
       if (pool.kind !== "etf") {
         if (faltaVerificar(b.verification)) porVerificar.push(b.symbol);
         if (b.review === null) pendientes.push(b.symbol);
-        avisosDe.set(b.symbol, [...avisosDeFila(b.flags), ...avisosDeIa(b.verification, b.review)]);
+        avisosDe.set(b.symbol, [...avisosDeFila(b.flags), ...avisosDeIa(b.verification, b.review), ...(b.analista === null ? ["veredicto del analista pendiente"] : [])]);
       }
       chosen.push(b);
       if (pool.kind === "stock") placeOf.set(b.symbol, `${idx + 1}° por orden medido de ${queue.length} COMPRAR del Radar${b.lider ? " (líder en retroceso)" : ""}`);

@@ -287,6 +287,21 @@ export const pretradeReviews = pgTable(
   },
   (t) => [primaryKey({ columns: [t.symbol, t.reviewDate] })],
 );
+/** Veredicto del analista sobre cada línea del plan (10/10): uno por símbolo y día. Ver core/radar/analista.ts. */
+export const veredictosAnalista = pgTable(
+  "veredictos_analista",
+  {
+    fecha: date("fecha").notNull(),
+    symbol: text("symbol").notNull(),
+    veredicto: text("veredicto").notNull(),
+    criterio: text("criterio"),
+    motivo: text("motivo").notNull(),
+    fuente: jsonb("fuente"),
+    version: text("version").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.fecha, t.symbol] })],
+);
 export const radarVerifications = pgTable("radar_verifications", {
   symbol: text("symbol").primaryKey(),
   date: date("date").notNull(),

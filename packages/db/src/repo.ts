@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, lt, notInArray, sql, lte } from "drizzle-orm";
-import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, EvaluadaRadar, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
+import type { AnalystAction, Candle, CandidateRow, CandidateVerification, ContributionPlan, EvaluadaRadar, PreTradeReview, Fundamentals, HechoExterno, HechoTipo, MacroAr, NewsItem, Order, Outcome,PlanLine, Position, RadarEvent, RawEvent, RiskReport, ScanStage, Statements, SymbolDescription, SymbolProfile, Tags, Thesis, ThesisProposal, Transaction, UsageCall, UsageResult, VerdictRow, VeredictoAnalista, WatchEval, WatchItem, WatchSnapshot } from "@thesis/core";
 import { CANDIDATE_FAMILIES, computeEdge } from "@thesis/core";
 import type { Db } from "./index.js";
 import * as s from "./schema.js";
@@ -593,6 +593,17 @@ export class Repo {
     return r ? this.rowToPlan(r) : null;
   }
   /** Revisión antes de comprar (15/9): una por símbolo y por día; la última del día manda. */
+  async saveVeredictosAnalista(vs: VeredictoAnalista[]): Promise<number> {
+    for (const v of vs) {
+      const row = { fecha: v.fecha, symbol: v.symbol.toUpperCase(), veredicto: v.veredicto, criterio: v.criterio, motivo: v.motivo, fuente: v.fuente, version: v.version };
+      await this.db.insert(s.veredictosAnalista).values(row).onConflictDoUpdate({ target: [s.veredictosAnalista.fecha, s.veredictosAnalista.symbol], set: { ...row, createdAt: new Date() } });
+    }
+    return vs.length;
+  }
+  async veredictosAnalista(desde: string): Promise<VeredictoAnalista[]> {
+    const rows = await this.db.select().from(s.veredictosAnalista).where(gte(s.veredictosAnalista.fecha, desde));
+    return rows.map((r) => ({ fecha: String(r.fecha), symbol: r.symbol, veredicto: r.veredicto as VeredictoAnalista["veredicto"], criterio: (r.criterio as VeredictoAnalista["criterio"]) ?? null, motivo: r.motivo, fuente: (r.fuente as VeredictoAnalista["fuente"]) ?? null, version: r.version }));
+  }
   async savePreTradeReview(r: PreTradeReview): Promise<void> {
     const v = { symbol: r.symbol.toUpperCase(), reviewDate: r.date, verdict: r.verdict, reason: r.reason, sources: r.sources, researchText: r.researchText, model: r.model, promptVersion: r.promptVersion };
     await this.db.insert(s.pretradeReviews).values(v).onConflictDoUpdate({ target: [s.pretradeReviews.symbol, s.pretradeReviews.reviewDate], set: { ...v, createdAt: new Date() } });

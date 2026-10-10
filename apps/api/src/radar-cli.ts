@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
-import { SIM_CALENTAMIENTO, medirConviccion, medirFrenos, revisarCorrida, simular, todayLocal } from "@thesis/core";
-import { buildContributionPlan, checkRun, medirCadenas, explorarMercado, importarDelAgente, importarHechos, pendientesDelAgente, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
+import { CRITERIOS_ANALISTA, SIM_CALENTAMIENTO, medirConviccion, medirFrenos, revisarCorrida, simular, todayLocal } from "@thesis/core";
+import { buildContributionPlan, checkRun, importarVeredictos, medirCadenas, explorarMercado, importarDelAgente, importarHechos, pendientesDelAgente, measureRadar, medirPares, porQueNoEsta, rankRadar, refreshArgentina, refreshRadar, refreshWatchlist, replan, scanUniverse, verifyFor, withUsageStep, type VerifyBudget } from "@thesis/pipeline";
 import { loadConfig, findRoot } from "./config.js";
 import { buildContainer } from "./container.js";
 
@@ -16,7 +16,7 @@ process.on("SIGINT", () => { stop = true; console.log("\n[radar] deteniendo al t
 const deps = { ...c.radarDeps, shouldStop: () => stop, onProgress: (p: { done: number; total: number; stage: string }) => console.log(`[radar] ${p.stage}: ${p.done}/${p.total}`) };
 
 // El registro de uso atribuye cada pedido al mismo paso que en "ponerme al día" (scan/rank → scan; refresh/measure → radar).
-const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", porque: "radar", pares: "radar", frenos: "radar", simular: "radar", conviccion: "radar", guardia: "radar", reverificar: "radar", verificar: "agente", cadenas: "radar" };
+const STEP: Record<string, string> = { scan: "scan", rank: "scan", refresh: "radar", measure: "radar", watchlist: "radar", plan: "plan", argentina: "argentina", consistencia: "radar", "verificar-cartera": "cartera", mercado: "radar", hechos: "radar", porque: "radar", pares: "radar", frenos: "radar", simular: "radar", conviccion: "radar", guardia: "radar", reverificar: "radar", verificar: "agente", cadenas: "radar", analista: "agente" };
 let code = 0;
 await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
   if (cmd === "scan") console.log(await scanUniverse(deps, { scanDate: today, today }));
@@ -183,6 +183,34 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
     else for (const l of await porQueNoEsta(deps, sym, today)) console.log(`[porque] ${l}`);
   }
   else if (cmd === "argentina") { const r = await refreshArgentina(c.argentinaDeps, { today }); console.log(JSON.stringify({ macro: r.macro, acciones: r.acciones, cedears: r.cedears, errors: r.errors }, null, 2)); }
+  // analista --pendientes | --importar archivo.json (10/10): el veredicto del analista sobre cada línea del plan. Con
+  // --pendientes imprime las líneas a juzgar con lo que hace falta para aplicar los criterios; con --importar los carga
+  // (un "no" sin criterio de la lista o sin fuente se rechaza) y rearma el plan.
+  else if (cmd === "analista") {
+    if (process.argv.includes("--pendientes")) {
+      const plan = await c.store.latestPlan();
+      const filas = new Map((await c.store.latestCandidates()).map((r) => [r.symbol.toUpperCase(), r]));
+      const cad = cfg.radar.cadenas;
+      const eslabonDe = (s: string) => cad.cadenas.flatMap((t) => t.eslabones.filter((e) => e.simbolos.includes(s)).map((e) => e.id));
+      const lineas = (plan?.lines ?? []).filter((l) => l.kind === "comprar" || l.kind === "seguimiento");
+      const out = [];
+      for (const l of lineas) {
+        const f = await c.store.fundamentals(l.symbol).catch(() => null);
+        const r = filas.get(l.symbol.toUpperCase());
+        out.push({ symbol: l.symbol, monto: l.amountUsd, cierre: r?.close ?? null, stop: r?.stop ?? null, objetivo: r?.target ?? null, banderas: r?.flags ?? [], pe: (f?.metrics as Record<string, number | null> | undefined)?.["peTTM"] ?? null, crecimientoIngresos: (f?.metrics as Record<string, number | null> | undefined)?.["revenueGrowthTTMYoy"] ?? null, insiders90d: f ? { compras: f.insiderBuys90d, ventas: f.insiderSells90d } : null, eslabones: eslabonDe(l.symbol), proximosResultados: f ? [f.nextEarnings, f.nextEarningsAlt ?? null].filter(Boolean) : [] });
+      }
+      console.log(JSON.stringify({ fecha: today, criterios: CRITERIOS_ANALISTA, lineas: out }, null, 2));
+    } else {
+      const i = process.argv.indexOf("--importar");
+      const archivo = i > 0 ? process.argv[i + 1] : undefined;
+      if (!archivo) { console.error("uso: tsx src/radar-cli.ts analista --pendientes | --importar archivo.json"); code = 1; }
+      else {
+        const r = await importarVeredictos(c.store, JSON.parse(await readFile(path.resolve(process.env["INIT_CWD"] ?? process.cwd(), archivo), "utf8")), { version: "analista-1" });
+        console.log(JSON.stringify(r, null, 2));
+        if (r.guardados) await replan(deps, { today, portfolioUsd }).catch((e: unknown) => { console.error("[plan] no se pudo rearmar", e); return null; });
+      }
+    }
+  }
   // cadenas [--salida archivo.json]: precio y hechos vigentes de cada eslabón (10/10). Solo lectura (baja velas que falten).
   // Lo lee el agente de /cadenas para poner el signo de un hecho con el precio medido.
   else if (cmd === "cadenas") {
@@ -208,7 +236,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       if (r.guardados === 0) code = 1;
     }
   }
-  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | guardia | frenos [7|30|90] | simular [ruedas] | conviccion [7|30|90] | reverificar SÍMBOLO [--buscar] | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...] | hechos --importar archivo.json [--origen agente|manual] | cadenas [--salida archivo.json] | porque SÍMBOLO | pares"); code = 1; }
+  else { console.error("uso: tsx src/radar-cli.ts scan | rank | refresh | watchlist | plan | measure | argentina | consistencia | guardia | frenos [7|30|90] | simular [ruedas] | conviccion [7|30|90] | reverificar SÍMBOLO [--buscar] | verificar-cartera [n] | mercado [--preselect N] [--top N] [--sin-estados] [--guardar] [--salida archivo] [SÍMBOLOS...] | hechos --importar archivo.json [--origen agente|manual] | cadenas [--salida archivo.json] | analista --pendientes | --importar archivo.json | porque SÍMBOLO | pares"); code = 1; }
 });
 // Lo encolado por el registro de uso se escribe antes de salir: process.exit no espera al volcado.
 await c.usage?.flush();

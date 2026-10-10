@@ -34,3 +34,4 @@ export * from "./simulacion.js";
 export * from "./medir-conviccion.js";
 export * from "./cadenas.js";
 export * from "./orden-medido.js";
+export * from "./analista.js";
