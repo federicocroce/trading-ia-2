@@ -1,5 +1,5 @@
 import { decideCandidate, rankStocks, type Candle, type CandidateDecision, type CoreEarnings, type EntryTiming, type Fundamentals, type HechoExterno } from "@thesis/core";
-import { candlesFor, hechosDe, heldSymbols, universoDelRanking, withStatements, type RadarDeps } from "./radar.js";
+import { candlesFor, hechosDe, heldSymbols, universoDelRanking, withStatements, type RadarDeps, calendarioDeResultados, conCalendario } from "./radar.js";
 
 /**
  * El embudo del mercado (`/mercado`, 16/9): las MISMAS reglas de la app sobre todo el universo, no sobre las 40 filas
@@ -111,6 +111,7 @@ export async function explorarMercado(
   const coreOf = (sym: string): CoreEarnings | null | undefined => (deps.statements && conEstados ? (cores.get(sym) ?? null) : undefined);
 
   const { candles, errors } = await candlesFor(deps, lista);
+  const calMercado = await calendarioDeResultados(deps, opts.today);
   for (const e of errors) descartadas.push({ symbol: e.symbol, etapa: "velas", motivo: `sin velas: ${e.error.slice(0, 120)}` });
 
   const filas: FilaMercado[] = [];
@@ -126,7 +127,8 @@ export async function explorarMercado(
     }
     conVelas++;
     const r = porSimbolo.get(sym);
-    const f = all.get(sym) ?? (await store.fundamentals(sym).catch(() => null)) ?? sinFundamentales(sym, c[c.length - 1]!.close);
+    // Con la fecha de Nasdaq (10/10), igual que el Radar: el informe no puede decidir con otra regla.
+    const f = conCalendario(all.get(sym) ?? (await store.fundamentals(sym).catch(() => null)) ?? sinFundamentales(sym, c[c.length - 1]!.close), calMercado.fechas);
     const core = coreOf(sym);
     // Igual que el ranking (17/9): formularios de oferta y hechos externos para cada símbolo con velas. Nada se escribe.
     filingsTotal++;

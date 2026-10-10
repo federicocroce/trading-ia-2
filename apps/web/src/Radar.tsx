@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { filasDeLideres } from "./lideres";
 import { riesgoPaisFechas } from "./macroAr";
 import { controlesBloquean, gravesDelPlan, instruccionRadar, planLoCompra, planStatusFor } from "./instruccion";
+import { fechaDeResultados } from "./resultados";
 import { baseCandidata, baseLinea, pctDesde, qtyLinea, riesgoLinea, tramoLinea, type Base } from "./orden";
 import { InstruccionChip, RadarVerdict, invalidatePlan } from "./plan";
 import { api, isHistorical, type ArgentinaData, type Candidate, type PlanChange, type PlanLine, type Watchlist, type CandidateDetail, type ContributionPlan, type MacroAr, type GrupoMedicion, type Horizonte, type RadarMeasurement, type RadarTop, type ScanStatus, type TaxonomyOptions } from "./api";
@@ -293,7 +294,7 @@ function CandRow({ c, plan, ten, open, onToggle, editing, onEdit, onSaved }: { c
               <>
                 {detail.fundamentals && (
                   <div className="muted mono" style={{ marginTop: 6 }}>
-                    cap. {money(detail.fundamentals.mcapUsd)} · volumen {money(detail.fundamentals.dollarVolumeUsd)}/día · próximos resultados {detail.fundamentals.nextEarnings ?? "—"} · insiders 90d compras {detail.fundamentals.insiderBuys90d ?? "—"} / ventas {detail.fundamentals.insiderSells90d ?? "—"}
+                    cap. {money(detail.fundamentals.mcapUsd)} · volumen {money(detail.fundamentals.dollarVolumeUsd)}/día · próximos resultados {fechaDeResultados(detail.fundamentals.nextEarnings, detail.fundamentals.nextEarningsAlt) ?? "—"} · insiders 90d compras {detail.fundamentals.insiderBuys90d ?? "—"} / ventas {detail.fundamentals.insiderSells90d ?? "—"}
                     {detail.fundamentals.analyst && ` · analistas: ${detail.fundamentals.analyst.strongBuy + detail.fundamentals.analyst.buy} compran, ${detail.fundamentals.analyst.hold} mantienen, ${detail.fundamentals.analyst.sell + detail.fundamentals.analyst.strongSell} venden`}
                     {detail.fundamentals.earningsSurprises?.length ? ` · sorpresas: ${detail.fundamentals.earningsSurprises.map(sorpresaTexto).join(", ")}` : ""}
                   </div>

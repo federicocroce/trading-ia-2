@@ -1,6 +1,6 @@
 import type { Candle, CandidateRow, Fundamentals, VerificationSummary, WatchItem } from "@thesis/core";
 import { PLAN_BLOCKERS, computeTrailingStop, decideCandidate, rankStocks, resolveWatchStatus, riskScore } from "@thesis/core";
-import { hechosDe, pruneFamilias, tagSymbol, universoDelRanking, type RadarDeps } from "./radar.js";
+import { calendarioDeResultados, conCalendario, hechosDe, pruneFamilias, tagSymbol, universoDelRanking, type RadarDeps } from "./radar.js";
 import { scanEventsFor, type EventScan } from "./radar-events.js";
 import { VERIFY_PER_RUN_DEFAULT, verificacionGuardada, verifyFor, type VerifyBudget } from "./radar-verify.js";
 
@@ -68,6 +68,10 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
   // El mismo universo que el ranking, con la frescura contada desde el barrido (15/9): contada desde hoy, a mitad de
   // semana los pares se quedaban sin fundamentales y el rank de cada ticker seguido salía contra un grupo vacío.
   const { all } = await universoDelRanking(deps, opts.today);
+  // Segunda fuente de la fecha de resultados (10/10). Las filas de seguimiento son líneas del plan (EME el 10/10) y
+  // no pasan por el refresco del Radar: sin esto, su regla de "resultados cerca" miraba solo Finnhub.
+  const cal = await calendarioDeResultados(deps, opts.today);
+  if (cal.aviso) errors.push({ symbol: "*", error: cal.aviso });
   const byRank = new Map(rankStocks(all, policy.weights).ranked.map((r) => [r.symbol, r]));
 
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
@@ -97,7 +101,9 @@ export async function refreshWatchlist(deps: RadarDeps, opts: { today: string; p
         continue;
       }
       // Lo que está fuera del universo del barrido igual usa sus propias fundamentales guardadas (industria, métricas).
-      const f = all.get(sym) ?? (await store.fundamentals(sym).catch(() => null)) ?? stubFundamentals(sym, close);
+      const f0 = all.get(sym) ?? (await store.fundamentals(sym).catch(() => null)) ?? stubFundamentals(sym, close);
+      const f = conCalendario(f0, cal.fechas);
+      if (f0.asOf && f.nextEarningsAlt !== (f0.nextEarningsAlt ?? null)) await store.saveFundamentals(f).catch(() => {});
       const prev = previous.find((p) => p.symbol === sym);
       const nth = prev ? (prev.candidateDate === opts.today ? prev.nthAppearance : prev.nthAppearance + 1) : 1;
       // Noticias y analistas, igual que una candidata del ranking. Faltaban: los 15 símbolos de seguimiento

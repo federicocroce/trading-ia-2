@@ -15,6 +15,7 @@ import { PeersTable } from "./Peers";
 import { CarteraVerdict, RadarVerdict, usePlan } from "./plan";
 import { instruccionCartera, planLoCompra, planStatusFor } from "./instruccion";
 import { lineaSumar, vistaFila } from "./carteraVista";
+import { fechaDeResultados } from "./resultados";
 import { chipDeCabecera } from "./cabecera";
 
 const f2 = (n: number | null | undefined, d = 2) => (n === null || n === undefined || !Number.isFinite(n) ? "—" : n.toFixed(d));
@@ -181,7 +182,7 @@ export function Ticker({ symbol, onBack }: { symbol: string; onBack: () => void 
               <div className="kpi"><b>{f2(m["beta"])}</b><span>beta</span></div>
               <div className="kpi"><b>{f2(m["52WeekLow"], 0)} – {f2(m["52WeekHigh"], 0)}</b><span>rango 52 semanas</span></div>
               <div className="kpi"><b>{big(t.fundamentals.dollarVolumeUsd)}</b><span>volumen / día</span></div>
-              {t.fundamentals.nextEarnings && <div className="kpi"><b>{t.fundamentals.nextEarnings}</b><span>próximos resultados</span></div>}
+              {fechaDeResultados(t.fundamentals.nextEarnings, t.fundamentals.nextEarningsAlt) && <div className="kpi"><b>{fechaDeResultados(t.fundamentals.nextEarnings, t.fundamentals.nextEarningsAlt)}</b><span>próximos resultados</span></div>}
             </div>
           ) : <div className="muted" style={{ marginTop: 8 }}>Sin fundamentals: el símbolo no está en el universo del Radar (corré un barrido) o no pasó el quality bar.</div>}
         </div>

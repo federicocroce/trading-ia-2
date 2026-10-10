@@ -122,6 +122,11 @@ export interface RadarDeps {
   verifier?: CandidateVerifier | null;
   /** Revisión antes de comprar (15/9): segunda búsqueda sobre lo que el plan compraría. null = sin revisor, no se exige. */
   reviewer?: PreTradeReviewer | null;
+  /**
+   * Calendario de resultados de Nasdaq (10/10): la segunda fuente de la fecha de resultados, además de Finnhub. Uno por
+   * corrida. null = sin segunda fuente: la regla usa solo Finnhub.
+   */
+  earningsCalendar?: ((from: string) => Promise<{ fechas: Map<string, string>; diasFallidos: number }>) | null;
   log?: (msg: string, extra?: unknown) => void;
   onProgress?: (s: { done: number; total: number; stage: string }) => void;
   shouldStop?: () => boolean;
@@ -338,6 +343,32 @@ export interface RankSummary {
  * El 15/9 se contaban desde hoy: las del barrido del 7/9 (el del 13/9 no las volvió a pedir porque tenían 6 días)
  * quedaron viejas a mitad de semana, y un ranking tomó 37 empresas en vez de 2.724: el Radar pasó de 38 acciones a 5.
  */
+/**
+ * El calendario de Nasdaq de la corrida (10/10), memorizado por día: el refresco lo pide para sus filas y otra vez al
+ * sumar las nuevas, y son ~50 pedidos. Si falla o queda incompleto, `aviso` lo dice y la regla sigue con Finnhub; lo
+ * que no puede pasar es que "sin fecha" se lea como "no reporta" sin que nadie lo sepa.
+ */
+const calendarios = new WeakMap<object, { today: string; fechas: Map<string, string> | null; aviso: string | null }>();
+export async function calendarioDeResultados(deps: Pick<RadarDeps, "earningsCalendar">, today: string): Promise<{ fechas: Map<string, string> | null; aviso: string | null }> {
+  const fuente = deps.earningsCalendar;
+  if (!fuente) return { fechas: null, aviso: null };
+  const guardado = calendarios.get(fuente);
+  if (guardado?.today === today) return guardado;
+  let r: { today: string; fechas: Map<string, string> | null; aviso: string | null };
+  try {
+    const { fechas, diasFallidos } = await fuente(today);
+    r = { today, fechas, aviso: diasFallidos ? `calendario de resultados de Nasdaq: ${diasFallidos} días sin respuesta; esas fechas quedan solo con Finnhub` : null };
+  } catch (e) {
+    r = { today, fechas: null, aviso: `calendario de resultados de Nasdaq no respondió (${String(e).slice(0, 120)}): la regla de resultados usa solo Finnhub` };
+  }
+  calendarios.set(fuente, r);
+  return r;
+}
+/** La fundamental con la fecha de Nasdaq puesta. Sin calendario (falló) queda la que tenía guardada. */
+export function conCalendario(f: Fundamentals, fechas: Map<string, string> | null): Fundamentals {
+  return fechas ? { ...f, nextEarningsAlt: fechas.get(f.symbol.toUpperCase()) ?? null } : f;
+}
+
 export async function universoDelRanking(deps: Pick<RadarDeps, "store">, today: string): Promise<{ all: Map<string, Fundamentals>; scanDate: string | null; scanOk: number; prefiltrado: number; pendientes: number }> {
   const scanDate = await deps.store.latestScanDate();
   const fresh = await deps.store.freshFundamentals(FRESH_DAYS, scanDate && scanDate < today ? scanDate : today);
@@ -649,6 +680,10 @@ export async function rankRadar(deps: RadarDeps, opts: { today: string; portfoli
   if (spy.length) await store.upsertCandles("SPY", spy).catch(() => {});
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const { candles, errors } = await candlesFor(deps, preConPuerta.map((r) => r.symbol));
+  // Segunda fuente de la fecha de resultados (10/10): a todo el universo, antes de evaluar.
+  const cal = await calendarioDeResultados(deps, opts.today);
+  if (cal.aviso) errors.push({ symbol: "*", error: cal.aviso });
+  if (cal.fechas) for (const [sym, f] of all) all.set(sym, conCalendario(f, cal.fechas));
   const verifyBudget: VerifyBudget = { left: policy.candidates.verifyPerRun ?? VERIFY_PER_RUN_DEFAULT };
 
   // Filtro técnico sobre TODA la pre-selección: entran las `top` mejores por puntaje y, además, cualquier COMPRAR
@@ -759,6 +794,8 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
   const spy = await deps.history.candles("SPY", HISTORY_DAYS).catch(() => [] as Candle[]);
   const spyClose = spy[spy.length - 1]?.close ?? null;
   const { candles, errors } = await candlesFor(deps, latest.map((c) => c.symbol));
+  const cal = await calendarioDeResultados(deps, opts.today);
+  if (cal.aviso) errors.push({ symbol: "*", error: cal.aviso });
   const needCards = deps.cardWriter && latest.some((c) => c.kind === "stock" && c.summary === null);
   const ranked = needCards ? new Map(rankStocks(await rankableFundamentals(deps, opts.today), policy.weights).ranked.map((r) => [r.symbol, r])) : null;
   const rows: CandidateRow[] = [];
@@ -782,7 +819,10 @@ export async function refreshRadar(deps: RadarDeps, opts: { today: string; portf
       rows.push({ ...prev, candidateDate: opts.today, verdict: d.verdict, close: d.close, entry: d.entry, entryLow: d.entry?.low ?? d.close, entryHigh: d.entry?.high ?? Math.round(d.close * 102) / 100, stop: d.stop, target: d.target, flags: [...d.reasons, ...d.limitations], axes: { rs3m: d.rs3m, rs6m: d.rs6m, rs12m: d.rs12m, distSma200Pct: d.distSma200Pct, atrPct: d.atrPct }, spyClose, close7d: null, spy7d: null, alpha7dPct: null, close30d: null, spy30d: null, alpha30dPct: null, close90d: null, spy90d: null, alpha90dPct: null, measuredAt: null });
       continue;
     }
-    const f = await store.fundamentals(prev.symbol);
+    const fGuardada = await store.fundamentals(prev.symbol);
+    // Con la fecha de Nasdaq al día (10/10). Si cambió, se guarda para que la ficha muestre las dos fuentes.
+    const f = fGuardada ? conCalendario(fGuardada, cal.fechas) : null;
+    if (fGuardada && f && f.nextEarningsAlt !== (fGuardada.nextEarningsAlt ?? null)) await store.saveFundamentals(f).catch(() => {});
     if (!f) {
       // Salió del universo (7/10). Antes esto solo se anotaba como error y la fila VIEJA quedaba en el Radar con su
       // veredicto de la corrida anterior: BSTZ, un fondo cerrado que dejó de ser elegible, seguía como COMPRAR y
@@ -1002,6 +1042,8 @@ async function sumarNuevasDelDia(deps: RadarDeps, ctx: ContextoFila, latest: Can
   const log = deps.log ?? (() => {});
   const { policy, store } = deps;
   const { all, scanDate, prefiltrado, pendientes } = await universoDelRanking(deps, ctx.today);
+  const cal = await calendarioDeResultados(deps, ctx.today);
+  if (cal.fechas) for (const [sym, f] of all) all.set(sym, conCalendario(f, cal.fechas));
   // Mismas dos puertas que el ranking: con el barrido a medio hacer (5/10) o el universo roto (15/9), el refresco
   // tampoco suma filas nuevas, porque saldrían de medio abecedario.
   const cobDia = await coberturaDelBarrido(deps, scanDate);

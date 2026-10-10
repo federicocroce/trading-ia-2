@@ -16,6 +16,10 @@ export interface Fundamentals {
   dollarVolumeUsd: number;
   priceUsd: number;
   nextEarnings: string | null;
+  /** Fecha de resultados según el calendario de Nasdaq (10/10). Finnhub erraba en un tercio de los símbolos en la
+   *  mira (DXCM 22/10 contra el 29/10 de la empresa; NEM sin fecha). La regla frena si CUALQUIERA de las dos cae en la
+   *  ventana: tomar la más temprana destrabaría la compra pasada la fecha errónea, justo antes de la real. */
+  nextEarningsAlt?: string | null;
   insiderBuys90d: number | null;
   insiderSells90d: number | null;
   analyst: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null;

@@ -142,7 +142,7 @@ export interface TechnicalGate {
   atrPct: number | null;
 }
 
-export function technicalGate(candles: Candle[], p: RadarPolicy["technical"], nextEarnings: string | null, today: string, regime?: MacroRegime | null): TechnicalGate {
+export function technicalGate(candles: Candle[], p: RadarPolicy["technical"], nextEarnings: string | null | ReadonlyArray<string | null | undefined>, today: string, regime?: MacroRegime | null): TechnicalGate {
   const close = candles[candles.length - 1]?.close ?? Number.NaN;
   const s200 = sma(candles, 200);
   const r21 = returnPct(candles, 21);
@@ -159,10 +159,14 @@ export function technicalGate(candles: Candle[], p: RadarPolicy["technical"], ne
   // El techo depende del régimen (7/10, ver MAX_RETORNO_21D_NEUTRAL). Sin régimen, el angosto.
   const techo21 = regime && regime.state !== "restrictivo" ? Math.max(p.maxReturn21dPct, MAX_RETORNO_21D_NEUTRAL) : p.maxReturn21dPct;
   if (r21 !== null && r21 > techo21) reasons.push("no_perseguir");
-  if (nextEarnings) {
-    const days = (Date.parse(nextEarnings) - Date.parse(today)) / DAY;
-    if (days >= 0 && days <= p.earningsWithinDays) reasons.push("resultados_cerca");
-  }
+  // Con dos fuentes (10/10), frena si CUALQUIERA cae en la ventana. DXCM: Finnhub 22/10, la empresa 29/10. Con la más
+  // temprana, la app frenaba hasta el 22 y del 23 al 29 dejaba comprar, justo antes de los resultados reales.
+  const fechas = (typeof nextEarnings === "string" || nextEarnings === null ? [nextEarnings] : [...nextEarnings]).filter((x): x is string => !!x);
+  const cerca = fechas.some((d) => {
+    const days = (Date.parse(d) - Date.parse(today)) / DAY;
+    return days >= 0 && days <= p.earningsWithinDays;
+  });
+  if (cerca) reasons.push("resultados_cerca");
   return { status: reasons.length ? "observar" : "ok", reasons, close, sma200: s200, return21dPct: r21, atrPct: a };
 }
 
@@ -410,7 +414,7 @@ export function decideCandidate(
   },
   p: Pick<RadarPolicy, "technical" | "sizing" | "candidates">,
 ): CandidateDecision | { excluded: true; reasons: string[] } {
-  const gate = technicalGate(i.candles, p.technical, i.f.nextEarnings, i.today, i.regime ?? null);
+  const gate = technicalGate(i.candles, p.technical, [i.f.nextEarnings, i.f.nextEarningsAlt], i.today, i.regime ?? null);
   if (gate.status === "excluido") return { excluded: true, reasons: gate.reasons };
   const flags = buildFlags(i.f, gate, i.nthAppearance, p.candidates.chronicWeeks, {
     ...(i.core !== undefined ? { core: i.core } : {}),

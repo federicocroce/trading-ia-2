@@ -249,6 +249,8 @@ export const fundamentals = pgTable("fundamentals", {
   dollarVolumeUsd: numeric("dollar_volume_usd", { precision: 20, scale: 0 }).notNull(),
   priceUsd: numeric("price_usd", { precision: 14, scale: 4 }).notNull(),
   nextEarnings: date("next_earnings"),
+  /** Fecha de resultados según el calendario de Nasdaq (10/10): la segunda fuente. Ver migración 0029. */
+  nextEarningsAlt: date("next_earnings_alt"),
   insiderBuys90d: integer("insider_buys_90d"),
   insiderSells90d: integer("insider_sells_90d"),
   analyst: jsonb("analyst"),

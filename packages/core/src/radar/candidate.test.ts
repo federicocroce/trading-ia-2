@@ -30,6 +30,15 @@ describe("technicalGate", () => {
     expect(technicalGate(up, tech, "2026-05-25", today)).toMatchObject({ status: "observar", reasons: ["resultados_cerca"] });
     expect(technicalGate(up, tech, "2026-07-01", today).status).toBe("ok");
   });
+  it("DXCM del 10/10: con dos fuentes frena si CUALQUIERA cae en la ventana, aunque la otra ya haya pasado", () => {
+    // Hoy 19/5. Finnhub dice una fecha que ya pasó (como el 22/10 de DXCM visto el 23/10) y Nasdaq la real en 6 días.
+    expect(technicalGate(up, tech, ["2026-05-12", "2026-05-25"], today)).toMatchObject({ status: "observar", reasons: ["resultados_cerca"] });
+    // Y al revés: la de Finnhub cerca y la de Nasdaq lejos también frena (no se sabe cuál acierta).
+    expect(technicalGate(up, tech, ["2026-05-25", "2026-07-01"], today).reasons).toContain("resultados_cerca");
+    // Las dos lejos, o ninguna, no frena.
+    expect(technicalGate(up, tech, ["2026-07-01", "2026-07-08"], today).status).toBe("ok");
+    expect(technicalGate(up, tech, [null, undefined], today).status).toBe("ok");
+  });
   it("< 200 velas → excluido sin_historial", () => {
     expect(technicalGate(up.slice(-100), tech, null, today)).toMatchObject({ status: "excluido", reasons: ["sin_historial"] });
   });
