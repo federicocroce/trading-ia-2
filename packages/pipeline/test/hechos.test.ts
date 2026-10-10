@@ -37,3 +37,30 @@ describe("importarHechos", () => {
     expect(r.rechazados[0]?.motivo).toMatch(/hechos/);
   });
 });
+
+describe("hechos por eslabón (10/10)", () => {
+  const cadenas = { revisado: "2026-10-10", cadenas: [{ id: "ia", nombre: "IA", eslabones: [{ id: "ia.memoria", nombre: "memoria", simbolos: ["MU", "SNDK", "WDC"] }] }] };
+  const porEslabon = (eslabon: string) => ({ tipo: "sector", eslabon, fecha: "2026-09-30", fuente: { url: "https://www.sec.gov/mu-8k", titulo: "Micron, 8-K" }, valor: { ambito: "memoria", titulo: "Micron factura 133.190 M", detalle: "dato del mayor fabricante", sesgo: "a_favor" } });
+
+  it("un hecho escrito sobre un eslabón se expande a una fila por acción, con el eslabón anotado", async () => {
+    const s = new MemoryStore();
+    const r = await importarHechos(s, { hechos: [porEslabon("ia.memoria")] }, { ...o, cadenas });
+    expect(r).toMatchObject({ guardados: 3, verificados: 3, rechazados: [] });
+    const sndk = (await s.hechos("SNDK", "2026-01-01"))[0]!;
+    expect(sndk).toMatchObject({ tipo: "sector", estado: "verificado" });
+    expect((sndk.valor as { eslabon?: string }).eslabon).toBe("ia.memoria");
+  });
+
+  it("un eslabón que no existe se rechaza con su motivo y el índice del archivo, sin frenar al resto", async () => {
+    const s = new MemoryStore();
+    const r = await importarHechos(s, { hechos: [porEslabon("ia.inventado"), porEslabon("ia.memoria")] }, { ...o, cadenas });
+    expect(r.guardados).toBe(3);
+    expect(r.rechazados).toEqual([{ indice: 0, motivo: 'el eslabón "ia.inventado" no existe en config/cadenas.json' }]);
+  });
+
+  it("sin el mapa cargado, el hecho por eslabón se rechaza: nunca se adivina a quién le toca", async () => {
+    const r = await importarHechos(new MemoryStore(), [porEslabon("ia.memoria")], o);
+    expect(r.guardados).toBe(0);
+    expect(r.rechazados[0]!.motivo).toMatch(/sin config\/cadenas\.json/);
+  });
+});

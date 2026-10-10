@@ -193,7 +193,7 @@ await withUsageStep({ step: STEP[cmd ?? ""] ?? "cli" }, async () => {
       const origen = args[args.indexOf("--origen") + 1] === "manual" ? "manual" : "agente";
       // pnpm exec corre desde apps/api: una ruta relativa se toma desde la raíz del repo (pnpm-workspace.yaml).
       const archivoResuelto = path.isAbsolute(archivo) ? archivo : path.resolve(await findRoot(), archivo);
-      const r = await importarHechos(c.store, JSON.parse(await readFile(archivoResuelto, "utf8")), { hostsPrimarios: cfg.radar.hechosFuentes, origen, detectadoAt: new Date().toISOString() });
+      const r = await importarHechos(c.store, JSON.parse(await readFile(archivoResuelto, "utf8")), { hostsPrimarios: cfg.radar.hechosFuentes, origen, detectadoAt: new Date().toISOString(), cadenas: cfg.radar.cadenas });
       console.log(JSON.stringify(r, null, 2));
       if (r.guardados === 0) code = 1;
     }

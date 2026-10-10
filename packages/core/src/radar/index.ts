@@ -32,3 +32,4 @@ export * from "./lider.js";
 export * from "./guardia.js";
 export * from "./simulacion.js";
 export * from "./medir-conviccion.js";
+export * from "./cadenas.js";

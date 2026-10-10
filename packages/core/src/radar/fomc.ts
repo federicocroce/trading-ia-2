@@ -8,6 +8,23 @@
  *
  * Sin probabilidad de mercado a propósito: la app no tiene una fuente gratuita y confiable de futuros de la tasa, y
  * esperar hasta 3 días hábiles cuesta poco se espere un cambio o no. Las fechas vienen de `config/fomc.json`.
+ *
+ * MEDIDA el 10/10/2026 (hasta ahí era criterio mío). Velas de la app, 910 acciones de EE.UU., sep-2024 a oct-2026;
+ * fechas oficiales de la Fed (17 decisiones) y del BLS para la inflación (24 publicaciones). Cierre anterior a cierre
+ * del día, ATR de los 14 días previos:
+ *
+ *   día          cae >1 ATR   cae >2 ATR   retorno medio
+ *   normal          12,7%        1,75%        +0,11%
+ *   inflación       13,1%        1,26%        +0,08%
+ *   Fed             18,7%        3,43%        −0,41%
+ *
+ * Son 17 fechas, no 14.000 observaciones (las acciones se mueven juntas). Por fecha: la mediana de acciones que caen
+ * más de 1 ATR es 16% en día de Fed contra 10% en día normal, y 10 de 16 días de Fed quedan arriba de la mediana
+ * normal. Con tasas subiendo es consistente: las cuatro decisiones de abril a septiembre de 2026 cayeron peor que el
+ * 85% de los días normales. La regla se sostiene.
+ *
+ * Y por eso NO hay regla para la inflación: el día del dato no se distingue de un día normal en las acciones que
+ * compra la app. Agregarla sería frenar sin evidencia.
  */
 export const FOMC_WINDOW_BUSINESS_DAYS = 3;
 

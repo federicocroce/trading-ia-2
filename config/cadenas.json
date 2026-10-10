@@ -1,0 +1,473 @@
+{
+  "revisado": "2026-10-10",
+  "nota": "Tema → eslabón → acciones (10/10). Un hecho con fuente primaria sobre un eslabón se expande a sus acciones al importarlo: la app las evalúa aunque el puntaje no las elija. Cambia poco: revisar a mano. Un símbolo puede estar en más de un eslabón. Sacados el 10/10 por no ser evaluables en el universo: BG (error del barrido), CRESY, DNN y LAC (excluidos por la barra de calidad); la puerta no puede rescatar a un excluido.",
+  "cadenas": [
+    {
+      "id": "ia",
+      "nombre": "Inteligencia artificial",
+      "eslabones": [
+        {
+          "id": "ia.chips",
+          "nombre": "chips de IA",
+          "simbolos": [
+            "NVDA",
+            "AMD",
+            "AVGO",
+            "MRVL",
+            "ARM",
+            "TSM"
+          ]
+        },
+        {
+          "id": "ia.memoria",
+          "nombre": "memoria",
+          "simbolos": [
+            "MU",
+            "SNDK",
+            "WDC",
+            "STX"
+          ]
+        },
+        {
+          "id": "ia.equipos_semis",
+          "nombre": "equipos y empaquetado de semiconductores",
+          "simbolos": [
+            "AMAT",
+            "LRCX",
+            "KLAC",
+            "ASML",
+            "TER",
+            "ONTO",
+            "CAMT",
+            "KLIC",
+            "ACLS",
+            "AMKR"
+          ]
+        },
+        {
+          "id": "ia.redes",
+          "nombre": "redes y óptica para datacenters",
+          "simbolos": [
+            "ANET",
+            "CIEN",
+            "COHR",
+            "LITE",
+            "CRDO",
+            "ALAB"
+          ]
+        },
+        {
+          "id": "ia.servidores",
+          "nombre": "servidores y ensamblado",
+          "simbolos": [
+            "SMCI",
+            "DELL",
+            "JBL",
+            "CLS",
+            "FLEX",
+            "HPE"
+          ]
+        },
+        {
+          "id": "ia.infra_electrica",
+          "nombre": "equipos eléctricos y enfriamiento de datacenters",
+          "simbolos": [
+            "VRT",
+            "ETN",
+            "GEV",
+            "PWR",
+            "EME",
+            "HUBB",
+            "NVT",
+            "MOD"
+          ]
+        },
+        {
+          "id": "ia.generacion",
+          "nombre": "generación eléctrica para datacenters",
+          "simbolos": [
+            "VST",
+            "CEG",
+            "NRG",
+            "TLN"
+          ]
+        },
+        {
+          "id": "ia.operadores",
+          "nombre": "operadores de datacenters",
+          "simbolos": [
+            "EQIX",
+            "DLR",
+            "CRWV",
+            "CORZ",
+            "APLD",
+            "IREN",
+            "HUT"
+          ]
+        },
+        {
+          "id": "ia.cobre",
+          "nombre": "cobre",
+          "simbolos": [
+            "FCX",
+            "SCCO",
+            "TECK"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "petroleo",
+      "nombre": "Petróleo y Ormuz",
+      "eslabones": [
+        {
+          "id": "petroleo.productores_eeuu",
+          "nombre": "productores de petróleo de EE.UU.",
+          "simbolos": [
+            "XOM",
+            "CVX",
+            "COP",
+            "EOG",
+            "OXY",
+            "DVN",
+            "FANG"
+          ]
+        },
+        {
+          "id": "petroleo.argentina",
+          "nombre": "petroleras argentinas",
+          "simbolos": [
+            "YPF",
+            "VIST",
+            "PAM"
+          ]
+        },
+        {
+          "id": "petroleo.refinadoras",
+          "nombre": "refinadoras",
+          "simbolos": [
+            "VLO",
+            "MPC",
+            "PSX"
+          ]
+        },
+        {
+          "id": "petroleo.tanqueros_crudo",
+          "nombre": "tanqueros de crudo",
+          "simbolos": [
+            "FRO",
+            "DHT",
+            "INSW",
+            "TNK",
+            "NAT",
+            "CMBT"
+          ]
+        },
+        {
+          "id": "petroleo.tanqueros_productos",
+          "nombre": "tanqueros de productos",
+          "simbolos": [
+            "STNG",
+            "TRMD",
+            "HAFN",
+            "ASC"
+          ]
+        },
+        {
+          "id": "petroleo.servicios",
+          "nombre": "servicios petroleros",
+          "simbolos": [
+            "SLB",
+            "HAL",
+            "BKR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gas",
+      "nombre": "Gas natural",
+      "eslabones": [
+        {
+          "id": "gas.productores",
+          "nombre": "productores de gas",
+          "simbolos": [
+            "EQT",
+            "AR",
+            "RRC",
+            "CNX",
+            "EXE"
+          ]
+        },
+        {
+          "id": "gas.gnl",
+          "nombre": "exportadores de GNL",
+          "simbolos": [
+            "LNG"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "defensa",
+      "nombre": "Defensa",
+      "eslabones": [
+        {
+          "id": "defensa.contratistas",
+          "nombre": "contratistas de defensa",
+          "simbolos": [
+            "LMT",
+            "RTX",
+            "NOC",
+            "GD",
+            "LHX",
+            "HII",
+            "KTOS",
+            "AVAV",
+            "LDOS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nuclear",
+      "nombre": "Nuclear",
+      "eslabones": [
+        {
+          "id": "nuclear.combustible",
+          "nombre": "uranio y combustible",
+          "simbolos": [
+            "CCJ",
+            "UEC",
+            "NXE",
+            "LEU"
+          ]
+        },
+        {
+          "id": "nuclear.reactores",
+          "nombre": "reactores",
+          "simbolos": [
+            "SMR",
+            "OKLO",
+            "BWXT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "minerales",
+      "nombre": "Minerales críticos",
+      "eslabones": [
+        {
+          "id": "minerales.tierras_raras_litio",
+          "nombre": "tierras raras, imanes y litio",
+          "simbolos": [
+            "MP",
+            "USAR",
+            "ALB",
+            "SQM"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "robotica",
+      "nombre": "Robótica",
+      "eslabones": [
+        {
+          "id": "robotica.automatizacion",
+          "nombre": "robots y automatización",
+          "simbolos": [
+            "ISRG",
+            "SYM",
+            "ROK",
+            "CGNX",
+            "NDSN"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "metales",
+      "nombre": "Oro y plata",
+      "eslabones": [
+        {
+          "id": "metales.oro",
+          "nombre": "mineras de oro",
+          "simbolos": [
+            "NEM",
+            "AEM",
+            "AGI",
+            "KGC",
+            "AU",
+            "GFI",
+            "HMY"
+          ]
+        },
+        {
+          "id": "metales.plata_regalias",
+          "nombre": "plata y regalías",
+          "simbolos": [
+            "PAAS",
+            "WPM",
+            "FNV",
+            "HL"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "japon",
+      "nombre": "Japón",
+      "eslabones": [
+        {
+          "id": "japon.bancos",
+          "nombre": "bancos japoneses",
+          "simbolos": [
+            "MUFG",
+            "SMFG",
+            "MFG"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "salud",
+      "nombre": "Salud",
+      "eslabones": [
+        {
+          "id": "salud.farma_grande",
+          "nombre": "farmacéuticas grandes",
+          "simbolos": [
+            "LLY",
+            "PFE",
+            "BMY",
+            "GILD",
+            "MRK",
+            "ABBV",
+            "AMGN"
+          ]
+        },
+        {
+          "id": "salud.cro",
+          "nombre": "investigación clínica (CRO)",
+          "simbolos": [
+            "MEDP",
+            "ICLR",
+            "IQV",
+            "CRL"
+          ]
+        },
+        {
+          "id": "salud.aseguradoras",
+          "nombre": "aseguradoras de salud",
+          "simbolos": [
+            "UNH",
+            "CVS",
+            "CI",
+            "ELV",
+            "HUM"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "software",
+      "nombre": "Software",
+      "eslabones": [
+        {
+          "id": "software.suscripcion",
+          "nombre": "software por suscripción",
+          "simbolos": [
+            "NOW",
+            "CRM",
+            "WDAY",
+            "HUBS",
+            "ADBE",
+            "INTU",
+            "TEAM"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reaseguro",
+      "nombre": "Reaseguro",
+      "eslabones": [
+        {
+          "id": "reaseguro.catastrofe",
+          "nombre": "reaseguro de catástrofe",
+          "simbolos": [
+            "RNR",
+            "EG",
+            "ACGL",
+            "AXS",
+            "MKL",
+            "SPNT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "agro",
+      "nombre": "Agro",
+      "eslabones": [
+        {
+          "id": "agro.fertilizantes",
+          "nombre": "fertilizantes",
+          "simbolos": [
+            "CF",
+            "MOS",
+            "NTR"
+          ]
+        },
+        {
+          "id": "agro.productores",
+          "nombre": "productores y acopiadores",
+          "simbolos": [
+            "ADM"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "consumo",
+      "nombre": "Consumo importado",
+      "eslabones": [
+        {
+          "id": "consumo.importadores",
+          "nombre": "minoristas importadores",
+          "simbolos": [
+            "HAS",
+            "CROX",
+            "FIVE",
+            "DLTR",
+            "DG",
+            "WSM",
+            "RH",
+            "MAT",
+            "DECK"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bitcoin",
+      "nombre": "Bitcoin",
+      "eslabones": [
+        {
+          "id": "bitcoin.mineras",
+          "nombre": "mineras y tenedores de bitcoin",
+          "simbolos": [
+            "MARA",
+            "HUT",
+            "RIOT",
+            "CLSK",
+            "COIN",
+            "MSTR"
+          ]
+        }
+      ]
+    }
+  ]
+}

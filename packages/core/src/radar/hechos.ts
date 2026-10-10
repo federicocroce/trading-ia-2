@@ -63,6 +63,11 @@ export const SectorValorSchema = z.object({
   sesgo: z.enum(["a_favor", "en_contra"]),
   /** Nombre corto del sector o tema, para poder agrupar y auditar (p. ej. "reaseguro", "aranceles", "gas natural"). */
   ambito: z.string().min(1).max(60),
+  /**
+   * El eslabón de `config/cadenas.json` al que se le cargó (10/10), p. ej. "ia.memoria". Lo pone el importador al
+   * expandir un hecho escrito sobre un eslabón; sirve para que la ficha diga por qué la app miró esta acción.
+   */
+  eslabon: z.string().max(60).optional(),
 });
 
 const comun = { symbol: simbolo, fecha: fechaIso, fuente: FuenteSchema };
@@ -81,8 +86,15 @@ export type HechoExterno = HechoEntrada & { primaria: boolean; estado: "verifica
 /** Cuánto dura cada tipo de hecho. Una oferta firmada hace meses sigue fijando el precio (AES: 400 días, como EDGAR). */
 export const VENTANAS_DIAS: Record<HechoTipo, number> = { guia: 90, ganancia_por_reservas: 120, ganancia_extraordinaria: 120, oferta_de_compra: 400, investigacion_regulatoria: 365, evento_de_capital: 400, sector: 180 };
 export const VENTANA_MAXIMA_DIAS = 400;
-/** La puerta de entrada al ranking: como mucho estos símbolos, los más recientes. */
-export const PUERTA_TOPE = 20;
+/**
+ * La puerta de entrada al ranking: como mucho estos símbolos, los más recientes.
+ *
+ * 60 desde el 10/10 (era 20). Con 20, la carga del 8/10 dejó 23 candidatos y expulsó a GEV, NAT y TNK, con el corte
+ * entre los del mismo día decidido por orden alfabético. Y desde que un hecho se escribe sobre un eslabón y se expande
+ * a sus acciones, un solo hecho abre hasta 10 puertas. La puerta solo agrega candidatas a EVALUAR: cada una pasa por
+ * las mismas reglas, y si no es COMPRAR no ocupa fila. Cuesta velas y una evaluación por símbolo.
+ */
+export const PUERTA_TOPE = 60;
 const DAY = 86_400_000;
 /** Cuántos días después del evento de capital sigue la marca. */
 export const EVENTO_DIAS_DESPUES = 3;
@@ -137,7 +149,7 @@ export function textoDeHecho(h: HechoExterno): string {
     return `investigación ${h.valor.estado} de ${quienes} (${h.valor.asunto}); la empresa ${h.valor.empresaAcusada ? "está acusada" : "no está acusada"}`;
   }
   if (h.tipo === "sector") {
-    return `${h.valor.ambito}: ${h.valor.titulo} (${h.valor.sesgo === "en_contra" ? "en contra" : "a favor"})`;
+    return `${h.valor.ambito}${h.valor.eslabon ? ` [${h.valor.eslabon}]` : ""}: ${h.valor.titulo} (${h.valor.sesgo === "en_contra" ? "en contra" : "a favor"})`;
   }
   const v = h.valor;
   if (v.ratio) return `vale ${coma(v.ratio.acciones)} acciones de ${v.ratio.de} (${v.comprador}, ${v.etapa})`;

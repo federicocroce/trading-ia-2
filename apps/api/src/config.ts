@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { ArgentinaConfigSchema, EtfConfigSchema, RadarPolicySchema, TaxonomyConfigSchema, type ArgentinaConfig, type EtfConfig, type RadarPolicy, type TaxonomyConfig } from "@thesis/core";
+import { ArgentinaConfigSchema, EtfConfigSchema, RadarPolicySchema, TaxonomyConfigSchema, type ArgentinaConfig, type EtfConfig, type RadarPolicy, type TaxonomyConfig, CadenasSchema, type Cadenas } from "@thesis/core";
 
 /** Configuración desde env + universe.json. Sin valores secretos hardcodeados. */
 export interface Config {
@@ -102,6 +102,8 @@ export interface RadarConfig {
   fomc: string[];
   /** Hosts cuya URL vale como fuente primaria de un hecho externo (config/hechos-fuentes.json): reguladores y cables de comunicados. */
   hechosFuentes: string[];
+  /** Tema → eslabón → acciones (config/cadenas.json, 10/10): expande los hechos escritos sobre un eslabón. */
+  cadenas: Cadenas;
   /** Topes diarios del agente de verificación (config/verificacion-agente.json, 22/9). */
   agente: { topeVerificaciones: number; topeRevisiones: number };
 }
@@ -120,6 +122,7 @@ export async function loadRadarConfig(root: string): Promise<RadarConfig> {
     argentina: ArgentinaConfigSchema.parse(await read("argentina.json")),
     fomc: FomcSchema.parse(await read("fomc.json")).decisiones,
     hechosFuentes: HechosFuentesSchema.parse(await read("hechos-fuentes.json")).hostsPrimarios,
+    cadenas: CadenasSchema.parse(await read("cadenas.json")),
     agente: AgenteSchema.parse(await read("verificacion-agente.json")),
   };
 }
